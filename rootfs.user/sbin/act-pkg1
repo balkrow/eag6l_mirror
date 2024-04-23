@@ -1,0 +1,32 @@
+#!/bin/sh
+#ARG1:slot_name
+#ARG2:cell_num
+
+TEMP_PATH="/tmp"
+CELL1_CHECK_FILE=".c1_upgrading_software"
+CELL2_CHECK_FILE=".c2_upgrading_software"
+
+SWM_INVENTORY_RUNNING_FILE="RUNNING"
+SWM_INVENTORY_PATH="/fhm/system/pkg/"
+
+find ${SWM_INVENTORY_PATH}/$1 | grep ${SWM_INVENTORY_RUNNING_FILE};
+if [ $? == 0 ]; then
+logger -p daemon.err SWM_ACTIVATION_APPLICATION_ERROR : [ UPGRADE RUNNING SLOT ];
+/sbin/sysd-util -m "SWM_ACTIVATION_APPLICATION_ERROR" -a $2 -s $1 -d "Can't upgrade running slot";
+exit 1; fi;
+
+if [ $2 == 0 ]; then
+	logger -p daemon.info [CELL1] SWM_ACTIVE_START;
+    find ${TEMP_PATH} | grep ${CELL2_CHECK_FILE};
+elif [ $2 == 1 ]; then
+	logger -p daemon.info [CELL2] SWM_ACTIVE_START;
+    find ${TEMP_PATH} | grep ${CELL1_CHECK_FILE};
+fi
+
+if [ $? == 0 ]; then
+    logger -p err SWM_ACTIVATION_APPLICATION_ERROR : [ ALREADY PROGRESSING IN ANOTHER CELL ];
+    /sbin/sysd-util -m "SWM_ACTIVATION_APPLICATION_ERROR" -a $2 -s $1 -d "Another CELL is already upgrading";
+exit 1; fi;
+
+logger -p daemon.info SWM_ACTIVE_START [ OFIU ];
+/sbin/sysd-util -m "SWM_ACTIVATION_COMPLETED" -a $2 -s $1;

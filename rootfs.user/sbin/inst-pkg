@@ -1,0 +1,103 @@
+#!/bin/sh
+# ARG1:slot_name
+# ARG2:file_name
+# ARG3:cell_num
+
+sleep 1;
+echo ">>> inst-pkg argc : ${#}, argv : ${@}";
+
+SWM_TEMPERARY_DOWNLOAD_PATH="/tmp/pkg/"
+SWM_INVENTORY_PATH="/fhm/system/pkg/"
+SWM_INVENTORY_VALID_FILE="VALID"
+SWM_BOOT_PATH="/mnt/flash/boot/"
+SWM_PKG_FILE="HN-FHM.zip"
+SWM_INVENTORY_RUNNING_FILE="RUNNING"
+
+TEMP_PATH="/tmp"
+CELL1_CHECK_FILE=".c1_upgrading_software"
+CELL2_CHECK_FILE=".c2_upgrading_software"
+
+find ${SWM_INVENTORY_PATH}/$1 | grep ${SWM_INVENTORY_RUNNING_FILE};
+if [ $? == 0 ]; then
+logger -p daemon.err SWM_INSTALL_APPLICATION_ERROR : [ UPGRADE RUNNING SLOT ];
+/sbin/sysd-util -m "SWM_INSTALL_APPLICATION_ERROR" -a $3 -s $1 -d "Can't upgrade running slot";
+exit 1; fi;
+
+if [ $3 == 0 ]; then
+	logger -p daemon.info [CELL1] SWM_INSTALL_START;
+    find ${TEMP_PATH} | grep ${CELL2_CHECK_FILE};
+elif [ $3 == 1 ]; then
+	logger -p daemon.info [CELL2] SWM_INSTALL_START;
+    find ${TEMP_PATH} | grep ${CELL1_CHECK_FILE};
+fi
+
+if [ $? == 0 ]; then
+    logger -p daemon.err SWM_INSTALL_APPLICATION_ERROR : [ ALREADY PROGRESSING IN ANOTHER CELL ];
+    /sbin/sysd-util -m "SWM_INSTALL_APPLICATION_ERROR" -a $3 -s $1 -d "Another CELL is already upgrading";
+exit 1; fi;
+
+if [ $# == 1 ]; then
+	FILE_NAME=`ls /tmp/pkg/ | grep HN-FHM- | grep zip | awk 'NR==1{print $1}'`
+elif [ $# == 3 ]; then
+	FILE_NAME=$2
+	if [ ! -e ${SWM_TEMPERARY_DOWNLOAD_PATH}/$2 ]; then
+		logger -p daemon.err [$1]SWM_INSTALL_FILE_ERROR : [ File not found ];
+		/sbin/sysd-util -m "SWM_INSTALL_FILE_ERROR" -a $3 -s $1; 
+		exit 1;
+	fi
+else 
+	logger -p daemon.err [$1]SWM_INSTALL_FILE_ERROR;
+	/sbin/sysd-util -m "SWM_INSTALL_FILE_ERROR" -a $3 -s $1 -d "Wrong parameter"; 
+	exit 1; 
+fi
+
+case $1 in
+slot0)
+	;;
+slot1)
+	;;
+*)
+	logger -p daemon.err [$1]SWM_INSTALL_FILE_ERROR : [Wrong slot_name];
+	/sbin/sysd-util -m "SWM_INSTALL_FILE_ERROR" -a $3 -s $1; 
+	exit 1; 
+	;;
+esac
+
+rm -rf ${SWM_INVENTORY_PATH}/$1;
+mkdir -p ${SWM_INVENTORY_PATH}/$1;
+cp -f ${SWM_TEMPERARY_DOWNLOAD_PATH}/$FILE_NAME  ${SWM_INVENTORY_PATH}/$1;
+if [ $? != 0 ]; then 
+logger -p daemon.err [$1]SWM_INSTALL_FILE_ERROR : [ Copy fail ];
+/sbin/sysd-util -m "SWM_INSTALL_FILE_ERROR" -a $3 -s $1; 
+exit 1; fi;
+
+unzip -o ${SWM_INVENTORY_PATH}/$1/$FILE_NAME -d ${SWM_INVENTORY_PATH}/$1 ;
+if [ $? != 0 ]; then 
+logger -p daemon.err [$1]SWM_INSTALL_INTEGRITY_ERROR : [ Unzip fail ];
+/sbin/sysd-util -m "SWM_INSTALL_INTEGRITY_ERROR" -a $3 -s $1; 
+exit 1; fi;
+unzip -o ${SWM_INVENTORY_PATH}/$1/${SWM_PKG_FILE} -d ${SWM_INVENTORY_PATH}/$1 ;
+if [ $? != 0 ]; then 
+logger -p daemon.err [$1]SWM_INSTALL_INTEGRITY_ERROR : [ Unzip fail ];
+/sbin/sysd-util -m "SWM_INSTALL_INTEGRITY_ERROR" -a $3 -s $1; 
+exit 1; fi;
+
+rm -f ${SWM_TEMPERARY_DOWNLOAD_PATH}/$FILE_NAME ;
+cp -f  ${SWM_INVENTORY_PATH}/$1/start.sh ${SWM_INVENTORY_PATH}/../ ;
+touch  ${SWM_INVENTORY_PATH}/$1/${SWM_INVENTORY_VALID_FILE} ;
+
+:<<'END'
+IMAGE_NAME=`ls /fhm/system/pkg/$1/ | grep fhm-ociu- | grep bin | awk 'NR==1{print $1}'` 
+
+# For flash boot --------
+rm -rf ${SWM_BOOT_PATH}/*;
+cp -f ${SWM_INVENTORY_PATH}/$1/${IMAGE_NAME}  ${SWM_BOOT_PATH};
+sleep 3;
+END
+
+sync;
+sleep 11;
+
+logger -p daemon.info [$1]SWM_INSTALL_COMPLETED;
+/sbin/sysd-util -m "SWM_INSTALL_COMPLETED" -a $3 -s $1;
+exit 0;

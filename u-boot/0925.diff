@@ -1,0 +1,209 @@
+diff --git a/arch/arm/dts/ls1021a-tsn.dts b/arch/arm/dts/ls1021a-tsn.dts
+index d7d87fe..86ce971 100644
+--- a/arch/arm/dts/ls1021a-tsn.dts
++++ b/arch/arm/dts/ls1021a-tsn.dts
+@@ -17,10 +17,6 @@
+ 		eth0 = &enet0;
+ 		eth1 = &enet1;
+ 		eth2 = &enet2;
+-		eth3 = &swp2;
+-		eth4 = &swp3;
+-		eth5 = &swp4;
+-		eth6 = &swp5;
+ 	};
+ };
+ 
+@@ -28,68 +24,6 @@
+ 	bus-num = <0>;
+ 	status = "okay";
+ 
+-	sja1105: ethernet-switch@1 {
+-		reg = <0x1>;
+-		#address-cells = <1>;
+-		#size-cells = <0>;
+-		compatible = "nxp,sja1105t";
+-		/* 12 MHz */
+-		spi-max-frequency = <12000000>;
+-		/* Sample data on trailing clock edge */
+-		spi-cpha;
+-		/* SPI controller settings for SJA1105 timing requirements */
+-		fsl,spi-cs-sck-delay = <1000>;
+-		fsl,spi-sck-cs-delay = <1000>;
+-
+-		ports {
+-			#address-cells = <1>;
+-			#size-cells = <0>;
+-
+-			swp5: port@0 {
+-				/* ETH5 written on chassis */
+-				label = "swp5";
+-				phy-handle = <&rgmii_phy6>;
+-				phy-mode = "rgmii-id";
+-				reg = <0>;
+-			};
+-
+-			swp2: port@1 {
+-				/* ETH2 written on chassis */
+-				label = "swp2";
+-				phy-handle = <&rgmii_phy3>;
+-				phy-mode = "rgmii-id";
+-				reg = <1>;
+-			};
+-
+-			swp3: port@2 {
+-				/* ETH3 written on chassis */
+-				label = "swp3";
+-				phy-handle = <&rgmii_phy4>;
+-				phy-mode = "rgmii-id";
+-				reg = <2>;
+-			};
+-
+-			swp4: port@3 {
+-				/* ETH4 written on chassis */
+-				label = "swp4";
+-				phy-handle = <&rgmii_phy5>;
+-				phy-mode = "rgmii-id";
+-				reg = <3>;
+-			};
+-
+-			port@4 {
+-				/* Internal port connected to eth2 */
+-				ethernet = <&enet2>;
+-				phy-mode = "rgmii";
+-				reg = <4>;
+-
+-				fixed-link {
+-					speed = <1000>;
+-					full-duplex;
+-				};
+-			};
+-		};
+-	};
+ };
+ 
+ &enet0 {
+@@ -108,13 +42,9 @@
+ 
+ /* RGMII delays added via PCB traces */
+ &enet2 {
+-	phy-mode = "rgmii";
++	phy-mode = "rgmii-id";
++	phy-handle = <&rgmii_phy3>;
+ 	status = "okay";
+-
+-	fixed-link {
+-		speed = <1000>;
+-		full-duplex;
+-	};
+ };
+ 
+ &i2c0 {
+diff --git a/arch/arm/lib/bootm.c b/arch/arm/lib/bootm.c
+index 16ae08b..44db014 100644
+--- a/arch/arm/lib/bootm.c
++++ b/arch/arm/lib/bootm.c
+@@ -12,6 +12,8 @@
+  *
+  * Copyright 2017,2019-2020 NXP
+  */
++/*add by balkrow*/
++#define DEBUG 1
+ 
+ #include <common.h>
+ #include <command.h>
+@@ -35,6 +37,7 @@
+ #endif
+ #include <asm/setup.h>
+ 
++
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+ static struct tag *params;
+@@ -230,7 +233,9 @@ static void do_nonsec_virt_switch(void)
+ static void boot_prep_linux(bootm_headers_t *images)
+ {
+ 	char *commandline = env_get("bootargs");
+-
++#if 1/*debug by balkrow*/
++	printf("cmdline=%s\n", commandline);
++#endif
+ 	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len) {
+ #ifdef CONFIG_OF_LIBFDT
+ 		debug("using: FDT\n");
+@@ -393,6 +398,7 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
+ 	else
+ 		r2 = gd->bd->bi_boot_params;
+ 
++			printf("machid=%x, r2=%x, fake=%x\n", machid, r2, fake);
+ 	if (!fake) {
+ #ifdef CONFIG_ARMV7_NONSEC
+ 		if (armv7_boot_nonsec()) {
+diff --git a/common/bootm.c b/common/bootm.c
+index 02295da..6aa9213 100644
+--- a/common/bootm.c
++++ b/common/bootm.c
+@@ -317,7 +317,7 @@ static int handle_decomp_error(int comp_type, size_t uncomp_size, int ret)
+ 		return BOOTM_ERR_UNIMPLEMENTED;
+ 
+ 	if (uncomp_size >= CONFIG_SYS_BOOTM_LEN)
+-		printf("Image too large: increase CONFIG_SYS_BOOTM_LEN\n");
++		printf("Image too large: increase CONFIG_SYS_BOOTM_LEN(%x,%x)\n", uncomp_size, CONFIG_SYS_BOOTM_LEN);
+ 	else
+ 		printf("%s: uncompress error %d\n", name, ret);
+ 
+diff --git a/configs/ls1021atsn_qspi_defconfig b/configs/ls1021atsn_qspi_defconfig
+index 62859c5..6efaa05 100644
+--- a/configs/ls1021atsn_qspi_defconfig
++++ b/configs/ls1021atsn_qspi_defconfig
+@@ -19,7 +19,6 @@ CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_SF=y
+-CONFIG_CMD_USB=y
+ CONFIG_CMD_FS_UUID=y
+ CONFIG_OF_CONTROL=y
+ CONFIG_DEFAULT_DEVICE_TREE="ls1021a-tsn"
+@@ -34,8 +33,7 @@ CONFIG_SPI_FLASH_ATMEL=y
+ CONFIG_SPI_FLASH_SPANSION=y
+ CONFIG_SPI_FLASH_STMICRO=y
+ CONFIG_SPI_FLASH_DATAFLASH=y
+-CONFIG_PHY_ATHEROS=y
+-CONFIG_PHY_BROADCOM=y
++CONFIG_PHY_REALTEK=y
+ CONFIG_PHY_FIXED=y
+ CONFIG_NET_RANDOM_ETHADDR=y
+ CONFIG_DM_ETH=y
+@@ -54,9 +52,5 @@ CONFIG_SPI=y
+ CONFIG_DM_SPI=y
+ CONFIG_FSL_DSPI=y
+ CONFIG_FSL_QSPI=y
+-CONFIG_USB=y
+-CONFIG_DM_USB=y
+-CONFIG_USB_XHCI_HCD=y
+-CONFIG_USB_XHCI_DWC3=y
+ CONFIG_DM_I2C=y
+ CONFIG_DM_GPIO=y
+diff --git a/include/configs/ls1021atsn.h b/include/configs/ls1021atsn.h
+index 476f6ae..3b8ce0c 100644
+--- a/include/configs/ls1021atsn.h
++++ b/include/configs/ls1021atsn.h
+@@ -147,7 +147,6 @@
+ 
+ #define BOOT_TARGET_DEVICES(func) \
+ 	func(MMC, mmc, 0) \
+-	func(USB, usb, 0) \
+ 	func(DHCP, dhcp, na)
+ #include <config_distro_bootcmd.h>
+ 
+@@ -237,6 +236,11 @@
+ #define CONFIG_SYS_MONITOR_BASE CONFIG_SYS_TEXT_BASE    /* start of monitor */
+ #endif
+ 
++#if 1
++#define CONFIG_U_QE
++#define CONFIG_SYS_QE_FW_ADDR     0x40940000
++#endif
++
+ /* Environment */
+ #define CONFIG_ENV_OVERWRITE
+ 

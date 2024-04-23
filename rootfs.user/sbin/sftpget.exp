@@ -1,0 +1,93 @@
+#!/sbin/expect -f
+set USER [lindex $argv 0]
+set PASS [lindex $argv 1]
+set HOST [lindex $argv 2]
+set FILE [lindex $argv 3]
+set DEST [lindex $argv 4]
+set PORT [lindex $argv 5]
+system "ssh-keygen -R $HOST"
+set timeout 120
+log_file  /var/log/expect.log
+send_log "[timestamp -format %Y/%m/%d-%X]\n"
+#spawn sftp -o ConnectTimeout=120 -o ServerAliveInterval=1 -o ServerAliveCountMax=120 -oKexAlgorithms=+diffie-hellman-group1-sha1 -P $PORT  $USER@$HOST
+spawn sftp -o ConnectTimeout=120 -o ServerAliveInterval=1 -o ServerAliveCountMax=120 -P $PORT  $USER@$HOST
+
+if { $PASS != "------" } {
+	expect -re "yes/no" { 
+				send "yes\r"
+				exp_continue
+		} -re "assword:" { 
+				send "$PASS\r"
+		} -re "sftp>"  {
+				send "\r" 
+		} -re "timed" {
+				system "logger -p daemon.err %SFTP $USER@$HOST Connection reset by peer "
+				exit 3
+		} timeout {
+		        system "logger -p daemon.err %SFTP $USER@$HOST Connection timed out "
+		        exit 5
+		} 
+
+	expect -re "sftp>"  {
+				send "get $FILE $DEST\r" 
+		} -re "Timeout" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST Connection timed out "
+				exit 2
+		}  -re "timed" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST Connection reset by peer"
+				exit 3
+		} -re "denied" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST Permission denied "
+				exit 4
+		} timeout {
+				system "logger -p daemon.err %SFTP $USER@$HOST Connection timed out "
+		        exit 5
+		} 	
+
+	expect -re "100%" {
+				send "quit\n"
+		} -re "sftp>" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST file not found"
+				exit 7
+		} -re "Timeout" { 
+			system "logger -p daemon.err %SFTP $USER@$HOST Connection data timed out "
+				exit 6
+		}  -re "timed" { 
+			system "logger -p daemon.err %SFTP $USER@$HOST Connection data timed out "
+				exit 6
+		} 
+
+} else {
+
+	expect -re "sftp>"  {
+				send "get $FILE $DEST\r" 
+		} -re "Timeout" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST Connection timed out "
+				exit 2
+		}  -re "timed" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST Connection reset by peer"
+				exit 3
+		} -re "denied" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST Permission denied "
+				exit 4
+		} timeout {
+		        system "logger -p daemon.err %SFTP $USER@$HOST Connection timed out "
+		        exit 5
+		} 	
+#expect "sftp>" { send "get $FILE $DEST\r" }
+	expect -re "100" {
+				send "quit\n" 
+		} -re "sftp>" { 
+				system "logger -p daemon.err %SFTP $USER@$HOST file not found"
+				exit 7
+		} -re "Timeout" { 
+			system "logger -p daemon.err %SFTP $USER@$HOST Connection data timed out "
+				exit 6
+		}  -re "timed" { 
+			system "logger -p daemon.err %SFTP $USER@$HOST Connection data timed out "
+				exit 6
+		} 
+}
+#expect "sftp>" { send "quit\r" }
+#interact
+ exit 0

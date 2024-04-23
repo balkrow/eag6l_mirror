@@ -1,0 +1,27 @@
+#!/bin/sh
+# ARG1: ip_address
+# ARG2: filepath/filename
+
+sleep 1;
+echo ">>> conf-backup argc : ${#}, argv : ${@}";
+logger -p daemon.info TFTP_CONF_RESTORE_START;
+
+FHM_CONF_FILE_PATH="/mnt/flash/conf/FHM.conf"
+
+if [ ${#} != 2 ]; then
+    logger -p daemon.err CONF_RESTORE_ERROR : [ WRONG PARAMETER ];
+    echo 1 > /tmp/.config_backup_restore_fail;
+    exit 1;
+fi
+
+logger -p daemon.info execute [TFTP]CONF_RESTORE;
+busybox tftp -g -l ${FHM_CONF_FILE_PATH} -r $2 $1;
+
+if [ $? != 0 ]; then
+    logger -p daemon.err CONF_RESTORE_ERROR : [TFTP GET FAIL];
+    echo 9 > /tmp/.config_backup_restore_fail;
+    exit 1;
+fi
+
+echo 0 > /tmp/.config_backup_restore_fail;
+logger -p daemon.info TFTP_CONF_RESTORE_COMPLETE;

@@ -1,0 +1,5 @@
+::sysinit:/etc/rc
+::restart:/etc/init.d/reboot
+::shutdown:/etc/init.d/halt
+::respawn:/sbin/getty -n 0 -t 3600 ttyS0
+

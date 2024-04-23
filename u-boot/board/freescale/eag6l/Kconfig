@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
+if TARGET_EAG6L
+
+config SYS_BOARD
+	default "eag6l"
+
+config SYS_VENDOR
+	default "freescale"
+
+config SYS_SOC
+	default "ls102xa"
+
+config SYS_CONFIG_NAME
+	default "eag6l"
+
+config HFR_USE_EMMC_FLASH
+	bool
+	default 1   
+
+source "board/freescale/common/Kconfig"
+
+endif

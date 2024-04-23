@@ -1,0 +1,39 @@
+#!/usr/bin/expect -f
+
+proc remove_newlines {str} {
+    regsub -all {\r|\n} $str "" str
+    return $str
+}
+
+set timeout 3
+set FPGA [lindex $argv 0]
+set PORT [lindex $argv 1]
+set PASSWORD root
+#system "ssh-keygen -R 192.168.202.$FPGA"
+
+spawn ssh 192.168.202.$FPGA  /usr/sbin/brctl showmacs br_ru$PORT | awk '{if (\$3 == \"no\") print \$2, \$4}'
+
+expect  -re "assword:" {
+        send "$PASSWORD\r"
+        exp_continue;
+    } -re "yes/no" {
+        send "yes\r"
+        exp_continue;
+        } -re "denied" {
+        system "logger -p daemon.err %SSH FPGA$FPGA Permission denied "
+        exit 1;
+        } -re "failed" {
+        system "logger -p daemon.err %FPGA$FPGA read of forward table failed:No such device"
+        exit 1;
+        } timeout {
+        system "logger -p daemon.err %SSH FPGA$FPGA connection timeout "
+        exit 1;
+}
+
+
+log_file -noappend /tmp/FDB/CELL$FPGA/RU$PORT
+
+set result [string range $expect_out(buffer) [expr [string first "\n" $expect_out(buffer)]+1] end]
+set result [string map {\r ""} $result]
+send_log "$result"	
+	

@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree For Ironman without internal PHY.
+ *
+ * Copyright (C) 2023 Marvell
+ *
+ */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Marvell Ironman reference design board
+ * This board file supports the A configuration of the board
+ */
+
+#include "ac5.dtsi"
+
+/ {
+	model = "Marvell EV-RD-DX1508M-8G4XG board";
+};
+
+&usb0 {
+	compatible = "marvell,ac5-ehci", "marvell,orion-ehci";
+};
+
+&nand {
+	status = "disabled";
+};
+
+&sdhci0 {
+		reg = <0x0 0x806D0000 0x0 0x300>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+		bus-width = <8>;
+		// marvell,xenon-phy-slow-mode;
+		non-removable;
+		marvell,pad-type = "fixed-1-8v";
+		marvell,xenon-phy-znr = <0x1F>;
+		marvell,xenon-phy-zpr = <0x1C>;
+		mmc-ddr-1_8v;
+		mmc-hs200-1_8v;
+		mmc-hs400-1_8v;
+};
+
+&i2c0 {
+	interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&i2c1 {
+	interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&spi0 {
+	reg = <0x0 0x806B0000 0x0 0x50>;
+	interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&spi1 {
+	reg = <0x0 0x806B8000 0x0 0x50>;
+	interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+	status = "disabled";
+};
+
+&pcie0 {
+	status = "disabled";
+};
+
+&cnm_clock {
+    clock-frequency = <333000000>;
+};
+

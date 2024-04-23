@@ -1,0 +1,26 @@
+#!/usr/bin/expect                   
+set timeout 60
+set USER [lindex $argv 0]
+set PASSWORD [lindex $argv 1]
+set FPGA_ADDR [lindex $argv 2]
+
+spawn ssh $USER@$FPGA_ADDR
+
+expect  -re "assword:" {
+		send "$PASSWORD\r"
+		exp_continue;
+	} -re "yes/no" {
+		send "yes\r"
+		exp_continue;
+	} -re "NW_OFIU" {
+		send "exit\r"
+	} -re "Host key verification failed" {
+		system "sed -i '/$FPGA_ADDR/d' /mnt/flash/.ssh/known_hosts"
+		system "echo 16 > /tmp/.fpga_upload_fail"
+		exit 1 
+	} timeout {
+		system "logger -p daemon.err %SFTP $USER@$FPGA_ADDR Connection timed out "
+		system "echo 1 > /tmp/.fpga_upload_fail"
+		exit 5 
+}       
+expect EOF      

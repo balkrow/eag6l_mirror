@@ -1,0 +1,11 @@
+#!/bin/sh
+#ARG1:slot_name
+
+SWM_INVENTORY_PATH="/fhm/system/pkg/"
+SWM_INVENTORY_RUNNING_FILE="RUNNING"
+
+flag=$(fw_printenv bootcmd|awk '{print $2}')
+if [ $flag == "boot_nand" ]; then
+find ${SWM_INVENTORY_PATH} -mindepth 2 -maxdepth 2 | grep ${SWM_INVENTORY_RUNNING_FILE} | xargs rm -f;
+touch ${SWM_INVENTORY_PATH}/$1/${SWM_INVENTORY_RUNNING_FILE};
+fi

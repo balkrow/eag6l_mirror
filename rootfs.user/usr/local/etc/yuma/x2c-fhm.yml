@@ -1,0 +1,776 @@
+# edit-config operation
+# C: Create
+# R: Replace
+# M: Merge (Create & Replace)
+# D: Delete
+# =: All
+
+# decimal digit: the priority
+
+# Command flag
+# (no-op): No operation (empty command with no error)
+# (not-support): Print not-support message as an error
+# (end): End of command (No further attached command)
+# (reset): Remove pre-attached command and newly start the command after '(reset)' term.
+# (ctrl): NETCONF internal control command (e.g. running datastore lock / unlock)
+#  - (ctrl:lock)
+#  - (ctrl:unlock)
+#  - (ctrl:timeout:SECONDS) : Set command execution timeout.
+#  - (ctrl:ignore-timeout) : ignore command execution timeout. e.g. system-update
+#  - (ctrl:no-sync) : do not wait for command result.
+
+# <ARG>: argument name
+# <ARG$>: $ is used to read the arguement to the end of the input XPATH. 
+# <ARG^ARG_PATTERN>:
+# - ARG: Argument name
+# - ARG_PATTERN: Argument pattern (regular expression started with '^')
+# <ARG./REFERENCE_DATA_PATH>: The path of the reference data node if not present.
+# <ARG../REFERENCE_DATA_PATH>
+
+
+## BEGIN # system ###############################################
+/flexru-system:
+  /system[carrier=<CARRIER>]: 
+    /layer-usage[layer=<LAYER>]:
+      /layer-usage-info=<USE>:
+        =: ConfSysLayerUsageInfo 2 <LAYER> <USE>
+        D: ConfSysLayerUsageInfo 2 <LAYER> 0
+#    /id=<ID>:
+#      =: ConfSysId 0 <ID>
+#      D: ConfSysId 0 0
+    /pci=<PCIID>:
+      =: ConfSysPci 1 <CARRIER> <PCIID>
+      D: ConfSysPci 1 <CARRIER> 0
+    /cell-id=<CELLID>:
+      =: ConfSysCellId 1 <CARRIER> <CELLID>
+      D: ConfSysCellId 1 <CARRIER> 0
+    /gnb-id=<GNBID>:
+      =: ConfSysGnbId 1 <CARRIER> <GNBID>
+      D: ConfSysGnbId 1 <CARRIER> 0
+    /port-no=<PORTNO>:
+      =: ConfSysPortNo 1 <CARRIER> <PORTNO>
+      D: ConfSysPortNo 1 <CARRIER> 0 
+    /channel-bandwidth=<BANDWIDTH>:
+      =: ConfSysChannelBandwidth 1 <CARRIER> <BANDWIDTH>
+      D: ConfSysChannelBandwidth 1 <CARRIER> 0
+    /center-frequency=<BANDWIDTH>:
+      =: ConfSysCenterFrequency 1 <CARRIER> <BANDWIDTH>
+      D: ConfSysCenterFrequency 1 <CARRIER> 0
+    /case:
+      /case-temperature-max=<THRESHOLD>:
+        =: ConfSysCaseTemperatureMax 0 <THRESHOLD>
+        D: ConfSysCaseTemperatureMax 0 0
+#    /ip-addr:
+#      /ip-address=<IPADDR>:
+#        =: ConfSysIpAddress 0 <IPADDR>
+#        D: ConfSysIpAddress 0 0.0.0.0
+#      /o-du-ip-address=<IPADDR>:
+#          =: ConfSysODUIpAddress 1 <CARRIER> <IPADDR>
+#          D: ConfSysODUIpAddress 1 <CARRIER> 0.0.0.0
+#      /ems-ip-address=<IPADDR>:
+#        =: ConfSysEmsIpAddress 0 <IPADDR>
+#        D: ConfSysEmsIpAddress 0 0.0.0.0
+## END   # system ###############################################
+
+## BEGIN # ietf-system ###############################################
+/system/hostname=<HOSTNAME>:
+    =: ConfSysHostName 0 <HOSTNAME>
+    D: ConfSysHostName 0 0
+/system/description=<DESCRIPTION$>:
+    =: ConfSysDescription 0 <DESCRIPTION>;
+## END   # ietf-system ###############################################
+
+## BEGIN # Amp ##################################################
+#/flexru-amplifier:
+#  /amp[layer=<LAYER>]: 
+#    /pau-on-off=<ONOFF>:
+#      =: ConfAmpPauOnOff 2 <LAYER> <ONOFF>
+#      D: ConfAmpPauOnOff 2 <LAYER> 0
+#    /pau-vendor=<VENDOR>:
+#      =: ConfAmpPauVendor 2 <LAYER> <VENDOR>
+#      D: ConfAmpPauVendor 2 <LAYER> 0
+#    /pau-output=<WATTS>:
+#      =: ConfAmpPauOutput 2 <LAYER> <WATTS>
+#      D: ConfAmpPauOutput 2 <LAYER> 0
+#    /pau-serial-number=<SERIAL>:
+#      =: ConfAmpPauSerialNumber 2 <LAYER> <SERIAL>
+#      D: ConfAmpPauSerialNumber 2 <LAYER> 0
+## END   # Amp ###################################################
+
+## BEGIN # DL/UL #################################################
+/flexru-link:
+  /link[carrier=<CARRIER>]: 
+    /dl[layer=<LAYER>]: 
+      /tssi-max=<THRESHOLD>:
+        =: ConfDownlinkTssiMax 4 <CARRIER> <LAYER> <THRESHOLD>
+        D: ConfDownlinkTssiMax 4 <CARRIER> <LAYER> 0
+      /tssi-min=<THRESHOLD>:
+        =: ConfDownlinkTssiMin 4 <CARRIER> <LAYER> <THRESHOLD>
+        D: ConfDownlinkTssiMin 4 <CARRIER> <LAYER> 0
+      /output-max=<THRESHOLD>:
+        =: ConfDownlinkOutputMax 2 <LAYER> <THRESHOLD>
+        D: ConfDownlinkOutputMax 2 <LAYER> 0
+      /output-min=<THRESHOLD>:
+        =: ConfDownlinkOutputMin 2 <LAYER> <THRESHOLD>
+        D: ConfDownlinkOutputMin 2 <LAYER> 0
+      /atten=<ATTEN>:
+        =: ConfDownlinkAtten 2 <LAYER> <ATTEN>
+        D: ConfDownlinkAtten 2 <LAYER> 0
+      /pau-on-off=<ONOFF>:
+        =: ConfDownlinkPauOnOff 2 <LAYER> <ONOFF>
+        D: ConfDownlinkPauOnOff 2 <LAYER> 0
+    /ul[layer=<LAYER>]:
+      /atten=<ATTEN>:
+        =: ConfUplinkAtten 4 <CARRIER> <LAYER> <ATTEN>
+        D: ConfUplinkAtten 4 <CARRIER> <LAYER> 0
+      /lna-on-off=<ONOFF>:
+        =: ConfUplinkLnaOnOff 2 <LAYER> <ONOFF>
+        D: ConfUplinkLnaOnOff 2 <LAYER> 0
+## END   # DL/UL ##################################################
+
+## BEGIN # DTU & SFP ##############################################
+/flexru-dtu:
+  /dtu[carrier=<CARRIER>]:
+    /sfp[sfp-no=<SFP>]:
+      /ld-power-min=<THRESHOLD>:
+        =: ConfDtuSfpLdPowerMin 5 <CARRIER> <SFP> <THRESHOLD>
+        D: ConfDtuSfpLdPowerMin 5 <CARRIER> <SFP> 0 
+      /pd-power-min=<THRESHOLD>:
+        =: ConfDtuSfpPdPowerMin 5 <CARRIER> <SFP> <THRESHOLD>
+        D: ConfDtuSfpPdPowerMin 5 <CARRIER> <SFP> 0
+      /pd-power-max=<THRESHOLD>:
+        =: ConfDtuSfpPdPowerMax 5 <CARRIER> <SFP> <THRESHOLD>
+        D: ConfDtuSfpPdPowerMax 5 <CARRIER> <SFP> 0
+      /wavelength=<WAVELENGTH>:
+        =: ConfDtuSfpWavelength 5 <CARRIER> <SFP> <WAVELENGTH>
+        D: ConfDtuSfpWavelength 5 <CARRIER> <SFP> 0
+      /bitrate=<BITRATE>:
+        =: ConfDtuSfpBitrate 5 <CARRIER> <SFP> <BITRATE>
+        D: ConfDtuSfpBitrate 5 <CARRIER> <SFP> 0
+      /equipped=<EQUIPPED>:
+        =: ConfDtuSfpEquipped 5 <CARRIER> <SFP> <EQUIPPED>
+        D: ConfDtuSfpEquipped 5 <CARRIER> <SFP> 0
+      /vendor-part-number=<NUMBER>:
+        =: ConfDtuSfpVendorPartNumber 5 <CARRIER> <SFP> <NUMBER>
+        D: ConfDtuSfpVendorPartNumber 5 <CARRIER> <SFP> 0 
+      /bip-error-count=<BIP>:
+        =: ConfDtuBipErrorCount 5 <CARRIER> <SFP> <BIP>
+        D: ConfDtuBipErrorCount 5 <CARRIER> <SFP> 0
+    /dpd[layer=<LAYER>]:
+      /hard-clipping-count-init=<INIT>:
+        =: ConfDtuDpdHardClippingCountInit 2 <LAYER> <INIT>
+        D: ConfDtuDpdHardClippingCountInit 2 <LAYER> 0
+      /dpd-on-off=<ONOFF>:
+        =: ConfDtuDpdOnOff 2 <LAYER> <ONOFF>
+        D: ConfDtuDpdOnOff 2 <LAYER> 0
+## END   # DTU & SFP ##############################################
+
+## BEGIN # Delay management #######################################
+#/flexru-delay-mgmt:
+#  /delay-mgmt[carrier=<CARRIER>]:
+#    /scs=<SCS>:
+#      =: ConfDelayMgmtScs 1 <CARRIER> <SCS>
+#      D: ConfDelayMgmtScs 1 <CARRIER> 0 
+#    /t2a-min-up=<VALUE>:
+#      =: ConfDelayMgmtT2aMinUp 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT2aMinUp 1 <CARRIER> 0
+#    /t2a-max-up=<VALUE>:
+#      =: ConfDelayMgmtT2aMaxUp 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT2aMaxUp 1 <CARRIER> 0
+#    /t2a-min-cp-dl=<VALUE>:
+#      =: ConfDelayMgmtT2aMinCpDl 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT2aMinCpDl 1 <CARRIER> 0
+#    /t2a-max-cp-dl=<VALUE>:
+#      =: ConfDelayMgmtT2aMaxCpDl 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT2aMaxCpDl 1 <CARRIER> 0
+#    /ta3-min=<VALUE>:
+#      =: ConfDelayMgmtTa3Min 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtTa3Min 1 <CARRIER> 0
+#    /ta3-max=<VALUE>:
+#      =: ConfDelayMgmtTa3Max 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtTa3Max 1 <CARRIER> 0
+#    /t2a-min-cp-ul=<VALUE>:
+#      =: ConfDelayMgmtT2aMinCpUl 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT2aMinCpUl 1 <CARRIER> 0
+#    /t2a-max-cp-ul=<VALUE>:
+#      =: ConfDelayMgmtT2aMaxCpUl 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT2aMaxCpUl 1 <CARRIER> 0
+#    /tcp-adv-dl=<VALUE>:
+#      =: ConfDelayMgmtTcpAdvDl 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtTcpAdvDl 1 <CARRIER> 0
+#    /t1a-max-up=<VALUE>:
+#      =: ConfDelayMgmtT1aMaxUp 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT1aMaxUp 1 <CARRIER> 0
+#    /tx-max=<VALUE>:
+#      =: ConfDelayMgmtTxMax 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtTxMax 1 <CARRIER> 0
+#    /ta4-max=<VALUE>:
+#      =: ConfDelayMgmtTa4Max 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtTa4Max 1 <CARRIER> 0
+#    /rx-max=<VALUE>:
+#      =: ConfDelayMgmtRxMax 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtRxMax 1 <CARRIER> 0
+#    /t12-min=<VALUE>:
+#      =: ConfDelayMgmtT12Min 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT12Min 1 <CARRIER> 0
+#    /t12-max=<VALUE>:
+#      =: ConfDelayMgmtT12Max 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT12Max 1 <CARRIER> 0
+#    /t34-min=<VALUE>:
+#      =: ConfDelayMgmtT34Min 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT34Min 1 <CARRIER> 0
+#    /t34-max=<VALUE>:
+#      =: ConfDelayMgmtT34Max 1 <CARRIER> <VALUE>
+#      D: ConfDelayMgmtT34Max 1 <CARRIER> 0
+## END   # Delay management #######################################
+
+## BEGIN # TDD ####################################################
+/flexru-tdd:
+  /mode=<MODE>:
+    =: ConfTddMode 0 <MODE>
+    D: ConfTddMode 0 0
+  /guard-time:
+    /dl-on-guard-time=<TIME>:
+      =: ConfTddDlOnGuardTime 0 <TIME>
+      D: ConfTddDlOnGuardTime 0 0
+    /dl-off-guard-time=<TIME>:
+      =: ConfTddDlOffGuardTime 0 <TIME>
+      D: ConfTddDlOffGuardTime 0 0
+    /dl-to-ul-guard-time=<TIME>:
+      =: ConfTddDlToUlGuardTime 0 <TIME>
+      D: ConfTddDlToUlGuardTime 0 0
+    /ul-to-dl-guard-time=<TIME>:
+      =: ConfTddUlToDlGuardTime 0 <TIME>
+      D: ConfTddUlToDlGuardTime 0 0
+  /slot-configuration:
+    /pattern1:
+      /dl-ul-transmission-periodicity=<P1_PERIOD>: 
+        =: ConfTddP1Periodicity 0 <P1_PERIOD> 
+        D: ConfTddP1Periodicity 0 0
+      /nr-of-downlink-slots=<P1_D_SLOT>: 
+        =: ConfTddP1DlSlots 0 <P1_D_SLOT> 
+        D: ConfTddP1DlSlots 0 0
+      /nr-of-downlink-symbols=<P1_D_SYM>: 
+        =: ConfTddP1DlSymbols 0 <P1_D_SYM> 
+        D: ConfTddP1DlSymbols 0 0
+      /nr-of-uplink-slots=<P1_U_SLOT>:
+        =: ConfTddP1UlSlots 0 <P1_U_SLOT> 
+        D: ConfTddP1UlSlots 0 0
+      /nr-of-uplink-symbols=<P1_U_SYM>: 
+        =: ConfTddP1UlSymbols 0 <P1_U_SYM>
+        D: ConfTddP1UlSymbols 0 0
+    /pattern2:
+      /dl-ul-transmission-periodicity=<P2_PERIOD>:
+        =: ConfTddP2Periodicity 0 <P2_PERIOD>
+        D: ConfTddP2Periodicity 0 0
+      /nr-of-downlink-slots=<P2_D_SLOT>: 
+        =: ConfTddP2DlSlots 0 <P2_D_SLOT>
+        D: ConfTddP2DlSlots 0 0
+      /nr-of-downlink-symbols=<P2_D_SYM>:
+        =: ConfTddP2DlSymbols 0 <P2_D_SYM>
+        D: ConfTddP2DlSymbols 0 0
+      /nr-of-uplink-slots=<P2_U_SLOT>: 
+        =: ConfTddP2UlSlots 0 <P2_U_SLOT>
+        D: ConfTddP2UlSlots 0 0
+      /nr-of-uplink-symbols=<P2_U_SYM>:
+        =: ConfTddP2UlSymbols 0 <P2_U_SYM>
+        D: ConfTddP2UlSymbols 0 0
+## END   # TDD ####################################################
+
+## BEGIN # Function ###############################################
+/flexru-function:
+  /mimo:
+    /standby-mode-on-off=<ONOFF>:
+      =: ConfFuncMimoStandbyModeOnOff 0 <ONOFF>
+      D: ConfFuncMimoStandbyModeOnOff 0 0
+    /standby-mode-operating-start-time=<TIME>:
+      =: ConfFuncMimoStandbyModeOperStartTime 0 <TIME>
+      D: ConfFuncMimoStandbyModeOperStartTime 0 0
+    /standby-mode-operating-end-time=<TIME>:
+      =: ConfFuncMimoStandbyModeOperEndTime 0 <TIME>
+      D: ConfFuncMimoStandbyModeOperEndTime 0 0
+    /standby-mode-in-level=<LEVEL>:
+      =: ConfFuncStandbyModeInLevel 0 <LEVEL>
+      D: ConfFuncStandbyModeInLevel 0 0
+    /standby-mode-out-level=<LEVEL>:
+      =: ConfFuncStandbyModeOutLevel 0 <LEVEL>
+      D: ConfFuncStandbyModeOutLevel 0 0
+  /layer-operation-mode=<MODE>:
+    =: ConfFuncLayerOperationMode 0 <MODE>
+    D: ConfFuncLayerOperationMode 0 0
+  /amp:
+    /standby-mode-on-off=<ONOFF>:
+      =: ConfFuncAmpStandbyModeOnOff 0 <ONOFF>
+      D: ConfFuncAmpStandbyModeOnOff 0 0
+    /standby-mode-operating-start-time=<TIME>:
+      =: ConfFuncAmpStandbyModeOperStartTime 0 <TIME>
+      D: ConfFuncAmpStandbyModeOperStartTime 0 0
+    /standby-mode-operating-end-time=<TIME>:
+      =: ConfFuncAmpStandbyModeOperEndTime 0 <TIME>
+      D: ConfFuncAmpStandbyModeOperEndTime 0 0
+    /standby-mode-apply-path=<PATH>:
+      =: ConfFuncStandbyModeApplyPath 101 <PATH>
+      D: ConfFuncStandbyModeApplyPath 0 0
+  /uda:
+    /uda-1-operation-mode=<MODE>:
+      =: ConfFuncUda1OperationMode 0 <MODE>
+      D: ConfFuncUda1OperationMode 0 0
+    /uda-2-operation-mode=<MODE>:
+      =: ConfFuncUda2OperationMode 0 <MODE>
+      D: ConfFuncUda2OperationMode 0 0
+    /uda-3-operation-mode=<MODE>:
+      =: ConfFuncUda3OperationMode 0 <MODE>
+      D: ConfFuncUda3OperationMode 0 0
+    /uda-4-operation-mode=<MODE>:
+      =: ConfFuncUda4OperationMode 0 <MODE>
+      D: ConfFuncUda4OperationMode 0 0
+    /uda-1-operation-layer=<LAYER>:
+      =: ConfFuncUda1OperationLayer 102 <LAYER>
+      D: ConfFuncUda1OperationLayer 0 0
+  /ul-gain-monitor=<ONOFF>:
+    =: ConfFuncUplinkGainMonitor 0 <ONOFF>
+    D: ConfFuncUplinkGainMonitor 0 0 
+  /log:
+    /logging-on-off=<ONOFF>:
+      =: ConfFuncLoggingOnOff 0 <ONOFF>
+      D: ConfFuncLoggingOnOff 0 0
+    /log-count=<COUNT>:
+      =: ConfFuncLogCount 0 <COUNT>
+      D: ConfFuncLogCount 0 0
+  /led-auto-off=<ONOFF>:
+    =: ConfFuncLedAutoOff 0 <ONOFF>
+    D: ConfFuncLedAutoOff 0 0
+## END   # Function #################################################
+
+## BEGIN # Environment Information ##################################
+/flexru-environment:
+  /vendor=<VENDOR>:
+    =: ConfEnvVendor 0 <VENDOR>
+    D: ConfEnvVendor 0 0
+  /supplier=<SUPPLIER>:
+    =: ConfEnvSupplier 0 <SUPPLIER>
+    D: ConfEnvSupplier 0 0
+  /type=<TYPE>:
+    =: ConfEnvType 0 <TYPE>
+    D: ConfEnvType 0 0
+  /sw-version=<VERSION>:
+    =: ConfEnvSwVersion 0 <VERSION>
+    D: ConfEnvSwVersion 0 0 
+## END   # Environment Information ##################################
+
+## BEGIN # ETC ######################################################
+/flexru-etc:
+  /pm:
+    /pm-report-base-time=<TIME>:
+      =: ConfEtcPmReportBaseTime 0 <TIME>
+      D: ConfEtcPmReportBaseTime 0 0 
+    /pm-report-interval=<INTERVAL>:
+      =: ConfEtcPmReportInterval 0 <INTERVAL>
+      D: ConfEtcPmReportInterval 0 0
+    /auto-report-base-time=<TIME>:
+      =: ConfEtcAutoReportBaseTime 0 <TIME>
+      D: ConfEtcAutoReportBaseTime 0 0
+  /download:
+    /download-state=<STATE>:
+      =: ConfEtcDownloadState 0 <STATE>
+      D: ConfEtcDownloadState 0 0
+    /active-side=<SIDENUM>:
+      =: ConfEtcActiveSide 0 <SIDENUM>
+      D: ConfEtcActiveSide 0 0
+    /ftp-site=<IPADDR>:
+      =: ConfEtcFtpSite 0 <IPADDR>
+      D: ConfEtcFtpSite 0 0
+    /ftp-port=<PORT>:
+      =: ConfEtcFtpPort 0 <PORT>
+      D: ConfEtcFtpPort 0 0
+    /ftp-log-id=<LOGID>:
+      =: ConfEtcFtpLogId 0 <LOGID>
+      D: ConfEtcFtpLogId 0 0
+    /ftp-log-password=<LOGPW>:
+      =: ConfEtcFtpLogPassword 0 <LOGPW>
+      D: ConfEtcFtpLogPassword 0 0
+    /file-path=<FPATH>:
+      =: ConfEtcFilePath 0 <FPATH>
+      D: ConfEtcFilePath 0 0
+    /file-name=<FNAME>:
+      =: ConfEtcFileName 0 <FNAME>
+      D: ConfEtcFileName 0 0
+    /sw-dl-progress-req=<STATE>:
+      =: ConfEtcSwDlProgressReq 0 <STATE>
+      D: ConfEtcSwDlProgressReq 0 0
+    /sw-dl-progress-res=<STATE>:
+      =: ConfEtcSwDlProgressRes 0 <STATE>
+      D: ConfEtcSwDlProgressRes 0 0
+## END   # ETC ######################################################
+
+## BEGIN # O-RAN ####################################################
+
+## BEGIN # o-ran-delay-management ###################################
+/delay-management:
+  /bandwidth-scs-delay-state[bandwidth=<BANDWIDTH>][subcarrier-spacing=<SUB_SPACING>]:
+    =: oranDelayMgmtBwScsDelaySts <BANDWIDTH> <SUB_SPACING>
+  /adaptive-delay-configuration:
+    /bandwidth-scs-delay-state[bandwidth=<BANDWIDTH>][subcarrier-spacing=<SUB_SPACING>]:
+      /o-du-delay-profile:
+        /t1a-max-up=<T1A_MAX_UP>:
+          =: oranDelayMgmtT1aMaxUp <BANDWIDTH> <SUB_SPACING> <T1A_MAX_UP>
+        /tx-max=<TX_MAX>:
+          =: oranDelayMgmtTxMax <BANDWIDTH> <SUB_SPACING> <TX_MAX>
+        /ta4-max=<TA4_MAX>:
+          =: oranDelayMgmtTa4Max <BANDWIDTH> <SUB_SPACING> <TA4_MAX>
+        /rx-max=<RX_MAX>:
+          =: oranDelayMgmtRxMax <BANDWIDTH> <SUB_SPACING> <RX_MAX>
+    /transport-delay:
+      /t12-min=<T12_MIN>:
+        =: oranDelayMgmtT12Min <T12_MIN>
+      /t34-min=<T34_MIN>:
+        =: oranDelayMgmtT34Min <T34_MIN>
+      /t12-max=<T12_MAX>:
+        =: oranDelayMgmtT12Max <T12_MAX>
+      /t34-max=<T34_MAX>:
+        =: oranDelayMgmtT34Max <T34_MAX>
+## END   # o-ran-delay-management ###################################
+## BEGIN # o-ran-interface ##########################################
+/interfaces:
+  /interface[name=<IFNAME>]:
+    /description=<IFDESC>:
+      =: oranInterfaceDesc <IFNAME> <IFDESC>
+    /type=<IFTYPE>:
+      =: oranInterfaceType <IFNAME> <IFTYPE>
+    /enabled=<ENABLED>:
+      =: oranInterfaceEnabled <IFNAME> <ENABLED>
+    /link-up-down-trap-enable=<LINK_TRAP>:
+      =: oranInterfaceLinkTrap <IFNAME> <LINK_TRAP>
+    /ipv4:
+      /enabled=<IPV4_ENABLED>:
+        =: oranInterfaceIpEnabled <IFNAME> <IPV4_ENABLED>
+      /forwarding=<FORWARDING>:
+        =: oranInterfaceForwarding <IFNAME> <FORWARDING>
+      /mtu=<MTU>:
+        =: oranInterfaceMtu <IFNAME> <MTU>
+      /address[IP=<IPADDR>]:
+        =: oranInterfaceIpAddr <IFNAME> <IPADDR>
+      /neighbor[IP=<IPADDR>]:
+        /link-layer-address=<LINK_LAYER_ADDR>:
+          =: oranInterfaceLinkAddr <IFNAME> <IPADDR> <LINK_LAYER_ADDR>
+      /m-plane-marking=<M_PLANE_MARKING>:
+        =: oranInterfaceMpMarking <IFNAME> <M_PLANE_MARKING>
+      /diffserv-markings:
+        /u-plane-marking=<U_PLANE_MARKING>:
+          =: oranInterfaceUpMarking <IFNAME> <U_PLANE_MARKING>
+        /c-plane-marking=<C_PLANE_MARKING>:
+          =: oranInterfaceCpMarking <IFNAME> <C_PLANE_MARKING>
+        /s-plane-marking=<S_PLANE_MARKING>:
+          =: oranInterfaceSpMarking <IFNAME> <S_PLANE_MARKING>
+        /other-marking=<OTHER_MARKING>:
+          =: oranInterfaceOtMarking <IFNAME> <OTHER_MARKING>
+        /enhanced-uplane-markings[up-marking-name=<UP_MARK_NAME>]:
+          /enhanced-marking=<EHHANCED_MARKING>:
+            =: oranInterfaceEnMarking <IFNAME> <UP_MARK_NAME> <EHHANCED_MARKING>
+    /l2-mtu=<L2_MTU>:
+      =: oranInterfaceL2Mtu <IFNAME> <L2_MTU>
+    /vlan-tagging=<VLAN_TAGGING>:
+      =: oranInterfaceVlanTagging <IFNAME> <VLAN_TAGGING>
+    /class-of-service:
+      /u-plane-marking=<COS_U_PLANE_MARKING>:
+        =: oranInterfaceCosUpMarking <IFNAME> <COS_U_PLANE_MARKING>
+      /c-plane-marking=<COS_C_PLANE_MARKING>:
+        =: oranInterfaceCosCpMarking <IFNAME> <COS_C_PLANE_MARKING>
+      /s-plane-marking=<COS_S_PLANE_MARKING>:
+        =: oranInterfaceCosSpMarking <IFNAME> <COS_S_PLANE_MARKING>
+      /other-marking=<COS_OTHER_MARKING>:
+        =: oranInterfaceCosOtMarking <IFNAME> <COS_OTHER_MARKING>
+      /enhanced-uplane-markings[up-marking-name=<COS_UP_MARK_NAME>]:
+        /enhanced-marking=<COS_EHHANCED_MARKING>:
+          =: oranInterfaceCosEnMarking <IFNAME> <COS_UP_MARK_NAME> <COS_EHHANCED_MARKING>
+    /base-interface=<BASE_IF>:
+      =: oranInterfaceBaseIf <IFNAME> <BASE_IF>
+    /vlan-id=<VLAN_ID>:
+      =: oranInterfaceVlanId <IFNAME> <VLAN_ID>
+    /alias-macs/<ALIAS_MAC>:
+      =: oranInterfaceAliasMacs <IFNAME> <ALIAS_MAC>
+    /mac-address=<MAC_ADDR>:
+      =: oranInterfaceMacAddr <IFNAME> <MAC_ADDR>
+    /port-reference:
+      /port-name=<PORT_NAME>:
+        =: oranInterfacePortName <IFNAME> <PORT_NAME>
+      /port-number=<PORT_NUM>:
+        =: oranInterfacePortNum <IFNAME> <PORT_NUM>
+## END   # o-ran-interface #########################################
+## BEGIN # o-ran-mplane-int ########################################
+/mplane-info:
+  /searchable-mplane-access-vlans-info:
+    /searchable-access-vlans/<SEARCH_ACCESS_VLAN>:
+      =: oranMplaneInfoAccessVlans <SEARCH_ACCESS_VLAN>
+    /vlan-range:
+      /lowest-vlan-id=<LOWEST_VLAN_ID>:
+        =: oranMplaneInfoLowVlanId <LOWEST_VLAN_ID>
+      /highest-vlan-id=<HIGHEST_VLAN_ID>:
+        =: oranMplaneInfoHighVlanId <HIGHEST_VLAN_ID>
+  /m-plane-interfaces:
+    /m-plane-sub-interfaces[interface-name=<IFNAME>][sub-interface=<SUB_IFNAME>]:
+      =: oranMplaneInfoMpSubIf <IFNAME> <SUB_IFNAME>
+    /m-plane-ssh-ports:
+      /call-home-ssh-port=<CALLHOME_SSH_PORT>:
+        =: oranMplaneInfoMpChSshPort <CALLHOME_SSH_PORT>
+      /server-ssh-port=<SERVER_SSH_PORT>:
+        =: oranMplaneInfoMpSvrSshPort <SERVER_SSH_PORT>
+  /configured-client-info:
+    /mplane-ipv4-info[mplane-ipv4=<V4_IPADDR>]:
+      /port=<V4_PORT>:
+        =: oranMplaneInfoMpIpv4Port <V4_IPADDR> <V4_PORT>
+    /mplane-ipv6-info[mplane-ipv6=<V6_IPADDR>]:
+      /port=<V6_PORT>:
+        =: (not-support) 
+    /mplane-fqdn/<MP_FQDN>:
+      =: oranMplaneInfoMpFqdn <MP_FQDN>
+## END   # o-ran-mplane-int ########################################
+## BEGIN # o-ran-operation #########################################
+/operational-info:
+  /clock:
+    /timezone-name=<TZONE_NAME>:
+      =: oranOperationTzoneName <TZONE_NAME>
+    /timezone-utc-offset=<TZONE_UTC_OFFSET>:
+      =: oranOperationUtcOffset <TZONE_UTC_OFFSET>
+  /re-call-home-no-ssh-timer=<RECALL_TIMER>:
+    =: oranOperationRecallhome <RECALL_TIMER>
+## END   # o-ran-operation #########################################
+## BEGIN # o-ran-supervision #######################################
+/supervision:
+  /cu-plane-monitoring:
+    /configured-cu-monitoring-interval=<CU_MONITOR_INTERVAL>:
+      =: oranSupervisionCuMonitorIntval <CU_MONITOR_INTERVAL>
+## END   # o-ran-supervision #######################################
+## BEGIN # o-ran-sync ##############################################
+/sync:
+  /ptp-config:
+    /domain-number=<DOMAIN_NUM>:
+      =: oranSyncPtpCfgDomainNum <DOMAIN_NUM>
+      D: oranSyncPtpCfgDomainNum <DOMAIN_NUM> delete
+    /accepted-clock-classes[clock-classes=<CLASSES>]:
+      =: oranSyncPtpCfgClkClasses <CLASSES>
+      D: oranSyncPtpCfgClkClasses <CLASSES> delete
+    /ptp-profile=<PROFILE_TYPE>:
+      =: oranSyncPtpCfgPtpProfile <PROFILE_TYPE>
+      D: oranSyncPtpCfgPtpProfile <PROFILE_TYPE> delete
+    /delay-asymmetry=<S_PHASE_ERROR>:
+      =: oranSyncPtpCfgDelayAsym <S_PHASE_ERROR>
+      D: oranSyncPtpCfgDelayAsym <S_PHASE_ERROR> delete
+    /g-8275-1-config:
+      /multicast-mac-address=<DESTINATION>:
+        =: oranSyncPtpCfgG82751McMacAddr <DESTINATION>
+        D: oranSyncPtpCfgG82751McMacAddr <DESTINATION> delete
+      /delay-asymmetry=<G82751_S_PHASE_ERROR>:
+        =: oranSyncPtpCfgG82751DelayAsym <G82751_S_PHASE_ERROR>
+        D: oranSyncPtpCfgG82751DelayAsym <G82751_S_PHASE_ERROR> delete
+    /g-8275-2-config:
+      /local-ip-port=<LOCAL_IP_PORT>:
+        =: oranSyncPtpCfgG82752LocIpPort <LOCAL_IP_PORT>
+        D: oranSyncPtpCfgG82752LocIpPort <LOCAL_IP_PORT> delete
+      /master-ip-configuration[local-priority=<LOCAL_PRIORITY>]:
+        /ip-address=<IP_ADDR>:
+          =: oranSyncPtpCfgG82752MasterIpConf <LOCAL_PRIORITY> <IP_ADDR>
+          D: oranSyncPtpCfgG82752MasterIpConf <LOCAL_PRIORITY> <IP_ADDR> delete
+      /log-inter-sync-period=<SYNC_PERIOD>:
+        =: oranSyncPtpCfgG82752SyncPeriod <SYNC_PERIOD>
+        D: oranSyncPtpCfgG82752SyncPeriod <SYNC_PERIOD> delete
+      /log-inter-announce-period=<ANNOUNCE_PERIOD>:
+        =: oranSyncPtpCfgG82752AnncPeriod <ANNOUNCE_PERIOD>
+        D: oranSyncPtpCfgG82752AnncPeriod <ANNOUNCE_PERIOD> delete
+  /ptp-status:
+    /reporting-period=<PTP_REPORT_PERIOD>:
+      =: oranSyncPtpStsReportPeriod <PTP_REPORT_PERIOD>
+      D: oranSyncPtpStsReportPeriod <PTP_REPORT_PERIOD> delete
+  /synce-config:
+    /acceptance-list-of-ssm/<ACCEPTABLE_SSMS>:
+      =: oranSyncSynceCfgAcceptList <ACCEPTABLE_SSMS>
+      D: oranSyncSynceCfgAcceptList <ACCEPTABLE_SSMS> delete
+    /ssm-timeout=<SSM_TIMEOUT>:
+      =: oranSyncSynceCfgSsmTimeout <SSM_TIMEOUT>
+      D: oranSyncSynceCfgSsmTimeout <SSM_TIMEOUT> delete
+  /synce-status:
+    /reporting-period=<SYNCE_REPORT_PERIOD>:
+      =: oranSyncSynceStsReportPeriod <SYNCE_REPORT_PERIOD>
+      D: oranSyncSynceStsReportPeriod <SYNCE_REPORT_PERIOD> delete
+## END # o-ran-sync ################################################
+## BEGIN # o-ran-transceiver #######################################
+/port-transceivers:
+  /port-transceiver-data[interface-name=<IFNAME>][port-number=<PORTNUM>]:
+    /name=<NAME>:
+      =: oranTransceiverPortTdataName <IFNAME> <PORTNUM> <NAME>
+## END # o-ran-transceiver #########################################
+## BEGIN # o-ran-uplane-conf #######################################
+/user-plane-configuration:
+  /low-level-tx-endpoints[name=<NAME>]:
+    /compression:
+      /iq-bitwidth=<IQ_BITWIDTH>:
+        =: oranUplaneConfTxCompIqBitwidth <NAME> <IQ_BITWIDTH>
+      /compression-type=<TYPE>:
+        =: oranUplaneConfTxCompType <NAME> <TYPE>
+      /bitwidth=<BITWIDTH>:
+        =: oranUplaneConfTxCompBitwidth <NAME> <BITWIDTH>
+      /fs-offset=<OFFSET>:
+        =: oranUplaneConfTxCompFsOffset <NAME> <OFFSET>
+      /dynamic-compression-configuration[id=<ID>]:
+        /iq-bitwidth=<IQ_BITWIDTH>:
+          =: oranUplaneConfTxDynIqBitwidth <NAME> <ID> <IQ_BITWIDTH>
+        /compression-method=<METHOD>:
+          =: oranUplaneConfTxDynCompMethod <NAME> <ID> <METHOD>
+        /fs-offset=<OFFSET>:
+          =: oranUplaneConfTxDynFsOffset <NAME> <ID> <OFFSET>
+    /frame-structure=<FRAME_STRUCTURE>:
+      =: oranUplaneConfTxFrameStruct <NAME> <FRAME_STRUCTURE>
+    /cp-type=<TYPE>:
+      =: oranUplaneConfTxCpType <NAME> <TYPE>
+    /cp-length=<LENGTH>:
+      =: oranUplaneConfTxCpLen <NAME> <LENGTH>
+    /cp-length-other=<LENGTH_OTHER>:
+      =: oranUplaneConfTxCpLenOther <NAME> <LENGTH_OTHER>
+    /offset-to-absolute-frequency-center=<FREQ_OFFSET>:
+      =: oranUplaneConfTxFreqCenter <NAME> <FREQ_OFFSET>
+    /number-of-prb-per-scs[scs=<SCS>]:
+      /number-of-prb=<PRB>:
+        =: oranUplaneConfTxNumOfPrb <NAME> <SCS> <PRB>
+    /e-axcid:
+      /o-du-port-bitmask=<O_DU_PORT>: (no-op)
+      /band-sector-bitmask=<BAND_SECTOR>: (no-op)
+      /ccid-bitmask=<CCID>: (no-op)
+      /ru-port-bitmask=<O_RU_PORT>: (no-op)
+      /eaxc-id=<ID>:
+        =: oranUplaneConfTxEaxcId <NAME> <O_DU_PORT> <BAND_SECTOR> <CCID> <O_RU_PORT> <ID>
+    /coupling-to=<RW_INSTANCE>:
+      =: oranUplaneConfTxCouplingTo <NAME> <RW_INSTANCE>
+    /coupling-method=<METHOD>:
+      =: oranUplaneConfTxCouplingMethod <NAME> <METHOD>
+    /configurable-tdd-pattern-supported=<SUPPORTED>:
+      =: oranUplaneConfTxConfTddPattern <NAME> <SUPPORTED>
+  /low-level-rx-endpoints[name=<NAME>]:
+    /compression:
+      /iq-bitwidth=<IQ_BITWIDTH>:
+        =: oranUplaneConfRxCompIqBitwidth <NAME> <IQ_BITWIDTH> 
+      /compression-type=<TYPE>:
+        =: oranUplaneConfRxCompType <NAME> <TYPE> 
+      /bitwidth=<BITWIDTH>:
+        =: oranUplaneConfRxCompBitwidth <NAME> <BITWIDTH> 
+      /fs-offset=<OFFSET>:
+        =: oranUplaneConfRxCompFsOffset <NAME> <OFFSET> 
+      /dynamic-compression-configuration[id=<ID>]:
+        /iq-bitwidth=<IQ_BITWIDTH>:
+          =: oranUplaneConfRxDynIqBitwidth <NAME> <ID> <IQ_BITWIDTH> 
+        /compression-method=<METHOD>:
+          =: oranUplaneConfRxDynCompMethod <NAME> <ID> <METHOD> 
+        /fs-offset=<OFFSET>:
+          =: oranUplaneConfRxDynFsOffset <NAME> <ID> <OFFSET>
+    /frame-structure=<FRAME_STRUCTURE>:
+      =: oranUplaneConfRxFrameStruct <NAME> <FRAME_STRUCTURE>
+    /cp-type=<TYPE>:
+      =: oranUplaneConfRxCpType <NAME> <TYPE>
+    /cp-length=<LENGTH>:
+      =: oranUplaneConfRxCpLen <NAME> <LENGTH>
+    /cp-length-other=<LENGTH_OTHER>:
+      =: oranUplaneConfRxCpLenOther <NAME> <LENGTH_OTHER>
+    /offset-to-absolute-frequency-center=<FREQ_OFFSET>:
+      =: oranUplaneConfRxFreqCenter <NAME> <FREQ_OFFSET>
+    /number-of-prb-per-scs[scs=<SCS>]:
+      /number-of-prb=<PRB>:
+        =: oranUplaneConfRxNumOfPrb <NAME> <SCS> <PRB>
+    /ul-fft-sampling-offsets[scs=<SCS>]:
+      /ul-fft-sampling-offset=<OFFSET>:
+        =: oranUplaneConfRxSampleOffset <NAME> <SCS> <OFFSET>
+    /e-axcid:
+      /o-du-port-bitmask=<O_DU_PORT>: (no-op)
+      /band-sector-bitmask=<BAND_SECTOR>: (no-op)
+      /ccid-bitmask=<CCID>: (no-op)
+      /ru-port-bitmask=<O_RU_PORT>: (no-op)
+      /eaxc-id=<ID>:
+        =: oranUplaneConfRxEaxcId <NAME> <O_DU_PORT> <BAND_SECTOR> <CCID> <O_RU_PORT> <ID>
+    /eaxc-gain-correction=<GAIN_CORRECTION>:
+      =: oranUplaneConfRxEaxcGainCorrect <NAME> <GAIN_CORRECTION>
+    /non-time-managed-delay-enabled=<ENABLED>:
+      =: oranUplaneConfRxDelayEnabled <NAME> <ENABLED>
+    /coupling-to=<RW_INSTANCE>:
+      =: oranUplaneConfRxCouplingTo <NAME> <RW_INSTANCE>
+    /coupling-method=<METHOD>:
+      =: oranUplaneConfRxCouplingMethod <NAME> <METHOD>
+    /static-config-supported=<SUPPORTED>:
+      =: oranUplaneConfRxStaticConf <NAME> <SUPPORTED>
+    /static-prach-configuration=<PARAMETER>:
+      =: oranUplaneConfRxStaticPrach <NAME> <PARAMETER>
+    /static-srs-configuration=<PARAMETER>:
+      =: oranUplaneConfRxStaticSrs <NAME> <PARAMETER>
+    /configurable-tdd-pattern-supported=<SUPPORTED>:
+      =: oranUplaneConfRxConfTddPattern <NAME> <SUPPORTED>
+## END # o-ran-uplane-conf #########################################
+## BEGIN # o-ran-usermgmt ##########################################
+/users:
+  /user[name=<NAME>]:
+    /account-type=<TYPE>:
+      =: oranUserMgmtAccountType <NAME> <TYPE>
+      D: oranUserMgmtAccountType <NAME> 
+    /password=<PASSWORD$>:
+      =: oranUserMgmtPassword <NAME> <PASSWORD>
+      D: oranUserMgmtPassword <NAME> 
+    /enabled=<ENABLED>:
+      =: oranUserMgmtEnabled <NAME> <ENABLED>
+      D: oranUserMgmtEnabled <NAME> 
+## END # o-ran-usermgmt ############################################
+## END # O-RAN #####################################################
+
+## BEGIN # rpc ######################################################
+/rpc:
+  =: "(!@#)"
+#    /pau-on-off:
+#      /input:
+#        /layer=<LAYER>: (no-op)
+#        /on-off=<ONOFF>:
+#          =: pau-on-off <LAYER> <ONOFF> 
+    /pau-reset:
+      /input:
+        /layer=<LAYER>: (no-op)
+        /reset=<RESET>:
+          =: pau-reset 2 <LAYER> <RESET>
+    /dpd-reset:
+      /input:
+        /reset=<RESET>:
+          =: dpd-reset 0 <RESET>
+    /device-reset:
+      /input:
+        /reset=<RESET>:
+          =: device-reset 0 <RESET>
+# O-RAN RPC Start 
+    /reset:
+      =: reset 
+    /supervision-watchdog-reset:
+      /input:
+        /supervision-notification-interval=<INTERVAL>: (no-op)
+        /guard-timer-overhead=<OVERHEAD>:
+          =: supervision-watchdog-reset <INTERVAL> <OVERHEAD>
+    /software-download:
+      /input:
+        /remote-file-path=<R_FILE_PATH$>: (no-op)
+        /password:
+          /password=<SFTP_PASSWORD$>:
+            =: software-download <R_FILE_PATH> <SFTP_PASSWORD>
+        /server:
+          /keys:
+            /algorithm:                     # Key
+            /public-key:
+        /certificate:
+    /software-install:
+      /input:
+        /slot-name=<INSTALL_SLOT>: 
+          =: software-install <INSTALL_SLOT> (end)
+        /file-names/<INSTALL_FILE$>:
+          =: software-install <INSTALL_SLOT> <INSTALL_FILE>
+    /software-activate:
+      /input:
+        /slot-name=<ACTIVATE_SLOT>:
+          =: software-activate <ACTIVATE_SLOT> 
+    /chg-password:
+      /input:
+        /currentPassword=<CUR_PW$>: (no-op) 
+        /newPassword=<NEW_PW$>: (no-op)
+        /newPasswordConfirm=<NEW_PW_CONFIRM$>: 
+          =: chg-password <CUR_PW> <NEW_PW> <NEW_PW_CONFIRM>
+# O-RAN RPC End 
+## END   # rpc ######################################################

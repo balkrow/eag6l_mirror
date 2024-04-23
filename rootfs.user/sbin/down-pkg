@@ -1,0 +1,68 @@
+#!/bin/sh
+#ARG1:URIformat, sftp://[user@]host[:port][/path]
+# 	sample) URI format : sftp://root@localhost:1234/home/root/test.zip
+#ARG2: passwd
+#ARG3: cell_num
+
+sleep 1;
+echo ">>> down-pkg argc : ${#}, argv : ${@}";
+
+SWM_TEMPERARY_DOWNLOAD_PATH="/tmp/pkg/"
+FILE_SERVER_IP=$(echo $1 | cut -d '@' -f2 | cut -d ':' -f1)
+
+TEMP_PATH="/tmp"
+CELL1_CHECK_FILE=".c1_upgrading_software"
+CELL2_CHECK_FILE=".c2_upgrading_software"
+CLI_CHECK_FILE=".upgrading_software"
+
+
+if [ $3 == 0 ]; then
+    logger -p daemon.info [CELL1] SWM_DOWNLOAD_START;
+    find ${TEMP_PATH} | grep ${CELL2_CHECK_FILE};
+elif [ $3 == 1 ]; then
+    logger -p daemon.info [CELL2] SWM_DOWNLOAD_START;
+    find ${TEMP_PATH} | grep ${CELL1_CHECK_FILE};
+fi
+
+if [ $? == 0 ]; then
+    logger -p daemon.err SWM_DOWN_APPLICATION_ERROR : [ ALREADY PROGRESSING IN ANOTHER CELL ];
+    /sbin/sysd-util -m "SWM_DOWN_APPLICATION_ERROR" -a $3 -s $1 -d "Another CELL is already upgrading";
+exit 1;
+else
+	find ${TEMP_PATH} | grep ${CLI_CHECK_FILE};
+fi
+
+if [ $? == 0 ]; then
+    logger -p daemon.err SWM_DOWN_APPLICATION_ERROR : [ ALREADY PROGRESSING IN CLI SOFTWARE UPGRADE ];
+    /sbin/sysd-util -m "SWM_DOWN_APPLICATION_ERROR" -a $3 -s $1 -d "CLI software upgrade already in progress";
+exit 1; fi;
+
+if [ $3 == 0 ]; then
+    logger -p daemon.info [CELL1]m-plane software upgrading...fdb_fsm stoped;
+    touch ${TEMP_PATH}/${CELL1_CHECK_FILE};
+elif [ $3 == 1 ]; then
+    logger -p daemon.info [CELL2]m-plane software upgrading...fdb get stoped;
+    touch ${TEMP_PATH}/${CELL2_CHECK_FILE};
+fi
+
+if [ ${#} != 3 ]; then
+	logger -p daemon.daemon.err SWM_DOWN_APPLICATION_ERROR : [ WRONG PARAMETER ];	
+	/sbin/sysd-util -m "SWM_DOWN_APPLICATION_ERROR" -a $3 -s $1 -d "Wrong parameter";
+fi
+
+rm -rf ${SWM_TEMPERARY_DOWNLOAD_PATH} ;
+mkdir -p ${SWM_TEMPERARY_DOWNLOAD_PATH} ;
+
+PARSED_URI_HOSTNAME_PORT=`/sbin/sysd-util -P $1`;
+
+ssh-keygen -R ${FILE_SERVER_IP};
+
+logger -p daemon.info execute down-pkg.exp;
+/usr/bin/expect -f /sbin/down-pkg.exp ${PARSED_URI_HOSTNAME_PORT} $2 $1 $3;
+
+if [ $? != 0 ]; then
+	echo "SWM_DOWN_APPLICATION_ERROR:$?";
+	logger -p daemon.err SWM_DOWN_APPLICATION_ERROR;
+	logger -p daemon.err execution failed : \(/sbin/down-pkg $1 $2 $3\) ;	
+	/sbin/sysd-util -m "SWM_DOWN_APPLICATION_ERROR" -a $3 -s $1 -d "down-pkg.exp execution     fail";
+fi;

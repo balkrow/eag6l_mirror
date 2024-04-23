@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree For IM-L.
+ *
+ * Copyright (C) 2022 Marvell
+ *
+ */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Marvell IronmanL development board
+ * This board file supports the B configuration of the board
+ */
+
+#include "ac5.dtsi"
+
+/ {
+	model = "Marvell IronmanL DB board";
+};
+
+&eth0 {
+	status = "okay";
+	phy = <&phy0>;
+};
+
+&usb1 {
+	compatible = "chipidea,usb2";
+	phys = <&usb1phy>;
+	phy-names = "usb-phy";
+	dr_mode = "peripheral";
+};
+
+&sdhci0 {
+	reg = <0x0 0x806D0000 0x0 0x300>;
+	interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&i2c0 {
+	interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+};
+&i2c1 {
+	interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&spi0 {
+	reg = <0x0 0x806B0000 0x0 0x50>;
+};
+
+&spi1 {
+	reg = <0x0 0x806B8000 0x0 0x50>;
+};
+
+&pcie0 {
+	reg = <0 0x80C00000 0 0x10000> , <0 0x30000000 0 0x10000>;
+};
+
+&cnm_clock {
+    clock-frequency = <333000000>;
+};
+
+/{
+sdma_drv {
+    compatible = "marvell,mvppnd";
+    interrupts = <GIC_SPI 0x23 IRQ_TYPE_LEVEL_HIGH>;
+    status = "okay";
+ 	};
+};

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
+if TARGET_IUGCPIUV2
+
+config SYS_BOARD
+	default "iugcpiuv2"
+
+config SYS_VENDOR
+	default "freescale"
+
+config SYS_SOC
+	default "ls102xa"
+
+config SYS_CONFIG_NAME
+	default "iugcpiuv2"
+
+config HFR_USE_EMMC_FLASH
+	bool
+	default 1   
+
+source "board/freescale/common/Kconfig"
+
+endif

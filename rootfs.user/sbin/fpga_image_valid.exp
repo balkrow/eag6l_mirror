@@ -1,0 +1,55 @@
+#!/usr/bin/expect
+set USER [lindex $argv 0]
+set PASSWORD [lindex $argv 1]
+set FPGA_ADDR [lindex $argv 2]
+set SRC_FILE [lindex $argv 3]
+set DST_DIR /media/sd-mmcblk0p1
+set DST_FILE $DST_DIR/system.bit
+set FPGA1 192.168.202.1
+set FPGA2 192.168.202.2
+
+set cmd "echo $SRC_FILE | rev | cut -d '/' -f1 | rev"
+set TEMP_DST_FILE [ exec sh -c $cmd]
+
+set local_md5sum [lindex [split [exec md5sum $SRC_FILE] " "] 0]
+spawn ssh $USER@$FPGA_ADDR
+
+expect -re "password:" { 
+        send "$PASSWORD\r"; exp_continue;
+} -re "NW_OFIU" {
+        send "md5sum $DST_DIR/$TEMP_DST_FILE\r";
+}
+expect -re {md5sum [^\n]+\n([A-Za-z0-9=_-]+) }
+set remote_md5sum $expect_out(1,string);
+send "exit\r"
+expect EOF
+
+system "logger -p daemon.info  local_md5sum : $local_md5sum, path: $SRC_FILE"
+system "logger -p daemon.info  remote_md5sum: $remote_md5sum, path: $DST_DIR/$TEMP_DST_FILE"
+
+if {$local_md5sum ne $remote_md5sum} {
+	system "logger -p daemon.err local, remote file md5sum diffent!!"
+	system "echo 15 > /tmp/.fpga_upload_fail"
+	if {$FPGA_ADDR eq $FPGA1} {
+	    system "touch /tmp/.fpga1_md5sum_fail"
+	}
+	if {$FPGA_ADDR eq $FPGA2} {
+	    system "touch /tmp/.fpga2_md5sum_fail"
+	}
+    exit 1
+}
+
+system "logger -p daemon.info local, remote file md5sum same !!"
+spawn ssh $USER@$FPGA_ADDR
+expect -re "password:" {
+        send "$PASSWORD\r"; exp_continue;
+} -re "NW_OFIU" {
+        send "cp $DST_DIR/$TEMP_DST_FILE $DST_DIR/system.bit\r";
+		send "rm $DST_DIR/$TEMP_DST_FILE\r";
+		system "logger -p daemon.info fpga image system sync"
+		send "sync\r";
+}
+
+send "exit\r"
+expect EOF
+exit 0

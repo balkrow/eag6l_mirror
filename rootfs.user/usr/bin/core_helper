@@ -1,0 +1,4 @@
+#!/bin/sh
+DATE=`date -I`
+VERSION=`cat /etc/sysconfig/version`
+gzip > /var/coredump/$1.$DATE.v$VERSION.$2.core.gz

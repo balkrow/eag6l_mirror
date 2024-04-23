@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree For IM-M.
+ *
+ * Copyright (C) 2022 Marvell
+ *
+ */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Marvell IronmanM development board
+ * This board file supports the B configuration of the board
+ */
+
+#include "ac5.dtsi"
+
+/ {
+	model = "Marvell IronmanM DB board";
+
+	vccq: regulator-vccq {
+		compatible = "regulator-gpio";
+		regulator-name = "vcc_18v";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 42 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <1800000 1
+			3300000 0>;
+		regulator-always-on;
+	};
+};
+
+&usb1 {
+	compatible = "chipidea,usb2";
+	phys = <&usb1phy>;
+	phy-names = "usb-phy";
+	dr_mode = "peripheral";
+};
+
+&nand {
+	interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&sdhci0 {
+	reg = <0x0 0x806D0000 0x0 0x300>;
+	interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+	bus-width = <4>;
+	/delete-property/ non-removable;
+	/delete-property/ mmc-ddr-1_8v;
+	/delete-property/ mmc-hs200-1_8v;
+	/delete-property/ mmc-hs400-1_8v;
+	vqmmc-supply = <&vccq>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&i2c0 {
+	interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&i2c1 {
+	interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&spi0 {
+	reg = <0x0 0x806B0000 0x0 0x50>;
+};
+
+&spi1 {
+	reg = <0x0 0x806B8000 0x0 0x50>;
+};
+
+&pcie0 {
+	reg = <0 0x80C00000 0 0x10000> , <0 0x30000000 0 0x10000>;
+};
+
+&cnm_clock {
+    clock-frequency = <333000000>;
+};
+
+/{
+sdma_drv {
+    compatible = "marvell,mvppnd";
+    interrupts = <GIC_SPI 0x23 IRQ_TYPE_LEVEL_HIGH>;
+    status = "okay";
+ 	};
+};
+

@@ -1,0 +1,738 @@
+# edit-config operation
+# C: Create
+# R: Replace
+# M: Merge (Create & Replace)
+# D: Delete
+# =: All
+
+# decimal digit: the priority
+
+# Command flag
+# (no-op): No operation (empty command with no error)
+# (not-support): Print not-support message as an error
+# (end): End of command (No further attached command)
+# (reset): Remove pre-attached command and newly start the command after '(reset)' term.
+# (ctrl): NETCONF internal control command (e.g. running datastore lock / unlock)
+#  - (ctrl:lock)
+#  - (ctrl:unlock)
+#  - (ctrl:timeout:SECONDS) : Set command execution timeout.
+#  - (ctrl:ignore-timeout) : ignore command execution timeout. e.g. system-update
+#  - (ctrl:no-sync) : do not wait for command result.
+
+# <ARG>: argument name
+# <ARG$>: $ is used to read the arguement to the end of the input XPATH.
+# <ARG^ARG_PATTERN>:
+# - ARG: Argument name
+# - ARG_PATTERN: Argument pattern (regular expression started with '^')
+# <ARG./REFERENCE_DATA_PATH>: The path of the reference data node if not present.
+# <ARG../REFERENCE_DATA_PATH>
+
+##############################################################################################
+##########test-system
+#/test-system:
+#    /system[node-id=<NODEID>]:
+#        /node-id=<NODEID>:
+#        /node-type=<NODETYPE>:
+#            =: /usr/sbin/vtysh -S test-system <NODEID> node-type <NODETYPE>;
+#        /hostname=<HOSTNAME>:
+#            =: /usr/sbin/vtysh -S test-system <NODEID> hostname <HOSTNAME>;
+#        /node-desc=<NODEDESC>:
+#            =: /usr/sbin/vtysh -S test-system <NODEID> node-desc <NODEDESC>;
+#        /node-num=<NODENUM>:
+#            =: /usr/sbin/vtysh -S test-system <NODEID> node-num <NODENUM>;
+###############################################################################################
+###########o-ran-supervision
+/supervision:
+  /cu-plane-monitoring:
+    /configured-cu-monitoring-interval=<INTERVAL>:
+      =: ConfCuMonitorInterval 0 <INTERVAL>
+      D: ConfCuMonitorInterval 0 0
+    ##################################### RPCS
+#/supervision-watchdog-reset
+#    /supervision-notification-interval
+#    /guard-timer-overhead
+####################################
+###############################################################################################
+##########ietf-interfaces
+/interfaces:
+    /interface[name=<IF_NAME>]:
+        /name=<IF_NAME>:                                  # Key
+        /description=<IF_DESC>:
+        /type=<IF_TYPE>:
+        /enabled=<IF_ENABLED>:
+        /link-up-down-trap-enable=<IF_LINK_TRAP_ENABLE>:
+##############################################################################################
+##########o-ran-usermgmt
+/users:
+    /user[name=<USER_NAME>]:
+        /name=<USER_NAME>:                                  # Key
+        /account-type=<USER_ACCOUNT>:
+        /password=<USER_PASSWD>:
+        /enabled=<USER_ENABLED>:
+    ###################### RPCS
+chg-password:
+    /currentPassword=<USER_CURR_PASSWD>:
+    /newPassword=<USER_NEW_PASSWD>:
+    /newPasswordConfirm=<USER_PASSWD_CONFIRM>:
+###############################################################################################
+###########ietf-netconf-acm
+#/nacm
+#    /enable-nacm
+#    /read-default
+#    /write-default
+#    /exec-default
+#    /enable-external-groups
+#    /groups
+#        /group
+##            /name                              # Key
+#            /user-name
+#    /rule-list
+##        /name                                  # Key
+#        /group
+#        /rule
+##            /name                              # Key
+#            /module-name
+#            /rule-type
+#                /rpc-name
+#                /notification-name
+#                /path
+#            /access-operations
+#            /action
+#            /comment
+###############################################################################################
+###########o-ran-ald-port
+#/ald-ports-io
+#    /ald-port-dc-control
+##        /name                                  # Key
+#        /dc-enabled
+###############################################################################################
+###########o-ran-externalio
+#/external-io
+#    /output-setting
+##        /name                                  # Key
+#        /line-out
+###############################################################################################
+###########o-ran-antenna-calibration
+#/antenna-calibration
+#    /self-calibration-policy
+#        /self-calibration-allowed
+    ##################################################### RPCS
+#/start-antenna-calibration
+#    /symbol-bitmask-dl
+#    /symbol-bitmask-ul
+#    /slot-bitmask-dl
+#    /slot-bitmask-ul
+#    /frame-bitmask-dl
+#    /frame-bitmask-ul
+#    /calibration-step-size
+#    /calibration-step-number
+#    /start-sfn
+###############################################################################################
+###########o-ran-delay-management
+#/delay-management
+#    /bandwidth-scs-delay-state
+##        /bandwidth                             # Key
+##        /subcarrier-spacing                    # Key
+#    /adaptive-delay-configuration
+#        /bandwidth-scs-delay-state
+##            /bandwidth                         # Key
+##            /subcarrier-spacing                # Key
+#            /o-du-delay-profile
+#                /t1a-max-up
+#                /tx-max
+#                /ta4-max
+#                /rx-max
+#                /t1a-max-cp-dl
+#        /transport-delay
+#            /t12-min
+#            /t12-max
+#            /t34-min
+#            /t34-max
+###############################################################################################
+##########ietf-hardware
+/hardware:
+   /component[name=<HW_NAME>]:
+       /name =<HW_NAME>:                                  # Key
+       /class=<HW_CLASS>:
+       /parent=<HW_PARENT>:
+       /parent-rel-pos=<HW_PARENT_REL_POS>:
+       /alias=<HW_ALIAS>:
+       /asset-id=<HW_ASSET_ID>:
+       /uri=<HW_URI>:
+       /state:
+           /admin-state=<HW_ADMIN_STATE>:
+       /energy-saving-enabled=<HW_ENERGY_SAVING>:
+       /o-ran-name=<HW_ORAN_NAME>:
+###############################################################################################
+###########ietf-netconf-monitoring
+    #################################### RPCS
+#/get-schema
+#    /identifier
+#    /version
+#    /format
+#    /data
+###############################################################################################
+###########ietf-yang-library
+###############################################################################################
+###########o-ran-dhcp
+###############################################################################################
+##########o-ran-interfaces
+/interfaces:
+    /interface:
+        /ipv4:
+            /enabled=<O_IF_V4_ENABLED>:
+            /forwarding=<O_IF_V4_FORWARDING>:
+            /mtu=<O_IF_V4_MTU>:
+            /address[ip=<O_IF_V4_IP>]:
+                /ip=<O_IF_V4_ADDR_IP>:                            # Key
+                /prefix-length=<O_IF_V4_ADDR_PREFIX>:
+                /netmask=<O_IF_V4_ADDR_NETMASK>:
+            /neighbor[ip=<O_IF_NEIGHBOR_IP>]:
+                /ip=<O_IF_V4_NEIGHBOR_IP>:                            # Key
+                /link-layer-address=<O_IF_V4_NEIGHBOR_LINK_LAYER>:
+            /m-plane-marking=<O_IF_V4_MARKING>:
+            /diffserv-markings:
+                /u-plane-marking=<O_IF_V4_UPLANE>:
+                /c-plane-marking=<O_IF_V4_CPLANE>:
+                /s-plane-marking=<O_IF_V4_SPLANE>:
+                /other-marking=<O_IF_V4_OTHER>:
+                /enhanced-uplane-markings[up-marking-name==<O_IF_V4_NAME>]:
+                    /up-marking-name=<O_IF_V4_NAME>:           # Key
+                    /enhanced-marking=<O_IF_V4_ENHANCED>:
+        /ipv6:
+            /enabled=<O_IF_V6_ENABLED>:
+            /forwarding=<O_IF_V6_FORWARDING>:
+            /mtu=<O_IF_V6_MTU>:
+            /address[ip=<O_IF_V6_ADDR_IP>]:
+                /ip=<O_IF_V6_ADDR_IP>:                            # Key
+                /prefix-length=<O_IF_V6__ADDR_PREFIX>:
+            /neighbor[ip=<O_IF_V6_NEIGHBOR_IP>]:
+                /ip=<O_IF_V6_NEIGHBOR_IP>:                            # Key
+                /link-layer-address=<O_IF_V6__NEIGHBOR_LINK_LAYER>:
+            /dup-addr-detect-transmits=<O_IF_V6_DUP_ADDR>:
+            /autoconf:
+                /create-global-addresses=<O_IF_V6_GLOBAL_ADDR>:
+                /create-temporary-addresses=<O_IF_V6_TEMP_ADDR>:
+                /temporary-valid-lifetime=<O_IF_V6_VALID_TIME>:
+                /temporary-preferred-lifetime=<O_IF_V6_PREF_TIME>:
+            /m-plane-marking=<O_IF_V6_MAKRING>:
+            /diffserv-markings:
+                /u-plane-marking=<O_IF_V6_UPLANE>:
+                /c-plane-marking=<O_IF_V6_CPLANE>:
+                /s-plane-marking=<O_IF_V6_SPLANE>:
+                /other-marking=<O_IF_V6_OTHER>:
+                /enhanced-uplane-markings[up-marking-name=<O_IF_V6_NAME>]:
+                    /up-marking-name=<O_IF_V6_NAME>:           # Key
+                    /enhanced-marking=<O_IF_V6_ENHANCED>:
+        /l2-mtu=<O_IF_MTU>:
+        /vlan-tagging=<O_IF_VLAN_TAG>:
+        /class-of-service:
+            /u-plane-marking=<O_IF_UPLANE>:
+            /c-plane-marking=<O_IF_CPLANE>:
+            /m-plane-marking=<O_IF_MPLANE>:
+            /s-plane-marking=<O_IF_SPLANE>:
+            /other-marking=<O_IF_OTHER>:
+            /enhanced-uplane-markings[up-marking-name=<O_IF_NAME>]:
+                /up-marking-name=<O_IF_NAME>:               # Key
+                /enhanced-marking=<O_IF_ENHANCED>:
+        /base-interface=<O_IF_BASE_INF>:
+        /vlan-id=<O_IF_VLANID>:
+        /alias-macs=<O_IF_ALIAS_MAC>:
+        /mac-address=<O_IF_MAC>:
+        /port-reference:
+            /port-name=<O_IF__PORT_NAME>:
+            /port-number=<O_IF_PORT_NUM>:
+    ####################### RPCS
+/reset-interface-counters=<O_IF_RESET_CNT>:
+###############################################################################################
+###########o-ran-mplane-int
+#/mplane-info
+#    /searchable-mplane-access-vlans-info
+#        /searchable-access-vlans
+#        /vlan-range
+#            /lowest-vlan-id
+#            /highest-vlan-id
+#    /m-plane-interfaces
+#        /m-plane-sub-interfaces
+##            /interface-name                    # Key
+##            /sub-interface                     # Key
+#        /m-plane-ssh-ports
+#            /call-home-ssh-port
+#            /server-ssh-port
+#    /configured-client-info
+#        /mplane-ipv4-info
+##            /mplane-ipv4                       # Key
+#            /port
+#        /mplane-ipv6-info
+##            /mplane-ipv6                       # Key
+#            /port
+#        /mplane-fqdn
+###############################################################################################
+###########o-ran-transceiver
+#/port-transceivers
+#    /port-transceiver-data
+##        /interface-name                        # Key
+##        /port-number                           # Key
+#        /name
+###############################################################################################
+###########o-ran-ethernet-forwarding
+#/ethernet-forwarding-table
+#    /aging-time
+###############################################################################################
+###########o-ran-software-management
+    ########################################## RPCS
+#/software-download
+#    /remote-file-path
+#    /credentials
+#        /password
+#            /password
+#        /server
+#            /keys
+##                /algorithm                     # Key
+#                /public-key
+#        /certificate
+#/software-install
+#    /slot-name
+#    /file-names
+#/software-activate
+#    /slot-name
+###############################################################################################
+##########o-ran-sync
+/sync:
+    /ptp-config:
+        /domain-number=<SYNC_DOMAIN>:
+        /accepted-clock-classes[clock-classes=<SYNC_CLOCK_CLASSES>]:
+            /clock-classes=<SYNC_CLOCK_CLASSES>:                     # Key
+        /ptp-profile=<SYNC_PTP>:
+        /delay-asymmetry=<SYNC_DELAY>:
+        /g-8275-1-config:
+            /multicast-mac-address=<SYNC_MULTI_MAC>:
+        /g-8275-2-config:
+            /local-ip-port=<SYNC_LOCAL_IP_PORT>:
+            /master-ip-configuration[local-priority=<SYNC_LOCAL_PRIORITY>]:
+                /local-priority=<SYNC_LOCAL_PRIORITY>:                # Key
+                /ip-address=<SYNC_IP>:
+            /log-inter-sync-period=<SYNC_LOG_SYNC>:
+            /log-inter-announce-period=<SYNC_LOG_ANNOUNCE>:
+    /ptp-status:
+        /reporting-period=<SYNC_PTP_REPORTIG>:
+    /synce-config:
+        /acceptance-list-of-ssm=<SYNC_SSM>:
+        /ssm-timeout=<SYNC_SSM_TIMEOUT>:
+    /synce-status:
+        /reporting-period=<SYNC_SYNCE>:
+    /gnss-config:
+        /enable=<SYNC_ENABLE>:
+        /satellite-constelation-list=<SYNC_SATELLITE>:
+        /polarity=<SYNC_POLARITY>:
+        /cable-delay=<SYNC_CABLE_DLEAY>:
+        /anti-jam-enable=<SYNC_ANTI_JAM>:
+    /gnss-status:
+        /reporting-period=<SYNC_GNSS>:
+###############################################################################################
+###########o-ran-processing-element
+#/processing-elements
+#    /transport-session-type
+#    /enhanced-uplane-mapping
+#        /uplane-mapping
+##            /up-marking-name                   # Key
+#            /up-markings
+#                /up-cos-name
+#                /upv4-dscp-name
+#                /upv6-dscp-name
+#    /ru-elements
+##        /name                                  # Key
+#        /transport-flow
+#            /interface-name
+#            /aliasmac-flow
+#                /ru-aliasmac-address
+#                /vlan-id
+#                /o-du-mac-address
+#            /eth-flow
+#                /ru-mac-address
+#                /vlan-id
+#                /o-du-mac-address
+#            /udpip-flow
+#                /address
+#                    /ru-ipv4-address
+#                    /ru-ipv6-address
+#                /o-du-ip-address
+#                /ru-ephemeral-udp-port
+#                /o-du-ephemeral-udp-port
+#                /ecpri-destination-udp
+#            /north-eth-flow
+#                /ru-mac-address
+#                /vlan-id
+#                /north-node-mac-address
+#            /south-eth-flow
+#                /ru-mac-address
+#                /vlan-id
+#                /south-node-mac-address
+###############################################################################################
+###########o-ran-ecpri-delay
+#/ecpri-delay-message
+#    /enable-message5
+#    /message5-sessions
+#        /session-parameters
+##            /session-id                        # Key
+#            /processing-element-name
+###############################################################################################
+###########o-ran-lbm
+#/md-data-definitions
+#    /maintenance-domain
+##        /id                                    # Key
+#        /name
+#        /md-level
+#        /maintenance-association
+##            /id                                # Key
+#            /name
+#            /component-list
+##                /component-id                  # Key
+#                /name
+#                /vid
+#                /remote-meps
+#                /maintenance-association-end-point
+##                    /mep-identifier            # Key
+#                    /interface
+#                    /primary-vid
+#                    /administrative-state
+###############################################################################################
+###########o-ran-performance-management
+#/performance-measurement-objects
+#    /enable-SFTP-upload
+#    /enable-random-file-upload
+#    /remote-SFTP-uploads
+##        /remote-SFTP-upload-path               # Key
+#        /credentials
+#            /password
+#                /password
+#            /server
+#                /keys
+##                    /algorithm                 # Key
+#                    /public-key
+#            /certificate
+#    /transceiver-measurement-interval
+#    /epe-measurement-interval
+#    /rx-window-measurement-interval
+#    /tx-measurement-interval
+#    /notification-interval
+#    /file-upload-interval
+#    /transceiver-measurement-objects
+##        /measurement-object                    # Key
+#        /active
+#        /report-info
+#        /object-unit
+#        /function
+#        /bin-count
+#        /lower-bound
+#        /upper-bound
+#    /rx-window-measurement-objects
+##        /measurement-object                    # Key
+#        /active
+#        /object-unit
+#        /report-info
+#    /tx-measurement-objects
+##        /measurement-object                    # Key
+#        /active
+#        /object-unit
+#        /report-info
+#    /epe-measurement-objects
+##        /measurement-object                    # Key
+#        /active
+#        /report-info
+###############################################################################################
+###########o-ran-udp-echo
+#/udp-echo
+#    /enable-udp-echo
+#    /dscp-config
+###############################################################################################
+###########o-ran-shared-cell
+#/shared-cell
+#    /shared-cell-config
+#        /shared-cell-copy-combine-mode
+#            /shared-cell-copy-entities
+##                /name                          # Key
+#                /north-node-processing-element
+#                /south-node-processing-elements
+#                /shared-cell-copy-uplane-config
+#                    /tx-eaxc-id
+##                        /eaxc-id               # Key
+#                    /rx-eaxc-id
+##                        /eaxc-id               # Key
+#                    /downlink-radio-frame-offset
+#                    /downlink-sfn-offset
+#            /shared-cell-combine-entities
+##                /name                          # Key
+#                /north-node-processing-element
+#                /south-node-processing-elements
+#                /ta3-prime-max
+#                /shared-cell-combine-uplane-config
+#                    /rx-eaxc-id
+##                        /eaxc-id               # Key
+#                        /comression-method
+#                            /iq-bitwidth
+#                            /compression-type
+#                            /compression-format
+#                                /exponent
+#                                /sres-exponent
+#                                /block-scalar
+#                                /comp-bit-width
+#                                /comp-shift
+#                                /active-beam-space-coeficient-mask
+#                                /block-scaler
+#                                /csf
+#                                /mod-comp-scaler
+#                                /sres-csf
+#                                /sres-mod-comp-scaler
+#                    /downlink-radio-frame-offset
+#                    /downlink-sfn-offset
+#                    /n-ta-offset
+#                    /number-of-prb
+#            
+###############################################################################################
+###########o-ran-module-cap
+#/module-capability
+#    /rw-sub-band-info
+#        /rw-number-of-laa-scarriers
+#        /rw-self-configure
+###############################################################################################
+###########o-ran-laa
+#/laa-config
+#    /number-of-laa-scarriers
+#    /multi-carrier-type
+#    /multi-carrier-tx
+#    /multi-carrier-freeze
+#    /laa-ending-dwpts-supported
+#    /laa-starting-in-second-slot-supported
+###############################################################################################
+###############################################################################################
+###########o-ran-laa-operation
+#
+###############################################################################################
+###########o-ran-uplane-conf
+#/user-plane-configuration
+#    /low-level-tx-links
+##        /name                                  # Key
+#        /processing-element
+#        /tx-array-carrier
+#        /low-level-tx-endpoint
+#    /low-level-rx-links
+##        /name                                  # Key
+#        /processing-element
+#        /rx-array-carrier
+#        /low-level-rx-endpoint
+#        /user-plane-uplink-marking
+#    /low-level-tx-endpoints
+##        /name                                  # Key
+#        /compression
+#            /iq-bitwidth
+#            /compression-type
+#            /compression-format
+#                /exponent
+#                /sres-exponent
+#                /block-scalar
+#                /comp-bit-width
+#                /comp-shift
+#                /active-beam-space-coeficient-mask
+#                /block-scaler
+#                /csf
+#                /mod-comp-scaler
+#                /sres-csf
+#                /sres-mod-comp-scaler
+#            /fs-offset
+#            /dynamic-compression-configuration
+#                /id
+#                /iq-bitwidth
+#                /compression-method
+#                /fs-offset
+#        /frame-structure
+#        /cp-type
+#        /cp-length
+#        /cp-length-other
+#        /offset-to-absolute-frequency-center
+#        /number-of-prb-per-scs
+##            /scs                               # Key
+#            /number-of-prb
+#        /e-axcid
+#            /o-du-port-bitmask
+#            /band-sector-bitmask
+#            /ccid-bitmask
+#            /ru-port-bitmask
+#            /eaxc-id
+#        /coupling-to
+#        /coupling-method
+#        /configurable-tdd-pattern-supported
+#    /low-level-rx-endpoints
+##        /name                                  # Key
+#        /compression
+#            /iq-bitwidth
+#            /compression-type
+#            /compression-format
+#                /exponent
+#                /sres-exponent
+#                /block-scalar
+#                /comp-bit-width
+#                /comp-shift
+#                /active-beam-space-coeficient-mask
+#                /block-scaler
+#                /csf
+#                /mod-comp-scaler
+#                /sres-csf
+#                /sres-mod-comp-scaler
+#            /fs-offset
+#            /dynamic-compression-configuration
+##                /id                            # Key
+#                /iq-bitwidth
+#                /compression-method
+#                /fs-offset
+#        /frame-structure
+#        /cp-type
+#        /cp-length
+#        /cp-length-other
+#        /offset-to-absolute-frequency-center
+#        /number-of-prb-per-scs
+##            /scs                               # Key
+#            /number-of-prb
+#        /ul-fft-sampling-offsets
+##            /scs                               # Key
+#            /ul-fft-sampling-offset
+#        /e-axcid
+#            /o-du-port-bitmask
+#            /band-sector-bitmask
+#            /ccid-bitmask
+#            /ru-port-bitmask
+#            /eaxc-id
+#        /eaxc-gain-correction
+#        /non-time-managed-delay-enabled
+#        /coupling-to
+#        /coupling-method
+#        /static-config-supported
+#        /static-prach-configuration
+#        /static-srs-configuration
+#        /configurable-tdd-pattern-supported
+#    /tx-array-carriers
+##        /name                                  # Key
+#        /absolute-frequency-center
+#        /center-of-channel-bandwidth
+#        /channel-bandwidth
+#        /active
+#        /type
+#        /rw-duplex-scheme
+#        /rw-type
+#        /band-number
+#        /laa-carrier-configuration
+#            /ed-threshold-pdsch
+#            /ed-threshold-drs
+#            /tx-antenna-ports
+#            /transmission-power-for-drs
+#            /dmtc-period
+#            /dmtc-offset
+#            /lbt-timer
+#            /max-cw-usage-counter
+##                /priority                      # Key
+#                /counter-value
+#        /gain
+#        /downlink-radio-frame-offset
+#        /downlink-sfn-offset
+#        /reference-level
+#        /configurable-tdd-pattern
+#    /rx-array-carriers
+##        /name                                  # Key
+#        /absolute-frequency-center
+#        /center-of-channel-bandwidth
+#        /channel-bandwidth
+#        /active
+#        /type
+#        /downlink-radio-frame-offset
+#        /downlink-sfn-offset
+#        /gain-correction
+#        /n-ta-offset
+#        /configurable-tdd-pattern
+#    /eaxc-id-group-configuration
+#        /max-num-tx-eaxc-id-groups
+#        /max-num-tx-eaxc-ids-per-group
+#        /max-num-rx-eaxc-id-groups
+#        /max-num-rx-eaxc-ids-per-group
+#        /tx-eaxc-id-group
+##            /representative-tx-eaxc-id         # Key
+#            /member-tx-eaxc-id
+#        /rx-eaxc-id-group
+##            /representative-rx-eaxc-id         # Key
+#            /member-rx-eaxc-id
+#    /static-prach-configurations
+##        /static-prach-config-id                # Key
+#        /pattern-period
+#        /guard-tone-low-re
+#        /num-prach-re
+#        /guard-tone-high-re
+#        /sequence-duration
+#        /prach-patterns
+##            /prach-pattern-id                  # Key
+#            /number-of-repetitions
+#            /number-of-occasions
+#            /re-offset
+#            /occasion-parameters
+##                /occasion-id                   # Key
+#                /cp-length
+#                /gp-length
+#                /beam-id
+#            /frame-number
+#            /sub-frame-id
+#            /time-offset
+#    /static-srs-configurations
+##        /static-srs-config-id                  # Key
+#        /pattern-period
+#        /srs-patterns
+##            /srs-pattern-id                    # Key
+#            /sub-frame-id
+#            /slot-id
+#            /start-symbol-id
+#            /beam-id
+#            /num-symbol
+#            /start-prbc
+#            /num-prbc
+#    /configurable-tdd-patterns
+##        /tdd-pattern-id                        # Key
+#        /switching-points
+##            /switching-point-id                # Key
+#            /direction
+#            /frame-offset
+#    /general-config
+#        /regularization-factor-se-configured
+#        /little-endian-byte-order
+###############################################################################################
+###########o-ran-beamforming
+    ################################## RPCS
+#/activate-beamforming-config
+#    /beamforming-config-file
+#    /band-number
+#/activate-beamforming-config-by-capability-group
+#    /beamforming-config-file
+#    /capabilities-group
+#/modify-predefined-beam-tilt-offset
+#    /predefined-beam-tilt-offset
+#        /capabilities-group
+#        /elevation-tilt-offset-angle
+#        /azimuth-tilt-offset-angle
+###############################################################################################
+##########o-ran-operations
+/operational-info:
+    /clock:
+        /timezone-name=<OPER_TIMEZONE>:
+        /timezone-utc-offset=<OPER_OFFSET>:
+    /re-call-home-no-ssh-timer=<OPER_CALLHOME_TIMER>:
+    #################################################### RPCS
+/reset=<OPER_RESET>:
+##############################################################################################
+
+## BEGIN # rpc ######################################################
+#/rpc:
+#  =: "(!@#)"
+#    /supervision-watchdog-reset:
+#      /input:
+#        /supervision-notification-interval=<INTERVAL>: (no-op)
+#        /guard-timer-overhead=<OVERHEAD>:
+#          =: supervision-watchdog-reset 0 <INTERVAL> <OVERHEAD>
+## END   # rpc ######################################################
+
+##########o-ran-fm

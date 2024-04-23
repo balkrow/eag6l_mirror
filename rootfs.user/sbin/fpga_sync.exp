@@ -1,0 +1,16 @@
+#!/usr/bin/expect
+set USER [lindex $argv 0]
+set PASSWORD [lindex $argv 1]
+set FPGA_ADDR [lindex $argv 2]
+spawn ssh $USER@$FPGA_ADDR
+
+expect -re "password: " {
+        send "$PASSWORD\r"; exp_continue;
+} -re "yes/no" {
+        send "yes\r"; exp_continue;
+} -re "NW_OFIU" {
+        send "sync\r";
+        send "exit\r"
+}
+system "logger -p daemon.info fpga sync complete!!"
+expect eof

@@ -1,0 +1,49 @@
+#HFR init rc
+
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t debugfs none /sys/kernel/debug
+mount -t devpts none /dev/pts
+
+echo /sbin/mdev > /proc/sys/kernel/hotplug
+mdev -s
+
+ln -s /proc/mounts /etc/mtab
+
+if [ ! -d /mnt/flash/boot ]
+then
+ln -s /media/boot/ /mnt/flash/boot
+fi
+
+if [ ! -d /mnt/flash/log ]
+then
+ln -s /media/log/ /mnt/flash/log
+fi
+
+if [ ! -d /mnt/flash/factory ]
+then
+ln -s /media/factory/ /mnt/flash/factory
+fi
+
+if [ ! -d /etc/dropbear ]
+then
+mkdir -p /etc/dropbear
+fi
+
+#echo -n "waiting for entropy available"
+#while [ `cat /proc/sys/kernel/random/entropy_avail` -le 1 ]
+#do
+#	ent=`cat /proc/sys/kernel/random/entropy_avail`
+#	echo -n "."
+# 	sleep 0.05 
+#done
+
+dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
+dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
+dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
+dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
+
+ifconfig eth0 192.168.157.236 netmask 255.255.255.0
+ifconfig eth0 up
+
+dropbear -E
