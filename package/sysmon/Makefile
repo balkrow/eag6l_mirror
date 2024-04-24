@@ -4,11 +4,12 @@ LFLAGS =
 INCLUDES= -I. -I../include  
 
 
-OBJECT= sysmon.c thread.c memory.c pqueue.c sigevent.c memtypes.c
+OBJECT = sysmon.c thread.c memory.c pqueue.c sigevent.c memtypes.c
+PROG_OBJ = devmem.c pid_output.c
 
 all: sysmon
 
-sysmon:  ${OBJECT}
+sysmon:  ${OBJECT} ${PROG_OBJ} 
 	${CC}  $(CFLAGS) $(DFLAGS) $(INCLUDES) -lreadline -ltermcap -lrt -lcrypt -o $@ $^
 	
 clean:

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <unistd.h>
 #include <signal.h>
@@ -27,3 +28,14 @@
 #include <stddef.h>
 #include <errno.h>
 #include <assert.h>
+
+#define PATH_SYSMON_PID "/var/run/sysmon.pid"
+#define SYSMON_BUG_ADDRESS "balkrow@hfrnet.com"
+
+//define Memory Macro
+#define FPGA_READ sys_fpga_memory_read
+#define FPGA_WRITE sys_fpga_memory_write
+#define DPRAM_READ sys_dpram_memory_read
+#define DPRAM_WRITE sys_dpram_memory_write
+#define CPLD_READ sys_cpld_memory_read
+#define CPLD_WRITE sys_cpld_memory_write
