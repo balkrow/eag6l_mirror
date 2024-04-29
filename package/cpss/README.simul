@@ -1,0 +1,8 @@
+if you run simulation, you must type below :
+
+1) build demo(aka bd demo)
+
+2) ./simul.sh 
+
+3) type 
+	cpssInitSystem 40,1,0

@@ -1,0 +1,7 @@
+[gerrit]
+host=vgitil10.il.marvell.com
+port=29418
+project=NPS/ez_bringup
+defaultbranch=ez_bringup_v3.0
+defaultremote=origin
+defaultrebase=0

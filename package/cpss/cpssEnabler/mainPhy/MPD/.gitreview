@@ -1,0 +1,7 @@
+[gerrit]
+host=vgitil10.il.marvell.com
+port=29418
+project=NPS/debugger_app
+defaultbranch=mpd_v02
+defaultremote=origin
+defaultrebase=0
