@@ -1,4 +1,4 @@
-./build
+./build/
 *.img
 *.cpio
 tags
@@ -6,4 +6,6 @@ rootfs
 rootfs_cpss
 *.txt
 *.bin
+*.tar
+*.tgz
 setup_internal.env
