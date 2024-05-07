@@ -24,7 +24,7 @@ function _demo {
 
 
 function _install {
-	cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvEthOpsDrv.ko ${INSTALL_ROOT}/lib/modules
+	#cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvEthOpsDrv.ko ${INSTALL_ROOT}/lib/modules
 	cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvcpss.ko ${INSTALL_ROOT}/lib/modules
 	exit 0
 }
