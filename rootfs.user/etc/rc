@@ -1,9 +1,12 @@
 #HFR init rc
 
+mkdir /dev/shm
+
 mount -t proc none /proc
 mount -t sysfs none /sys
 mount -t debugfs none /sys/kernel/debug
 mount -t devpts none /dev/pts
+mount -t tmpfs tmpfs /dev/shm
 
 echo /sbin/mdev > /proc/sys/kernel/hotplug
 mdev -s
@@ -29,6 +32,12 @@ if [ ! -d /etc/dropbear ]
 then
 mkdir -p /etc/dropbear
 fi
+
+# load all kernel modules
+for KMODULE in $(ls /lib/modules/*.ko)
+do
+      insmod $KMODULE
+done
 
 #echo -n "waiting for entropy available"
 #while [ `cat /proc/sys/kernel/random/entropy_avail` -le 1 ]

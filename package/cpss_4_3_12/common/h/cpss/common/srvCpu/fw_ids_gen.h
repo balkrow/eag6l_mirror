@@ -1,0 +1,83 @@
+
+#if 0
+# The fw-ids in this file are used both by the scripts that insert the fw-id into the FW header,
+# and the CPSS DB
+# FW id is composed of (FW_type << 16 | device ID)
+# Note: the _DEV_ID prefix below is essential, because BC2, AC5 etc are defined elsewhere
+#endif
+
+#if 0
+    shopt -s expand_aliases
+    alias ENUM='true'
+    alias COMMA=
+#else
+#   define ENUM  enum
+#   define COMMA ,
+#endif
+
+
+ENUM PP
+{
+    BC2_DEV_ID=0xFC00      COMMA
+    BOBK_DEV_ID=0xBC00     COMMA
+    AC3_DEV_ID=0xF400      COMMA
+    ALDRIN_DEV_ID=0xC800   COMMA
+    BC3_DEV_ID=0xD400      COMMA
+    PIPE_DEV_ID=0xC400     COMMA
+    AC5P_DEV_ID=0x9400     COMMA
+    AC5_DEV_ID=0xb400      COMMA
+    AC5X_DEV_ID=0x9800     COMMA
+    FALCON_DEV_ID=0x8400   COMMA
+    RAVEN_DEV_ID=0x8600    COMMA
+    ALDRIN2_DEV_ID=0xCC00  COMMA
+    HARRIER_DEV_ID=0x9000  COMMA
+    IRONMAN_DEV_ID=0xA000  COMMA
+    AAS_DEV_ID=0xB000      COMMA
+
+};
+
+ENUM FWs
+{
+    AP=0x1      COMMA
+    AP_MSYS=0x2 COMMA
+    DBA=0x3     COMMA
+    TAM=0x4     COMMA
+    FLOW_MNG=0x5 COMMA
+    IPFIX=0x6   COMMA
+    DUMMY_FW=0x7  COMMA
+    L1_FW=0x8   COMMA
+};
+
+
+ENUM PRV_FW_IDS_ENT
+{
+    AP_BC2_FW_ID=((AP<<16 | BC2_DEV_ID))         COMMA
+    AP_BC3_FW_ID=((AP<<16 | BC3_DEV_ID))         COMMA
+    AP_AC3_FW_ID=((AP<<16 | AC3_DEV_ID))         COMMA
+    AP_AC5_FW_ID=((AP<<16 | AC5_DEV_ID))         COMMA
+    AP_BOBK_MSYS_FW_ID=((AP_MSYS<<16 | BOBK_DEV_ID)) COMMA
+    AP_BOBK_CM3_FW_ID=((AP<<16 | BOBK_DEV_ID))       COMMA
+    AP_PIPE_FW_ID=((AP<<16 | PIPE_DEV_ID))       COMMA
+    AP_RAVEN_FW_ID=((AP<<16 | RAVEN_DEV_ID))     COMMA
+    AP_ALDRIN_FW_ID=((AP<<16 | ALDRIN_DEV_ID))   COMMA
+    AP_ALDRIN2_FW_ID=((AP<<16 | ALDRIN2_DEV_ID)) COMMA
+    AP_IRONMAN_FW_ID=((AP<<16 | IRONMAN_DEV_ID)) COMMA
+
+    DBA_BC3_FW_ID=((DBA<<16 | BC3_DEV_ID))       COMMA
+
+    FLOW_MNG_FALCON_FW_ID=((FLOW_MNG<<16 | FALCON_DEV_ID)) COMMA
+    FLOW_MNG_ALDRIN2_FW_ID=((FLOW_MNG<<16 | ALDRIN2_DEV_ID)) COMMA
+
+    TAM_BC3_FW_ID=((TAM<<16 | BC3_DEV_ID)) COMMA
+    TAM_FALCON_FW_ID=((TAM<<16 | FALCON_DEV_ID)) COMMA
+    TAM_ALDRIN2_FW_ID=((TAM<<16 | ALDRIN2_DEV_ID)) COMMA
+
+    IPFIX_AC5P_FW_ID=((IPFIX<<16 | AC5P_DEV_ID)) COMMA
+    IPFIX_AC5X_FW_ID=((IPFIX<<16 | AC5X_DEV_ID)) COMMA
+    IPFIX_FALCON_FW_ID=((IPFIX<<16 | FALCON_DEV_ID)) COMMA
+    DUMMY_AC5X_FW_ID=((DUMMY_FW<<16 | AC5X_DEV_ID)) COMMA
+    L1_AC5P_FW_ID=((L1_FW<<16 | AC5P_DEV_ID)) COMMA
+    L1_HARRIER_FW_ID=((L1_FW<<16 | HARRIER_DEV_ID)) COMMA
+    L1_IRONMAN_FW_ID=((L1_FW<<16 | IRONMAN_DEV_ID)) COMMA
+};
+

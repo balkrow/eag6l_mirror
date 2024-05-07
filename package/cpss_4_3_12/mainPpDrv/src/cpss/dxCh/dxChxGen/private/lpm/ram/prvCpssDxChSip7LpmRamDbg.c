@@ -1,0 +1,9718 @@
+/*******************************************************************************
+*              (c), Copyright 2001, Marvell International Ltd.                 *
+* THIS CODE CONTAINS CONFIDENTIAL INFORMATION OF MARVELL SEMICONDUCTOR, INC.   *
+* NO RIGHTS ARE GRANTED HEREIN UNDER ANY PATENT, MASK WORK RIGHT OR COPYRIGHT  *
+* OF MARVELL OR ANY THIRD PARTY. MARVELL RESERVES THE RIGHT AT ITS SOLE        *
+* DISCRETION TO REQUEST THAT THIS CODE BE IMMEDIATELY RETURNED TO MARVELL.     *
+* THIS CODE IS PROVIDED "AS IS". MARVELL MAKES NO WARRANTIES, EXPRESSED,       *
+* IMPLIED OR OTHERWISE, REGARDING ITS ACCURACY, COMPLETENESS OR PERFORMANCE.   *
+********************************************************************************
+*/
+/**
+********************************************************************************
+* @file prvCpssDxChSip7LpmRamDbg.c
+*
+* @brief the CPSS LPM Debug Engine support.
+*
+* @version   1
+********************************************************************************
+*/
+
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChLpmRamTypes.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChLpmRam.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChSip7LpmRam.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChLpmRamTrie.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChSip7LpmRamTrie.h>
+#include <cpssCommon/private/prvCpssMath.h>
+#include <cpssCommon/private/prvCpssSip7DevMemManager.h>
+#include <cpss/extServices/private/prvCpssBindFunc.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChLpmRamUc.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChSip7LpmRamUc.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChLpmRamMc.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChSip7LpmRamMc.h>
+#include <cpssCommon/private/prvCpssSkipList.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChLpmRamDbg.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChSip7LpmRamDbg.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChSip6LpmRamMngDefrag.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/ram/prvCpssDxChSip7LpmRamMngDefrag.h>
+#include <cpss/dxCh/dxChxGen/config/private/prvCpssDxChInfo.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/hw/prvCpssDxChLpmHw.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/hw/prvCpssDxChLpmHwSip7.h>
+#include <cpss/dxCh/dxChxGen/private/lpm/prvCpssDxChLpmUtils.h>
+#include <cpss/dxCh/dxChxGen/ip/private/prvCpssDxChIp.h>
+
+#include <cpss/common/private/globalShared/prvCpssGlobalDb.h>
+#include <cpss/common/private/globalShared/prvCpssGlobalDbInterface.h>
+
+/*global variables macros*/
+#define PRV_SHARED_IP_LPM_DIR_IP_LPM_SRC_GLOBAL_VAR_GET(_var)\
+    PRV_SHARED_GLOBAL_VAR_GET(mainPpDrvMod.ipLpmDir.ipLpmSrc._var)
+
+#define LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure,retVal,entity,addr,message) \
+{                                                                              \
+    cpssOsPrintf("Error on %s address 0x%p: %s\n", entity, addr, message);     \
+    retVal = GT_FAIL;                                                          \
+    if (returnOnFailure == GT_TRUE)                                            \
+    {                                                                          \
+        return retVal;                                                         \
+    }                                                                          \
+}
+
+#define LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure,retVal,entity,addr,hwAddr,message)           \
+{                                                                                                            \
+    cpssOsPrintf("Error on %s shadow address 0x%p, HW node address 0x%p: %s\n", entity, addr,hwAddr,message);\
+    retVal = GT_FAIL;                                                                                        \
+    if (returnOnFailure == GT_TRUE)                                                                          \
+    {                                                                                                        \
+        return retVal;                                                                                       \
+    }                                                                                                        \
+}
+
+/*
+When lpm memory mode is set to half memory mode ,SW required to duplicate entries.
+This is the offset of the duplication.
+For example if line number written is X ,then this line will also be written to index X+PRV_CPSS_DXCH_LPM_RAM_BC3_HALF_MEM_MODE_OFFSET_MAC
+*/
+#define PRV_CPSS_DXCH_LPM_RAM_DBG_BC3_HALF_MEM_MODE_OFFSET_MAC(_devNum) (PRV_CPSS_DXCH_PP_MAC(_devNum)->hwInfo.lpm.numOfLinesInBlock>>1)
+
+/*global variables macros*/
+#define PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(_var)\
+    PRV_SHARED_GLOBAL_VAR_GET(mainPpDrvMod.ipLpmDir.lpmRamDbgSrc._var)
+
+typedef struct
+{
+     GT_U32 lpmLinesPerOctet[2*PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS];   /* count the total number of lpm lines per octet */
+     GT_U32 bucketPerOctet[2*PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS];     /* count total number of buckets per octet */
+     GT_U32 bucketPerType[PRV_CPSS_DXCH_LPM_PROTOCOL_LAST_E];       /* count total number of buckets per bucket type */
+     GT_U32 bucketSizePerType[4];   /* count total buckets size per bucket type */
+     GT_U32 bucketTypePerOctet[2*PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS][PRV_CPSS_DXCH_LPM_PROTOCOL_LAST_E]; /* count total bucket per octect per type */
+     GT_U32 lpmLinesUsed[PRV_CPSS_DXCH_LPM_RAM_NUM_OF_MEMORIES_FALCON_CNS];  /* LPM lines used in each LPM block by specific virtual router */
+     GT_U32 numOfNonDefaultNextHopPointers;  /* number of pointers to route entry with base >= 3 (route entries 0-2 typicaly used for defaults) */
+     GT_BOOL printRanges;
+
+}prvLpmDumpPrintInfo_STC;
+
+typedef struct
+{
+     GT_U32  nodeCounterPerTypeSip7[4];   /* count total number of nodes per node type ( types can be: leaf=1,regular=2,comp=3. 0=empty is not used )*/
+     GT_U32  nodeCounterPerTypePerOctetSip7[2*PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS][6]; /* count total number of nodes per octect per
+                                                                                               node type (leaf,regular,comp,embedded_1,embedded_2,embedded_3) */
+     GT_U32  lpmLinesUsedSip7[PRV_CPSS_DXCH_LPM_RAM_NUM_OF_MEMORIES_SIP7_CNS];  /* LPM lines used in each LPM block by specific virtual router */
+     GT_U32  numOfNonDefaultNextHopPointersSip7;  /* number of pointers to route entry with base >= 3 (route entries 0-2 typicaly used for defaults) */
+     GT_BOOL printRangesSip7;
+}prvLpmDumpPrintInfoSip7_STC;
+
+extern GT_VOID * prvCpssSlSearch
+(
+    IN GT_VOID        *ctrlPtr,
+    IN GT_VOID        *dataPtr
+);
+
+/* max depth according to type: 4 for IPv4, 16 for IPv6, 3 for FCoE */
+#define PRV_DXCH_LPM_RAM_DBG_MAX_DEPTH_CHECK_MAC(protocol)   \
+    ((GT_U32)(((protocol) == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ? PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS:  \
+             (((protocol) == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E) ? PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS : \
+                                                                  PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS)))
+
+
+#define PRV_DXCH_LPM_RAM_DBG_BC3_AGING_BIT_LOCATION_CNS 6
+
+/* forward declaration */
+static GT_STATUS prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC          *shadowPtr,
+    IN  GT_U32                                    vrId,
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    IN  GT_U8                                     level,
+    IN  CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT       expectedNextPointerType,
+    IN  GT_U8                                     numOfMaxAllowedLevels,
+    IN  CPSS_UNICAST_MULTICAST_ENT                prefixType,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT      protocol,
+    IN  GT_U32                                    expectedPointingRangeMemAddr,
+    IN  GT_BOOL                                   returnOnFailure
+);
+/* forward declaration */
+static GT_STATUS prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7
+(
+    IN  GT_U8                                     devNum,
+    IN  PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC          *shadowPtr,
+    IN  GT_U32                                    vrId,
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    IN  GT_U32                                    hwBucketGonAddr,
+    IN  GT_U32                                    hwBucketDataArr[],
+    IN  GT_U8                                     level,
+    IN  CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT       expectedNextPointerType,
+    IN  GT_U8                                     numOfMaxAllowedLevels,
+    IN  CPSS_UNICAST_MULTICAST_ENT                prefixType,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT      protocol,
+    IN  GT_BOOL                                   returnOnFailure,
+    IN  GT_BOOL                                   isRootBucket
+);
+
+static GT_STATUS outputAddressSip7(GT_U8 *address, GT_U32 bytes2Print, PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol)
+{
+    while(bytes2Print > 1)
+    {
+        if ((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ||
+            (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E))
+        {
+            cpssOsPrintf("%03d.%03d.", *address, *(address+1));
+        }
+        else /* PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E */
+        {
+            cpssOsPrintf("%02X%02X:", *address, *(address+1));
+        }
+
+        address+=2;
+        bytes2Print-=2;
+    }
+
+    if (bytes2Print > 0)
+    {
+        if ((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ||
+            (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E))
+        {
+            cpssOsPrintf("%03d", *address);
+        }
+        else /* PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E */
+        {
+            cpssOsPrintf("%02X", *address);
+        }
+    }
+
+    return GT_OK;
+}
+
+void prefixBase2AddressSip7(GT_U8 *baseAddress, GT_U32 prefixBase, GT_U32 notZeroMask,
+                     GT_U8 *address)
+{
+    GT_U8 i;
+    if(notZeroMask == 0)  /* The mask is zero */
+        prefixBase += 8;
+
+    for (i = 0; i < PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS; i++)
+    {
+        if ((GT_U32)((i+1)*8) <= prefixBase)
+        {
+            address[i] = baseAddress[i];
+        }
+        else
+        {
+            address[i] = 0;
+        }
+    }
+}
+
+/* the function build and arrays of all data related to the ranges.
+   it is build according to the HW data and the nodeType */
+GT_STATUS getNumOfRangesFromHWSip7(PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol,
+                                   GT_U32 depth,
+                                   PRV_CPSS_DXCH_LPM_CHILD_TYPE_ENT nodeType,
+                                   GT_U32 *hwData,
+                                   GT_U32 hwAddr,
+                                   GT_U32 nodeChildAddressesArr[6],
+                                   GT_U32 nodeTotalChildTypesArr[6][3],
+                                   GT_U32 nodeTotalLinesPerTypeArr[6][3],
+                                   GT_U32 nodeTotalBucketPerTypesArr[6][3],
+                                   GT_U32 *numOfRangesPtr,
+                                   GT_U32 *rangesPtr,
+                                   GT_U32 *rangesTypePtr,
+                                   GT_U32 *rangesTypeIndexPtr,
+                                   GT_U32 *rangesBitLinePtr)
+{
+    GT_U32 baseAddr = 0;
+    GT_U32 lastAddr = 0;
+    GT_U32 childType = 0;
+
+    GT_U32 i,j;
+    GT_U32 numOfRangesCounter = 0;  /* number of bits in "on" state in the bit vector=number of ranges */
+    GT_U32 numOfRangesCounterInSingleLine = 0;  /* number of bits in "on" state in a single bit vector line */
+    GT_U32 numOfLeafCounter = 0;    /* number of bits in "on" state of type leaf */
+    GT_U32 numOfRegularCounter = 0; /* number of bits in "on" state of type regular */
+    GT_U32 numOfCompCounter = 0;    /* number of bits in "on" state of type compress */
+
+    GT_U32 offset;
+    GT_U32 value;
+    GT_U32 numOfLines=0;
+    GT_U32 numberOfEmbeddedLeafs;
+    GT_U32 numberOfEmbeddedLeafsTreated=0;
+    GT_U32 maxNumOfRangesInSingleLine = 0; /* can be 44 for regular, 3,5,7,11 for compressed */
+    GT_U32 numOfOffsetBitsPerRange = 8; /* 8 bits to represent child_offset 0-255 */
+    GT_U32 numOfTypetBitsPerRange = 2;  /* 2 bits to represent child_type 0,1,2,3 */
+    GT_U32 tempHwDataSingleLineArr[15];
+                                             /* each regular line is a wide one - 132 bits
+                                                bit 129-131 : #numOf_leafs fixed 0
+                                                bit 24-109  : bit vector for 44 ranges, each range is 2 bits
+                                                bit 0-23    : 24 bits for Child_pointer
+
+                                                each compressed line is also 132 bits - see bellow */
+
+    switch(nodeType)
+    {
+    case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:
+
+        /* compress occupy only one line in HW */
+        cpssOsMemCpy(tempHwDataSingleLineArr, hwData, sizeof(tempHwDataSingleLineArr));
+
+        U32_GET_FIELD_IN_ENTRY_MAC(tempHwDataSingleLineArr,0,
+                                   PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_CNS,
+                                   value);/* bits 0-23 child pointer */
+        nodeChildAddressesArr[0]= value;
+
+        /* check if we have embedded leafs */
+        /* bit 131-129 Embedded_leaf */
+        U32_GET_FIELD_IN_ENTRY_MAC(tempHwDataSingleLineArr,129,3,value);
+        if (value==4)
+        {
+            /* in sip7 value 4 means no embeded leafs */
+            numberOfEmbeddedLeafs=0;
+        }
+        else
+        {
+            numberOfEmbeddedLeafs = value;
+        }
+
+        numOfLines = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS;
+
+        switch (numberOfEmbeddedLeafs)
+        {
+        case 0:
+            /* no embedded leafs */
+
+            /* each compress line is a wide one - 132 bits
+            bit 129-131    : #numOf_leafs in case of embedded leafs, in this case it will be 4
+            bit 24-123     : bit vector for 11 ranges, each range is 10 bits,
+                             2 bits for type and 8 bits for offset value
+            bit 0-23       : 24 bits for Child_pointer */
+            maxNumOfRangesInSingleLine = PRV_CPSS_DXCH_SIP7_LPM_MAX_RANGES_IN_COMPRESSED_NODE_E;
+            break;
+        case 1:
+            /* 1 embedded leaf */
+
+            /* each compress line is a wide one - 132 bits
+            bit 129-131    : #numOf_leafs in case of embedded leafs, in this case it will be 1
+            bit 92-127     : Leaf_0, The first leaf in the Structure
+            bit 24-83      : bit vector for 7 ranges, each range is 10 bits,
+                             2 bits for type and 8 bits for offset value
+            bit 0-23       : 24 bits for Child_pointer */
+
+            maxNumOfRangesInSingleLine = PRV_CPSS_DXCH_LPM_MAX_RANGES_IN_EMBEDDED_1_NODE_E;
+            break;
+        case 2:
+            /* 2 embedded leaf */
+
+            /* each compress line is a wide one - 132 bits
+            bit 112-113    : #numOf_leafs in case of embedded leafs, in this case it will be 2
+            bit 92-127     : Leaf_0, The first leaf in the Structure
+            bit 66-91      : Leaf_1, The second leaf in the Structure
+            bit 24-63      : bit vector for 5 ranges, each range is 10 bits,
+                             2 bits for type and 8 bits for offset value
+            bit 0-23       : 24 bits for Child_pointer */
+
+            maxNumOfRangesInSingleLine = PRV_CPSS_DXCH_LPM_MAX_RANGES_IN_EMBEDDED_2_NODE_E;
+            break;
+        case 3:
+            /* 3 embedded leaf */
+
+            /* each compress line is a wide one - 132 bits
+            bit 129-131    : #numOf_leafs in case of embedded leafs, in this case it will be 3
+            bit 108-123    : bit vector for 3 ranges, each range is 10 bits,
+                             2 bits for type and 8 bits for offset value
+            bit 72-107     : Leaf_0, The third leaf in the Structure
+            bit 36-71      : Leaf_1, The second leaf in the Structure
+            bit 0-35       : Leaf_2, The first leaf in the Structure */
+
+
+            maxNumOfRangesInSingleLine = PRV_CPSS_DXCH_LPM_MAX_RANGES_IN_EMBEDDED_3_NODE_E;
+            break;
+        default:
+            break;
+        }
+        break;
+
+    case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:
+
+        /* each regular line is a wide one - 132 bits
+        bit 129-131    : #numOf_leafs fixed 0
+        bit 110-128    : reserved
+        bit 24-109     : bit vector for 44 ranges, each range is 2 bits
+        bit 0-23       : 24 bits for Child_pointer */
+
+        numOfLines = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS;
+        maxNumOfRangesInSingleLine = NUMBER_OF_RANGES_IN_SUBNODE;
+        numOfOffsetBitsPerRange = 0;
+        break;
+
+    case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E: /* no ranges */
+    default:
+        numOfLines = 0;
+        maxNumOfRangesInSingleLine = 0;
+        numOfOffsetBitsPerRange=0;
+        numOfTypetBitsPerRange = 0;
+        break;
+    }
+
+    /* go over all line of the node and sum its bits that are set to 1,
+       check legally of each range  */
+    if (nodeType==PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E)
+    {
+        /* ranges indexes are ordered in HW from range10 to range0*/
+        for (j=0; j<maxNumOfRangesInSingleLine; j++)
+        {
+            if (maxNumOfRangesInSingleLine==PRV_CPSS_DXCH_LPM_MAX_RANGES_IN_EMBEDDED_3_NODE_E)
+            {
+                /* there are no childType in HW since all child are known to be leafs */
+                childType=PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E;
+            }
+            else
+            {
+                offset = ((maxNumOfRangesInSingleLine - 1 - j) * 10 + PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS);
+                /* each range holds 10 bits
+                  range0 hold only 2 bits for the type since the offset is known to be 0
+                  24 is the number of bits for the child_pointer */
+                U32_GET_FIELD_IN_ENTRY_OOR_CHECK_MAC(tempHwDataSingleLineArr,offset,numOfTypetBitsPerRange,PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS*sizeof(GT_U32),value);
+                childType = value;
+            }
+
+            if (j!=0)
+            {
+                if (childType!=PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E)/* bits are not empty --> there is a valid range */
+                {
+                    if (maxNumOfRangesInSingleLine==PRV_CPSS_DXCH_LPM_MAX_RANGES_IN_EMBEDDED_3_NODE_E)
+                    {
+                        /* offset1 located at 116
+                           offset2 located at 108
+                           offset are located after 3 leafs, each leaf hold 36 bits */
+                        offset = (maxNumOfRangesInSingleLine*36)+8*(j%2);
+                    }
+                    else
+                    {
+                        offset = ((maxNumOfRangesInSingleLine-1-j)*10 +
+                                  PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS + /* 24 bits for childPointer */
+                                  numOfTypetBitsPerRange);
+                    }
+                    U32_GET_FIELD_IN_ENTRY_OOR_CHECK_MAC(tempHwDataSingleLineArr,offset,numOfOffsetBitsPerRange, PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS*sizeof(GT_U32), value);
+                    baseAddr = value;
+
+                    if (((baseAddr > 255) || (lastAddr >= baseAddr)) &&
+                        (!((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E) && (depth == 0))))
+                    {
+                        cpssOsPrintf("\n The offset values in the compressed node should be in ascending order,"
+                                     "illegal range number=%d, offset value=%d\n",(j-1),baseAddr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+                    else
+                    {
+                        lastAddr = baseAddr;
+                    }
+
+                    rangesPtr[numOfRangesCounter]=baseAddr;
+                    rangesTypePtr[numOfRangesCounter]=childType;
+                    if((childType==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)&&(numberOfEmbeddedLeafsTreated<numberOfEmbeddedLeafs))
+                    {
+                        /* embedded leafs should not be counted as regular leafs */
+                        numberOfEmbeddedLeafsTreated++;
+                    }
+                    else
+                    {
+                        nodeTotalChildTypesArr[0][(childType-1)]++; /* update the array holding the child_type of the bit vector line0
+                                                                     childType = empty range is not kept in nodeTotalChildTypesArr
+                                                                     childType = leaf is held in nodeTotalChildTypesArr[0][0]
+                                                                     childType = regular is held in nodeTotalChildTypesArr[0][1]
+                                                                     childType = comp is held in nodeTotalChildTypesArr[0][2] */
+                    }
+                    rangesBitLinePtr[numOfRangesCounter]=0;          /* 0 means the first line */
+
+
+                    switch (childType)
+                    {
+                    case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E:/* leaf */
+                        rangesTypeIndexPtr[numOfRangesCounter]=numOfLeafCounter;
+                        numOfLeafCounter++;
+                        break;
+                    case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:/* regular */
+                        rangesTypeIndexPtr[numOfRangesCounter]=numOfRegularCounter;
+                        numOfRegularCounter++;
+                        break;
+                    case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:/* compress */
+                        rangesTypeIndexPtr[numOfRangesCounter]=numOfCompCounter;
+                        numOfCompCounter++;
+                        break;
+                    case PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E:
+                    default:
+                         cpssOsPrintf("\n illegal childType=%d\n",childType);
+                         CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG); /* continue to other branches in the tree */
+                    }
+
+                    numOfRangesCounter++; /* add a range to the counter */
+                }
+            }
+            else if (!((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E) && (depth == 0) &&
+                       (childType == PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E)))
+            {
+                /* Valid for FCOE root bucket - 1 range and 1 leaf */
+                if ((childType == PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E) || (numOfRangesCounter != 0))
+                {
+                    cpssOsPrintf("\n childType cannot be empty in the first range, 0 is always the first range in the bucket\n");
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+
+                /* last range in HW representation ,child_type_0 do not have an offset - the offset value is always 0 */
+                rangesPtr[numOfRangesCounter]=0;
+                rangesTypePtr[numOfRangesCounter]=childType;
+                if((childType==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)&&(numberOfEmbeddedLeafsTreated<numberOfEmbeddedLeafs))
+                {
+                    /* embedded leafs should not be counted as regular leafs */
+                    numberOfEmbeddedLeafsTreated++;
+                }
+                else
+                {
+                    nodeTotalChildTypesArr[0][(childType-1)]++; /* update the array holding the child_type of the bit vector line0 */
+                }
+                rangesBitLinePtr[numOfRangesCounter]=0;          /* 0 means the first line */
+
+
+                switch (childType)
+                {
+                case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E:/* leaf */
+                    rangesTypeIndexPtr[numOfRangesCounter]=numOfLeafCounter;
+                    numOfLeafCounter++;
+                    break;
+                case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:/* regular */
+                    rangesTypeIndexPtr[numOfRangesCounter]=numOfRegularCounter;
+                    numOfRegularCounter++;
+                    break;
+                case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:/* compress */
+                    rangesTypeIndexPtr[numOfRangesCounter]=numOfCompCounter;
+                    numOfCompCounter++;
+                    break;
+                case PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E:
+                default:
+                     cpssOsPrintf("\n illegal childType=%d\n",childType);
+                     CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG); /* continue to other branches in the tree */
+                }
+
+                numOfRangesCounter++; /* add a range to the counter */
+            }
+        }
+    }
+    else/* CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E */
+    {
+        /* go over all lines of the node (6 lines for regular)
+            and sum its bits that are set to 1 */
+        for (i=0; i<numOfLines; i++)
+        {
+            numOfRangesCounterInSingleLine=0;
+            numOfLeafCounter=0;
+            numOfRegularCounter=0;
+            numOfCompCounter=0;
+
+            cpssOsMemCpy(tempHwDataSingleLineArr, (hwData+(i*PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS)), sizeof(tempHwDataSingleLineArr));
+
+            U32_GET_FIELD_IN_ENTRY_MAC(tempHwDataSingleLineArr,0,PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_CNS,value);/* bits 0-23 child pointer */
+            nodeChildAddressesArr[i]= value;
+
+           /*Formula: 110 + -(2*j): where j (0-43) represents index */
+            for (j=0; j<maxNumOfRangesInSingleLine; j++)
+            {
+                 /* each range holds 2 bits for child_type
+                   24 is the number of bits for the child_pointer */
+                U32_GET_FIELD_IN_ENTRY_MAC(tempHwDataSingleLineArr,
+                                           (110-(j*2)),
+                                           numOfTypetBitsPerRange,
+                                           value);
+                childType = value;
+                if (j!=0)
+                {
+                    if (childType!=PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E)/* bits are not empty - there is a valid range  */
+                    {
+                        rangesPtr[numOfRangesCounter]=  j +  i*maxNumOfRangesInSingleLine;
+
+                        rangesTypePtr[numOfRangesCounter]=childType;
+                        nodeTotalChildTypesArr[i][(childType-1)]++; /* update the array holding the child_type of the bit vector line0
+                                                                         childType = empty range is not kepps in nodeTotalChildTypesArr
+                                                                         childType = leaf is held in nodeTotalChildTypesArr[0][0]
+                                                                         childType = regular is held in nodeTotalChildTypesArr[0][1]
+                                                                         childType = comp is held in nodeTotalChildTypesArr[0][2] */
+                        rangesBitLinePtr[numOfRangesCounter]=i ;    /* 0 means the first line , 5 means the last line*/
+
+
+                        switch (childType)
+                        {
+                        case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E:/* leaf */
+                            rangesTypeIndexPtr[numOfRangesCounter]=numOfLeafCounter;
+                            numOfLeafCounter++;
+                            break;
+                        case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:/* regular */
+                            rangesTypeIndexPtr[numOfRangesCounter]=numOfRegularCounter;
+                            numOfRegularCounter++;
+                            break;
+                        case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:/* compress */
+                            rangesTypeIndexPtr[numOfRangesCounter]=numOfCompCounter;
+                            numOfCompCounter++;
+                            break;
+                        case PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E:
+                        default:
+                             cpssOsPrintf("\n illegal childType=%d\n",childType);
+                             PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(numOfErrors)++;
+                             CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                        }
+                        numOfRangesCounterInSingleLine++;
+                        numOfRangesCounter++; /* add a range to the counter */
+                    }
+                }
+                else
+                {
+                    if ((childType==PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E)||(numOfRangesCounterInSingleLine!=0))
+                    {
+                        cpssOsPrintf("\n childType cannot be empty in the first range of a regular line,"
+                                     " 0 is always the first range in the bit vector line\n");
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+                    /* last range in HW representation ,child_type_0, child_type_44, child_type_88... do not have an offset
+                       - the offset value known 0,44,88 .... */
+                    rangesPtr[numOfRangesCounter]= i*maxNumOfRangesInSingleLine;
+
+                    rangesTypePtr[numOfRangesCounter]=childType;
+                    nodeTotalChildTypesArr[i][(childType-1)]++; /* update the array holding the child_type of the bit vector line0
+                                                                     childType = empty range is not kepps in nodeTotalChildTypesArr
+                                                                     childType = leaf is held in nodeTotalChildTypesArr[0][0]
+                                                                     childType = regular is held in nodeTotalChildTypesArr[0][1]
+                                                                     childType = comp is held in nodeTotalChildTypesArr[0][2] */
+                    rangesBitLinePtr[numOfRangesCounter]=i ;    /* 0 means the first line , 5 means the last line*/
+
+
+                    switch (childType)
+                    {
+                    case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E:/* leaf */
+                        rangesTypeIndexPtr[numOfRangesCounter]=numOfLeafCounter;
+                        numOfLeafCounter++;
+                        break;
+                    case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:/* regular */
+                        rangesTypeIndexPtr[numOfRangesCounter]=numOfRegularCounter;
+                        numOfRegularCounter++;
+                        break;
+                    case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:/* compress */
+                        rangesTypeIndexPtr[numOfRangesCounter]=numOfCompCounter;
+                        numOfCompCounter++;
+                        break;
+                    case PRV_CPSS_DXCH_LPM_CHILD_EMPTY_TYPE_E:
+                    default:
+                         cpssOsPrintf("\n illegal childType=%d\n",childType);
+                         CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+                    numOfRangesCounterInSingleLine++;
+                    numOfRangesCounter++; /* add a range to the counter */
+                }
+            }
+        }
+    }
+
+    if (!((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E) && (depth == 0)))
+    {
+        if (rangesPtr[1] == 0)
+        {
+            cpssOsPrintf("\nAt least 2 ranges should be defined!!! Bucket address 0x%x\n",hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+    }
+
+    *numOfRangesPtr = numOfRangesCounter;
+
+    /* sum number of line from each GON that have Type=nodeChildType */
+    for (i=0;i<numOfLines;i++)
+    {
+        /* calculate number of lines occupied by all the leafs */
+        if(nodeTotalChildTypesArr[i][0]%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS!=0)
+        {
+            /* one extra non full line */
+            nodeTotalLinesPerTypeArr[i][0]+=(1+nodeTotalChildTypesArr[i][0]/MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS);
+            nodeTotalBucketPerTypesArr[i][0]+=(nodeTotalChildTypesArr[i][0]);
+        }
+        else
+        {
+            nodeTotalLinesPerTypeArr[i][0]+=(nodeTotalChildTypesArr[i][0]/MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS);
+            nodeTotalBucketPerTypesArr[i][0]+=(nodeTotalChildTypesArr[i][0]);
+        }
+
+        /* calculate number of lines occupied by all the regular */
+        /* each regular bucket holds 6 lines */
+        nodeTotalLinesPerTypeArr[i][1]+=(nodeTotalChildTypesArr[i][1]*PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS);
+        nodeTotalBucketPerTypesArr[i][1]+=(nodeTotalChildTypesArr[i][1]);
+
+        /* calculate number of lines occupied by all the compress */
+        nodeTotalLinesPerTypeArr[i][2]+=(nodeTotalChildTypesArr[i][2]);
+        nodeTotalBucketPerTypesArr[i][2]+=(nodeTotalChildTypesArr[i][2]);
+    }
+
+    return GT_OK;
+}
+
+GT_VOID printLpmMcGroupSip7(PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol,
+                        GT_U8 prefixLength,
+                        GT_U8 startAddr,
+                        GT_U8 endAddr)
+{
+    GT_U8  startAddress[PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS];
+    GT_U8  endAddress[PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS];
+    GT_U8  address[PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS];
+    GT_U8  j;
+    GT_U32 bytesToPrint;
+
+    if(prefixLength > 128)
+    {
+        return;
+    }
+
+    cpssOsMemSet(endAddress,0, sizeof(GT_U8) * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS);
+    cpssOsMemSet(startAddress,0, sizeof(GT_U8) * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS);
+    cpssOsMemSet(address,0, sizeof(GT_U8) * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS);
+
+    /* print group */
+    cpssOsPrintf(" Group :  ");
+    prefixBase2AddressSip7(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr) ,prefixLength,1,address);
+    for (j = 8; j < prefixLength; j += 8)
+    {
+        startAddress[(j/8)-1] = address[(j/8)-1];
+        endAddress[(j/8)-1] = address[(j/8)-1];
+    }
+    startAddress[(j/8)-1] = startAddr;
+    endAddress[(j/8)-1] = (GT_U8)endAddr;
+    if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+    {
+        bytesToPrint = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS;
+    }
+    else    /* PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E */
+    {
+        bytesToPrint = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS;
+    }
+    outputAddressSip7(startAddress, bytesToPrint, protocol);
+    cpssOsPrintf(" - ");
+    outputAddressSip7(endAddress, bytesToPrint, protocol);
+    cpssOsPrintf(" / %02d\n ", prefixLength);
+    cpssOsPrintf(" Src tree for this group :\n");
+
+}
+
+/* function that vallidate the child pointer taken from the bit vector or from the leaf */
+GT_STATUS validateChildPtrSip7(GT_U8 devNum, GT_U32 hwAddr, GT_U32 childPointerOffset)
+{
+    /* check that the childPointerAddr points to a leggal address
+       in HW according to the LPM banks memory configuration
+       meanning can not be more than numOfLinesInBlock*/
+
+    if ((childPointerOffset%PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap)>=
+        PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.numOfLinesInBlock)
+    {
+        cpssOsPrintf("\n illegal childPointerOffset!!! Bucket address 0x%x\n", hwAddr);
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+    return GT_OK;
+}
+
+/* validate the child type values in the bit vector ranges */
+GT_STATUS validateChildTypeSip7(GT_U32 hwAddr, GT_U32 childType)
+{
+    if (childType>3)
+    {
+        cpssOsPrintf("\n illegal childType!!! Bucket address 0x%x\n", hwAddr);
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+    return GT_OK;
+}
+
+/* validate the child offset values in the bit vector ranges */
+GT_STATUS validateChildOffsetSip7(GT_U32 hwAddr, GT_U32 childOffset)
+{
+    if (childOffset>255)
+    {
+        cpssOsPrintf("\n illegal childOffset!!! Bucket address 0x%x\n", hwAddr);
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+    return GT_OK;
+}
+
+/* function to validate a Leaf */
+GT_STATUS validateLeafSip7(GT_U8 devNum,  GT_U32 hwAddr, GT_U32 *embeddedLeafVal,
+                          GT_U32 *entryTypePtr, GT_U32 *leafTypePtr, GT_U32 *nhPointerPtr,
+                          GT_U32 *nextBucketPointerPtr, GT_U32 *nextNodeTypePtr,GT_BOOL isUc)
+{
+    GT_STATUS ret = GT_OK;
+    PRV_CPSS_DXCH_LPM_ECMP_ENTRY_STC ecmpEntry;
+    GT_U32 nextNodeType; /* bit 0
+                            Defines the next node entry type
+                            0x0 = Regular
+                            0x1 = Compressed
+                            valid if EntryType="Trigger" */
+
+    GT_U32 nhPointer;       /* bits 22-5
+                            Pointer to the Next Hop Table or the ECMP Table,
+                            based on the Leaf Type.
+                            valid if EntryType="Leaf" */
+    GT_U32 nhAdditionalData;/* bits 4-3
+                            Contains a set of UC security check enablers
+                            and IPv6 MC scope level:
+                            1. [4] UC SIP SA Check Mismatch Enable
+                            2. [3] UC RPF Check Enable
+                            3. [4..3] IPv6 MC Group Scope Level[1..0]
+                            valid if EntryType="Leaf" */
+    GT_U32 nextBucketPointer;/* bits 25-2
+                                Pointer to the next bucket on the (G,S) lookup
+                                valid if EntryType="Trigger" */
+    GT_U32 leafType; /* bit 2
+                        The leaf entry type
+                        0x0 = Regular Leaf
+                        0x1 = Multipath Leaf
+                        valid if EntryType="Leaf" */
+    GT_U32 entryType;/* bit 1
+                        In the process of (*,G) lookup.
+                        When an entry has this bit set, the (*, G) lookup
+                        terminates with a match at the current entry, and (S,
+                        G) SIP based lookup is triggered.
+                        Note that in such case, head of trie start address for
+                        the (S,G) lookup is obtained from the the (*, G)
+                        lookup stage.
+                         0x0 = Leaf
+                         0x1 = Trigger; Trigger IP MC S+G Lookup */
+    GT_U32 lpmOverEmPriority;/* bit 0
+                                Define the resolution priority between LPM and
+                                Exact Match results
+                                 0x0 = Low; Exact Match has priority over LPM result
+                                 0x1 = High;LPM result has priority over Exact Match */
+    GT_U32 routeEntriesNum;
+
+    GT_U32                              nhIndex = 0;
+    GT_U32                              indirectIndex = 0;
+    GT_U32                              maxNumOfIndirectEntries = 0;
+    GT_U32                              nextHopIndex = 0;
+
+    U32_GET_FIELD_IN_ENTRY_MAC(&embeddedLeafVal[0], 0, 1, lpmOverEmPriority);
+    U32_GET_FIELD_IN_ENTRY_MAC(&embeddedLeafVal[0],1,1,entryType);
+    U32_GET_FIELD_IN_ENTRY_MAC(&embeddedLeafVal[0],2,1,leafType);
+    U32_GET_FIELD_IN_ENTRY_MAC(&embeddedLeafVal[0],2,
+                               PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_CNS,/* 24 bits for childPointer*/
+                               nextBucketPointer);
+    U32_GET_FIELD_IN_ENTRY_MAC(&embeddedLeafVal[0],3,2,nhAdditionalData);
+    U32_GET_FIELD_IN_ENTRY_MAC(&embeddedLeafVal[0],5,18,nhPointer);
+    if(entryType==0 && leafType==0)/* regular leaf */
+    {
+        /* in SIP7 the pointer was increased from 16 bits (supports 48K entries L2NHE)
+           to 18 bits(to support 192K entries – 4 in a line for the case of new L3NHE).
+           Bits[0:1] , is the number of the entry in a line
+           Bits [2:17]>>2 , is the line number.
+           if the leaf is of type L2NHE we need to get the index from hw (leafNodePtr->index>>2)
+           legal values for the index are 0...48K-1
+           if the leaf is of type L3NHE we just get the index as it is
+           legal values for the index are 0...192K-1
+        */
+        /* for now all entries are of type L2NHE */
+        nhPointer = nhPointer>>2;
+    }
+
+    U32_GET_FIELD_IN_ENTRY_MAC(&embeddedLeafVal[0],0,1,nextNodeType);
+
+    if(entryType==PRV_CPSS_DXCH_LPM_LEAF_ENTRY_TYPE_LEAF_E)/* Leaf */
+    {
+        if (leafType == PRV_CPSS_DXCH_LPM_LEAF_REGULAR_TYPE_ENT) /*Regular Leaf*/
+        {
+            /* Number of entries in NH table */
+            routeEntriesNum = PRV_CPSS_DXCH_PP_MAC(devNum)->fineTuning.tableSize.routerNextHop;
+
+            /* NH base address must be within the NH table */
+            if (nhPointer >= routeEntriesNum)
+            {
+                cpssOsPrintf("\nNH pointer not in range of NH table!!! NH address %d\n",nhPointer);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+        }
+        else/* CPSS_DXCH_LPM_LEAF_MULTIPATH_TYPE_E */
+        {
+            /* Number of entries in ECMP/QoS table */
+            routeEntriesNum = PRV_CPSS_DXCH_PP_MAC(devNum)->fineTuning.tableSize.ecmpQos;
+
+            if (nhPointer >= routeEntriesNum)
+            {
+                cpssOsPrintf("\nECMP/QOS pointer not in range of ECMP/QOS table!!! ECMP address %d\n",nhPointer);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+        }
+
+        if (leafType == PRV_CPSS_DXCH_LPM_LEAF_MULTIPATH_TYPE_E)/*Multipath Leaf*/
+        {
+            ret = prvCpssDxChLpmHwEcmpEntryReadSip7(devNum, nhPointer, &ecmpEntry);
+            if (ret != GT_OK)
+            {
+                cpssOsPrintf("\nFailed to read ECMP entry %d\n",nhPointer);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+
+            maxNumOfIndirectEntries = prvCpssDxchTableIpvxRouterEcmpPointerNumEntriesGet(devNum);
+            if (ecmpEntry.nexthopBaseIndex + ecmpEntry.numOfPaths > maxNumOfIndirectEntries)
+            {
+                cpssOsPrintf("\nECMP entry points to illegal ECMP Indirect index");
+                cpssOsPrintf("\nECMP entry Index = %d\n",nhPointer);
+                cpssOsPrintf("\nECMP Number of paths = %d\n",ecmpEntry.numOfPaths);
+
+                cpssOsPrintf("\nmax Num Of Indirect Entries  %d\n", maxNumOfIndirectEntries);
+                cpssOsPrintf("\nECMP Indirect index = %d\n",ecmpEntry.nexthopBaseIndex);
+
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+
+            routeEntriesNum = PRV_CPSS_DXCH_PP_MAC(devNum)->fineTuning.tableSize.routerNextHop;
+            for(nhIndex=0; nhIndex < ecmpEntry.numOfPaths;nhIndex++)
+            {
+                indirectIndex = ecmpEntry.nexthopBaseIndex + nhIndex;
+                /* Get the NH index Indirect table */
+                ret = prvCpssDxChReadTableEntry(devNum,
+                                                CPSS_DXCH_SIP5_25_TABLE_IPVX_ROUTER_ECMP_POINTER_E,
+                                                indirectIndex,
+                                                &nextHopIndex);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nFailed to read ECMP entry %d\n",nhPointer);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+
+                if(nextHopIndex >= routeEntriesNum)
+                {
+                    cpssOsPrintf("\nECMP entry Index = %d\n",nhPointer);
+                    cpssOsPrintf("\nECMP Indirect index = %d\n", ecmpEntry.nexthopBaseIndex);
+                    cpssOsPrintf("\nNextHop out of range = %d\n", nextHopIndex);
+
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+            }
+
+        }
+
+        *leafTypePtr = leafType;
+        *nhPointerPtr = nhPointer;
+        *nextBucketPointerPtr = 0;
+        *nextNodeTypePtr=0;
+    }
+    else /* CPSS_DXCH_LPM_LEAF_ENTRY_TYPE_TRIGGER_E */
+    {
+        if (isUc==GT_TRUE)
+        {
+            cpssOsPrintf("\nUnicast tree points to a source tree!!! Bucket address 0x%x\n",hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+        /* check nextBucketPointer is in a legal range of the banks memory */
+        ret = validateChildPtrSip7(devNum, hwAddr, nextBucketPointer);
+        if (ret != GT_OK)
+        {
+            cpssOsPrintf("\nillegal nextBucketPointer in case of entryType=Trigger %d\n",nextBucketPointer);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+        *leafTypePtr = 0;
+        *nhPointerPtr = 0;
+        *nextBucketPointerPtr = nextBucketPointer;
+        *nextNodeTypePtr=nextNodeType;
+    }
+
+    *entryTypePtr = entryType;
+
+    return GT_OK;
+}
+
+/* function that validate the regular bit vector */
+GT_STATUS validateBitVectorOfRegularBucketSip7(GT_U8 devNum, GT_U32 *bucketDataPtr,
+                                               GT_U32 hwAddr, GT_U32 basePrefix)
+{
+    GT_STATUS ret=GT_OK;
+    GT_U32 hwBucketAddr[PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS];/* wide line - 5 words of data */
+    GT_U32 bitSum=0;
+    GT_U32 bitsArray;
+    GT_U32 sum;
+    GT_U32 i,j;
+
+    for (i = 0; i < PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS; i++)/* regular bit vector have 6 lines */
+    {
+        cpssOsMemCpy(hwBucketAddr, (bucketDataPtr+(i*PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS)), sizeof(hwBucketAddr)); /* bitmap pointer first line */
+        /* bit 131-129 Embedded_leaf MUST be "0" for Non Embedded Leaf Structure */
+        if ((hwBucketAddr[4]>>1 & 0x7) != 0)
+        {
+            cpssOsPrintf("\n Embedded_leaf MUST be 0 for Non Embedded Leaf Structure!!! Bucket address 0x%x\n",hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+        /* on the last bit vector line, 16 bits must be 0 - last line hold 220-255 ranges */
+        if (i==5)
+        {
+            if(((hwBucketAddr[0]>>PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS) & 0xFFFF) != 0) /* 24 bits for childPointer */
+            {
+                cpssOsPrintf("\nOn last word, last 16 bits must be 0 !!! Bucket address 0x%x\n",hwAddr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+        }
+
+        /* check child_pointer is in a legal  range of the banks memory */
+        ret = validateChildPtrSip7(devNum, hwAddr, (hwBucketAddr[0] & PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_MASK_CNS)); /* 24 bits */
+        if (ret != GT_OK)
+        {
+            cpssOsPrintf("\nillegal child_pointer in validateBitVectorOfRegularBucketSip7 %d\n",hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+        sum = 0;
+        for (j=0;j<PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS;j++)/* go over 5 words of data of the wide line */
+        {
+            if (j==0)
+            {
+               bitsArray = hwBucketAddr[0]>>PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS;
+            }
+            else
+            {
+                bitsArray = hwBucketAddr[j];
+            }
+            while (bitsArray != 0)
+            {
+                if ((bitsArray & 0x3) != 0)
+                {
+                    sum++; /* count number of set bits in array */
+                }
+                bitsArray = bitsArray >> 2;/* child node is represented by 2 bits */
+            }
+        }
+        bitSum += sum;
+    }
+
+    /* since we have added a case that regular can be with less then 12 ranges,
+       to support delete operation when memory is full,
+       this check is no longer correct */
+#if 0
+    /* Regular bucket is for 12-255 ranges so there must be at least 12 bits != 0
+       exception here for root bucket, which can be regular
+       If it regular then it will have ranges 6-255 -> less than 12 bits */
+    if (bitSum < (SIP7_MAX_NUMBER_OF_COMPRESSED_RANGES_CNS+1))
+    {
+        if (!((PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_FALSE) && (basePrefix == 8)))
+        {
+            cpssOsPrintf("\nAt least 6 ranges should be defined!!! Bucket address 0x%x\n",hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+    }
+#endif
+    basePrefix = basePrefix;
+    return GT_OK;
+}
+
+GT_STATUS validateBitVectorOfCompressBucketSip7(GT_U8 devNum, GT_U32 *bucketDataPtr,
+                                                GT_U32 hwAddr,GT_BOOL isUc,
+                                                PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol,
+                                                GT_U32 depth, GT_BOOL *rootHasNoChildrenPtr)
+{
+    GT_STATUS status=GT_OK;
+    GT_U32 hwDataArr[PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS];/* wide line - 5 words of data */
+    GT_U32 i,j;
+    GT_U32 numberOfEmbeddedLeafs=0;
+    GT_U32 maxRangesVal=SIP7_MAX_NUMBER_OF_COMPRESSED_RANGES_CNS;/* no embedded leafs. sip6 was 10 ranges, sip7 is 11 ranges */
+    GT_U32 numberOfRangesUsedVal=0;
+    GT_U32 embeddedLeafVal[2]={0,0};/* 36 bits of data */
+    GT_U32 beforeTheLastOffsetValue;
+    GT_U32 value;
+    GT_U32 valueBits32_35=0;
+    GT_U32 nhPointer,leafType;
+    GT_U32 entryType, nextBucketPointer, nextNodeType;
+
+    GT_BOOL foundFirstEmptyRange = GT_FALSE;
+    GT_U32  offset;
+
+    cpssOsMemCpy(hwDataArr, bucketDataPtr, sizeof(hwDataArr)); /* bitmap pointer first line */
+    /* check if we have embedded leafs,
+       If we do then check their legality  */
+
+    /* bit 129-131 Embedded_leaf */
+    U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr,129,3,value);
+     if (value==4)
+    {
+        /* in sip7 value 4 mens no embeded leafs */
+        numberOfEmbeddedLeafs=0;
+    }
+    else
+    {
+        numberOfEmbeddedLeafs = value;
+    }
+
+    for (i = 0; i < numberOfEmbeddedLeafs; i++)
+    {
+        switch(i)
+        {
+        case 0:
+            if ((numberOfEmbeddedLeafs==1)||(numberOfEmbeddedLeafs==2))
+            {
+                /* first embedded leaf located at bit 92-127*/
+                U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr, 92, 32, value);           /* bits 0-31  */
+                U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr, 124, 4, valueBits32_35);  /* bits 32-35 */
+            }
+            else
+            {
+                if (numberOfEmbeddedLeafs==3)
+                {
+                    /* first embedded leaf located at bit 107-72*/
+                    U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr, 72, 32, value);           /* bits 0-31  */
+                    U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr, 104, 4, valueBits32_35);  /* bits 32-35 */
+                }
+            }
+
+            maxRangesVal = 7;
+            break;
+        case 1:
+            if (numberOfEmbeddedLeafs==2)
+            {
+                /*second embedded leaf located at bit 66-91*/
+                U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr,66,26,value);
+            }
+            else
+            {
+                if(numberOfEmbeddedLeafs==3)
+                {
+                    /*second embedded leaf located at bit 71-36*/
+                    U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr,36,32,value);          /* bits 0-31 */
+                    U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr,68,4,valueBits32_35);  /* bits 32-35 */
+                }
+            }
+            maxRangesVal = 5;
+            break;
+        case 2:
+            /*third embedded leaf located at bit 0-35 */
+            U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr,0,32,value);           /* bits 0-31 */
+            U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr,32,4,valueBits32_35);  /* bits 32-35 */
+
+            maxRangesVal = 3;
+            break;
+        default:
+            cpssOsPrintf("\n illegal number of embedded leafs!!! Bucket address 0x%x\n", hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG); /* continue to other branches in the tree */
+            break;
+        }
+
+        embeddedLeafVal[0] = value;
+        embeddedLeafVal[1] = valueBits32_35;
+        status = validateLeafSip7(devNum, hwAddr, embeddedLeafVal,
+                                  &entryType, &leafType, &nhPointer,
+                                  &nextBucketPointer,&nextNodeType,isUc);
+        if (status != GT_OK)
+        {
+            cpssOsPrintf("\n Embedded_leaf illegal Leaf structure!!! Bucket address 0x%x\n", hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG); /* continue to other branches in the tree */
+        }
+    }
+
+    /* 3 embedded do not have a child pointer */
+    if(numberOfEmbeddedLeafs!=3)
+    {
+        /* check that the child_pointer has a legal value according to the LPM size */
+        U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr,0,PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_CNS,value);
+        status = validateChildPtrSip7(devNum, hwAddr, value);
+        if (status != GT_OK)
+        {
+            cpssOsPrintf("\n Compress bit vecotor - illegal child_pointer!!! Bucket address 0x%x\n", hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG); /* continue to other branches in the tree */
+        }
+    }
+
+    for (j=0;j<maxRangesVal;j++)/* go over all ranges in wide line */
+    {
+
+        if (maxRangesVal==3)
+        {
+            /* for embedded_3 there are no childType in the HW since all ranges are leafs
+               so nothing to check */
+        }
+        else
+        {
+            /* child type */
+            offset = (PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS + (10 * (maxRangesVal -1 - j)));
+            U32_GET_FIELD_IN_ENTRY_OOR_CHECK_MAC(hwDataArr, offset, 2, PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS*sizeof(GT_U32), value);
+
+            /* first child type can not be 0.
+               0 always open a range in the compress bit vector */
+            if ((j==0) && (value==0) &&
+                (!((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E) && (depth == 0))))
+            {
+                cpssOsPrintf("\n childType can not be empty in the first range, 0 is always the first range in the bucket\n");
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+
+            if (value == 0)
+            {
+                if (foundFirstEmptyRange==GT_FALSE)
+                {
+                    /* the current bit in the bit-vector does not open a new range */
+                    foundFirstEmptyRange = GT_TRUE;
+                    continue;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                if ((foundFirstEmptyRange==GT_TRUE)&&(j!=(maxRangesVal-1))&&(j!=(maxRangesVal-2)))
+                {
+                    cpssOsPrintf("\n Compress bit vector - illegal range types.\n"
+                                 " after the first empty range all ranges should be empty except the last one, and the one before the last one"
+                                 "!!! Bucket address 0x%x\n", hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+            }
+
+            status = validateChildTypeSip7(hwAddr, value);
+            if (status != GT_OK)
+            {
+                cpssOsPrintf("\n Embedded_leaf illegal Structure!!! Bucket address 0x%x\n", hwAddr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+        }
+
+        numberOfRangesUsedVal++;
+
+        /* child offset */
+         if (j!=0)/* first range offset is always 0 */
+         {
+             if (maxRangesVal==3)
+             {
+                 /* offset1 located at 116
+                    offset2 located at 108
+                    offset are located after 3 leafs, each leaf hold 36 bits */
+                 offset = (maxRangesVal*36)+8*(j%2);
+             }
+             else
+             {
+                 offset = ((PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS + (10 * (maxRangesVal - 1 - j))) + 2);
+             }
+            U32_GET_FIELD_IN_ENTRY_OOR_CHECK_MAC(hwDataArr, offset, 8, PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS*sizeof(GT_U32), value);
+
+            status = validateChildOffsetSip7(hwAddr,value);
+            if (status != GT_OK)
+            {
+                cpssOsPrintf("\n Compress illegal ChildOffset!!! Bucket address 0x%x\n", hwAddr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+         }
+    }
+
+    if (numberOfRangesUsedVal!=maxRangesVal)
+    {
+        /* not all ranges were used */
+
+        /* When less than max number of ranges possible are in use:
+           - All low offset are in use
+           - Offset9 is used to represent the range ending in 255
+           - The unused offset are places before offset9 with ch_type=0
+             except offset8 that will have the ch_type of the last
+             valid offset before offset9.
+             Offset_value off the unused range will be equal to the
+             last valid offset_value before offset9
+           - if we have only 2 ranges then the
+             1. offset_value of the ranges between the first and the
+                last will be of the second range
+             2. ch_type of the ranges between the first and the
+                last will be 0 */
+
+        /* (numberOfRangesUsedVal-1) is the index of the last range treated out of maxRangesVal
+           *10 to get the correct child data (each data is 10 bits of type+offset)
+           +24 is for the 24 bits of the child_pointer
+           +2 is for the 2 bits of the child_type
+           after finding the offset we increase 10 bits in order to get the "offset before the last" */
+        if(numberOfRangesUsedVal>2)
+        {
+            offset = (((PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS + (10 * ((maxRangesVal-1) - (numberOfRangesUsedVal-1)))) + 2) + 10);
+            U32_GET_FIELD_IN_ENTRY_OOR_CHECK_MAC(hwDataArr, offset, 8, PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS*sizeof(GT_U32), value);
+        }
+        else
+        {
+            /* check that numberOfRangesUsedVal==2 else illegal option */
+            if (numberOfRangesUsedVal==1)
+            {
+                /* Valid for FCOE root bucket */
+                if (!((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E) && (depth == 0)))
+                {
+                    cpssOsPrintf("\n if numberOfRangesUsedVal==1 illegal!!! Bucket address 0x%x\n", hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+            }
+            else
+            {
+                /* need to find the last offset_value and to see all the offset_values after the first offset(that is 0) are the same */
+                U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr, (PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS+2), 8, value); /*24 bits for childPointer + 2 bits childType10 */
+
+                /*  if we have only 2 ranges then the
+                    1. offset_value of the ranges between the first and the
+                       last will be of the second range
+                    2. ch_type of the ranges between the first and the
+                       last will be 0 */
+            }
+        }
+
+        beforeTheLastOffsetValue = value;
+
+        /* no need to loop on the offsetValue before the last one and to
+           check that all offset until the last one have the same value */
+        for (j=(numberOfRangesUsedVal-1);j<(maxRangesVal-1);j++)
+        {
+            if ((((PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS + (10 * (maxRangesVal - 1 - j))) + 2) + 8) >=
+                (32 * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS))
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_RANGE, "Shouldn't happen: hwDataArr illegal access");
+            }
+            U32_GET_FIELD_IN_ENTRY_MAC(hwDataArr, ((PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_IN_HW_CNS + (10 * (maxRangesVal - 1 - j))) + 2), 8, value);
+            if (value!=beforeTheLastOffsetValue)
+            {
+                cpssOsPrintf("\n illegal offset values in empty ranges!!! Bucket address 0x%x\n", hwAddr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+        }
+    }
+
+    if ((numberOfRangesUsedVal == numberOfEmbeddedLeafs) && (rootHasNoChildrenPtr != NULL))
+    {
+        *rootHasNoChildrenPtr = GT_TRUE;
+    }
+
+    return GT_OK;
+}
+
+/*************************************************************************/
+GT_STATUS checkDepthSip7(GT_BOOL isUc, PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol,GT_U32 depth, GT_U32 hwAddr)
+{
+    if (isUc)
+    {
+        /* IPv4 UC / IPv6 UC/ FCoE Max tree depth is 4/16/3 accordingly */
+        if (depth > PRV_DXCH_LPM_RAM_DBG_MAX_DEPTH_CHECK_MAC(protocol))
+        {
+            cpssOsPrintf("\nUC Max tree depth is %d!!! Bucket address 0x%x\n",PRV_DXCH_LPM_RAM_DBG_MAX_DEPTH_CHECK_MAC(protocol),hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+        /* From depth 4/16/3 (according to type) all LPM lines must be NH/ECMP/QoS bucket type */
+        else if (depth == PRV_DXCH_LPM_RAM_DBG_MAX_DEPTH_CHECK_MAC(protocol))
+        {
+            cpssOsPrintf("\nFrom depth %d all LPM lines must be NH, ECMP or QoS bucket type!!! Bucket address 0x%x\n",PRV_DXCH_LPM_RAM_DBG_MAX_DEPTH_CHECK_MAC(protocol),hwAddr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+    }
+    else /* multicast */
+    {
+        if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+        {
+            if (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_FALSE)
+            {
+                /* Multicast group tree */
+                if (depth > 4)
+                {
+                    /* IPv4 Max MC group depth is 4 */
+                    cpssOsPrintf("\nIPv4 MC Max tree depth is 4!!! Bucket address 0x%x\n",hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+            }
+            else
+            {
+                /* Multicast source tree */
+                if (depth > 8)
+                {
+                    /* Each IPv4 MC group points to root of sources tree (with max depth of 4). So total max depth is 8. */
+                    cpssOsPrintf("\nIPv4 MC source Max tree depth is 8!!! Bucket address 0x%x\n",hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+                else if (depth == 8)
+                {
+                    /* For IPv4 MC in depth 8 all LPM lines must be NH/ECMP/Qos bucket type */
+                    cpssOsPrintf("\nFrom depth %d all LPM lines must be NH/ECMP/QoS bucket type!!! Bucket address 0x%x\n",8,hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+            }
+        }
+        else    /* PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E */
+        {
+            if (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_FALSE)
+            {
+                /* Multicast group tree */
+                if (depth > PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS)
+                {
+                    /* IPv6 Max MC group depth is 16 */
+                    cpssOsPrintf("\nIPv6 MC Max tree depth is 16!!! Bucket address 0x%x\n",hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+            }
+            else
+            {
+                /* Multicast source tree */
+                if (depth > (2 * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS))
+                {
+                    /* Each IPv6 MC group points to root of sources tree (with max depth of 16). So total max depth is 32. */
+                    cpssOsPrintf("\nIPv6 MC source Max tree depth is 32!!! Bucket address 0x%x\n",hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+                else if (depth == (2 * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS))
+                {
+                    /* For IPv6 MC in depth 32 all LPM lines must be NH/ECMP/Qos bucket type */
+                    cpssOsPrintf("\nFrom depth %d all LPM lines must be NH/ECMP/QoS bucket type!!! Bucket address 0x%x\n",
+                                 (2 * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS), hwAddr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+            }
+        }
+    }
+    return GT_OK;
+}
+
+/* the child address calculation differs according to the child type.
+   The group of child nodes are organized so that all child nodes
+   of the same type are grouped together*/
+GT_STATUS getFromTheGonOneNodeAddrAndSizeSip7(GT_U32 gonBaseAddr,
+                                          GT_U32 *totalChildsTypeArr,
+                                          GT_U32 rangeType,
+                                          GT_U32 rangeTypeIndex,
+                                          GT_U32 *gonNodeAddrPtr,
+                                          GT_U32 *gonNodeSizePtr)
+{
+    GT_U32      lineHwAddress=0;
+    GT_U32      baseRegularAddr=0;
+    GT_U32      baseCompAddr=0;
+    GT_U32      baseLeafAddr=0;
+
+    baseRegularAddr=gonBaseAddr;
+    baseCompAddr=gonBaseAddr+(PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS * totalChildsTypeArr[1]);
+    baseLeafAddr=baseCompAddr + totalChildsTypeArr[2];
+
+    switch (rangeType)
+    {
+    case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E:/* leaf*/
+        lineHwAddress = baseLeafAddr + (rangeTypeIndex/MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS);
+        *gonNodeSizePtr = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS;
+        break;
+    case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:/* regular */
+        lineHwAddress = baseRegularAddr + (PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS*rangeTypeIndex);
+        *gonNodeSizePtr = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS;
+        break;
+    case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:/* compress*/
+        lineHwAddress = baseCompAddr + rangeTypeIndex;
+        *gonNodeSizePtr = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS;
+        break;
+    default:
+        cpssOsPrintf("\ngetFromTheGonOneNodeAddrAndSizeSip7 illegal rangeType=%d\n",rangeType);
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        break;
+    }
+
+    *gonNodeAddrPtr = lineHwAddress;
+    return GT_OK;
+}
+
+GT_STATUS printLpmSip7(GT_U8 devNum, PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC *shadowPtr,
+                       GT_U32 *bucketPtr, GT_U8 *baseAddress,
+                       GT_U32 basePrefix, GT_U8 startAddress, GT_U32 endAddress,
+                       GT_U32 nodeType,GT_U32 bankIndexOfTheGon,GT_U32 gonNodeAddr,
+                       GT_BOOL isUc, PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol,
+                       GT_U32 depth, prvLpmDumpPrintInfoSip7_STC *printInfo)
+{
+    GT_STATUS status=GT_OK;
+    GT_U32    numOfRanges;
+    GT_U32    numOfRangesUsed=0;     /* parameter used when going over the lines of regular bit vector */
+    GT_U32    *rangesArr;       /* maximum 256 ranges per octet*/
+    GT_U32    *rangesTypesArr;   /* for each range keep its type (regular,compress,leaf) */
+    GT_U32    *rangesBitLineArr; /* for each range keep its bit vector line */
+    GT_U32    *rangesTypeIndexArr; /* what is the number of this range type
+                                       from total number of lines with the same type -
+                                       where it is located in the GON */
+    GT_U32    *bucketDataPtr;   /* data read from HW, max lines read will be 6 lines for regular bit vector  */
+    GT_U32    *bucketDataOneRangeGonPtr;   /* data of one range GON read from HW */
+    GT_U32    leafData[2]={0,0};       /* one leaf data read from hw (a leaf read from the line of leafs)
+                                    can be 26 bits (5 leafs in a line) or 36 bits (3 leafs in a line) */
+    GT_U32    nodeSize;         /* size of the node
+                                   regular have 6 lines, all the rest hold 1 line*/
+    GT_U32    gonNodeSize;
+
+    GT_U32    nodeChildAddressesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS];/* the child_pointer located at the beginning of each line
+                                                                                            for regular node we have 6 pointers, for compress node one pointer */
+    GT_U32    nodeTotalChildTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][3];/* 6 elements in a regular node
+                                                                                                3 types of child that can be for each range (leaf,regular,compress) */
+
+    GT_U32    nodeTotalLinesPerTypeArr[6][3]; /* sum the number of lines in the GON according to the Type */
+    GT_U32    nodeTotalBucketPerTypesArr[6][3];  /* sum the number of buckets (copmress, regular or leaf) in the GON according to the Type */
+
+    GT_U32    numberOfEmbeddedLeafs=0;
+    GT_U32    indexOfEmbeddedLeaf=0;
+    GT_U32    value;
+    GT_U32    valueBits32_35=0;
+
+
+    GT_U32 hwAddr = gonNodeAddr;    /* in lines */
+    GT_U32 bankIndex = bankIndexOfTheGon;
+    GT_STATUS ret = GT_OK;
+
+    GT_U8  addr[2*PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS] = {0};
+    GT_U8  prefix = 0;
+    GT_U32 basePrefixLength = 0;
+    GT_U32 hwBucketAddr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS*PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS];
+    GT_U32 i = 0,j = 0;
+    GT_U8 startAddr[2*PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS];
+    GT_U8 endAddr[2*PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS];
+    GT_U8 *baseAddrPtr = NULL;
+
+    PRV_CPSS_DXCH_LPM_ECMP_ENTRY_STC ecmpEntry;
+
+    GT_U32 nhPointer,leafType;
+    GT_U32 entryType, nextBucketPointer,nextNodeType;
+    GT_U32 nextBucketSize;
+    GT_U32 bankIndexsOfTheGonsArray[6];  /* the indexs of the banks were the GON is located */
+
+    GT_U32 srcNodeType;/* nodeType used when printing the head of SRC tree */
+
+    cpssOsMemSet(&ecmpEntry,0,sizeof(ecmpEntry));
+    leafData[0]=0;
+    leafData[1]=0;
+
+    /* Allocate memory for bucket data.
+    Maximum size is a regular bucket --> 6 lines
+    each line is a wide line = 8 words (5 words of data) */
+    bucketDataPtr = cpssOsMalloc(PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+    if (bucketDataPtr == NULL)
+     CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+
+    cpssOsMemSet(bucketDataPtr, 0, PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+
+    bucketDataOneRangeGonPtr = cpssOsMalloc(PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+    if (bucketDataOneRangeGonPtr == NULL)
+     CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+
+    cpssOsMemSet(bucketDataOneRangeGonPtr, 0, PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+
+    cpssOsMemSet(nodeChildAddressesArr,0,sizeof(nodeChildAddressesArr));
+    cpssOsMemSet(nodeTotalChildTypesArr,0,sizeof(nodeTotalChildTypesArr));
+    cpssOsMemSet(nodeTotalLinesPerTypeArr,0,sizeof(nodeTotalLinesPerTypeArr));
+    cpssOsMemSet(nodeTotalBucketPerTypesArr,0,sizeof(nodeTotalBucketPerTypesArr));
+    cpssOsMemSet(bankIndexsOfTheGonsArray,0,sizeof(bankIndexsOfTheGonsArray));
+    cpssOsMemSet(hwBucketAddr,0,sizeof(hwBucketAddr));
+
+    rangesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesArr,0,256*sizeof(GT_U32));
+    rangesTypesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesTypesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesTypesArr,0,256*sizeof(GT_U32));
+    rangesBitLineArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesBitLineArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesBitLineArr,0,256*sizeof(GT_U32));
+    rangesTypeIndexArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesTypeIndexArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesTypeIndexArr,0,256*sizeof(GT_U32));
+
+    basePrefixLength = basePrefix + 8;
+    baseAddrPtr = baseAddress + 1;
+    switch(nodeType)
+    {
+    case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E:
+        nodeSize = 1;
+        cpssOsMemCpy(bucketDataPtr, bucketPtr, 2*sizeof(GT_U32)); /* bucketDataPtr will hold one leaf data - 36 bits of data */
+
+        ret = validateLeafSip7(devNum,  hwAddr, bucketDataPtr,
+                               &entryType, &leafType, &nhPointer, &nextBucketPointer,
+                                &nextNodeType,isUc);
+        if (ret != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+
+            CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+        }
+
+        if(entryType==PRV_CPSS_DXCH_LPM_LEAF_ENTRY_TYPE_TRIGGER_E)/* "trigger" */
+        {
+            if (isUc == GT_TRUE)
+            {
+                cpssOsPrintf("\nUnicast tree points to a source tree!!! Bucket address 0x%x\n",hwAddr);
+                cpssOsFree(bucketDataPtr);
+                cpssOsFree(rangesArr);
+                cpssOsFree(rangesTypesArr);
+                cpssOsFree(rangesBitLineArr);
+                cpssOsFree(rangesTypeIndexArr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+            else if (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_TRUE)
+            {
+                cpssOsPrintf("\nMulticast source tree points to a source tree!!! Bucket address 0x%x\n",hwAddr);
+                cpssOsFree(bucketDataPtr);
+                cpssOsFree(rangesArr);
+                cpssOsFree(rangesTypesArr);
+                cpssOsFree(rangesBitLineArr);
+                cpssOsFree(rangesTypeIndexArr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+            }
+            else
+            {
+                /* It is last group bucket. The next pointer is not next hop
+                   pointer type -- the src tree will be started */
+                if (printInfo->printRangesSip7)
+                {
+                    printLpmMcGroupSip7(protocol, (GT_U8)basePrefix, startAddress, (GT_U8)endAddress);
+                }
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) = GT_TRUE;
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(grpPrefix) = basePrefix;
+                basePrefixLength = 0;
+                cpssOsMemCpy(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddr),
+                             PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),
+                             sizeof(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)));
+                cpssOsMemSet(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),0,
+                             sizeof(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)));
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddrPtr) = baseAddrPtr;
+                baseAddrPtr = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr);
+
+                /* get the MC src GON */
+                switch(nextNodeType)
+                {
+                case PRV_CPSS_DXCH_LPM_LEAF_NEXT_NODE_REGULAR_TYPE_E:/* regular */
+                    nextBucketSize=PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS;
+                    srcNodeType = PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E;
+                    break;
+                case PRV_CPSS_DXCH_LPM_LEAF_NEXT_NODE_COMPRESSED_TYPE_E: /* compress */
+                    nextBucketSize=PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS;
+                    srcNodeType = PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E;
+                    break;
+                default:
+                    cpssOsPrintf("\nillegal nextNodeType!!! Bucket address 0x%x\n",hwAddr);
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    break;
+                }
+                /* read Src Bucket */
+                status = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                                     CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                                     nextBucketPointer,
+                                                     nextBucketSize,
+                                                     bucketDataPtr);
+                if (status != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in call to prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7!!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(status, LOG_ERROR_NO_MSG);
+                }
+
+                /* now we should print the MC SRC */
+
+                /* the hwAddr is a relative address to the beginning of the LPM *//* should be changed later */
+                bankIndexOfTheGon = nextBucketPointer/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                if (ret != GT_OK)
+                {
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                }
+
+                ret = printLpmSip7(devNum,
+                                   shadowPtr,
+                                   bucketDataPtr,
+                                   baseAddrPtr,
+                                   basePrefixLength,/* 0 */
+                                   startAddress,
+                                   endAddress,
+                                   srcNodeType,/* compressed or regular */
+                                   bankIndexOfTheGon,
+                                   nextBucketPointer,
+                                   isUc,            /* GT_FALSE */
+                                   protocol,
+                                   depth+1,
+                                   printInfo);
+
+
+                if (ret != GT_OK)
+                {
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+
+                if( (isUc == GT_FALSE)      &&
+                    (basePrefixLength == 0)       &&
+                    (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_TRUE)  )
+                {
+                    /* The source tree was displayed and the other group regions
+                       will be printed*/
+
+                    PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) = GT_FALSE;
+                    basePrefixLength = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(grpPrefix);
+                    cpssOsMemCpy(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),
+                                 PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddr),
+                                 sizeof(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)));
+                    baseAddrPtr = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddrPtr);
+                    if (printInfo->printRangesSip7)
+                    {
+                        cpssOsPrintf(" End of Src tree for this group. \n");
+                    }
+                }
+            }
+        }
+        else
+        {
+            cpssOsMemSet(endAddr,0, sizeof(GT_U8) * (2 * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS));
+            cpssOsMemSet(startAddr,0, sizeof(GT_U8) * (2 * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS));
+
+            prefix = (GT_U8)basePrefix;
+            prefixBase2AddressSip7(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr) ,prefix,1,addr);
+            for (j = 8; j < prefix; j += 8)
+            {
+                startAddr[(j/8)-1] = addr[(j/8)-1];
+                endAddr[(j/8)-1] = addr[(j/8)-1];
+            }
+            startAddr[(j/8)-1] = startAddress;
+            endAddr[(j/8)-1] = (GT_U8)endAddress;
+            if (printInfo->printRangesSip7)
+            {
+                if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+                {
+                    outputAddressSip7(startAddr, PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS, protocol);
+                    cpssOsPrintf(" - ");
+                    outputAddressSip7(endAddr, PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS, protocol);
+                }
+                else if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E)
+                {
+                    outputAddressSip7(startAddr, PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS, protocol);
+                    cpssOsPrintf(" - ");
+                    outputAddressSip7(endAddr, PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS, protocol);
+                }
+                else /* PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E */
+                {
+                    outputAddressSip7(startAddr, PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS, protocol);
+                    cpssOsPrintf(" - ");
+                    outputAddressSip7(endAddr, PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS, protocol);
+                }
+                cpssOsPrintf(" / %02d ", prefix);
+                if (leafType == PRV_CPSS_DXCH_LPM_LEAF_REGULAR_TYPE_ENT)/* regular */
+                {
+                    cpssOsPrintf(" -> NH %X\n",nhPointer);
+                }
+                else /* CPSS_DXCH_LPM_LEAF_MULTIPATH_TYPE_E */
+                {
+                    cpssOsPrintf(" -> ECMP/QoS %X\n",nhPointer);
+                }
+            }
+            if (nhPointer >= PRV_CPSS_DXCH_LPM_RAM_NUM_OF_DEFAULT_ENTRIES)
+                printInfo->numOfNonDefaultNextHopPointersSip7++;
+        }
+        break;
+    case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:
+        nodeSize = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS;
+        cpssOsMemCpy(bucketDataPtr, bucketPtr,
+                     PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);/* bucketDataPtr will hold 6 wide lines - 768 bits of data  */
+
+        /* the data we have in bucketDataPtr is already the next Bit vector for the range,
+           it was read in previous stage. this is the range we want to work on */
+        status = validateBitVectorOfRegularBucketSip7(devNum,bucketDataPtr, gonNodeAddr, basePrefixLength);
+        if (status != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+        status = getNumOfRangesFromHWSip7(protocol,
+                                          depth,
+                                          nodeType,
+                                          bucketDataPtr,
+                                          gonNodeAddr,
+                                          nodeChildAddressesArr,
+                                          nodeTotalChildTypesArr,
+                                          nodeTotalLinesPerTypeArr,
+                                          nodeTotalBucketPerTypesArr,
+                                          &numOfRanges,
+                                          rangesArr,
+                                          rangesTypesArr,
+                                          rangesTypeIndexArr,
+                                          rangesBitLineArr);
+        if (status != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+        status = checkDepthSip7(isUc,protocol,depth,hwAddr);
+        if (status != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+        if (printInfo->printRangesSip7)
+        {
+            cpssOsPrintf (" %X \n",hwAddr);
+        }
+
+        /* update the print info for the first octet */
+        printInfo->lpmLinesUsedSip7[bankIndex] += (nodeSize);
+        printInfo->nodeCounterPerTypePerOctetSip7[depth][(PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E-1)]++;
+        printInfo->nodeCounterPerTypeSip7[2] += (nodeSize);
+
+        for (j=0;j<nodeSize;j++)
+        {
+            for (i = numOfRangesUsed; i < numOfRanges; i++)
+            {
+                if (rangesBitLineArr[i]!=j)
+                {
+                    break; /* break the loop on ranges and move to the next bit vector line */
+                }
+
+                /* calculate the address and the size of a single node from the GON
+                   (6 lines for regular all the rest 1 line) according to the
+                   parameters we got from getNumOfRangesFromHWSip7 */
+                ret = getFromTheGonOneNodeAddrAndSizeSip7(nodeChildAddressesArr[j],
+                                                       nodeTotalChildTypesArr[j],
+                                                       rangesTypesArr[i],
+                                                       rangesTypeIndexArr[i],
+                                                       &gonNodeAddr,
+                                                       &gonNodeSize);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in call to getFromTheGonOneNodeAddrAndSizeSip7!!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG); /* continue to other branches in the tree */
+                }
+                /* read one range (range number i) */
+                 status = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                                     CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                                     gonNodeAddr,
+                                                     gonNodeSize,
+                                                     bucketDataPtr);
+                if (status != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in call to prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7!!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(status, LOG_ERROR_NO_MSG);
+                }
+
+
+                cpssOsMemCpy(hwBucketAddr, bucketDataPtr, sizeof(hwBucketAddr));
+                startAddress = (GT_U8)rangesArr[i];
+                endAddress = (i == (numOfRanges-1))? 255 : (rangesArr[i+1]- 1);
+                if (endAddress > 255)
+                {
+                    cpssOsPrintf("Err!!");
+                }
+                if ( (isUc == GT_FALSE)    &&
+                     (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_TRUE)&&
+                     (basePrefix == 0)    )
+                {
+                    /* I am in mc src tree in zero bucket */
+                    baseAddress[0] = startAddress;
+                    baseAddrPtr = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr);
+                }
+                else
+                    baseAddress[1] = startAddress;
+
+                /* the hwAddr is a relative address to the beginning of the LPM *//* should be changed later */
+                bankIndexOfTheGon = gonNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                if (ret != GT_OK)
+                {
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                }
+                bankIndexsOfTheGonsArray[j]=bankIndexOfTheGon;
+
+                if(rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)
+                {
+                     /* need to find the correct leaf out of all the leafs in the line - in HW the first leaf are keept in last bits:
+                       0-25:    leaf 4
+                       26-51:   leaf 3
+                       52-77:   leaf 2
+                       78-103:  leaf 1
+                       104-129: leaf 0 */
+                    U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,
+                                               (MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS-(rangesTypeIndexArr[i]%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS)-1)*26,
+                                               26,leafData[0]);
+
+                    ret = printLpmSip7(devNum, shadowPtr, leafData,
+                                       baseAddrPtr, basePrefixLength, startAddress, endAddress,
+                                       rangesTypesArr[i],bankIndexOfTheGon,gonNodeAddr, isUc, protocol,
+                                       depth,
+                                       printInfo);
+                    if (ret != GT_OK)
+                    {
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                    }
+
+                    printInfo->nodeCounterPerTypePerOctetSip7[depth][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)]++;
+                }
+                else
+                {
+                    ret = printLpmSip7(devNum, shadowPtr, hwBucketAddr,
+                                       baseAddrPtr, basePrefixLength, startAddress, endAddress,
+                                       rangesTypesArr[i],bankIndexOfTheGon,gonNodeAddr, isUc, protocol,
+                                       depth+1,
+                                       printInfo);
+                    if (ret != GT_OK)
+                    {
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                    }
+                }
+
+                if( (isUc == GT_FALSE)      &&
+                    (basePrefixLength == 0)       &&
+                    (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_TRUE)  )
+                {
+                    /* The source tree was displayed and the other group regions
+                       will be printed*/
+
+                    PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) = GT_FALSE;
+                    basePrefixLength = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(grpPrefix);
+                    cpssOsMemCpy(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),
+                                 PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddr),
+                                 sizeof(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)));
+                    baseAddrPtr = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddrPtr);
+                    if (printInfo->printRangesSip7)
+                    {
+                        cpssOsPrintf(" End of Src tree for this group. \n");
+                    }
+                }
+                numOfRangesUsed++;
+            }
+
+           /*  after printing the all ranges we need to udate the number of lines occupied by the leafs
+                those are not updated in the print recursive calls.
+                all calculation of how many lines is occupied by the leafs is
+                calculated in getRootBucketRangesSip7.*/
+
+            /* update the print info for the first octet */
+            printInfo->lpmLinesUsedSip7[bankIndexsOfTheGonsArray[j]] += (nodeTotalLinesPerTypeArr[j][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)]);
+            printInfo->nodeCounterPerTypeSip7[1] += nodeTotalBucketPerTypesArr[j][0]; /* add the number of leafs calculated for this GON */
+        }
+
+        break;
+    case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:
+        nodeSize = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS;
+        cpssOsMemCpy(bucketDataPtr, bucketPtr, PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);/* bucketDataPtr will hold 1 wide line - 132 bits of data  */
+
+        /* the data we have in bucketDataPtr is already the next Bit vector for the range, it was read in previous stage  */
+        status = validateBitVectorOfCompressBucketSip7(devNum, bucketDataPtr, gonNodeAddr,isUc,protocol, depth, NULL);
+        if (status != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+        status = getNumOfRangesFromHWSip7(protocol,
+                                          depth,
+                                          nodeType,
+                                          bucketDataPtr,
+                                          gonNodeAddr,
+                                          nodeChildAddressesArr,
+                                          nodeTotalChildTypesArr,
+                                          nodeTotalLinesPerTypeArr,
+                                          nodeTotalBucketPerTypesArr,
+                                          &numOfRanges,
+                                          rangesArr,
+                                          rangesTypesArr,
+                                          rangesTypeIndexArr,
+                                          rangesBitLineArr);
+        if (status != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+        status = checkDepthSip7(isUc,protocol,depth,hwAddr);
+        if (status != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+        if (printInfo->printRangesSip7)
+        {
+            cpssOsPrintf (" %X \n",hwAddr);
+        }
+
+
+        /* get the number of embedded leafs in the compress bit vector */
+        /* bit 131-129 Embedded_leaf */
+        U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,129,3,value);
+        if (value==4)
+        {
+            /* in sip7 value 4 mens no embeded leafs */
+            numberOfEmbeddedLeafs=0;
+        }
+        else
+        {
+            numberOfEmbeddedLeafs = value;
+        }
+
+        /* update the print info for the first octet */
+        printInfo->lpmLinesUsedSip7[bankIndex] += (nodeSize);
+
+        printInfo->nodeCounterPerTypePerOctetSip7[depth][(PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E-1+numberOfEmbeddedLeafs)]++;
+        printInfo->nodeCounterPerTypeSip7[3] += (nodeSize);
+
+        /* go over the ranges and print them recursively */
+        for (i = 0; i < numOfRanges; i++)
+        {
+            if ((numberOfEmbeddedLeafs!=0)&&(rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E))/* leaf */
+            {
+                /* if the range is of an embedded leaf the validity of the embedded
+                   leaf was done in the call to validateBitVectorOfCompressBucketSip7 */
+
+                /* the leaf data is already located in bucketDataPtr so no need to read from HW
+                   just to print it */
+
+                    switch(indexOfEmbeddedLeaf)
+                    {
+                    case 0:
+                        if ((numberOfEmbeddedLeafs==1)||(numberOfEmbeddedLeafs==2))
+                        {
+                            /* first embedded leaf located at bit 92-127*/
+                            U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr, 92, 32, value);           /* bits 0-31  */
+                            U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr, 124, 4, valueBits32_35);  /* bits 32-35 */
+                        }
+                        else
+                        {
+                            if (numberOfEmbeddedLeafs==3)
+                            {
+                                /* first embedded leaf located at bit 107-72*/
+                                U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr, 72, 32, value);           /* bits 0-31  */
+                                U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr, 104, 4, valueBits32_35);  /* bits 32-35 */
+                            }
+                        }
+
+                        break;
+                    case 1:
+                        if (numberOfEmbeddedLeafs==2)
+                        {
+                            /*second embedded leaf located at bit 66-91*/
+                            U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,66,26,value);
+                        }
+                        else
+                        {
+                            if(numberOfEmbeddedLeafs==3)
+                            {
+                                /*second embedded leaf located at bit 71-36*/
+                                U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,36,32,value);          /* bits 0-31 */
+                                U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,68,4,valueBits32_35);  /* bits 32-35 */
+                            }
+                        }
+
+                       break;
+                    case 2:
+                        /* third embedded leaf located at bit 0-35 */
+                        U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,0,32,value);           /* bits 0-31 */
+                        U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,32,4,valueBits32_35);  /* bits 32-35 */
+                        break;
+                    default:
+                        cpssOsPrintf("\n illegal number of embedded leafs!!! Bucket address 0x%x\n", hwAddr);
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+
+                    leafData[0] = value;
+                    leafData[1] = valueBits32_35;
+                    indexOfEmbeddedLeaf++;/* an index for knowing how many embedded leafs we already dealt with */
+
+                    cpssOsMemCpy(hwBucketAddr, bucketDataPtr, sizeof(hwBucketAddr)); /* bitmap pointer first line */
+                    startAddress = (GT_U8)rangesArr[i];
+                    endAddress = (i == (numOfRanges-1))? 255 : (rangesArr[i+1]- 1);
+                    if (endAddress > 255)
+                    {
+                        cpssOsPrintf("Err!!");
+                    }
+                    if ( (isUc == GT_FALSE)    &&
+                         (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_TRUE)&&
+                         (basePrefix == 0)    )
+                    {
+                        /* I am in mc src tree in zero bucket */
+                        baseAddress[0] = startAddress;
+                        baseAddrPtr = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr);
+                    }
+                    else
+                        baseAddress[1] = startAddress;
+
+                    /* the hwAddr is a relative address to the beginning of the LPM *//* should be changed later */
+                    bankIndexOfTheGon = gonNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                    ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                    if (ret != GT_OK)
+                    {
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                    }
+                    ret = printLpmSip7(devNum,
+                                       shadowPtr,
+                                       leafData,
+                                       baseAddrPtr,
+                                       basePrefixLength,
+                                       startAddress,
+                                       endAddress,
+                                       rangesTypesArr[i],
+                                       bankIndexOfTheGon,
+                                       gonNodeAddr,
+                                       isUc,
+                                       protocol,
+                                       depth,/* we leave the same depth, since we are still in the same octet, just want to print the leaf */
+                                       printInfo);
+
+                     if (ret != GT_OK)
+                    {
+                        cpssOsPrintf("\nInconsistency exists in call to printLpmSip7 !!!\n");
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                    }
+            }
+            else
+            {
+                /* calculate the address and the size of a single node from the GON
+                   (6 lines for regular all the rest 1 line) according to the
+                   parameters we got from getNumOfRangesFromHWSip7 */
+                ret = getFromTheGonOneNodeAddrAndSizeSip7(nodeChildAddressesArr[0],
+                                                      nodeTotalChildTypesArr[0],
+                                                      rangesTypesArr[i],
+                                                      rangesTypeIndexArr[i],
+                                                      &gonNodeAddr,
+                                                      &gonNodeSize);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in call to getFromTheGonOneNodeAddrAndSizeSip7!!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+
+                }
+                /* read one range (range number i) */
+                ret = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                                     CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                                     gonNodeAddr,
+                                                     gonNodeSize,
+                                                     bucketDataOneRangeGonPtr);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in call to prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(bucketDataOneRangeGonPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+                startAddress = (GT_U8)rangesArr[i];
+                endAddress = (i == (numOfRanges-1))? 255 : (rangesArr[i+1]- 1);
+                if (endAddress > 255)
+                {
+                    cpssOsPrintf("Err!!");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    cpssOsFree(bucketDataOneRangeGonPtr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+                if ( (isUc == GT_FALSE)    &&
+                     (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_TRUE)&&
+                     (basePrefix == 0)    )
+                {
+                    /* I am in mc src tree in zero bucket */
+                    baseAddress[0] = startAddress;
+                    baseAddrPtr = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr);
+                }
+                else
+                {
+                    baseAddress[1] = startAddress;
+                }
+
+                 /* the hwAddr is a relative address to the beginning of the LPM *//* should be changed later */
+                bankIndexOfTheGon = gonNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                if (ret != GT_OK)
+                {
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                }
+                if (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)/* leaf */
+                {
+                    /* not an embedded leaf that was treated above but a regular leaf */
+
+                    /* need to find the correct leaf out of all the leafs in the line - in HW the first leaf are keept in last bits:
+                       0-25: leaf 4
+                       26-51: leaf 3
+                       52-77: leaf 2
+                       78-103: leaf 1
+                       104-129: leaf 0 */
+                    U32_GET_FIELD_IN_ENTRY_MAC(bucketDataOneRangeGonPtr,
+                                               (MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS-(rangesTypeIndexArr[i]%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS)-1)*26,
+                                               26,leafData[0]);
+
+                    ret = printLpmSip7(devNum,
+                                       shadowPtr,
+                                       leafData,
+                                       baseAddrPtr,
+                                       basePrefixLength,
+                                       startAddress,
+                                       endAddress,
+                                       rangesTypesArr[i],
+                                       bankIndexOfTheGon,
+                                       gonNodeAddr,
+                                       isUc,
+                                       protocol,
+                                       depth,/* we leave the same depth, since we are still in the same octet, just want to print the leaf */
+                                       printInfo);
+
+                    if (ret != GT_OK)
+                    {
+                        cpssOsPrintf("\nInconsistency exists in call to printLpmSip7 !!!\n");
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(bucketDataOneRangeGonPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                    }
+                    printInfo->nodeCounterPerTypePerOctetSip7[depth][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)]++;
+                }
+                else
+                {
+                    /* the range is regular or compress */
+                    ret = printLpmSip7(devNum,
+                                       shadowPtr,
+                                       bucketDataOneRangeGonPtr,
+                                       baseAddrPtr,
+                                       basePrefixLength,
+                                       startAddress,
+                                       endAddress,
+                                       rangesTypesArr[i],
+                                       bankIndexOfTheGon,
+                                       gonNodeAddr,
+                                       isUc,
+                                       protocol,
+                                       depth+1,
+                                       printInfo);
+
+                    if (ret != GT_OK)
+                    {
+                        cpssOsPrintf("\nInconsistency exists in call to printLpmSip7 !!!\n");
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(bucketDataOneRangeGonPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                    }
+                }
+            }
+
+            if( (isUc == GT_FALSE)      &&
+                (basePrefixLength == 0)       &&
+                (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) == GT_TRUE)  )
+            {
+                /* The source tree was displayed and the other group regions
+                   will be printed*/
+
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(InSrcTree) = GT_FALSE;
+                basePrefixLength = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(grpPrefix);
+                cpssOsMemCpy(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),
+                             PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddr),
+                             sizeof(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)));
+                baseAddrPtr = PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseGroupAddrPtr);
+                if (printInfo->printRangesSip7)
+                {
+                    cpssOsPrintf(" End of Src tree for this group. \n");
+                }
+            }
+        }
+        /* update the print info for the first octet */
+        printInfo->lpmLinesUsedSip7[bankIndexOfTheGon] += (nodeTotalLinesPerTypeArr[j][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)]);
+        printInfo->nodeCounterPerTypeSip7[2] += nodeTotalBucketPerTypesArr[0][1];/* compress have only one line --> one element in nodeTotalBucketPerTypesArr */
+        printInfo->nodeCounterPerTypeSip7[1] += nodeTotalBucketPerTypesArr[0][0];/* add the number of leafs calculated for this GON */
+        break;
+    default:
+        cpssOsPrintf("\n illegal nodeType %d!!! Bucket address 0x%x\n",nodeType,hwAddr);
+        cpssOsFree(bucketDataPtr);
+        cpssOsFree(rangesArr);
+        cpssOsFree(rangesTypesArr);
+        cpssOsFree(rangesBitLineArr);
+        cpssOsFree(rangesTypeIndexArr);
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        break;
+    }
+
+    cpssOsFree(bucketDataPtr);
+    cpssOsFree(bucketDataOneRangeGonPtr);
+    cpssOsFree(rangesArr);
+    cpssOsFree(rangesTypesArr);
+    cpssOsFree(rangesBitLineArr);
+    cpssOsFree(rangesTypeIndexArr);
+    return GT_OK;
+}
+
+/* this function get the root bucket (regular bit vector) pointed by VR table */
+GT_STATUS getRootBucketRangesSip7(GT_U8 devNum,
+                                  GT_U32 vrId,
+                                  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol,
+                                  GT_U32 *nodeSize,
+                                  GT_U32 nodeChildAddressesArr[6],
+                                  GT_U32 nodeTotalChildTypesArr[6][3],
+                                  GT_U32 nodeTotalLinesPerTypeArr[6][3],
+                                  GT_U32 nodeTotalBucketPerTypesArr[6][3],
+                                  GT_U32 *numOfRanges,
+                                  GT_U32 *ranges,
+                                  GT_U32 *rangesTypes,
+                                  GT_U32 *rangesTypeIndex,
+                                  GT_U32 *rangesBitLine,
+                                  GT_U32 *bucketDataPtr,
+                                  GT_U32 depth,
+                                  prvLpmDumpPrintInfoSip7_STC *printInfo,
+                                  GT_BOOL *rootHasNoChildrenPtr)
+{
+    GT_U32                              rootNodeAddr = 0;
+    PRV_CPSS_DXCH_LPM_CHILD_TYPE_ENT    nodeType = 0;
+    GT_STATUS                           status = 0;
+    GT_U32                              bankIndex = 0;
+
+    /* the root bucket for all protocols are located by default in
+       the init phase in LPM bank 0*/
+    bankIndex=0;
+
+    /* get the nodeType and the address of the regular bit vector pointed by the VR table */
+    status = prvCpssDxChLpmHwVrfEntryReadSip7(devNum, vrId, protocol,
+                                              &nodeType, &rootNodeAddr);
+    if (status != GT_OK)
+    {
+        return status;
+    }
+
+    if (nodeType == PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E)
+    {
+        /* hw pointer in LPM entry is in LPM lines*/
+        *nodeSize=PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS;
+    }
+    else
+    {
+        /* RootNode supports compressed type */
+        *nodeSize = PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS;
+    }
+    /* read the bit vector */
+    status = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                            CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                            rootNodeAddr, *nodeSize, bucketDataPtr);
+    if (status != GT_OK)
+    {
+        cpssOsPrintf("\nError in calling prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7!!! Root bucket address 0x%x\n",rootNodeAddr);
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+
+    if (nodeType == PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E)
+    {
+        status = validateBitVectorOfRegularBucketSip7(devNum,bucketDataPtr, rootNodeAddr, 8);
+        if (status != GT_OK)
+        {
+            return status;
+        }
+    }
+    else
+    {
+        status = validateBitVectorOfCompressBucketSip7(devNum,bucketDataPtr, rootNodeAddr, GT_TRUE,
+                                                       protocol, depth, rootHasNoChildrenPtr);
+        if (status != GT_OK)
+        {
+            return status;
+        }
+    }
+
+    status = getNumOfRangesFromHWSip7(protocol,
+                                      depth,
+                                      nodeType,
+                                      bucketDataPtr,
+                                      rootNodeAddr,
+                                      nodeChildAddressesArr,
+                                      nodeTotalChildTypesArr,
+                                      nodeTotalLinesPerTypeArr,
+                                      nodeTotalBucketPerTypesArr,
+                                      numOfRanges,
+                                      ranges,
+                                      rangesTypes,
+                                      rangesTypeIndex,
+                                      rangesBitLine);
+    if (status != GT_OK)
+    {
+        return status;
+    }
+
+    if (nodeType == 0)
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_RANGE, "Shouldn't happen: nodeType must be greater than 0");
+    }
+
+    bankIndex = rootNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+
+    /* update the print info for the first octet */
+    printInfo->lpmLinesUsedSip7[bankIndex] += *nodeSize;
+    /* depth = 0*/
+    printInfo->nodeCounterPerTypePerOctetSip7[depth][nodeType-1]=1;
+    /* nodeType = 3 = compress */
+    printInfo->nodeCounterPerTypeSip7[nodeType] = 1;
+
+    return GT_OK;
+}
+
+/* This function print recursively the IP UC LPM tree */
+GT_STATUS printLpmIpUcTableSip7(GT_U8                                   devNum,
+                                PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC        *shadowPtr,
+                                GT_U32 vrId,
+                                PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT    protocol,
+                                prvLpmDumpPrintInfoSip7_STC             *printInfo)
+{
+    GT_STATUS ret=GT_OK;
+    GT_U32    j;
+    GT_U32    numOfRanges;
+    GT_U32    numOfRangesUsed=0;     /* parameter used when going over the lines of regular bit vector */
+    GT_U32    *rangesArr;        /* maximum 256 ranges per octet*/
+    GT_U32    *rangesTypesArr;   /* for each range keep its type (regular,compress,leaf) */
+    GT_U32    *rangesBitLineArr; /* for each range keep its bit vector line */
+    GT_U32    *rangesTypeIndexArr; /* what is the number of this range type
+                                       from total number of lines with the same type -
+                                       where it is located in the GON */
+    GT_U32    endAddress;           /* end of range value */
+    GT_U32    *bucketDataPtr;       /* data read from HW, max lines read will be 6 lines for regular bit vector  */
+    GT_U32    *embeddedLeafsBucketDataPtr; /* data read from HW, used for compress with embedded leafs  */
+    GT_U32    leafData[2]={0,0};       /* one leaf data read from hw (a leaf read from the line of leafs)
+                                    can be 26 bits (5 leafs in a line) or 36 bits (3 leafs in a line) */
+    GT_U32    nodeSize;             /* size of the node in lines
+                                       regular node have 6 lines, all the rest hold 1 line*/
+
+    GT_U32    nodeChildAddressesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS];/* the child_pointer located at the beginning of each line
+                                                                                            for regular node we have 6 pointers, for compress node one pointer */
+    GT_U32    nodeTotalChildTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS];/* 6 elements in a regular node
+                                                                                                3 types of child that can be for each range (leaf,regular,compress) */
+
+    GT_U32    nodeTotalLinesPerTypeArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS];   /* sum the number of lines in the GON according to the Type */
+    GT_U32    nodeTotalBucketPerTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS]; /* sum the number of buckets (copmress, regular or leaf) in the GON according to the Type */
+
+    GT_U32    gonNodeAddr,gonNodeSize;
+    GT_U32    i;
+    GT_U32    bankIndexOfTheGon=0;  /* the index of the bank were the node (one of the GON node) is located */
+    GT_U32    bankIndexsOfTheGonsArray[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS];  /* the indexs of the banks were the GON is located */
+    GT_BOOL   rootHasNoChildren = GT_FALSE;
+
+    GT_U32  numberOfEmbeddedLeafs=0;
+    GT_U32  indexOfEmbeddedLeaf=0;
+    GT_U32  value;
+    GT_U32  valueBits32_35=0;
+    GT_U32  hwBucketAddr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS*PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS];
+    GT_U32  rootNodeAddr = 0;
+    PRV_CPSS_DXCH_LPM_CHILD_TYPE_ENT    nodeType = 0;
+
+    leafData[0]=0;
+    leafData[1]=0;
+
+    /* Allocate memory for bucket data.
+       Maximum size is a regular bucket --> 6 lines
+       each line is a wide line = 8 words (5 words of data*/
+
+    bucketDataPtr = cpssOsMalloc(PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+    if (bucketDataPtr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+
+    cpssOsMemSet(bucketDataPtr, 0, PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+
+    embeddedLeafsBucketDataPtr = cpssOsMalloc(PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+    if (embeddedLeafsBucketDataPtr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+
+    cpssOsMemSet(embeddedLeafsBucketDataPtr, 0, PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+
+    cpssOsMemSet(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr), 0, sizeof(GT_U8)* PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS);
+
+    cpssOsMemSet(nodeChildAddressesArr,0,sizeof(nodeChildAddressesArr));
+    cpssOsMemSet(nodeTotalChildTypesArr,0,sizeof(nodeTotalChildTypesArr));
+    cpssOsMemSet(nodeTotalLinesPerTypeArr,0,sizeof(nodeTotalLinesPerTypeArr));
+    cpssOsMemSet(nodeTotalBucketPerTypesArr,0,sizeof(nodeTotalBucketPerTypesArr));
+    cpssOsMemSet(bankIndexsOfTheGonsArray,0,sizeof(bankIndexsOfTheGonsArray));
+
+    rangesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesArr,0,256*sizeof(GT_U32));
+    rangesTypesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesTypesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesTypesArr,0,256*sizeof(GT_U32));
+    rangesBitLineArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesBitLineArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesBitLineArr,0,256*sizeof(GT_U32));
+    rangesTypeIndexArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesTypeIndexArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesTypeIndexArr,0,256*sizeof(GT_U32));
+
+    ret = getRootBucketRangesSip7(devNum,
+                                  vrId,
+                                  protocol,
+                                  &nodeSize,
+                                  nodeChildAddressesArr,
+                                  nodeTotalChildTypesArr,
+                                  nodeTotalLinesPerTypeArr,
+                                  nodeTotalBucketPerTypesArr,
+                                  &numOfRanges,
+                                  rangesArr,
+                                  rangesTypesArr,
+                                  rangesTypeIndexArr,
+                                  rangesBitLineArr,
+                                  bucketDataPtr,
+                                  0,
+                                  printInfo,
+                                  &rootHasNoChildren);
+
+    if ((ret != GT_OK) || (rootHasNoChildren == GT_TRUE))
+    {
+        cpssOsFree(bucketDataPtr);
+        cpssOsFree(embeddedLeafsBucketDataPtr);
+        cpssOsFree(rangesArr);
+        cpssOsFree(rangesTypesArr);
+        cpssOsFree(rangesBitLineArr);
+        cpssOsFree(rangesTypeIndexArr);
+        if (ret != GT_OK)
+        {
+            cpssOsPrintf("\nInconsistency exists in the call to getRootBucketRangesSip7 !!!\n");
+            CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+        }
+        else
+        {
+            return GT_OK;
+        }
+    }
+
+    if (nodeSize==PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS)
+    {
+        ret = prvCpssDxChLpmHwVrfEntryReadSip7(devNum, vrId, protocol,
+                                              &nodeType, &rootNodeAddr);
+        if (ret != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(embeddedLeafsBucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            cpssOsPrintf("\n FAIL to read prvCpssDxChLpmHwVrfEntryReadSip7!!!\n");
+            CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+        }
+
+        /* get the number of embedded leafs in the compress bit vector */
+        /* bit 131-129 Embedded_leaf */
+        U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,129,3,value);
+        numberOfEmbeddedLeafs = value;
+        if (value==4)
+        {
+            /* in sip7 value 4 mens no embeded leafs */
+            numberOfEmbeddedLeafs=0;
+        }
+        else
+        {
+            numberOfEmbeddedLeafs = value;
+        }
+
+        /* keep the bucketDataPtr to be used on all Embedded Leafs */
+        cpssOsMemCpy(embeddedLeafsBucketDataPtr, bucketDataPtr, (PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS));
+    }
+
+    for (j=0;j<nodeSize;j++)
+    {
+        for (i = numOfRangesUsed; i < numOfRanges; i++)
+        {
+            if (rangesBitLineArr[i]!=j)
+            {
+                break; /* break the loop on ranges and move to the next bit vector line
+                          this range is related to the next bit vector line */
+            }
+
+            /* UC range only */
+            switch(protocol)
+            {
+                case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E:
+
+                if ((rangesArr[i] < PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS)||
+                    (rangesArr[i] > PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_MC_ADDRESS_SPACE_CNS))
+
+                {
+                    if (i == (numOfRanges - 1)) /* if this is the last range then endAddress=255 */
+                    {
+                        endAddress = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS;
+                    }
+                    else
+                    {
+                        endAddress = rangesArr[i+1] - 1;
+                    }
+                    numOfRangesUsed++;
+                }
+                else
+                {
+                    /* multicast range should not be printed */
+                    numOfRangesUsed++;
+                    continue;
+
+                }
+               break;
+            case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E:
+
+                if ((rangesArr[i] < PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS)||
+                   (rangesArr[i] > PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV6_MC_ADDRESS_SPACE_CNS))
+
+                {
+                    if (i == (numOfRanges - 1)) /* if this is the last range then endAddress=255 */
+                    {
+                        endAddress = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+                    }
+                    else
+                    {
+                        endAddress = rangesArr[i+1] - 1;
+                    }
+                    numOfRangesUsed++;
+                }
+                else
+                {
+                    /* multicast range should not be printed */
+                    numOfRangesUsed++;
+                    continue;
+
+                }
+                break;
+            case PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E:
+
+                if (i == (numOfRanges - 1)) /* if this is the last range then endAddress=255 */
+                {
+                    endAddress = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS;
+                }
+                else
+                {
+                    endAddress = rangesArr[i+1] - 1;
+                }
+                numOfRangesUsed++;
+                break;
+            default:
+                cpssOsPrintf("\nvalidity not supported !!!\n");
+                cpssOsFree(bucketDataPtr);
+                cpssOsFree(embeddedLeafsBucketDataPtr);
+                cpssOsFree(rangesArr);
+                cpssOsFree(rangesTypesArr);
+                cpssOsFree(rangesBitLineArr);
+                cpssOsFree(rangesTypeIndexArr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+                break;
+            }
+
+            /* in case of embedded leafs in the compress, need to handle different */
+            if ((nodeSize==PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS)&&
+                (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)&&
+                (nodeTotalChildTypesArr[0][0]==0))/* for compress - leaf located in elem0 in the first GON index */
+            {
+                cpssOsMemSet(hwBucketAddr,0,sizeof(hwBucketAddr));
+               /* the leaf data is already located in bucketDataPtr so no need to read from HW */
+                switch(indexOfEmbeddedLeaf)
+                {
+                case 0:
+                    if ((numberOfEmbeddedLeafs==1)||(numberOfEmbeddedLeafs==2))
+                    {
+                        /* first embedded leaf located at bit 92-127*/
+                        U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 92, 32, value);           /* bits 0-31  */
+                        U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 124, 4, valueBits32_35);  /* bits 32-35 */
+                    }
+                    else
+                    {
+                        if (numberOfEmbeddedLeafs==3)
+                        {
+                            /* first embedded leaf located at bit 107-72*/
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 72, 32, value);           /* bits 0-31 */
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 104, 4, valueBits32_35);  /* bits 32-35 */
+                        }
+                    }
+                    break;
+                case 1:
+                    if (numberOfEmbeddedLeafs==2)
+                    {
+                        /*second embedded leaf located at bit 66-91*/
+                        U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,66,26,value);
+                    }
+                    else
+                    {
+                        if(numberOfEmbeddedLeafs==3)
+                        {
+                            /*second embedded leaf located at bit 71-36*/
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,36,32,value);          /* bits 0-31  */
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,68,4,valueBits32_35);  /* bits 32-35 */
+                        }
+                    }
+
+                    break;
+                case 2:
+                    /*third embedded leaf located at bit 0-35 */
+                    U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,0,32,value);           /* bits 0-31  */
+                    U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,32,4,valueBits32_35);  /* bits 32-35 */
+                    break;
+                default:
+                    cpssOsPrintf("\n illegal number of embedded leafs!!! in Root of type compress\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+
+                leafData[0] = value;
+                leafData[1] = valueBits32_35;
+                indexOfEmbeddedLeaf++;/* an index for knowing how many embedded leafs we already dealt with */
+
+                cpssOsMemCpy(hwBucketAddr, embeddedLeafsBucketDataPtr, sizeof(hwBucketAddr)); /* bitmap pointer first line */
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0] = (GT_U8)rangesArr[i];
+                endAddress = (i == (numOfRanges-1))? 255 : (rangesArr[i+1]- 1);
+                if (endAddress > 255)
+                {
+                    cpssOsPrintf("Err!!");
+                }
+
+                /* the hwAddr is a relative address to the beginning of the LPM */
+                bankIndexOfTheGon = rootNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                if (ret != GT_OK)
+                {
+                   cpssOsFree(bucketDataPtr);
+                   cpssOsFree(embeddedLeafsBucketDataPtr);
+                   cpssOsFree(rangesArr);
+                   cpssOsFree(rangesTypesArr);
+                   cpssOsFree(rangesBitLineArr);
+                   cpssOsFree(rangesTypeIndexArr);
+                   CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                }
+                ret = printLpmSip7(devNum,
+                                   shadowPtr,
+                                   leafData,
+                                   PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),
+                                   8,/* basePrefixLength */
+                                   PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0],
+                                   endAddress,
+                                   rangesTypesArr[i],
+                                   bankIndexOfTheGon,
+                                   rootNodeAddr,
+                                   GT_TRUE,
+                                   protocol,
+                                   0,/* we leave the same depth, since we are still in the same octet, just want to print the leaf */
+                                   printInfo);
+
+                 if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in call to printLpmSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+            }
+            else
+            {
+                /* calculate the address and the size of a single node from the GON
+                   (6 lines for regular all the rest 1 line) according to the
+                   parameters we got from getNumOfRangesFromHWSip7 */
+                ret = getFromTheGonOneNodeAddrAndSizeSip7(nodeChildAddressesArr[j],
+                                                      nodeTotalChildTypesArr[j],
+                                                      rangesTypesArr[i],
+                                                      rangesTypeIndexArr[i],
+                                                      &gonNodeAddr,
+                                                      &gonNodeSize);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in the call to getFromTheGonOneNodeAddrAndSizeSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+                /* read one range (range number i) */
+                ret = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                                     CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                                     gonNodeAddr,
+                                                     gonNodeSize,
+                                                     bucketDataPtr);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists - printLpmIpv4UcTableSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+
+                /* until here we were dealing with the root of the LPM tree
+                   Now we are starting to go over all the ranges recursively */
+
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0] = (GT_U8)rangesArr[i];
+
+                /* the hwAddr is a relative address to the beginning of the LPM */
+                bankIndexOfTheGon = gonNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                if (ret != GT_OK)
+                {
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                }
+                if ((bankIndexsOfTheGonsArray[j]!=0)&&(bankIndexsOfTheGonsArray[j]!=bankIndexOfTheGon))
+                {
+                    cpssOsPrintf("\nInconsistency exists a single GON can not be located in 2 different banks - printLpmIpv4UcTableSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+                else
+                {
+                    bankIndexsOfTheGonsArray[j] = bankIndexOfTheGon;
+                }
+
+                if (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)/* leaf */
+                {
+                    /* need to find the correct leaf out of all the leafs in the line - in HW the first leaf are kept in last bits:
+                       0-25:    leaf 4
+                       26-51:   leaf 3
+                       52-77:   leaf 2
+                       78-103:  leaf 1
+                       104-129: leaf 0 */
+                    U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,
+                                               (MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS-(rangesTypeIndexArr[i]%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS)-1)*26,
+                                               26,leafData[0]);
+
+                    ret = printLpmSip7(devNum,
+                                       shadowPtr,
+                                       leafData,               /* we print the Leaf - we arrived to a NH/ECMP/QOS */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),                /* array that keeps the IP address according to its octets */
+                                       8,                       /* basePrefix */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0], endAddress, /* start and end of the range */
+                                       rangesTypesArr[i],       /* type of the range . in the case a leaf */
+                                       bankIndexOfTheGon,      /* the index of the bank were the GON is located */
+                                       gonNodeAddr,             /* the address from were we read the HW data */
+                                       GT_TRUE,                 /* isUc */
+                                       protocol,
+                                       0,                       /* we are still in depth 0 - just want to print the leaf */
+                                       printInfo);
+
+                    if ((ret != GT_OK) || PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(numOfErrors))
+                    {
+                        cpssOsPrintf("\nInconsistency exists in the call to printLpmSip7 !!!\n");
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(embeddedLeafsBucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+
+                    printInfo->nodeCounterPerTypePerOctetSip7[0][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)]++;
+
+                }
+                else/* regular or compress */
+                {
+                    ret = printLpmSip7(devNum,
+                                       shadowPtr,
+                                       bucketDataPtr,           /* the bit vector HW data, 6 lines read in case of regular,
+                                                                   one line in case of compress */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),                /* array that keeps the IP address according to its octets */
+                                       8,                       /* basePrefix */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0],endAddress,  /* start and end of the range */
+                                       rangesTypesArr[i],       /* type of the range . in the case a leaf */
+                                       bankIndexOfTheGon,       /* the index of the bank were the GON is located */
+                                       gonNodeAddr,             /* the address from were we read the HW data */
+                                       GT_TRUE,                 /* isUc */
+                                       protocol,
+                                       1,                       /* depth - print the next range for octet 1 */
+                                       printInfo);
+
+                    if ((ret != GT_OK) || PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(numOfErrors))
+                    {
+                        cpssOsPrintf("\nInconsistency exists in the call to printLpmSip7 !!!\n");
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(embeddedLeafsBucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+                }
+            }
+        }
+
+       /*  after printing the all ranges we need to update the number of lines occupied by the leafs
+            those are not updated in the print recursive calls.
+            all calculation of how many lines is occupied by the leafs is
+            calculated in getRootBucketRangesSip7.*/
+
+        /* update the print info for the first octet */
+        printInfo->lpmLinesUsedSip7[bankIndexsOfTheGonsArray[j]] += (nodeTotalLinesPerTypeArr[j][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)]);
+        printInfo->nodeCounterPerTypeSip7[1] += nodeTotalChildTypesArr[j][0]; /* add the number of leafs calculated for this GON */
+
+        if (numberOfEmbeddedLeafs!=0)
+        {
+            /* update embedded leafs counter */
+            printInfo->nodeCounterPerTypePerOctetSip7[0][(PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E-1+numberOfEmbeddedLeafs)]=1;
+        }
+    }
+
+    cpssOsFree(bucketDataPtr);
+    cpssOsFree(embeddedLeafsBucketDataPtr);
+    cpssOsFree(rangesArr);
+    cpssOsFree(rangesTypesArr);
+    cpssOsFree(rangesBitLineArr);
+    cpssOsFree(rangesTypeIndexArr);
+    return ret;
+}
+
+#define RANGE_NOT_USED 0
+#define RANGE_IS_UC    1
+#define RANGE_IS_MC    2
+/* This function print recursively the IP MC LPM tree */
+GT_STATUS printLpmIpMcTableSip7(GT_U8                                   devNum,
+                                PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC        *shadowPtr,
+                                GT_U32                                  vrId,
+                                PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT    protocol,
+                                prvLpmDumpPrintInfoSip7_STC             *printInfo)
+{
+    GT_STATUS ret=GT_OK;
+    GT_U32    j;
+    GT_U32    numOfRanges;
+    GT_U32    numOfRangesUsed=0;     /* parameter used when going over the lines of regular bit vector */
+    GT_U32    numOfLeafsToDeduct=0;  /* parameter used when going over the lines of regular bit vector */
+    GT_U32    numberOfLeafsInTheLine=0;/* value in the param can be up to 5 */
+    GT_U32    *rangesArr;        /* maximum 256 ranges per octet*/
+    GT_U32    *rangesTypesArr;   /* for each range keep its type (regular,compress,leaf) */
+    GT_U32    *rangesBitLineArr; /* for each range keep its bit vector line */
+    GT_U32    *rangesTypeIndexArr; /* what is the number of this range type
+                                       from total number of lines with the same type -
+                                       where it is located in the GON */
+    GT_U32    rangesLeafsIndexInRegularLineArr[44]; /* for each regular line, keep the type of the range: NOT_USED = 0, UC=1, MC = 2 */
+    GT_U32    endAddress;           /* end of range value */
+    GT_U32    *bucketDataPtr;       /* data read from HW, max lines read will be 6 lines for regular bit vector  */
+    GT_U32    *embeddedLeafsBucketDataPtr; /* data read from HW, used for compress with embedded leafs  */
+    GT_U32    leafData[2]={0,0};       /* one leaf data read from hw (a leaf read from the line of leafs)
+                                    can be 26 bits (5 leafs in a line) or 36 bits (3 leafs in a line) */
+    GT_U32    nodeSize;             /* size of the node in lines
+                                       regular node have 6 lines, all the rest hold 1 line*/
+
+    GT_U32    nodeChildAddressesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS];/* the child_pointer located at the beginning of each line
+                                                                                            for regular node we have 6 pointers, for compress node one pointer */
+    GT_U32    nodeTotalChildTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS];/* 6 elements in a regular node
+                                                                                                3 types of child that can be for each range (leaf,regular,compress) */
+
+    GT_U32    nodeTotalLinesPerTypeArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS];   /* sum the number of lines in the GON according to the Type */
+    GT_U32    nodeTotalBucketPerTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS]; /* sum the number of buckets (copmress, regular or leaf) in the GON according to the Type */
+
+    GT_U32    gonNodeAddr,gonNodeSize;
+    GT_U32    i,k;
+    GT_BOOL   mcFlag=GT_FALSE;
+    GT_BOOL   fiveLeafsUsedFlag=GT_FALSE;
+    GT_U32    bankIndexOfTheGon=0;  /* the index of the bank were the node (one of the GON node) is located */
+    GT_U32    bankIndexsOfTheGonsArray[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS];  /* the indexs of the banks were the GON is located */
+    GT_BOOL   rootHasNoChildren = GT_FALSE;
+
+    GT_U32  numberOfEmbeddedLeafs=0;
+    GT_U32  numberOfEmbeddedLeafsSkiped=0;
+    GT_U32  indexOfEmbeddedLeaf=0;
+    GT_U32  value;
+    GT_U32  valueBits32_35=0;
+    GT_U32  hwBucketAddr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS*PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_WORDS_CNS];
+    GT_U32  rootNodeAddr = 0;
+    PRV_CPSS_DXCH_LPM_CHILD_TYPE_ENT    nodeType = 0;
+
+    leafData[0]=0;
+    leafData[1]=0;
+
+    /* Allocate memory for bucket data.
+       Maximum size is a regular bucket --> 6 lines
+       each line is a wide line = 8 words (5 words of data*/
+
+    bucketDataPtr = cpssOsMalloc(PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+    if (bucketDataPtr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+
+    cpssOsMemSet(bucketDataPtr, 0, PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+
+     embeddedLeafsBucketDataPtr = cpssOsMalloc(PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+    if (embeddedLeafsBucketDataPtr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+
+    cpssOsMemSet(embeddedLeafsBucketDataPtr, 0, PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS);
+
+
+    cpssOsMemSet(PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr), 0, sizeof(GT_U8)* PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS);
+
+    cpssOsMemSet(nodeChildAddressesArr,0,sizeof(nodeChildAddressesArr));
+    cpssOsMemSet(nodeTotalChildTypesArr,0,sizeof(nodeTotalChildTypesArr));
+    cpssOsMemSet(nodeTotalLinesPerTypeArr,0,sizeof(nodeTotalLinesPerTypeArr));
+    cpssOsMemSet(nodeTotalBucketPerTypesArr,0,sizeof(nodeTotalBucketPerTypesArr));
+    cpssOsMemSet(bankIndexsOfTheGonsArray,0,sizeof(bankIndexsOfTheGonsArray));
+    cpssOsMemSet(rangesLeafsIndexInRegularLineArr,RANGE_NOT_USED,sizeof(rangesLeafsIndexInRegularLineArr));
+
+    rangesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesArr,0,256*sizeof(GT_U32));
+    rangesTypesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesTypesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesTypesArr,0,256*sizeof(GT_U32));
+    rangesBitLineArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesBitLineArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesBitLineArr,0,256*sizeof(GT_U32));
+    rangesTypeIndexArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (rangesTypeIndexArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(rangesTypeIndexArr,0,256*sizeof(GT_U32));
+
+    ret = getRootBucketRangesSip7(devNum,
+                                  vrId,
+                                  protocol,
+                                  &nodeSize,
+                                  nodeChildAddressesArr,
+                                  nodeTotalChildTypesArr,
+                                  nodeTotalLinesPerTypeArr,
+                                  nodeTotalBucketPerTypesArr,
+                                  &numOfRanges,
+                                  rangesArr,
+                                  rangesTypesArr,
+                                  rangesTypeIndexArr,
+                                  rangesBitLineArr,
+                                  bucketDataPtr,
+                                  0,
+                                  printInfo,
+                                  &rootHasNoChildren);
+
+    if ((ret != GT_OK) || (rootHasNoChildren == GT_TRUE))
+    {
+        cpssOsFree(bucketDataPtr);
+        cpssOsFree(embeddedLeafsBucketDataPtr);
+        cpssOsFree(rangesArr);
+        cpssOsFree(rangesTypesArr);
+        cpssOsFree(rangesBitLineArr);
+        cpssOsFree(rangesTypeIndexArr);
+        if (ret != GT_OK)
+        {
+            cpssOsPrintf("\nInconsistency exists in the call to getRootBucketRangesSip7 !!!\n");
+            CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+        }
+        else
+        {
+            return GT_OK;
+        }
+    }
+
+    if (nodeSize==PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS)
+    {
+        ret = prvCpssDxChLpmHwVrfEntryReadSip7(devNum, vrId, protocol,
+                                              &nodeType, &rootNodeAddr);
+        if (ret != GT_OK)
+        {
+            cpssOsFree(bucketDataPtr);
+            cpssOsFree(embeddedLeafsBucketDataPtr);
+            cpssOsFree(rangesArr);
+            cpssOsFree(rangesTypesArr);
+            cpssOsFree(rangesBitLineArr);
+            cpssOsFree(rangesTypeIndexArr);
+            cpssOsPrintf("\n FAIL to read prvCpssDxChLpmHwVrfEntryReadSip7!!!\n");
+            CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+        }
+
+        /* get the number of embedded leafs in the compress bit vector */
+        /* bit 131-129 Embedded_leaf */
+        U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,129,3,value);
+        numberOfEmbeddedLeafs = value;
+        if (value==4)
+        {
+            /* in sip7 value 4 mens no embeded leafs */
+            numberOfEmbeddedLeafs=0;
+        }
+        else
+        {
+            numberOfEmbeddedLeafs = value;
+        }
+
+        /* keep the bucketDataPtr to be used on all Embedded Leafs */
+        cpssOsMemCpy(embeddedLeafsBucketDataPtr, bucketDataPtr, (PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS * PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_IN_BYTES_CNS));
+    }
+
+    for (j=0;j<nodeSize;j++)
+    {
+        cpssOsMemSet(rangesLeafsIndexInRegularLineArr,RANGE_NOT_USED,sizeof(rangesLeafsIndexInRegularLineArr));
+
+        for (i = numOfRangesUsed; i < numOfRanges; i++)
+        {
+            if (rangesBitLineArr[i]!=j)
+            {
+                break; /* break the loop on ranges and move to the next bit vector line
+                          this range is related to the next bit vector line */
+            }
+
+            /* MC range only */
+            switch(protocol)
+            {
+                case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E:
+
+                if (!((rangesArr[i] < PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS)||
+                     (rangesArr[i] > PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_MC_ADDRESS_SPACE_CNS)))
+
+                {
+                    if (i == (numOfRanges - 1)) /* if this is the last range then endAddress=255 */
+                    {
+                        endAddress = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS;
+                    }
+                    else
+                    {
+                        endAddress = rangesArr[i+1] - 1;
+                    }
+
+                    if (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)
+                    {
+                        rangesLeafsIndexInRegularLineArr[rangesArr[i]%44]=RANGE_IS_MC;
+                    }
+
+                    numOfRangesUsed++;
+                }
+                else
+                {
+                    /* unicast range should not be printed */
+                    if (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)
+                    {
+                        rangesLeafsIndexInRegularLineArr[rangesArr[i]%44]=RANGE_IS_UC;
+                        numberOfEmbeddedLeafsSkiped++;
+                    }
+                    numOfRangesUsed++;
+                    continue;
+
+                }
+               break;
+            case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E:
+
+                if (!((rangesArr[i] < PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS)||
+                      (rangesArr[i] > PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV6_MC_ADDRESS_SPACE_CNS)))
+
+                {
+                    if (i == (numOfRanges - 1)) /* if this is the last range then endAddress=255 */
+                    {
+                        endAddress = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+                    }
+                    else
+                    {
+                        endAddress = rangesArr[i+1] - 1;
+                    }
+                    if (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)
+                    {
+                        rangesLeafsIndexInRegularLineArr[rangesArr[i]%44]=RANGE_IS_MC;
+                    }
+                    numOfRangesUsed++;
+                }
+                else
+                {
+                    /* unicast range should not be printed */
+                    if (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)
+                    {
+                        rangesLeafsIndexInRegularLineArr[rangesArr[i]%44]=RANGE_IS_UC;
+                        numberOfEmbeddedLeafsSkiped++;
+                    }
+                    numOfRangesUsed++;
+                    continue;
+
+                }
+                break;
+            case PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E:
+                cpssOsPrintf("\nFCOE validity not supported in Multicast!!!\n");
+                cpssOsFree(bucketDataPtr);
+                cpssOsFree(embeddedLeafsBucketDataPtr);
+                cpssOsFree(rangesArr);
+                cpssOsFree(rangesTypesArr);
+                cpssOsFree(rangesBitLineArr);
+                cpssOsFree(rangesTypeIndexArr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, LOG_ERROR_NO_MSG);
+                break;
+            default:
+                cpssOsPrintf("\nvalidity not supported !!!\n");
+                cpssOsFree(bucketDataPtr);
+                cpssOsFree(embeddedLeafsBucketDataPtr);
+                cpssOsFree(rangesArr);
+                cpssOsFree(rangesTypesArr);
+                cpssOsFree(rangesBitLineArr);
+                cpssOsFree(rangesTypeIndexArr);
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, LOG_ERROR_NO_MSG);
+                break;
+            }
+
+            /* in case of embedded leafs in the compress, need to handle different */
+            if ((nodeSize==PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS)&&
+                (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)&&
+                (nodeTotalChildTypesArr[0][0]==0))/* for compress - leaf located in elem0 in the first GON index */
+            {
+                /* UC embedded leaf was skipped but we take them into
+                   consideration to calculate the correct MC embedded leaf  */
+                indexOfEmbeddedLeaf=indexOfEmbeddedLeaf+numberOfEmbeddedLeafsSkiped;
+
+                cpssOsMemSet(hwBucketAddr,0,sizeof(hwBucketAddr));
+               /* the leaf data is already located in bucketDataPtr so no need to read from HW */
+                switch(indexOfEmbeddedLeaf)
+                {
+                case 0:
+                    if ((numberOfEmbeddedLeafs==1)||(numberOfEmbeddedLeafs==2))
+                    {
+                        /* first embedded leaf located at bit 92-127*/
+                        U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 92, 32, value);           /* bits 0-31  */
+                        U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 124, 4, valueBits32_35);  /* bits 32-35 */
+                    }
+                    else
+                    {
+                        if (numberOfEmbeddedLeafs==3)
+                        {
+                            /* first embedded leaf located at bit 107-72*/
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 72, 32, value);           /* bits 0-31  */
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr, 104, 4, valueBits32_35);  /* bits 32-35 */
+                        }
+                    }
+                    break;
+                case 1:
+                    if (numberOfEmbeddedLeafs==2)
+                    {
+                        /*second embedded leaf located at bit 66-91*/
+                        U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,66,26,value);
+                    }
+                    else
+                    {
+                        if(numberOfEmbeddedLeafs==3)
+                        {
+                            /*second embedded leaf located at bit 71-36*/
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,36,32,value);          /* bits 0-31  */
+                            U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,68,4,valueBits32_35);  /* bits 32-35 */
+                        }
+                    }
+
+                    break;
+                case 2:
+                    /*third embedded leaf located at bit 0-35 */
+                    U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,0,32,value);           /* bits 0-31  */
+                    U32_GET_FIELD_IN_ENTRY_MAC(embeddedLeafsBucketDataPtr,32,4,valueBits32_35);  /* bits 32-35 */
+
+                    break;
+                default:
+                    cpssOsPrintf("\n illegal number of embedded leafs!!! in Root of type compress\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+
+                leafData[0] = value;
+                leafData[1] = valueBits32_35;
+                indexOfEmbeddedLeaf++;/* an index for knowing how many embedded leafs we already dealt with */
+
+                cpssOsMemCpy(hwBucketAddr, embeddedLeafsBucketDataPtr, sizeof(hwBucketAddr)); /* bitmap pointer first line */
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0] = (GT_U8)rangesArr[i];
+                endAddress = (i == (numOfRanges-1))? 255 : (rangesArr[i+1]- 1);
+                if (endAddress > 255)
+                {
+                    cpssOsPrintf("Err!!");
+                }
+
+                /* the hwAddr is a relative address to the beginning of the LPM */
+                bankIndexOfTheGon = rootNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                if (ret != GT_OK)
+                {
+                   cpssOsFree(bucketDataPtr);
+                   cpssOsFree(embeddedLeafsBucketDataPtr);
+                   cpssOsFree(rangesArr);
+                   cpssOsFree(rangesTypesArr);
+                   cpssOsFree(rangesBitLineArr);
+                   cpssOsFree(rangesTypeIndexArr);
+                   CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                }
+                ret = printLpmSip7(devNum,
+                                   shadowPtr,
+                                   leafData,
+                                   PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),
+                                   8,/* basePrefixLength */
+                                   PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0],
+                                   endAddress,
+                                   rangesTypesArr[i],
+                                   bankIndexOfTheGon,
+                                   rootNodeAddr,
+                                   GT_TRUE,
+                                   protocol,
+                                   0,/* we leave the same depth, since we are still in the same octet, just want to print the leaf */
+                                   printInfo);
+
+                 if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in call to printLpmSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+            }
+            else
+            {
+                /* calculate the address and the size of a single node from the GON
+                   (6 lines for regular all the rest 1 line) according to the
+                   parameters we got from getNumOfRangesFromHWSip7 */
+                ret = getFromTheGonOneNodeAddrAndSizeSip7(nodeChildAddressesArr[j],
+                                                      nodeTotalChildTypesArr[j],
+                                                      rangesTypesArr[i],
+                                                      rangesTypeIndexArr[i],
+                                                      &gonNodeAddr,
+                                                      &gonNodeSize);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists in the call to getFromTheGonOneNodeAddrAndSizeSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+
+                /* read one range (range number i) */
+                ret = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                                     CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                                     gonNodeAddr,
+                                                     gonNodeSize,
+                                                     bucketDataPtr);
+                if (ret != GT_OK)
+                {
+                    cpssOsPrintf("\nInconsistency exists - printLpmIpv4UcTableSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, LOG_ERROR_NO_MSG);
+                }
+
+                /* the hwAddr is a relative address to the beginning of the LPM */
+                bankIndexOfTheGon = gonNodeAddr/PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.totalNumOfLinesInBlockIncludingGap;
+                ret = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndexOfTheGon);
+                if (ret != GT_OK)
+                {
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(ret, "ERROR:illegal blockIndex - fall in holes \n");
+                }
+                if ((bankIndexsOfTheGonsArray[j]!=0)&&(bankIndexsOfTheGonsArray[j]!=bankIndexOfTheGon))
+                {
+                    cpssOsPrintf("\nInconsistency exists a single GON can not be located in 2 different banks - printLpmIpv4McTableSip7 !!!\n");
+                    cpssOsFree(bucketDataPtr);
+                    cpssOsFree(embeddedLeafsBucketDataPtr);
+                    cpssOsFree(rangesArr);
+                    cpssOsFree(rangesTypesArr);
+                    cpssOsFree(rangesBitLineArr);
+                    cpssOsFree(rangesTypeIndexArr);
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                }
+                else
+                {
+                    bankIndexsOfTheGonsArray[j] = bankIndexOfTheGon;
+                }
+
+                /* until here we were dealing with the root of the LPM tree
+                   Now we are starting to go over all the ranges recursively */
+
+                PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0] = (GT_U8)rangesArr[i];
+
+                if (rangesTypesArr[i]==PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)/* leaf */
+                {
+                    /* need to find the correct leaf out of all the leafs in the line - in HW the first leaf are kept in last bits:
+                       0-25:    leaf 4
+                       26-51:   leaf 3
+                       52-77:   leaf 2
+                       78-103:  leaf 1
+                       104-129: leaf 0 */
+                    U32_GET_FIELD_IN_ENTRY_MAC(bucketDataPtr,
+                                               (MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS-(rangesTypeIndexArr[i]%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS)-1)*26,
+                                               26,leafData[0]);
+
+                    ret = printLpmSip7(devNum,
+                                       shadowPtr,
+                                       leafData,               /* we print the Leaf - we arrived to a NH/ECMP/QOS */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),                /* array that keeps the IP address according to its octets */
+                                       8,                       /* basePrefix */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0], endAddress, /* start and end of the range */
+                                       rangesTypesArr[i],       /* type of the range . in the case a leaf */
+                                       bankIndexOfTheGon,       /* the index of the bank were the GON is located */
+                                       gonNodeAddr,             /* the address from were we read the HW data */
+                                       GT_FALSE,                /* isUc */
+                                       protocol,
+                                       0,                       /* we are still in depth 0 - just want to print the leaf */
+                                       printInfo);
+
+                    if ((ret != GT_OK) || PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(numOfErrors))
+                    {
+                        cpssOsPrintf("\nInconsistency exists in the call to printLpmSip7 !!!\n");
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(embeddedLeafsBucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+
+                    printInfo->nodeCounterPerTypePerOctetSip7[0][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)]++;
+
+                }
+                else/* regular or compress */
+                {
+                    ret = printLpmSip7(devNum,
+                                       shadowPtr,
+                                       bucketDataPtr,           /* the bit vector HW data, 6 lines read in case of regular,
+                                                                   one line in case of compress */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr),                /* array that keeps the IP address according to its octets */
+                                       8,                       /* basePrefix */
+                                       PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(baseAddr)[0],endAddress,  /* start and end of the range */
+                                       rangesTypesArr[i],       /* type of the range . in the case a leaf */
+                                       bankIndexOfTheGon,       /* the index of the bank were the GON is located */
+                                       gonNodeAddr,             /* the address from were we read the HW data */
+                                       GT_FALSE,                /* isUc */
+                                       protocol,
+                                       1,                       /* depth - print the next range for octet 1 */
+                                       printInfo);
+
+                    if ((ret != GT_OK) || PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(numOfErrors))
+                    {
+                        cpssOsPrintf("\nInconsistency exists in the call to printLpmSip7 !!!\n");
+                        cpssOsFree(bucketDataPtr);
+                        cpssOsFree(embeddedLeafsBucketDataPtr);
+                        cpssOsFree(rangesArr);
+                        cpssOsFree(rangesTypesArr);
+                        cpssOsFree(rangesBitLineArr);
+                        cpssOsFree(rangesTypeIndexArr);
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+                }
+            }
+        }
+
+       /*  after printing the all ranges we need to update the number of lines occupied by the leafs
+            those are not updated in the print recursive calls.
+            all calculation of how many lines is occupied by the leafs is
+            calculated in getRootBucketRangesSip7.*/
+
+        /* check what is the real number of lines occupied by the leafs
+           if a line have both UC and MC leafs then it should be counted as a MC
+           if it have only UC then we should ignore it
+           each line can have up to 5 leafs
+           go over rangesLeafsIndexInRegularLineArr and check for each 5
+           elements if one of them has a value different from 0(UC=0 , MC=1)
+           if so then the line should be counted */
+
+        numOfLeafsToDeduct=0;
+        numberOfLeafsInTheLine=0;
+        for (k=0;k<44;k++)
+        {
+            if((numberOfLeafsInTheLine==5)||k==43)/* max 5 leafs in a line, on the last loop no need to look for a full leafs line */
+            {
+                if ((mcFlag==GT_FALSE)&&(fiveLeafsUsedFlag==GT_TRUE))
+                {
+                    /* no MC leaf in the leafs line - dont count this line */
+                    numOfLeafsToDeduct++;
+                }
+                /* reset */
+                mcFlag=GT_FALSE;
+                fiveLeafsUsedFlag = GT_FALSE;
+                numberOfLeafsInTheLine = 0;
+            }
+            if (rangesLeafsIndexInRegularLineArr[k] == RANGE_IS_MC)
+            {
+                mcFlag=GT_TRUE;
+                fiveLeafsUsedFlag = GT_TRUE; /* we have a line holding leafs */
+                numberOfLeafsInTheLine++;
+            }
+            else if (rangesLeafsIndexInRegularLineArr[k] == RANGE_IS_UC)
+            {
+                fiveLeafsUsedFlag = GT_TRUE; /* we have a line holding leafs */
+                numberOfLeafsInTheLine++;
+            }
+        }
+
+        if (numberOfEmbeddedLeafs!=0)
+        {
+            /* update embedded leafs counter */
+            printInfo->nodeCounterPerTypePerOctetSip7[0][(PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E-1+numberOfEmbeddedLeafs)]=1;
+        }
+
+        /* update the print info for the first octet */
+        printInfo->lpmLinesUsedSip7[bankIndexsOfTheGonsArray[j]] += ((nodeTotalLinesPerTypeArr[j][(PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E-1)])-numOfLeafsToDeduct);
+        printInfo->nodeCounterPerTypeSip7[1] += nodeTotalChildTypesArr[j][0]; /* add the number of leafs calculated for this GON */
+    }
+
+    cpssOsFree(bucketDataPtr);
+    cpssOsFree(embeddedLeafsBucketDataPtr);
+    cpssOsFree(rangesArr);
+    cpssOsFree(rangesTypesArr);
+    cpssOsFree(rangesBitLineArr);
+    cpssOsFree(rangesTypeIndexArr);
+    return ret;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgHwDfsScanSip7 function
+* @endinternal
+ *
+* @brief   This function is intended to do hardware LPM validation and dump
+ *
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  xCat3; AC5; Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @retval GT_OK                    - on success.
+* @retval GT_BAD_PARAM             - on wrong devNum or vrId.
+* @retval GT_HW_ERROR              - on Hardware error.
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+* @param[in] devNum                   - physical device number.
+* @param[in] vrId                     - virtual router ID
+* @param[in] protocol                 - the
+* @param[in] prefixType               - the prefix type (Unicast or Multicast)
+* @param[in] print                    -  ranges
+*                                      GT_TRUE --- print ranges
+*                                      GT_FALSE --- don't print ranges
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgHwDfsScanSip7
+(
+    IN  GT_U8                                   devNum,
+    IN  GT_U32                                  vrId,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT    protocol,
+    IN  CPSS_UNICAST_MULTICAST_ENT              prefixType,
+    IN  GT_BOOL                                 print
+)
+{
+    GT_STATUS   rc = GT_OK;                   /* return code */
+    GT_U32      i;
+    GT_U32      maxDepth = 0;
+    GT_UINTPTR  slItr;
+    PRV_CPSS_DXCH_LPM_HW_ENT            lpmHw;
+    PRV_CPSS_DXCH_LPM_SHADOW_STC        *lpmDbPtr = NULL;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC    *shadowPtr = NULL;
+    GT_U32                              shadowIdx;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_DEVS_LIST_STC  *shadowDevListPtr;
+    GT_BOOL                                      devExists=GT_FALSE;
+
+    prvLpmDumpPrintInfoSip7_STC printInfo; /* strcut holds all the printing info */
+
+    cpssOsMemSet(&printInfo, 0, sizeof(prvLpmDumpPrintInfoSip7_STC));
+
+    printInfo.printRangesSip7 = print;
+
+    /* check if device is active */
+    PRV_CPSS_DXCH_DEV_CHECK_MAC(devNum);
+    PRV_CPSS_NOT_APPLICABLE_DEV_CHECK_MAC(devNum, CPSS_XCAT3_E | CPSS_AC5_E | CPSS_LION2_E | CPSS_BOBCAT2_E | CPSS_CAELUM_E | CPSS_ALDRIN_E | CPSS_BOBCAT3_E | CPSS_ALDRIN2_E);
+
+    /* find the shadow holding the device with the valid vrId */
+    slItr = 0;
+    while ((lpmDbPtr = (PRV_CPSS_DXCH_LPM_SHADOW_STC *)prvCpssSlGetNext(PRV_SHARED_IP_LPM_DIR_IP_LPM_SRC_GLOBAL_VAR_GET(lpmDbSL),&slItr))!= NULL)
+    {
+        lpmHw = prvCpssDxChLpmGetHwType(lpmDbPtr->shadowType);
+        switch (lpmHw)
+        {
+            case PRV_CPSS_DXCH_LPM_HW_RAM_E:
+                for (shadowIdx = 0; shadowIdx < ((PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC*)lpmDbPtr->shadow)->numOfShadowCfg; shadowIdx++)
+                {
+                    shadowDevListPtr = &((PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC*)lpmDbPtr->shadow)->shadowArray[shadowIdx].shadowDevList;
+                    /* find if the device is a member of the shadow */
+                    devExists = GT_FALSE;
+                    for (i = 0 ; i < shadowDevListPtr->shareDevNum;i++)
+                    {
+                        if (shadowDevListPtr->shareDevs[i] == devNum)
+                        {
+                            if(((PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC*)lpmDbPtr->shadow)->shadowArray[shadowIdx].vrRootBucketArray[vrId].valid==GT_TRUE)
+                            {
+                                /* found it */
+                                devExists = GT_TRUE;
+                                shadowPtr = &((PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC*)lpmDbPtr->shadow)->shadowArray[shadowIdx];
+                                break;
+                            }
+                        }
+                    }
+                }
+                break;
+            default:
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+        }
+        if (devExists == GT_TRUE)
+            break;
+    }
+    if (devExists == GT_FALSE)
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_FOUND, LOG_ERROR_NO_MSG);
+    }
+    if (lpmDbPtr == NULL)
+    {
+        /* can't find a valid lpm DB */
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_FOUND, LOG_ERROR_NO_MSG);
+    }
+
+    PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(numOfErrors) = 0;
+    switch (protocol)
+    {
+        case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E:
+            if (prefixType == CPSS_UNICAST_E)
+            {
+                if (shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E]==GT_TRUE)
+                {
+                    rc = printLpmIpUcTableSip7(devNum, shadowPtr, vrId, PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E, &printInfo);
+                }
+                else
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "IPV4 UC is not supported in vrId=%d",vrId);
+                }
+            }
+            else /* CPSS_MULTICAST_E */
+            {
+                if (shadowPtr->vrRootBucketArray[vrId].isMulticastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E]==GT_TRUE)
+                {
+                    rc = printLpmIpMcTableSip7(devNum, shadowPtr, vrId, PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E, &printInfo);
+                }
+                else
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "IPV4 MC is not supported in vrId=%d",vrId);
+                }
+            }
+            break;
+
+        case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E:
+            if (prefixType == CPSS_UNICAST_E)
+            {
+                if (shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E]==GT_TRUE)
+                {
+                    rc = printLpmIpUcTableSip7(devNum, shadowPtr, vrId, PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E, &printInfo);
+                }
+                else
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "IPV6 UC is not supported in vrId=%d",vrId);
+                }
+            }
+            else /* CPSS_MULTICAST_E */
+            {
+                if (shadowPtr->vrRootBucketArray[vrId].isMulticastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E]==GT_TRUE)
+                {
+                    rc = printLpmIpMcTableSip7(devNum, shadowPtr, vrId, PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E, &printInfo);
+                }
+                else
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "IPV6 MC is not supported in vrId=%d",vrId);
+                }
+            }
+            break;
+
+        case PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E:
+            if (shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E]==GT_TRUE)
+            {
+                rc = printLpmIpUcTableSip7(devNum, shadowPtr, vrId, PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E, &printInfo);
+            }
+            else
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "FCOE is not supported in vrId=%d",vrId);
+            }
+            break;
+
+        default:
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+    if (printInfo.printRangesSip7)
+    {
+        cpssOsPrintf("LPM lines used by the virtual router buckets:\n");
+        for (i = 0 ; i < PRV_CPSS_DXCH_PP_MAC(devNum)->hwInfo.lpm.numOfBlocks; i++)
+        {
+            cpssOsPrintf("    Block[%d]: %d\n", i, printInfo.lpmLinesUsedSip7[i]);
+        }
+
+        cpssOsPrintf("Buckets per type: (UC/MC ipv4/ipv6/Fcoe)\n");
+        cpssOsPrintf("   Regular node = %d\n",     printInfo.nodeCounterPerTypeSip7[2]);
+        cpssOsPrintf("   Compressed node  = %d\n", printInfo.nodeCounterPerTypeSip7[3]);
+        cpssOsPrintf("   Leafs = %d\n",            printInfo.nodeCounterPerTypeSip7[1]);
+
+        cpssOsPrintf("\nNumber of non default next hop pointers: %d\n", printInfo.numOfNonDefaultNextHopPointersSip7);
+
+        cpssOsPrintf("\n<octet><# Leafs><# regular><# comp><#embedded_1><#embedded_2><#embedded_3> \n");
+        cpssOsPrintf("----------------------------------------------------------------------------------------------------------------------------------\n");
+
+        /* maxDepth must be declared as local var (and not macro in loop), prevent gcc -O2 infinite loop bug */
+        maxDepth = 2 * PRV_DXCH_LPM_RAM_DBG_MAX_DEPTH_CHECK_MAC(protocol);
+        for (i = 0 ; i < maxDepth; i++)
+        {
+            cpssOsPrintf("    %d\t%d\t%d\t%d\t%d\t\t%d\t\t %d \n",i+1,
+                            printInfo.nodeCounterPerTypePerOctetSip7[i][0],
+                            printInfo.nodeCounterPerTypePerOctetSip7[i][1],
+                            printInfo.nodeCounterPerTypePerOctetSip7[i][2],
+                            printInfo.nodeCounterPerTypePerOctetSip7[i][3],
+                            printInfo.nodeCounterPerTypePerOctetSip7[i][4],
+                            printInfo.nodeCounterPerTypePerOctetSip7[i][5]);
+        }
+    }
+    if (PRV_SHARED_IP_LPM_DIR_LPM_RAM_DBG_SRC_GLOBAL_VAR_GET(numOfErrors) > 0)
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+    return rc;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgDump function
+* @endinternal
+*
+* @brief   This function is intended to do hardware LPM dump
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] devNum                   - physical device number.
+* @param[in] vrId                     - virtual router ID
+* @param[in] protocol                 - the protocol
+* @param[in] prefixType               - the prefix type (Unicast or Multicast)
+*
+* @retval GT_OK                    - on success.
+* @retval GT_BAD_PARAM             - on wrong devNum or vrId.
+* @retval GT_HW_ERROR              - on Hardware error.
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+GT_STATUS prvCpssDxChLpmRamDbgDumpSip7
+(
+    IN  GT_U8                                   devNum,
+    IN  GT_U32                                  vrId,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT    protocol,
+    IN  CPSS_UNICAST_MULTICAST_ENT              prefixType
+)
+{
+    return prvCpssDxChLpmRamDbgHwDfsScanSip7(devNum, vrId, protocol, prefixType, GT_TRUE);
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgHwValidationSip7 function
+* @endinternal
+*
+* @brief   This function is intended to do hardware LPM validation
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3;
+*                                  Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] devNum                   - physical device number.
+* @param[in] vrId                     - virtual router ID
+* @param[in] protocol                 - the protocol
+* @param[in] prefixType               - the prefix type (Unicast or Multicast)
+*
+* @retval GT_OK                    - on success.
+* @retval GT_BAD_PARAM             - on wrong devNum or vrId.
+* @retval GT_HW_ERROR              - on Hardware error.
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*
+* @note
+*       For every LPM LINE
+*       Struct type (bits 129-131)
+*       if bucket type = 0 Regular --> check childPointerand bit_vector 0-43 legality
+*       if bucket type = 1 Embedded 1_Leaf --> check childPointer, childType/offset and defaultLeaf legality
+*       if bucket type = 2 Embedded 2_Leaf --> check childPointer, childType/offset, defaultLeaf and leaf legality
+*       if bucket type = 3 Embedded 3_Leaf --> check offset1/offset2 and leaf_0/leaf_1/leaf_2 legality
+*       if bucket type = 4 Compress --> check childPointer and childType/offset legality
+*       if bucket type = 5 not_supported
+*       if bucket type = 6 Last_Skip_Node_Type --> TBD: check match_Leaf, deafault_leaf and match_prefix legality
+*       if bucket type = 7 Skip_Node_Type --> TBD: check match_Leaf, deafault_leaf and match_prefix legality
+*
+*       -----------------
+*       IPv4 UC
+*       Max tree depth is 4 so from depth 4 all LPM lines must be NH or ECMP/QoS bucket type
+*       Illegal to point to a source tree.
+*       IPv6 UC
+*       Same but depth is 16
+*       IPv4 MC SRC
+*       Max MC group depth is 4 and each group points to root of sources tree (with max depth of 4). So total max depth is 8.
+*       Illegal to point to another source tree.
+*       If you reach depth 8, then all LPM lines must be pointing to NH or ECMP/QoS.
+*       IPv6 MC
+*       Same but 8 instead of 4 and 16 instead of 8
+*
+*/
+GT_STATUS prvCpssDxChLpmRamDbgHwValidationSip7
+(
+    IN  GT_U8                                   devNum,
+    IN  GT_U32                                  vrId,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT    protocol,
+    IN  CPSS_UNICAST_MULTICAST_ENT              prefixType
+)
+{
+    return prvCpssDxChLpmRamDbgHwDfsScanSip7(devNum, vrId, protocol, prefixType, GT_FALSE);
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgDbHwMemPrintSip7 function
+* @endinternal
+*
+* @brief   Function Relevant mode : High Level API modes
+*         This function print LPM debug information
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] lpmDbPtr              - The LPM DB.
+*
+* @retval GT_OK                    - on success
+* @retval GT_FAIL                  - otherwise
+*
+* @note none.
+*
+*/
+GT_STATUS prvCpssDxChLpmRamDbgDbHwMemPrintSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC      *lpmDbPtr
+)
+{
+    GT_STATUS retVal;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC  *shadowPtr;
+    GT_UINTPTR  partitionId;
+    GT_U32      i;
+
+    shadowPtr = &lpmDbPtr->shadowArray[0];
+
+    for ( i = 0 ; i < shadowPtr->numOfLpmMemories ; i++ )
+    {
+        partitionId = shadowPtr->lpmRamStructsMemPoolPtr[i];
+        if( partitionId == 0)
+            continue;
+
+        retVal = prvCpssDmmPartitionPrintSip7(partitionId);
+        if(retVal != GT_OK)
+        {
+            return (retVal);
+        }
+    }
+
+    return (GT_OK);
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgRouteEntryShadowValidityCheckSip7 function
+* @endinternal
+*
+* @brief   Shadow validation of a route entry
+*
+* @param[in] shadowPtr                - pointer to shadow structure
+* @param[in] routeEntryPtr            - pointer to route entry
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on failure
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgRouteEntryShadowValidityCheckSip7
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC            *shadowPtr,
+    IN  PRV_CPSS_DXCH_LPM_ROUTE_ENTRY_POINTER_STC   *routeEntryPtr,
+    IN  GT_BOOL                                     returnOnFailure
+)
+{
+    GT_U32    shareDevListLen, devIdx, maxMemSize;
+    GT_U8     *shareDevsList;  /* List of devices sharing this LPM structure */
+    GT_STATUS retVal = GT_OK;
+
+    shareDevsList   = shadowPtr->workDevListPtr->shareDevs;
+    shareDevListLen = shadowPtr->workDevListPtr->shareDevNum;
+
+    if (routeEntryPtr == NULL)
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Next hop",
+                                        0,
+                                        "routeEntryPtr is null");
+    }
+    else
+    {
+        if ((routeEntryPtr->routeEntryMethod != PRV_CPSS_DXCH_LPM_ENTRY_TYPE_MULTIPATH_E) &&
+            (routeEntryPtr->routeEntryMethod != PRV_CPSS_DXCH_LPM_ENTRY_TYPE_REGULAR_E))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Next hop",
+                                            routeEntryPtr,
+                                            "illegal route entry method");
+        }
+
+         /* For each device check validity of route entries */
+        for (devIdx = 0; devIdx < shareDevListLen; devIdx++)
+        {
+            /*Lock the access to per device data base in order to avoid corruption*/
+            CPSS_API_LOCK_MAC(shareDevsList[devIdx],PRV_CPSS_FUNCTIONALITY_CONFIGURATION_CNS);
+
+            if (routeEntryPtr->routeEntryMethod == PRV_CPSS_DXCH_LPM_ENTRY_TYPE_REGULAR_E)
+            {
+                maxMemSize = PRV_CPSS_DXCH_PP_MAC(shareDevsList[devIdx])->fineTuning.tableSize.routerNextHop;
+            }
+            else
+            {
+                maxMemSize = PRV_CPSS_DXCH_PP_MAC(shareDevsList[devIdx])->fineTuning.tableSize.ecmpQos;
+            }
+
+            /*Unlock the access to per device data base*/
+            CPSS_API_UNLOCK_MAC(shareDevsList[devIdx],PRV_CPSS_FUNCTIONALITY_CONFIGURATION_CNS);
+
+            /* Check that the base address is within the table */
+            if (routeEntryPtr->routeEntryBaseMemAddr >= maxMemSize)
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Next hop",
+                                                routeEntryPtr,
+                                                "illegal route entry address");
+            }
+        }
+
+        if (routeEntryPtr->isIpv6Mc==GT_TRUE)
+        {
+            if (routeEntryPtr->ipv6McGroupScopeLevel > CPSS_IPV6_PREFIX_SCOPE_GLOBAL_E)
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Next hop",
+                                                routeEntryPtr,
+                                                "illegal IPv6 MC Group Scope Level");
+            }
+        }
+    }
+    return retVal;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgTrieShadowValidityCheckSip7
+*           function
+* @endinternal
+*
+* @brief   Validation of bucket's trie
+*
+* @param[in] rootPtr                  - a root node
+* @param[in] level                    - the  in the trie. first  is 0.
+* @param[in] nodeStartAddr            - the start address that this node represents
+* @param[in] sumOfHigherLevelsMask    - the sum of the masks for this node's higher
+* @param[in] level
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on failure
+* @param[in,out] maskForRangeInTrieArray[] - array of the ranges masks as found in the
+*                                      trie. The array index represents the range
+*                                      start address
+* @param[in,out] validRangeInTrieArray[]  - array to indicate if a range was found in
+*                                      the trie. The array index represents the
+*                                      range start address.
+* @param[in,out] maskForRangeInTrieArray[] - array of the ranges masks as found in the
+*                                      trie. The array index represents the range
+* @param[in,out] validRangeInTrieArray[]  - array to indicate if a range was found in
+*                                      the trie. The array index represents the
+*                                      range start address.
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgTrieShadowValidityCheckSip7
+(
+    IN    PRV_CPSS_DXCH_LPM_RAM_TRIE_NODE_STC     *rootPtr,
+    IN    GT_U8                                   level,
+    IN    GT_U8                                   nodeStartAddr,
+    IN    GT_U8                                   sumOfHigherLevelsMask,
+    IN    GT_BOOL                                 returnOnFailure,
+    INOUT GT_U8                                   maskForRangeInTrieArray[],
+    INOUT GT_BOOL                                 validRangeInTrieArray[]
+)
+{
+    GT_U8 power, rangeIdx, thisLevelMask = 0;
+    GT_STATUS status, retVal = GT_OK;
+
+    /* Check that there are not too many levels in the trie */
+    if (level > PRV_CPSS_DXCH_LPM_RAM_MAX_LEVEL_LENGTH_CNS)
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Trie",
+                                        rootPtr,
+                                        "illegal level in the trie");
+    }
+
+    /* the trie root must contain pData */
+    if ((level == 0) && (rootPtr->pData == NULL))
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Trie",
+                                        rootPtr,
+                                        "the trie root must contain pData");
+    }
+
+    /* the node must hold some info */
+    if ((rootPtr->pData == NULL) && (rootPtr->leftSon == NULL) && (rootPtr->rightSon == NULL))
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Trie",
+                                        rootPtr,
+                                        "the trie node holds no pData and no children");
+    }
+
+    /* Father and son should point to each other */
+    if (rootPtr->leftSon != NULL)
+    {
+        if (rootPtr->leftSon->father != rootPtr)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Trie",
+                                            rootPtr,
+                                            "father and left son don't point to each other");
+        }
+    }
+    if (rootPtr->rightSon != NULL)
+    {
+        if (rootPtr->rightSon->father != rootPtr)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Trie",
+                                            rootPtr,
+                                            "father and right son don't point to each other");
+        }
+    }
+
+    /* The node holds a pointer to NH, so startAddr is a start of range */
+    if (rootPtr->pData != NULL)
+    {
+        if (level > 0)
+        {
+            status = prvCpssMathPowerOf2((GT_U8)(level - 1), &thisLevelMask);
+            if (status != GT_OK)
+            {
+                cpssOsPrintf("prvCpssMathPowerOf2 failed\n");
+                return status;
+            }
+            maskForRangeInTrieArray[nodeStartAddr] =
+                (GT_U8)(sumOfHigherLevelsMask + thisLevelMask);
+        }
+        else
+        {
+            maskForRangeInTrieArray[nodeStartAddr] = 0;
+        }
+        validRangeInTrieArray[nodeStartAddr] = GT_TRUE;
+    }
+    /* For all the levels except the root level:
+       In case that the node is a left son and it represents a start address,
+       a new range exists and its startAddr is the end address of the node's
+       range + 1 */
+    if ((level > 0) && (rootPtr->father->leftSon == rootPtr) && (rootPtr->pData != NULL))
+    {
+        status = prvCpssMathPowerOf2((GT_U8)(8 - level), &power);
+        if (status != GT_OK)
+        {
+            cpssOsPrintf("prvCpssMathPowerOf2 failed\n");
+            return status;
+        }
+        rangeIdx = (GT_U8)(nodeStartAddr + power);
+        validRangeInTrieArray[rangeIdx] = GT_TRUE;
+        maskForRangeInTrieArray[rangeIdx] = sumOfHigherLevelsMask;
+    }
+
+    level++;
+    sumOfHigherLevelsMask = (GT_U8)(sumOfHigherLevelsMask + thisLevelMask);
+    /* Validate the sub-tries */
+    if (rootPtr->leftSon != NULL)
+    {
+        status = prvCpssDxChLpmRamDbgTrieShadowValidityCheckSip7(rootPtr->leftSon,
+                                                             level,
+                                                             nodeStartAddr,
+                                                             sumOfHigherLevelsMask,
+                                                             returnOnFailure,
+                                                             maskForRangeInTrieArray,
+                                                             validRangeInTrieArray);
+        if (status != GT_OK)
+        {
+            retVal = status;
+            if (returnOnFailure == GT_TRUE)
+            {
+                return retVal;
+            }
+        }
+    }
+    if (rootPtr->rightSon != NULL)
+    {
+        status = prvCpssMathPowerOf2((GT_U8)(8 - level), &power);
+        if (status != GT_OK)
+        {
+            cpssOsPrintf("prvCpssMathPowerOf2 failed\n");
+            return status;
+        }
+        status = prvCpssDxChLpmRamDbgTrieShadowValidityCheckSip7(rootPtr->rightSon,
+                                                             level,
+                                                             (GT_U8)(nodeStartAddr + power),
+                                                             sumOfHigherLevelsMask,
+                                                             returnOnFailure,
+                                                             maskForRangeInTrieArray,
+                                                             validRangeInTrieArray);
+        if (status != GT_OK)
+        {
+            retVal = status;
+            if (returnOnFailure == GT_TRUE)
+            {
+                return retVal;
+            }
+        }
+    }
+
+    return retVal;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgBucketCheckSizesOfGonsSip7
+*           function
+* @endinternal
+*
+* @brief  function that goes over the
+*          bucketPtr->hwGroupOffsetHandle and over the range
+*          list and check for each pointer size that is the same
+*          as the size of all structs pointed by those ranges
+*
+* @param[in] bucketPtr                - pointer to the bucket
+*
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgBucketCheckSizesOfGonsSip7
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr
+)
+{
+    GT_U32 i=0,j=0;
+    GT_U32 numberOfGons=0;
+    GT_U32 sizeOfTheGonAccordingToRangeTypes=0;
+    GT_U32 sizeOfTheGonAccordingToTheHwOffsetHandle=0;
+    GT_U32 endOfRange=0,startOfRange=0;
+    GT_BOOL hiddenRangeWasCounted=GT_FALSE, getSizeOfGon=GT_TRUE;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC *tempRangePtr;
+    GT_U32 numberOfRegular=0;
+    GT_U32 numberOfComp=0;
+    GT_U32 numberOfLeafs=0;
+    GT_U32 numberOfLeafsLines=0;
+    GT_U32 maxNumberOfEmbedded=0;
+
+
+    for(i=0;i<PRV_CPSS_DXCH_LPM_RAM_BIT_VECTOR_LINES_NUMBER_CNS; i++)
+    {
+        if(bucketPtr->hwGroupOffsetHandle[i]!=0)
+        {
+            if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[i])==DMM_BLOCK_FREE_SIP7)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i] is set as free \n");
+            }
+            numberOfGons++;
+        }
+    }
+
+    if ((numberOfGons!=0) && (numberOfGons!=1) && (numberOfGons!=6))
+    {
+         /* the only 3 leggal options for the array are:
+            1. 6 leggal pointers, meaning a regular bucket
+            2. single pointer , meaning a compressed bucket
+            3. null pointer, meaning last octet bucket is all embedded
+           */
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+
+    switch(bucketPtr->bucketType)
+    {
+    case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+        maxNumberOfEmbedded = 1;
+        break;
+    case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+        maxNumberOfEmbedded = 2;
+        break;
+    case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+        maxNumberOfEmbedded = 3;
+        break;
+    case CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E:
+    case CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E:
+    case CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E:
+    case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+        maxNumberOfEmbedded=0;
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+
+    if(numberOfGons==0)
+    {
+        /* last octet treated */
+        switch(bucketPtr->bucketType)
+        {
+        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+            sizeOfTheGonAccordingToTheHwOffsetHandle = 1;
+            getSizeOfGon=GT_FALSE;
+            numberOfGons = 1;/* change value inorder to enter the loop */
+            break;
+        case CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E:
+        default:
+            /* if all bucketPtr->hwGroupOffsetHandle[i] pointers are 0,
+               it means that we have an all embedded bucket, all other options are illegal */
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+    }
+
+    tempRangePtr = bucketPtr->rangeList;
+    for(i=0;i<numberOfGons; i++)
+    {
+        numberOfRegular=0;
+        numberOfComp=0;
+        numberOfLeafs=0;
+        numberOfLeafsLines=0;
+        hiddenRangeWasCounted=0;
+
+        if (getSizeOfGon==GT_TRUE)
+        {
+            if (bucketPtr->hwGroupOffsetHandle[i]==0)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i]=0\n");
+            }
+            else
+            {
+                if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[i])==DMM_BLOCK_FREE_SIP7)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i] is set as free \n");
+                }
+            }
+            sizeOfTheGonAccordingToTheHwOffsetHandle = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(bucketPtr->hwGroupOffsetHandle[i]);
+
+        }
+        startOfRange = (numberOfGons==1)? 0 : (i*44);
+        endOfRange = (numberOfGons==1)? 255 : (i*44+43);
+        /* go over the range list until we get to startOfRange, and check number of lines in the GON.
+           regular hold 6 lines
+           compressed hold 1 line
+           and 5 leafs hold 1 line */
+        while (tempRangePtr != NULL)
+        {
+            if(tempRangePtr->startAddr >= startOfRange &&
+               tempRangePtr->startAddr <= endOfRange)
+            {
+                /* in this case the middle ranges of regular bucket should be counted
+                   as the pointer they are*/
+                if ((GT_U32)tempRangePtr->pointerType==(GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E)
+                {
+                    numberOfLeafs++;
+                }
+                else
+                {
+                    switch (tempRangePtr->pointerType)
+                    {
+                        case CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E:
+                            numberOfRegular++;
+                            break;
+                        case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+                            numberOfComp++;
+                            break;
+                        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+                            numberOfComp++;
+                            break;
+                        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+                            numberOfComp++;
+                            break;
+                        case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+                            numberOfComp++;
+                            break;
+                        case CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E:
+                        case CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E:
+                            numberOfLeafs++;
+                            break;
+                        default:
+                            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                    }
+                }
+
+                if (tempRangePtr->startAddr == startOfRange)
+                {
+                     if(hiddenRangeWasCounted==GT_FALSE)
+                    {
+                        hiddenRangeWasCounted=GT_TRUE;
+                    }
+                }
+                else
+                {
+                    /* if the startAddr is bigger then the startOfRange then
+                       it means the middle ranges of the regular bit vector
+                       is hidden and we should count it as a leaf*/
+                    if(hiddenRangeWasCounted==GT_FALSE)
+                    {
+                        hiddenRangeWasCounted=GT_TRUE;
+                        numberOfLeafs++;
+                    }
+                }
+
+                tempRangePtr = tempRangePtr->next;
+            }
+            else
+            {   /* if the startAddr is bigger then the startOfRange then
+                   it means the middle ranges of the regular bit vector
+                   is hidden and we should count it as a leaf*/
+                if(hiddenRangeWasCounted==GT_FALSE)
+                {
+                    hiddenRangeWasCounted=GT_TRUE;
+                    numberOfLeafs++;
+                }
+
+                /* need to finish the current GON calculation and move to the next one
+                in case of regular bucket, no need to go to next range- we still work on the same range  */
+                break;
+            }
+        }
+
+        /* reduce from the number of leafs counted the ones that will
+           be embedded in a compressed line*/
+        if (numberOfRegular==0&&numberOfComp==0&&numberOfLeafs<=maxNumberOfEmbedded)
+        {
+            /* in this case we have one line all embedded */
+            sizeOfTheGonAccordingToRangeTypes=1;
+        }
+        else
+        {
+            for (j = 0; j < maxNumberOfEmbedded; j++)
+            {
+                if (numberOfLeafs!=0)
+                {
+                    numberOfLeafs--;
+                }
+            }
+            /* now calculate the number of lines */
+            numberOfLeafsLines = numberOfLeafs/MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS;
+            if (numberOfLeafs%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS!=0)
+            {
+                /* one extra non full line */
+                numberOfLeafsLines++;
+            }
+            sizeOfTheGonAccordingToRangeTypes = (numberOfRegular*PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS)+
+                                                (numberOfComp*PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS)+
+                                                (numberOfLeafsLines);
+        }
+
+        if (sizeOfTheGonAccordingToRangeTypes!=sizeOfTheGonAccordingToTheHwOffsetHandle)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+    }
+    return GT_OK;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgRangesShadowValidityCheckSip7
+*           function
+* @endinternal
+*
+* @brief   Shadow validation of bucket's ranges
+*
+* @param[in] shadowPtr                - pointer to shadow structure
+* @param[in] vrId                     - the virtual router id
+* @param[in] bucketPtr                - pointer to the bucket
+* @param[in] maskForRangeInTrieArray[] - array of the ranges masks as found in the
+*                                      trie. The array index represents the range
+*                                      start address
+* @param[in] validRangeInTrieArray[]  - array to indicate if a range was found in
+*                                      the trie. The array index represents the
+*                                      range start address.
+* @param[in] level                    - the  in the tree (first  is 0)
+* @param[in] numOfMaxAllowedLevels    - the maximal number of levels that is allowed
+*                                      for the relevant protocol and prefix type
+* @param[in] prefixType               - unicast or multicast tree
+* @param[in] protocol                 - protocol
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on failure
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgRangesShadowValidityCheckSip7
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC          *shadowPtr,
+    IN  GT_U32                                    vrId,
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    IN  GT_U8                                     maskForRangeInTrieArray[],
+    IN  GT_BOOL                                   validRangeInTrieArray[],
+    IN  GT_U8                                     level,
+    IN  GT_U8                                     numOfMaxAllowedLevels,
+    IN  CPSS_UNICAST_MULTICAST_ENT                prefixType,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT      protocol,
+    IN  GT_BOOL                                   returnOnFailure
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC  *rangePtr, *nextRangePtr;
+    GT_U32                                  expectedPointingRangeMemAddr;
+    GT_U16                                  numOfRanges, numOfRangesForPrefixType;
+    GT_U8                                   prefixTypeFirstRange, prefixTypeLastRange;
+    GT_U8                                   prefixTypeSecondRange=0, prefixTypeSecondLastRange=0;
+    GT_U32                                  tmpPrefixTypeRange;
+    GT_U8                                   trieRangeIdx;
+    GT_STATUS                               status, retVal = GT_OK;
+    GT_U32                                  i, blockIndex=0;
+    PRV_CPSS_DXCH_LPM_RAM_MEM_INFO_STC      *octetToBlockMapping;
+    GT_BOOL                                 foundMapping=GT_FALSE;
+    GT_UINTPTR                              tmpHwBucketOffsetHandle;
+    GT_U32                                  octetNum=0;
+    GT_BOOL                                 isSrcRoot=GT_FALSE, isRoot=GT_FALSE;
+
+    rangePtr = bucketPtr->rangeList;
+    numOfRanges = 0;
+    numOfRangesForPrefixType = 0;
+
+    if (level == 0)
+    {
+        if (prefixType == CPSS_UNICAST_E)
+        {
+            prefixTypeFirstRange = 0;
+            tmpPrefixTypeRange = (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ?
+                (PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS - 1) :
+                (PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS - 1);
+            prefixTypeLastRange = (GT_U8)tmpPrefixTypeRange;
+
+            if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+            {
+                prefixTypeSecondRange = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS;
+                prefixTypeSecondLastRange = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS;
+            }
+        }
+        else /* CPSS_MULTICAST_E */
+        {
+            tmpPrefixTypeRange = (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ?
+                PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS :
+                PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+            prefixTypeFirstRange = (GT_U8)tmpPrefixTypeRange;
+            tmpPrefixTypeRange = (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ?
+                PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_MC_ADDRESS_SPACE_CNS :
+                PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+            prefixTypeLastRange = (GT_U8)tmpPrefixTypeRange;
+
+            prefixTypeSecondLastRange = prefixTypeLastRange;
+        }
+    }
+    else
+    {
+        prefixTypeFirstRange = 0;
+        prefixTypeLastRange = 255;
+        prefixTypeSecondRange = 0;
+        prefixTypeSecondLastRange = 255;
+
+    }
+
+    /* check that the bucket bank number exist in the shadow linked_list of the specific level */
+
+    /* find the octetNum according to level/protocol/type */
+    if (prefixType == CPSS_UNICAST_E)
+    {
+        octetNum = level;
+        if (level!=0)/* non root level */
+        {
+            octetNum = level+1;
+
+            isSrcRoot = GT_FALSE;
+            isRoot    = GT_FALSE;
+        }
+        else
+        {
+            isSrcRoot = GT_FALSE;
+            isRoot    = GT_TRUE;
+        }
+    }
+    else
+    {
+        switch(protocol)
+        {
+        case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E:
+            octetNum = level % PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS;
+            if ((level!=0)&& (level != PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS))/* non root Grp/Src */
+            {
+                octetNum = octetNum+1;
+            }
+            if (level == PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS)
+            {
+                isSrcRoot = GT_TRUE;
+                isRoot    = GT_FALSE;
+            }
+            else
+            {
+                if(level==0)
+                {
+                    isSrcRoot = GT_FALSE;
+                    isRoot    = GT_TRUE;
+                }
+                else
+                {
+                    isSrcRoot = GT_FALSE;
+                    isRoot    = GT_FALSE;
+                }
+            }
+            break;
+        case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E:
+            octetNum = level % PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS;
+            if ((level!=0)&& (level != PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS))/* non root Grp/Src */
+            {
+                octetNum = octetNum+1;
+            }
+            if (level == PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS)
+            {
+                isSrcRoot = GT_TRUE;
+                isRoot    = GT_FALSE;
+            }
+            else
+            {
+                if(level==0)
+                {
+                    isSrcRoot = GT_FALSE;
+                    isRoot    = GT_TRUE;
+                }
+                else
+                {
+                    isSrcRoot = GT_FALSE;
+                    isRoot    = GT_FALSE;
+                }
+            }
+            break;
+        case PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E:
+            octetNum = level % PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS;
+            if ((level!=0)&& (level != PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS))/* non root */
+            {
+                octetNum = octetNum+1;
+                isSrcRoot = GT_FALSE;
+                isRoot    = GT_FALSE;
+            }
+            else
+            {
+                isSrcRoot = GT_FALSE;
+                isRoot    = GT_TRUE;
+            }
+            break;
+        default:
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Level",
+                                        level,
+                                        "Wrong protocol level");
+            break;
+        }
+    }
+
+    /* deal with root bucket or in a root SRC case */
+
+    if(bucketPtr->hwBucketOffsetHandle!=0)
+    {
+        if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwBucketOffsetHandle)==DMM_BLOCK_FREE_SIP7)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwBucketOffsetHandle is set as free \n");
+        }
+
+        blockIndex = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(bucketPtr->hwBucketOffsetHandle) / shadowPtr->lpmRamTotalBlocksSizeIncludingGap;
+        retVal = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&blockIndex);
+        if (retVal != GT_OK)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, "ERROR:illegal blockIndex - fall in holes \n");
+        }
+
+        if (octetNum >= PRV_CPSS_DXCH_LPM_RAM_NUM_OF_MEMORIES_SIP7_CNS)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_RANGE, "Shouldn't happen: octet number exceeds limit");
+        }
+        octetToBlockMapping = &shadowPtr->lpmMemInfoArray[protocol][octetNum];
+        while((octetToBlockMapping!=NULL)&&(octetToBlockMapping->structsMemPool!=0))
+        {
+            /* go over all the block list assosiated to the level*/
+            if (octetToBlockMapping->ramIndex==blockIndex)
+            {
+                /* we found the block in the list */
+                foundMapping=GT_TRUE;
+                break;
+            }
+            octetToBlockMapping = octetToBlockMapping->nextMemInfoPtr;
+        }
+        if(foundMapping == GT_FALSE)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Level",
+                                            level,
+                                            "The bucket block do not exist in the octet to block mapping list");
+        }
+
+         /* we already dealt with the root bucket, now we deal with the gons of level 0, or the gons of src level0 */
+        octetNum=octetNum+1;
+    }
+
+    /* Hw bucket update status should always be true in a stable state */
+    if (bucketPtr->bucketHwUpdateStat != PRV_CPSS_DXCH_LPM_RAM_BUCKET_HW_OK_E)
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "Hw bucket update status is wrong, illegal value, should be GT_TRUE");
+    }
+
+    if (isSrcRoot==GT_FALSE)/* non SRC root */
+    {
+        /* nodeMemAddr hold the node address
+           in case of a UC root or GRP Root it hold the VR id - check it is leggal */
+        if (bucketPtr->nodeMemAddr == 0xFFFFFFFF)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "nodeMemAddr is wrong, illegal value for a UC root VR id");
+        }
+
+        /* Check pointingRangeMemAddr - for not SRC Root this field should have the value 0xFFFFFFFF */
+        if (bucketPtr->pointingRangeMemAddr != 0xFFFFFFFF)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "pointingRangeMemAddr is wrong, illegal value for a UC root bucket");
+        }
+
+        if (isRoot==GT_TRUE)
+        {
+            /* in case of a UC root or GRP Root it hold the VR id
+               check this is a legal Vr id */
+            if ((bucketPtr->nodeMemAddr >= shadowPtr->vrfTblSize)||(bucketPtr->nodeMemAddr!=vrId))
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "bucketPtr->nodeMemAddr is wrong, illegal value for a Root bucket - wrong VR id");
+        }
+    }
+    else
+    {
+        /* nodeMemAddr hold the address of the GON nodes  */
+        if (bucketPtr->nodeMemAddr == 0xFFFFFFFF)
+        {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "nodeMemAddr is wrong, illegal value for SRC Root node address");
+        }
+         /* Check pointingRangeMemAddr - for MC SRC Root this field should have a value different then 0xFFFFFFFF
+          this field hold the address of the leaf pointing to the SRC root node */
+        if (bucketPtr->pointingRangeMemAddr == 0xFFFFFFFF)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "pointingRangeMemAddr is wrong, illegal value for a MC root bucket");
+        }
+        else
+        {
+            /* pointingRangeMemAddr is ok check the fifthAddress
+               fifthAddress is the offset in HW were the 24 bits for
+               the pointer to the next bucket on the (G,S) lookup starts
+               this value can be:
+               for a line leaf structure:
+               2 for Leaf0, 28 for Leaf1, 54 for Leaf2, 80 for Leaf3, 106 for Leaf4 (26*4-26*leafOffsetInLine)+2
+
+               for a line embedded_3 leaf structure:
+               74, 38, 2  (72 - leafOffsetInLine*36)+2
+               for embedded_2: 94, 68
+               for embedded_1  94 */
+            if ((bucketPtr->fifthAddress != 2)&&(bucketPtr->fifthAddress != 28)&&(bucketPtr->fifthAddress != 54)&&
+                (bucketPtr->fifthAddress != 80)&&(bucketPtr->fifthAddress != 106)&&
+                (bucketPtr->fifthAddress != 74)&&(bucketPtr->fifthAddress != 38)&&(bucketPtr->fifthAddress != 2)&&
+                (bucketPtr->fifthAddress != 94)&&(bucketPtr->fifthAddress != 68))
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,
+                                                "fifthAddress is wrong, illegal value for a MC pointer offset in a leaf ");
+            }
+        }
+    }
+
+    foundMapping=GT_FALSE;
+
+    /* go over all gons */
+    for(i=0;i<6;i++)
+    {
+        tmpHwBucketOffsetHandle = bucketPtr->hwGroupOffsetHandle[i];
+
+        if (tmpHwBucketOffsetHandle!=0)
+        {
+            if(DMM_BLOCK_STATUS_SIP7(tmpHwBucketOffsetHandle)==DMM_BLOCK_FREE_SIP7)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i] is set as free \n");
+            }
+            blockIndex = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(tmpHwBucketOffsetHandle) / shadowPtr->lpmRamTotalBlocksSizeIncludingGap;
+            retVal = prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&blockIndex);
+            if (retVal != GT_OK)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, "ERROR:illegal blockIndex - fall in holes \n");
+            }
+
+            octetToBlockMapping = &shadowPtr->lpmMemInfoArray[protocol][octetNum];
+            while((octetToBlockMapping!=NULL)&&(octetToBlockMapping->structsMemPool!=0))
+            {
+                /* go over all the block list assosiated to the level*/
+                if (octetToBlockMapping->ramIndex==blockIndex)
+                {
+                    /* we found the block in the list */
+                    foundMapping=GT_TRUE;
+                    break;
+                }
+                octetToBlockMapping = octetToBlockMapping->nextMemInfoPtr;
+            }
+            if(foundMapping == GT_FALSE)
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Level",
+                                                level,
+                                                "The bucket block do not exist in the octet to block mapping list");
+            }
+        }
+    }
+
+    /* function that goes over the bucketPtr->hwGroupOffsetHandle[j]
+       and over the range list and check for each pointer size that
+       is the same as the size of all structs pointed by the ranges */
+    retVal = prvCpssDxChLpmRamDbgBucketCheckSizesOfGonsSip7(bucketPtr);
+    if (retVal != GT_OK)
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "hwGroupOffsetHandle wrong GON size");
+    }
+
+    /* Check that the numbers of actual ranges is bucketPtr->numOfRanges */
+    while (rangePtr)
+    {
+        /* Skip unicast ranges for multicast validation or multicast ranges for
+           unicast validation */
+        if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+        {
+            if ((rangePtr->startAddr < prefixTypeFirstRange) ||
+                ((rangePtr->startAddr > prefixTypeLastRange) && (rangePtr->startAddr<prefixTypeSecondRange))||
+                 (rangePtr->startAddr > prefixTypeSecondLastRange))
+            {
+                numOfRanges++;
+                rangePtr = rangePtr->next;
+                continue;
+            }
+        }
+        else
+        {
+            if ((rangePtr->startAddr < prefixTypeFirstRange) ||
+                (rangePtr->startAddr > prefixTypeLastRange))
+            {
+                numOfRanges++;
+                rangePtr = rangePtr->next;
+                continue;
+            }
+        }
+        /* Check startAddr for the first range of the unicast/multicast prefixes */
+        if ((numOfRangesForPrefixType == 0) && (rangePtr->startAddr != prefixTypeFirstRange))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Range",
+                                            rangePtr,
+                                            "start address of the first range is not 0");
+        }
+
+        nextRangePtr = rangePtr->next;
+        /* Ranges must be in increasing order */
+        if ((nextRangePtr) && (nextRangePtr->startAddr <= rangePtr->startAddr))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Range",
+                                            rangePtr,
+                                            "the ranges are not in increasing order");
+        }
+
+        /* A range that points to bucket must be of length 1 (its start address
+           must be equal to its end address) */
+        if ((rangePtr->startAddr < 255) &&
+            ((rangePtr->pointerType == CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)||
+             (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E)||
+             (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E)||
+             (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E)||
+             (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E)))
+        {
+            if (nextRangePtr == NULL)
+            {
+                /* no next range */
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Range",
+                                                rangePtr,
+                                                "the range points to bucket but its length is not 1");
+            }
+            else
+            {
+                if (rangePtr->startAddr != (nextRangePtr->startAddr - 1))
+                {
+                    LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Range",
+                                                    rangePtr,
+                                                    "the range points to bucket but its length is not 1");
+                }
+            }
+        }
+
+
+        /* check that tree level is not over the limit */
+        if ((((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) && (level == (2*PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_FOR_GON_IN_IPV4_PROTOCOL_CNS))) ||
+             ((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E) && (level == (2*PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_FOR_GON_IN_IPV6_PROTOCOL_CNS)))) &&
+             (prefixType == CPSS_MULTICAST_E))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Level",
+                                                rangePtr,
+                                                "MC tree reached an illegal level");
+        }
+        else
+        {
+            if ((((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) && (level == PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_FOR_GON_IN_IPV4_PROTOCOL_CNS)) ||
+                 ((protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E) && (level == PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_FOR_GON_IN_IPV6_PROTOCOL_CNS))) &&
+                (prefixType == CPSS_UNICAST_E))
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Level",
+                                                    rangePtr,
+                                                    "UC tree reached an illegal level");
+            }
+        }
+
+        /* Check validity for nexthop */
+        if ((rangePtr->pointerType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) ||
+            (rangePtr->pointerType == CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E))
+        {
+            /* check pointerType equal to routeEntryMethod */
+            if (((rangePtr->pointerType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) && (rangePtr->lowerLpmPtr.nextHopEntry->routeEntryMethod==PRV_CPSS_DXCH_LPM_ENTRY_TYPE_REGULAR_E))||
+                ((rangePtr->pointerType == CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E) && (rangePtr->lowerLpmPtr.nextHopEntry->routeEntryMethod==PRV_CPSS_DXCH_LPM_ENTRY_TYPE_MULTIPATH_E)))
+
+            {
+                status = prvCpssDxChLpmRamDbgRouteEntryShadowValidityCheckSip7(shadowPtr,
+                                                                           rangePtr->lowerLpmPtr.nextHopEntry,
+                                                                           returnOnFailure);
+                if (status != GT_OK)
+                {
+                    retVal = status;
+                    if (returnOnFailure == GT_TRUE)
+                    {
+                        return retVal;
+                    }
+                }
+            }
+            else
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "pointerType",
+                                                rangePtr,
+                                                "UC pointerType dont match routeEntryMethod");
+            }
+        }
+
+        /* The range was possibly found in the trie. */
+        trieRangeIdx = rangePtr->startAddr;
+        if (validRangeInTrieArray[trieRangeIdx] == GT_TRUE)
+        {
+            if (rangePtr->mask != maskForRangeInTrieArray[trieRangeIdx])
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Range",
+                                                rangePtr,
+                                                "the range has a different mask in the trie");
+            }
+            validRangeInTrieArray[trieRangeIdx] = GT_FALSE;
+        }
+        numOfRanges++;
+        numOfRangesForPrefixType++;
+        rangePtr = nextRangePtr;
+    }
+
+    if (numOfRanges != bucketPtr->numOfRanges)
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "the number of actual ranges is different than the bucket's numOfRanges");
+    }
+
+    /* Check if all the ranges in the trie exist in the bucket ranges list */
+    for (trieRangeIdx = 0; trieRangeIdx < 255; trieRangeIdx++)
+    {
+        if ((trieRangeIdx < prefixTypeFirstRange) || (trieRangeIdx > prefixTypeLastRange))
+        {
+            continue;
+        }
+        if (validRangeInTrieArray[trieRangeIdx] == GT_TRUE)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "a range that appears in the trie does not appear in the ranges list");
+        }
+    }
+
+    /* Check next buckets */
+    rangePtr = bucketPtr->rangeList;
+
+    while (rangePtr)
+    {
+        if ((rangePtr->pointerType != CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) &&
+            (rangePtr->pointerType != CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E))
+        {
+            if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+            {
+                if ((rangePtr->startAddr < prefixTypeFirstRange) ||
+                    ((rangePtr->startAddr > prefixTypeLastRange) && (rangePtr->startAddr<prefixTypeSecondRange))||
+                     (rangePtr->startAddr > prefixTypeSecondLastRange))
+                {
+                    rangePtr = rangePtr->next;
+                    continue;
+                }
+            }
+            else
+            {
+                if ((rangePtr->startAddr < prefixTypeFirstRange) ||
+                    (rangePtr->startAddr > prefixTypeLastRange))
+                {
+                     rangePtr = rangePtr->next;
+                     continue;
+                }
+            }
+            /* SIP7 do not use this parameter, so set it to 0 */
+            expectedPointingRangeMemAddr = 0;
+            status = prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7(shadowPtr,
+                                                                   vrId,
+                                                                   rangePtr->lowerLpmPtr.nextBucket,
+                                                                   (GT_U8)(level + 1),
+                                                                   rangePtr->pointerType,
+                                                                   numOfMaxAllowedLevels,
+                                                                   prefixType,
+                                                                   protocol,
+                                                                   expectedPointingRangeMemAddr,
+                                                                   returnOnFailure);
+            if (status != GT_OK)
+            {
+                retVal = status;
+                if (returnOnFailure == GT_TRUE)
+                {
+                    return retVal;
+                }
+            }
+        }
+        rangePtr = rangePtr->next;
+    }
+    return retVal;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7 function
+* @endinternal
+*
+* @brief   Shadow validation of a bucket
+*
+* @param[in] shadowPtr                - pointer to shadow structure
+* @param[in] vrId                     - the virtual router id
+* @param[in] bucketPtr                - pointer to the bucket
+* @param[in] level                    - the  in the tree (first  is 0)
+* @param[in] expectedNextPointerType  - the expected type of the bucket, ignored
+*                                      for level 0
+* @param[in] numOfMaxAllowedLevels    - the maximal allowed number of levels
+*                                      for the relevant protocol and prefix type
+* @param[in] prefixType               - unicast or multicast tree
+* @param[in] protocol                 - protocol
+* @param[in] expectedPointingRangeMemAddr - the expected pointingRangeMemAddr field
+*                                      of the bucket
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on
+*                                      failure
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC          *shadowPtr,
+    IN  GT_U32                                    vrId,
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    IN  GT_U8                                     level,
+    IN  CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT       expectedNextPointerType,
+    IN  GT_U8                                     numOfMaxAllowedLevels,
+    IN  CPSS_UNICAST_MULTICAST_ENT                prefixType,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT      protocol,
+    IN  GT_U32                                    expectedPointingRangeMemAddr,
+    IN  GT_BOOL                                   returnOnFailure
+)
+{
+    GT_U32    swapBaseAddr, secondSwapBaseAddr,thirdSwapBaseAddr, memSize, baseAddrOfMemBlock;
+    GT_U32    beginningOfBucket, endOfBucket,j;
+    GT_STATUS status, retVal = GT_OK;
+
+    /* the mask as retrieved from the trie. The array index is the range start
+       address */
+    GT_U8   maskForRangeInTrieArray[256] = {0};
+    /* indicates whether the range was found during the trie scan. The array
+       index is the range start address.
+       For each range that is found during the trie scan, the value in the array
+       will be updated to GT_TRUE. After that, we will go over the bucket ranges
+       and check that all the ranges with GT_TRUE are found */
+    GT_BOOL validRangeInTrieArray[256] = {0};
+
+    /* make compiler silent */
+    swapBaseAddr = 0;
+    secondSwapBaseAddr = 0;
+
+    /* Check that we don't exceed the number of allowed levels */
+    if (level >= numOfMaxAllowedLevels)
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "exceeded max number of levels");
+    }
+
+    /* Check that bucketType and pointerType of the pointing range are the same.
+       Exception: bucketType of a MC source is different than pointerType of the
+       pointing range */
+    if ((expectedNextPointerType != bucketPtr->bucketType) &&
+        ((GT_U32)expectedNextPointerType != (GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E))
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "bucket type is different than the pointing range type");
+    }
+
+    /* Check validity of bucketType and compatibility with number of ranges */
+    switch (bucketPtr->bucketType)
+    {
+    case CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E:
+        if ((bucketPtr->numOfRanges < (SIP7_MAX_NUMBER_OF_COMPRESSED_RANGES_CNS+1)) || (bucketPtr->numOfRanges > 256))
+        {
+            /* it is possible to have ranges<12 with regular gon incase the memory is full,
+               and transition from regular to compress cannot be done in the delete operation */
+            if(bucketPtr->numOfRanges < (SIP7_MAX_NUMBER_OF_COMPRESSED_RANGES_CNS+1))
+            {
+                /* check all pointers are valid */
+                for (j=0;j<PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS;j++)
+                {
+                    /* in case of regular bit vector we will have 6 pointers (hwBucketOffsetHandle[6])*/
+                    if (bucketPtr->hwGroupOffsetHandle[j]==0)
+                    {
+                        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,
+                                                "special case that bucket type Regular is not compatible with the number of ranges (fit for compress),"
+                                                "and the hwGroupOffsetHandle have no 6 valid handles");
+                    }
+                    else
+                    {
+                        if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[j])==DMM_BLOCK_FREE_SIP7)
+                        {
+                            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,
+                                                "special case that bucket type Regular is not compatible with the number of ranges (fit for compress),"
+                                                "and the hwGroupOffsetHandle have no 6 valid handles - one of the handles is set as free ");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,
+                                                "bucket type is not compatible with the number of ranges");
+            }
+        }
+        break;
+
+    case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+        if ((bucketPtr->numOfRanges < 2) || (bucketPtr->numOfRanges > SIP7_MAX_NUMBER_OF_COMPRESSED_RANGES_CNS))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "bucket type is not compatible with the number of ranges");
+        }
+
+        break;
+
+    case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+        /* The root must be regular */
+        if ((level == 0) && (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "root bucket type is embedded_1 for IPv4");
+        }
+        if ((bucketPtr->numOfRanges < 1) || (bucketPtr->numOfRanges > 7))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "bucket type is not compatible with the number of ranges");
+        }
+        break;
+
+    case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+        if ((level == 0) && (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "root bucket type is embedded_2 for IPv4");
+        }
+        if ((bucketPtr->numOfRanges < 2) || (bucketPtr->numOfRanges > 5))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "bucket type is not compatible with the number of ranges");
+        }
+        break;
+     case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+        if (bucketPtr->numOfRanges != 3)
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "bucket type is not compatible with the number of ranges");
+        }
+        break;
+
+    case CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E:
+        if ((prefixType != CPSS_MULTICAST_E) ||
+            ((GT_U32)expectedNextPointerType != (GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E))
+        {
+            LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,
+                                            "invalid bucket type");
+        }
+        break;
+    default:
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "invalid bucket type");
+    }
+
+    if (bucketPtr->bucketType != CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E)
+    {
+        /* Check hwBucketOffsetHandle */
+        if (prefixType == CPSS_UNICAST_E)
+        {
+            baseAddrOfMemBlock = shadowPtr->ucSearchMemArrayPtr[protocol][level]->structsBase;
+        }
+        else
+        {
+            baseAddrOfMemBlock = shadowPtr->mcSearchMemArrayPtr[protocol][level]->structsBase;
+        }
+
+        if (shadowPtr->swapMemoryAddr==0)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected swapMemoryAddr=0\n");
+        }
+        swapBaseAddr = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(shadowPtr->swapMemoryAddr);
+        if (shadowPtr->secondSwapMemoryAddr==0)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected secondSwapMemoryAddr=0\n");
+        }
+        secondSwapBaseAddr = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(shadowPtr->secondSwapMemoryAddr);
+        if (shadowPtr->thirdSwapMemoryAddr==0)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected thirdSwapMemoryAddr=0\n");
+        }
+        thirdSwapBaseAddr = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(shadowPtr->thirdSwapMemoryAddr);
+
+        for (j=0;j<PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS;j++)
+        {
+            memSize = shadowPtr->lpmRamTotalBlocksSizeIncludingGap * PRV_CPSS_DXCH_LPM_RAM_NUM_OF_MEMORIES_SIP7_CNS;
+
+            /* in case of regular bit vector we will have 6 pointers (hwBucketOffsetHandle[6])*/
+            if (bucketPtr->hwGroupOffsetHandle[j]!=0)
+            {
+                if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[j])==DMM_BLOCK_FREE_SIP7)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i] is set as free \n");
+                }
+                /* the beginning and the end of the bucket in HW */
+                beginningOfBucket =
+                    PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(bucketPtr->hwGroupOffsetHandle[j]);
+                endOfBucket =
+                    beginningOfBucket +
+                    PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(bucketPtr->hwGroupOffsetHandle[j]);
+
+                /* Check that hwBucketOffsetHandle is in range */
+                if (endOfBucket > memSize)
+                {
+                    LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,
+                                                    "hwBucketOffsetHandle is out of range");
+                }
+                /* Check that hwBucketOffsetHandle is not within the swapping areas */
+                memSize = PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_GROUP_OF_NODES_SIZE_IN_LPM_LINES_CNS;
+                beginningOfBucket += baseAddrOfMemBlock;
+                endOfBucket += baseAddrOfMemBlock;
+                if (((swapBaseAddr < beginningOfBucket) && (beginningOfBucket < swapBaseAddr + memSize)) ||
+                    ((swapBaseAddr < endOfBucket) && (endOfBucket < swapBaseAddr + memSize)) ||
+                    ((secondSwapBaseAddr < beginningOfBucket) && (beginningOfBucket < secondSwapBaseAddr + memSize)) ||
+                    ((secondSwapBaseAddr < endOfBucket) && (endOfBucket < secondSwapBaseAddr + memSize)) ||
+                    ((thirdSwapBaseAddr < beginningOfBucket) && (beginningOfBucket < thirdSwapBaseAddr + memSize)) ||
+                    ((thirdSwapBaseAddr < endOfBucket) && (endOfBucket < thirdSwapBaseAddr + memSize)))
+                {
+                    LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,
+                                                    "hwBucketOffsetHandle is within the swapping area");
+                }
+            }
+        }
+    }
+
+    /* to avoid warnings */
+    expectedPointingRangeMemAddr=expectedPointingRangeMemAddr;
+#if 0
+/* currently pointingRangeMemAddr is always 0 for SIP6 - nothing to check
+   maybe in the future when using bulk */
+    /* Check pointingRangeMemAddr */
+    if (bucketPtr->pointingRangeMemAddr != expectedPointingRangeMemAddr)
+    {
+        LPM_SHADOW_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,
+                                        "pointingRangeMemAddr is wrong");
+    }
+#endif
+    /* Trie validity check. It also fills maskForRangeInTrieArray and
+       validRangeInTrieArray. They will be used later to verify that all the
+       ranges that can be retrieved from the trie exist in the bucket */
+    status = prvCpssDxChLpmRamDbgTrieShadowValidityCheckSip7(&bucketPtr->trieRoot,
+                                                         0,
+                                                         0,
+                                                         0,
+                                                         returnOnFailure,
+                                                         maskForRangeInTrieArray,
+                                                         validRangeInTrieArray);
+    if (status != GT_OK)
+    {
+        retVal = status;
+        if (returnOnFailure == GT_TRUE)
+        {
+            return retVal;
+        }
+    }
+
+    if (bucketPtr->bucketType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E)
+    {
+        /* This is a root of MC source tree that points directly to a nexthop or
+           ECMP/QoS entry */
+        status = prvCpssDxChLpmRamDbgRouteEntryShadowValidityCheckSip7(shadowPtr,
+                                                                   bucketPtr->rangeList->lowerLpmPtr.nextHopEntry,
+                                                                   returnOnFailure);
+    }
+    else
+    {
+        /* Ranges validity check */
+        status = prvCpssDxChLpmRamDbgRangesShadowValidityCheckSip7(shadowPtr,
+                                                               vrId,
+                                                               bucketPtr,
+                                                               maskForRangeInTrieArray,
+                                                               validRangeInTrieArray,
+                                                               level,
+                                                               numOfMaxAllowedLevels,
+                                                               prefixType,
+                                                               protocol,
+                                                               returnOnFailure);
+    }
+
+    if (status != GT_OK)
+    {
+        retVal = status;
+        if (returnOnFailure == GT_TRUE)
+        {
+            return retVal;
+        }
+    }
+    return retVal;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgShadowValidityCheckSip7 function
+* @endinternal
+*
+* @brief   Validation function for the LPM shadow
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] lpmDbPtr                 - LPM DB
+* @param[in] vrId                     - virtual router id, 4096 means "all vrIds"
+* @param[in] protocolBitmap           - protocols bitmap
+* @param[in] prefixType               - UC/MC/both prefix type
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops at first failure
+*                                      GT_FALSE: continue with the test on failure
+*
+* @retval GT_OK                    - on success
+* @retval GT_BAD_PARAM             - on illegal input parameter/s
+* @retval GT_NOT_FOUND             - LPM DB was not found
+* @retval GT_NOT_INITIALIZED       - LPM DB is not initialized
+* @retval GT_FAIL                  - on error
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+GT_STATUS prvCpssDxChLpmRamDbgShadowValidityCheckSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC     *lpmDbPtr,
+    IN GT_U32                                   vrId,
+    IN PRV_CPSS_DXCH_LPM_PROTOCOL_BMP           protocolBitmap,
+    IN CPSS_UNICAST_MULTICAST_ENT               prefixType,
+    IN GT_BOOL                                  returnOnFailure
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC  *bucketPtr;
+    CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT      bucketType;
+    GT_U32                                   shadowIdx, vrIdStartIdx, vrIdEndIdx;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC         *shadowPtr;
+    GT_U8                                    numOfMaxAllowedLevels;
+    GT_STATUS                                status, rc = GT_OK;
+    GT_U32                                   blockIndex=0,numOfOctetsInProtocol=0,octetIndex=0;
+    PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT     protocolChecked;
+    GT_U8                                    blockIsUsedByAnOctetOfThisProtocol;
+    GT_U8                                    maxOctPerBank = 3; /* [TBD] define a macro later */
+
+    switch(prefixType)
+    {
+        case CPSS_UNICAST_E:
+        case CPSS_MULTICAST_E:
+        case CPSS_UNICAST_MULTICAST_E:
+            break;
+
+        default:
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+
+    if ((PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap) == GT_FALSE) &&
+        (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap) == GT_FALSE) &&
+        (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+
+    /* FCoE is unicast only */
+    if ((PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap)) &&
+         (prefixType != CPSS_UNICAST_E))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+
+    /* if initialization has not been done for the requested protocol stack -
+       return error */
+    if ((PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap)) &&
+        (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(lpmDbPtr->protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+    else if ((PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap)) &&
+             (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(lpmDbPtr->protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+    else if ((PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap)) &&
+             (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(lpmDbPtr->protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+
+    for (shadowIdx = 0; shadowIdx < lpmDbPtr->numOfShadowCfg; shadowIdx++)
+    {
+        shadowPtr = &lpmDbPtr->shadowArray[shadowIdx];
+        if ((vrId >= shadowPtr->vrfTblSize) && (vrId != 4096)) /* TBD: to check 4096 - vrid was increased from 4K to 32K(15bits).*/
+        {
+            /* Illegal virtual router id */
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+        }
+        if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap))
+        {
+            if (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E] == GT_FALSE)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+            }
+        }
+        if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap))
+        {
+            if (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E] == GT_FALSE)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+            }
+        }
+        if (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap))
+        {
+            if (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E] == GT_FALSE)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+            }
+        }
+
+        /* check if the struct holding block to octet mapping fit the sharing mode */
+        if(shadowPtr->lpmRamBlocksAllocationMethod==PRV_CPSS_DXCH_LPM_RAM_BLOCKS_ALLOCATION_METHOD_DYNAMIC_WITHOUT_BLOCK_SHARING_E)
+        {
+            for (blockIndex=0;blockIndex<shadowPtr->numOfLpmMemories;blockIndex++)
+            {
+                /* the block is not used at all, so no need to check sharing violation */
+                if (shadowPtr->lpmRamOctetsToBlockMappingPtr[blockIndex].isBlockUsed==GT_FALSE)
+                {
+                    continue;
+                }
+
+                for (protocolChecked=PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E;
+                     protocolChecked<PRV_CPSS_DXCH_LPM_PROTOCOL_LAST_E;
+                     protocolChecked++)
+                {
+                    switch (protocolChecked)
+                    {
+                        case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E:
+                            if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap)==GT_FALSE)
+                                continue;
+                            /* check shadow support protocol and prefixType for given vrId */
+                            if(((prefixType==CPSS_UNICAST_E || prefixType==CPSS_UNICAST_MULTICAST_E)&&
+                               (shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E]==GT_TRUE))||
+                               ((prefixType==CPSS_MULTICAST_E || prefixType==CPSS_UNICAST_MULTICAST_E)&&
+                               (shadowPtr->vrRootBucketArray[vrId].isMulticastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E]==GT_TRUE)))
+                            {
+                                numOfOctetsInProtocol = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS;
+                            }
+                            else
+                            {
+                                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                                "protocol=%d and prefixType=%d was not "
+                                                                                "initialized for vrId=%d",protocolChecked,prefixType,vrId);
+                            }
+                            break;
+                        case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E:
+                            if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap)==GT_FALSE)
+                                continue;
+                            /* check shadow support protocol and prefixType for given vrId */
+                            if(((prefixType==CPSS_UNICAST_E || prefixType==CPSS_UNICAST_MULTICAST_E)&&
+                               (shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E]==GT_TRUE))||
+                               ((prefixType==CPSS_MULTICAST_E || prefixType==CPSS_UNICAST_MULTICAST_E)&&
+                               (shadowPtr->vrRootBucketArray[vrId].isMulticastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E]==GT_TRUE)))
+                            {
+                                numOfOctetsInProtocol = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS;
+                            }
+                            else
+                            {
+                                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                                "protocol=%d and prefixType=%d was not "
+                                                                                "initialized for vrId=%d",protocolChecked,prefixType,vrId);
+                            }
+                            break;
+                        case PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E:
+                            if (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap)==GT_FALSE)
+                                continue;
+                            /* check shadow support protocol and prefixType for given vrId */
+                            if(shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E]==GT_TRUE)
+                            {
+                                numOfOctetsInProtocol = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS;
+                            }
+                            else
+                            {
+                                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                                "protocol=%d and prefixType=%d was not "
+                                                                                "initialized for vrId=%d",protocolChecked,prefixType,vrId);
+                            }
+                            break;
+                        default:
+                            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_VALUE, LOG_ERROR_NO_MSG);
+                    }
+
+                    /* the block is not used by the protocol,so no need to check sharing violation */
+                    if (PRV_CPSS_DXCH_LPM_RAM_IS_BLOCK_USED_BY_PROTOCOL_GET_MAC(shadowPtr,protocolChecked,blockIndex)==GT_FALSE)
+                    {
+                        continue;
+                    }
+                    blockIsUsedByAnOctetOfThisProtocol=0;
+                    for (octetIndex = 0; octetIndex < numOfOctetsInProtocol; octetIndex++)
+                    {
+                        if (PRV_CPSS_DXCH_LPM_RAM_IS_BLOCK_USED_BY_OCTET_IN_PROTOCOL_GET_MAC(shadowPtr,protocolChecked,octetIndex,blockIndex)==GT_TRUE)
+                        {
+                            blockIsUsedByAnOctetOfThisProtocol ++;
+                            if ((PRV_CPSS_DXCH_LPM_RAM_OCTET_TO_BLOCK_MAPPING_3_OCT_PER_BANK_MAC(shadowPtr) &&
+                                 (blockIsUsedByAnOctetOfThisProtocol > maxOctPerBank)) ||
+                                ((!(PRV_CPSS_DXCH_LPM_RAM_OCTET_TO_BLOCK_MAPPING_3_OCT_PER_BANK_MAC(shadowPtr)) &&
+                                 (blockIsUsedByAnOctetOfThisProtocol > 1))))
+                            {
+                                /* We have more than allowed number of octets sharing the block.*/
+                                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (vrId == 4096)  /* TBD: to check 4096 - vrid was increased from 4K to 32K(15bits).*/
+        {
+            vrIdStartIdx = 0;
+            vrIdEndIdx = shadowPtr->vrfTblSize - 1;
+        }
+        else
+        {
+            vrIdStartIdx = vrIdEndIdx = vrId;
+        }
+
+        for (vrId = vrIdStartIdx; vrId <= vrIdEndIdx; vrId++)
+        {
+            if (shadowPtr->vrRootBucketArray[vrId].valid == 0)
+            {
+                continue;
+            }
+
+            if ((prefixType == CPSS_UNICAST_E) || (prefixType == CPSS_UNICAST_MULTICAST_E))
+            {
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap))
+                {
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    numOfMaxAllowedLevels = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS;
+                    status = prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7(shadowPtr,
+                                                                           vrId,
+                                                                           bucketPtr,
+                                                                           0,
+                                                                           bucketType,
+                                                                           numOfMaxAllowedLevels,
+                                                                           CPSS_UNICAST_E,
+                                                                           PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E,
+                                                                           0,
+                                                                           returnOnFailure);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap))
+                {
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    numOfMaxAllowedLevels = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS;
+                    status = prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7(shadowPtr,
+                                                                           vrId,
+                                                                           bucketPtr,
+                                                                           0,
+                                                                           bucketType,
+                                                                           numOfMaxAllowedLevels,
+                                                                           CPSS_UNICAST_E,
+                                                                           PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E,
+                                                                           0,
+                                                                           returnOnFailure);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap)&&
+                   (shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E]!=NULL))
+                {
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E];
+                    numOfMaxAllowedLevels = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS;
+                    status = prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7(shadowPtr,
+                                                                           vrId,
+                                                                           bucketPtr,
+                                                                           0,
+                                                                           bucketType,
+                                                                           numOfMaxAllowedLevels,
+                                                                           CPSS_UNICAST_E,
+                                                                           PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E,
+                                                                           0,
+                                                                           returnOnFailure);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+            }
+            if ((prefixType == CPSS_MULTICAST_E) || (prefixType == CPSS_UNICAST_MULTICAST_E))
+            {
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap))
+                {
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    numOfMaxAllowedLevels = 8;
+                    status = prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7(shadowPtr,
+                                                                           vrId,
+                                                                           bucketPtr,
+                                                                           0,
+                                                                           bucketType,
+                                                                           numOfMaxAllowedLevels,
+                                                                           CPSS_MULTICAST_E,
+                                                                           PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E,
+                                                                           0,
+                                                                           returnOnFailure);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap))
+                {
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    numOfMaxAllowedLevels =  (2 * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS);
+                    status = prvCpssDxChLpmRamDbgBucketShadowValidityCheckSip7(shadowPtr,
+                                                                           vrId,
+                                                                           bucketPtr,
+                                                                           0,
+                                                                           bucketType,
+                                                                           numOfMaxAllowedLevels,
+                                                                           CPSS_MULTICAST_E,
+                                                                           PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E,
+                                                                           0,
+                                                                           returnOnFailure);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return rc;
+}
+/**
+* @internal
+*           prvCpssDxChLpmRamDbgBucketShadowGetNumOfTotalRangesNonRealIncluddedSip7
+*           function
+* @endinternal
+*
+* @brief  function that goes over the range list and count non
+*         real ranges. relevant for regular buckets
+*
+* @param[in] bucketPtr            - pointer to the bucket
+*
+* @param[out] totalNumOfRangesPtr  - pointer to all
+*                             ranges includded the hidden ones
+*            totalRangesPtr       - pointer to the ranges values
+*            totalRangesTypesPtr  - pointer to the ranges types
+*            totalRangesIsHiddenPtr - pointer to flags for
+*                                     hidden ranges
+*
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+GT_STATUS prvCpssDxChLpmRamDbgBucketShadowGetNumOfTotalRangesNonRealIncluddedSip7
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    OUT GT_U32                                    *totalNumOfRangesPtr,
+    OUT GT_U32                                    *totalRangesPtr,
+    OUT GT_U32                                    *totalRangesTypesPtr,
+    OUT GT_BOOL                                   *totalRangesIsHiddenPtr
+)
+{
+    GT_U32 i=0;
+    GT_U32 numberOfGons=0;
+    GT_U32 endOfRange=0,startOfRange=0;
+    GT_BOOL hiddenRangeWasCounted=GT_FALSE;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC *tempRangePtr = NULL;
+    GT_U32 numOfRanges=0;
+
+    for(i=0;i<PRV_CPSS_DXCH_LPM_RAM_BIT_VECTOR_LINES_NUMBER_CNS; i++)
+    {
+        if(bucketPtr->hwGroupOffsetHandle[i]!=0)
+        {
+            if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[i])==DMM_BLOCK_FREE_SIP7)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i] is set as free \n");
+            }
+            numberOfGons++;
+        }
+    }
+
+    if ((numberOfGons!=0) && (numberOfGons!=1) && (numberOfGons!=6))
+    {
+         /* the only 3 leggal options for the array are:
+            1. 6 leggal pointers, meaning a regular bucket
+            2. single pointer , meaning a compressed bucket
+            3. null pointer, meaning last octet bucket is all embedded
+           */
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+
+    if(numberOfGons==0)
+    {
+        /* last octet treated */
+        switch(bucketPtr->bucketType)
+        {
+        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+            numberOfGons = 1;/* change value inorder to enter the loop */
+            break;
+        case CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E:
+        default:
+            /* if all bucketPtr->hwGroupOffsetHandle[i] pointers are 0,
+               it means that we have an all embedded bucket, all other options are illegal */
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+    }
+
+    tempRangePtr = bucketPtr->rangeList;
+    numOfRanges=0;
+
+    for(i=0;i<numberOfGons; i++)
+    {
+        /* in case of regular node, if we reach here before we went over all the GONs
+           then we need to count all the hidden ranges that were not counted */
+        if(tempRangePtr == NULL)
+        {
+            totalRangesPtr[numOfRanges]=(i*44);/* the hidden range */
+            totalRangesTypesPtr[numOfRanges]=CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E;
+            totalRangesIsHiddenPtr[numOfRanges]=GT_TRUE;
+            numOfRanges++;
+            continue;
+        }
+
+        hiddenRangeWasCounted=0;
+
+        startOfRange = (numberOfGons==1)? 0 : (i*44);
+        endOfRange = (numberOfGons==1)? 255 : (i*44+43);
+        /* go over the range list until we get to startOfRange, and check number of lines in the GON.
+           regular hold 6 lines
+           compressed hold 1 line
+           and 5 leafs hold 1 line */
+        while (tempRangePtr != NULL)
+        {
+            if(tempRangePtr->startAddr >= startOfRange &&
+               tempRangePtr->startAddr <= endOfRange)
+            {
+                if (tempRangePtr->startAddr == startOfRange)
+                {
+                    if(hiddenRangeWasCounted==GT_FALSE)
+                    {
+                        hiddenRangeWasCounted=GT_TRUE;
+                    }
+                }
+                else
+                {
+                    /* if the startAddr is bigger then the startOfRange then
+                       it means the middle ranges of the regular bit vector
+                       is hidden and we should count it */
+                    if(hiddenRangeWasCounted==GT_FALSE)
+                    {
+                        hiddenRangeWasCounted=GT_TRUE;
+                        totalRangesPtr[numOfRanges]=startOfRange;
+                        totalRangesTypesPtr[numOfRanges]=CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E;
+                        totalRangesIsHiddenPtr[numOfRanges]=GT_TRUE;
+                        numOfRanges++;
+                    }
+                }
+
+                totalRangesPtr[numOfRanges]=tempRangePtr->startAddr;
+                totalRangesTypesPtr[numOfRanges]=tempRangePtr->pointerType;
+                tempRangePtr = tempRangePtr->next;
+                totalRangesIsHiddenPtr[numOfRanges]=GT_FALSE;
+                numOfRanges++;
+            }
+            else
+            {   /* if the startAddr is bigger then the startOfRange then
+                   it means the middle ranges of the regular bit vector
+                   is hidden and we should count it as a leaf*/
+                if(hiddenRangeWasCounted==GT_FALSE)
+                {
+                    hiddenRangeWasCounted=GT_TRUE;
+                    totalRangesPtr[numOfRanges]=startOfRange;
+                    totalRangesTypesPtr[numOfRanges]=CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E;
+                    totalRangesIsHiddenPtr[numOfRanges]=GT_TRUE;
+                    numOfRanges++;
+                }
+
+                /* need to finish the current GON calculation and move to the next one
+                in case of regular bucket, no need to go to next range- we still work on the same range  */
+                break;
+            }
+        }
+    }
+
+    *totalNumOfRangesPtr = numOfRanges;
+    return GT_OK;
+}
+
+/**
+* @internal  prvCpssDxChLpmRamDbgRangesHwShadowSyncValidityCheckSip7 function
+* @endinternal
+*
+* @brief   Shadow and HW synchronization validation of bucket's ranges
+*
+* @param[in] devNum                   - The device number
+* @param[in] shadowPtr                - pointer to shadow structure
+* @param[in] vrId                     - the virtual router id
+* @param[in] bucketPtr                - pointer to the bucket
+*                                      maskForRangeInTrieArray   - array of the ranges masks as found in the
+*                                      trie. The array index represents the range
+*                                      start address
+*                                      validRangeInTrieArray     - array to indicate if a range was found in
+*                                      the trie. The array index represents the
+*                                      range start address.
+* @param[in]nodeTotalChildTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS];
+*                                   6 elements in a regular node
+*                                   3 types of child that can be
+*                                   for each range
+*                                   (leaf,regular,compress)
+* @param[in] level                    - the  in the tree (first  is 0)
+* @param[in] numOfMaxAllowedLevels    - the maximal number of levels that is allowed
+*                                      for the relevant protocol and prefix type
+* @param[in] prefixType               - unicast or multicast tree
+* @param[in] protocol                 - protocol
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on failure
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgRangesHwShadowSyncValidityCheckSip7
+(
+    IN  GT_U8                                     devNum,
+    IN  PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC          *shadowPtr,
+    IN  GT_U32                                    vrId,
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    IN  GT_U32                                    nodeTotalChildTypesArr[6][3],
+    IN  GT_U8                                     level,
+    IN  GT_U8                                     numOfMaxAllowedLevels,
+    IN  CPSS_UNICAST_MULTICAST_ENT                prefixType,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT      protocol,
+    IN  GT_BOOL                                   returnOnFailure
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC  *rangePtr;
+    GT_U8                                   prefixTypeFirstRange, prefixTypeLastRange, prefixMcTypeFirstRange=0;
+    GT_U8                                   prefixTypeSecondRange=0, prefixTypeSecondLastRange=0;
+    GT_U32                                  tmpPrefixTypeRange;
+    GT_STATUS                               status, retVal = GT_OK;
+    GT_U32    hwBucketDataArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS*PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS];
+    GT_U32    gonNodeSize=0;/* the node size can be 6 for regular or 1 for compress */
+    GT_U32    gonPointerIndex=0;/* can be 0 for compress or 0-5 for regular, this is the pointer to the GON */
+    GT_U32    tempGonPointerIndex=0;/* can be 0 for compress or 0-5 for regular, this is the pointer to the GON */
+    GT_U32    gonNodeAddr=0; /* Node address to read the HW data from */
+    GT_U32    hwNodeAddr = 0;/* base node address to read the HW data from */
+    GT_U32    rangeType;/* CPSS_DXCH_LPM_CHILD_TYPE_ENT */
+    GT_U32    newRangeType;/* used in case of MC SRC root */
+    GT_U32    totalChildTypesUntilNow=0;
+    GT_U32    totalCompressedChilds=0;
+    GT_U32    totalRegularChilds=0;
+
+    cpssOsMemSet(&hwBucketDataArr[0], 0, sizeof(hwBucketDataArr));
+
+    if (level == 0)
+    {
+        if (prefixType == CPSS_UNICAST_E)
+        {
+            prefixTypeFirstRange = 0;
+            tmpPrefixTypeRange = (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ?
+                (PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS - 1) :
+                (PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS - 1);
+            prefixTypeLastRange = (GT_U8)tmpPrefixTypeRange;
+
+            if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+            {
+                prefixTypeSecondRange = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS;
+                prefixTypeSecondLastRange = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS;
+            }
+        }
+        else /* CPSS_MULTICAST_E */
+        {
+            tmpPrefixTypeRange = (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ?
+                PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS :
+                PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+            prefixMcTypeFirstRange = (GT_U8)tmpPrefixTypeRange;
+
+            /* Need to consider ranges of unicast also while calculating node offset in the GON */
+            prefixTypeFirstRange = (bucketPtr->bucketType == CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E) ? 220 : 0;
+
+            tmpPrefixTypeRange = (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) ?
+                PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_MC_ADDRESS_SPACE_CNS :
+                PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+            prefixTypeLastRange = (GT_U8)tmpPrefixTypeRange;
+
+            prefixTypeSecondLastRange = prefixTypeLastRange;
+        }
+    }
+    else
+    {
+        prefixTypeFirstRange = 0;
+        prefixTypeLastRange = 255;
+        prefixTypeSecondRange = 0;
+        prefixTypeSecondLastRange = 255;
+    }
+
+    /* Check next buckets */
+    rangePtr = bucketPtr->rangeList;
+    while (rangePtr)
+    {
+        /* Skip unicast ranges for multicast validation or multicast ranges for
+           unicast validation */
+        if (protocol == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E)
+        {
+            if ((rangePtr->startAddr < prefixTypeFirstRange) ||
+                ((rangePtr->startAddr > prefixTypeLastRange) && (rangePtr->startAddr<prefixTypeSecondRange))||
+                 (rangePtr->startAddr > prefixTypeSecondLastRange))
+            {
+                if ( (level == 0) && (prefixType == CPSS_UNICAST_E) && (rangePtr->startAddr >= PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS) )
+                {
+                    if ( (rangePtr->pointerType == CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)                            ||
+                         (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E)       ||
+                         (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E) ||
+                         (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E)                         ||
+                         (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E)  )
+                    {
+                        if (bucketPtr->bucketType==CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)
+                        {
+                            gonPointerIndex = rangePtr->startAddr/44;
+                            if (gonPointerIndex!=tempGonPointerIndex)
+                            {
+                                totalCompressedChilds = 0;
+                                totalRegularChilds    = 0;
+                                tempGonPointerIndex = gonPointerIndex;
+                            }
+                        }
+                        else
+                        {
+                            gonPointerIndex = 0;
+                            tempGonPointerIndex = 0;
+                        }
+                        if (rangePtr->pointerType == CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)
+                        {
+                            totalRegularChilds++;
+                        }
+                        else
+                            if( (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E)       ||
+                                (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E) ||
+                                (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E)                         ||
+                                (rangePtr->pointerType == CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E) )
+                            {
+                                totalCompressedChilds++;
+                            }
+                    }
+                }
+                rangePtr = rangePtr->next;
+                continue;
+            }
+        }
+        else
+        {
+            if ((rangePtr->startAddr < prefixTypeFirstRange) ||
+                (rangePtr->startAddr > prefixTypeLastRange))
+            {
+                rangePtr = rangePtr->next;
+                continue;
+            }
+        }
+
+        if ((rangePtr->pointerType != CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) &&
+            (rangePtr->pointerType != CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E) &&
+            (!(((GT_U32)rangePtr->pointerType==(GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E) &&
+               ((rangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E)||
+                (rangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E)))))
+        {
+            if (bucketPtr->bucketType==CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)
+            {
+                /* find the correct GON pointer out of 6 possible pointers */
+                gonPointerIndex = rangePtr->startAddr/44;
+                /* in case we move from one gone index to the next one,
+                   we need to reset the counter of the childs */
+                if (gonPointerIndex!=tempGonPointerIndex)
+                {
+                    totalCompressedChilds = 0;
+                    totalRegularChilds    = 0;
+                    tempGonPointerIndex = gonPointerIndex;
+
+                }
+            }
+            else
+            {
+                gonPointerIndex = 0;
+            }
+
+            if (rangePtr->pointerType==CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)
+            {
+                rangeType = PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E;
+                totalChildTypesUntilNow = totalRegularChilds;
+                totalRegularChilds++;
+            }
+            else
+            {
+                rangeType = PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E;
+                totalChildTypesUntilNow = totalCompressedChilds;
+                totalCompressedChilds++;
+            }
+
+            if ((prefixType != CPSS_UNICAST_E) && (rangePtr->startAddr < prefixMcTypeFirstRange))
+            {
+                rangePtr = rangePtr->next;
+                continue;
+            }
+
+            /* for MC case , need to calculate the address and size of a single GON
+               according to the parameters we have in the Leaf */
+            if((GT_U32)rangePtr->pointerType==(GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E)
+            {
+                /* root of SRC tree keep the hwNodeAddr in the hwBucketOffsetHandle
+                   (same as root of MC GRP, and root of UC)*/
+                if (rangePtr->lowerLpmPtr.nextBucket->hwBucketOffsetHandle==0)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected rangePtr->lowerLpmPtr.nextBucket->hwBucketOffsetHandle=0\n");
+                }
+
+                hwNodeAddr = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(rangePtr->lowerLpmPtr.nextBucket->hwBucketOffsetHandle);
+                gonNodeAddr = hwNodeAddr;
+                if(rangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)
+                {
+                    newRangeType = PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E;
+                    gonNodeSize = 6;
+                }
+                else
+                {
+                    if((rangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E)||
+                       (rangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E)||
+                       (rangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E)||
+                       (rangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E))
+
+                    {
+                        newRangeType = PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E;
+                        gonNodeSize = 1;
+                    }
+                    else
+                    {
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+                        }
+                    }
+               }
+                /* we check that that the address we calculated according to the HW is the same as the nodeMemAddr we keep in the shadow */
+                if (gonNodeAddr!=rangePtr->lowerLpmPtr.nextBucket->nodeMemAddr)
+                {
+                    if (returnOnFailure == GT_TRUE)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "gonNodeAddr different from nodeMemAddr ");
+                    }
+                }
+            }
+            else
+            {
+              /* calculate the address and the size of a single node from the GON
+                (6 lines for regular all the rest 1 line) according to the
+                 parameters we got from getNumOfRangesFromHWSip7 */
+                if (bucketPtr->hwGroupOffsetHandle[gonPointerIndex]==0)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[gonPointerIndex]=0\n");
+                }
+                else
+                {
+                    if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[gonPointerIndex])==DMM_BLOCK_FREE_SIP7)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i] is set as free \n");
+                    }
+                }
+
+                hwNodeAddr = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(bucketPtr->hwGroupOffsetHandle[gonPointerIndex]);
+                newRangeType = rangeType;
+
+                status = getFromTheGonOneNodeAddrAndSizeSip7(hwNodeAddr,
+                                                     nodeTotalChildTypesArr[gonPointerIndex],
+                                                     newRangeType,
+                                                     totalChildTypesUntilNow,
+                                                     &gonNodeAddr,
+                                                     &gonNodeSize);
+                if (status != GT_OK)
+                {
+                    retVal = status;
+                    if (returnOnFailure == GT_TRUE)
+                    {
+                        return retVal;
+                    }
+                }
+
+                if (gonNodeAddr!=rangePtr->lowerLpmPtr.nextBucket->nodeMemAddr)
+                {
+                    if (returnOnFailure == GT_TRUE)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "gonNodeAddr different from nodeMemAddr ");
+                    }
+                }
+            }
+
+            /* read the HW data for the specific range */
+            status = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                                 CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                                 gonNodeAddr,
+                                                 gonNodeSize,
+                                                 &hwBucketDataArr[0]);
+            if (status != GT_OK)
+            {
+                retVal = status;
+                if (returnOnFailure == GT_TRUE)
+                {
+                    return retVal;
+                }
+            }
+
+            status = prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7(devNum,
+                                                                 shadowPtr,
+                                                                 vrId,
+                                                                 rangePtr->lowerLpmPtr.nextBucket,
+                                                                 gonNodeAddr,
+                                                                 &hwBucketDataArr[0],
+                                                                 (GT_U8)(level + 1),
+                                                                 rangePtr->pointerType,
+                                                                 numOfMaxAllowedLevels,
+                                                                 prefixType,
+                                                                 protocol,
+                                                                 returnOnFailure,
+                                                                 GT_FALSE/*not the root bucket*/);
+            if (status != GT_OK)
+            {
+                retVal = status;
+                if (returnOnFailure == GT_TRUE)
+                {
+                    return retVal;
+                }
+            }
+        }
+        else
+        {
+            /* in case of NextHop pointers no need to do anything since
+               the SW and HW NextHop synchronization was checked in
+               prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7 */
+        }
+        rangePtr = rangePtr->next;
+    }
+
+    return retVal;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgGetLeafDataSip7 function
+* @endinternal
+*
+* @brief   get the leaf data from HW
+*
+* @param[in] devNum                   - The device number
+* @param[in] bucketPtr                - pointer to the bucket
+* @param[in] hwBucketDataArr          - array holding hw data.
+*                                       in case of root this is
+*                                       a null pointer
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on
+*                                      failure
+* @param[out] nextNodeTypePtr         - pointer to the next node
+*                                       entry type
+* @param[out] nhAdditionalDataPtr     - pointer to a set of UC
+*                                       security check enablers
+*                                       and IPv6 MC scope level
+* @param[out] nextBucketPointerPtr    - pointer to the next
+*                                       bucket on the (G,S)
+*                                       lookup
+* @param[out] nhPointerPtr            - Pointer to the Next Hop
+*                                       Table or the ECMP Table,
+*                                       based on the Leaf Type
+* @param[out] leafTypePtr             - pointer to The leaf
+*                                       entry type
+* @param[out] entryTypePtr            - pointer to entry type:
+*                                       Leaf ot Trigger
+* @param[out] lpmOverEmPriorityPtr    - pointer to the resolution
+*                                       priority between LPM and
+*                                       Exact Match results
+* @param[out]                         - the HW address of the leaf line
+* @param[out] offsetOfLeafInLine      - pointer to the offset in HW were the 22 bits for
+*                                       the pointer to the next bucket on the (G,S) lookup
+*                                       starts this value can be:
+*                                       for a line leaf structure:
+*                                       2 for Leaf0, 28 for Leaf1, 54 for Leaf2,
+*                                       80 for Leaf3, 106 for Leaf4 (26*4-26*leafOffsetInLine)+2
+*                                       for a line embedded leaf structure:
+*                                       74, 38, 2  (72 - leafOffsetInLine*36)+2
+*  @param[out] applyPbrPtr            - pointer to applyPbr flag, Valid if EntryType ="Leaf"
+*                                       0 = OFF, 1 = ON
+*  @param[out] epgAssignedToLeafNodePtr -pointer to  EPG Assigned To Leaf Node, Valid if EntryType="Leaf"
+*                                       EPG assigned to the leaf node
+*                                       On SIP search - assigns source EPG
+*                                       On DIP search - assigns target EPG
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+GT_STATUS prvCpssDxChLpmRamDbgGetLeafDataSip7
+(
+    IN  GT_U8                                       devNum,
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC     *bucketPtr,
+    IN  GT_U32                                      hwBucketGonAddr,
+    IN  GT_U32                                      hwBucketDataArr[],
+    IN  GT_U32                                      hwRangeType,
+    IN  GT_U32                                      hwRangeTypeIndex,
+    IN  GT_U32                                      nodeChildAddress,
+    IN  GT_U32                                      nodeTotalChildTypesArr[],
+    IN  GT_BOOL                                     returnOnFailure,
+    OUT GT_U32                                      *nextNodeTypePtr,
+    OUT GT_U32                                      *nhAdditionalDataPtr,
+    OUT GT_U32                                      *nextBucketPointerPtr,
+    OUT GT_U32                                      *nhPointerPtr,
+    OUT GT_U32                                      *leafTypePtr,
+    OUT GT_U32                                      *entryTypePtr,
+    OUT GT_U32                                      *lpmOverEmPriorityPtr,
+    OUT GT_U32                                      *leafLineHwAddr,
+    OUT GT_U32                                      *offsetOfLeafInLine,
+    OUT GT_BOOL                                     *applyPbrPtr,
+    OUT GT_U32                                      *epgAssignedToLeafNodePtr
+)
+{
+    GT_STATUS status = GT_OK;
+    GT_U32    gonNodeAddr, gonNodeSize;
+    GT_U32    leafData[2];
+    GT_U32    numberOfEmbeddedLeafs;
+    GT_U32    value;
+    GT_U32    valueBits32_35=0;
+
+    GT_U32 nextNodeType; /* bit 0
+                            Defines the next node entry type
+                            0x0 = Regular
+                            0x1 = Compressed
+                            valid if EntryType="Trigger" */
+
+    GT_U32 nhPointer;      /* bits 22-5
+                            Pointer to the Next Hop Table or the ECMP Table,
+                            based on the Leaf Type.
+                            valid if EntryType="Leaf" */
+    GT_U32 nhAdditionalData;/* bits 4-3
+                            Contains a set of UC security check enablers
+                            and IPv6 MC scope level:
+                            1. [4] UC SIP SA Check Mismatch Enable
+                            2. [3] UC RPF Check Enable
+                            3. [4..3] IPv6 MC Group Scope Level[1..0]
+                            valid if EntryType="Leaf" */
+    GT_U32 nextBucketPointer;/* bits 23-2
+                                Pointer to the next bucket on the (G,S) lookup
+                                valid if EntryType="Trigger" */
+    GT_U32 leafType; /* bit 2
+                        The leaf entry type
+                        0x0 = Regular Leaf
+                        0x1 = Multipath Leaf
+                        valid if EntryType="Leaf" */
+    GT_U32 entryType;/* bit 1
+                        In the process of (*,G) lookup.
+                        When an entry has this bit set, the (*, G) lookup
+                        terminates with a match at the current entry, and (S,
+                        G) SIP based lookup is triggered.
+                        Note that in such case, head of trie start address for
+                        the (S,G) lookup is obtained from the the (*, G)
+                        lookup stage.
+                         0x0 = Leaf
+                         0x1 = Trigger; Trigger IP MC S+G Lookup */
+    GT_U32 lpmOverEmPriority;/* bit 0
+                                Define the resolution priority between LPM and
+                                Exact Match results
+                                 0x0 = Low; Exact Match has priority over LPM result
+                                 0x1 = High;LPM result has priority over Exact Match */
+
+    GT_U32   applyPbr=0;              /* bit 23 Valid if EntryType ="Leaf"
+                                         0 = OFF, 1 = ON */
+    GT_U32   epgAssignedToLeafNode=0; /* bits 24-35 Valid if EntryType="Leaf"
+                                        EPG assigned to the leaf node
+                                        On SIP search - assigns source EPG
+                                        On DIP search - assigns target EPG */
+    leafData[0]=0;
+    leafData[1]=0;
+
+    /* if the bucket is not embedded we read the leaf from HW */
+    if(!((bucketPtr->bucketType>=CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E)&&
+         (bucketPtr->bucketType<=CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E)))
+    {
+        /* calculate the address and the size of a single node from the GON
+          (6 lines for regular all the rest 1 line) according to the
+           parameters we got from getNumOfRangesFromHWSip7 */
+        status = getFromTheGonOneNodeAddrAndSizeSip7(nodeChildAddress,
+                                                 nodeTotalChildTypesArr,
+                                                 hwRangeType,
+                                                 hwRangeTypeIndex,
+                                                 &gonNodeAddr,
+                                                 &gonNodeSize);
+        if (status != GT_OK)
+        {
+            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                        bucketPtr,nodeChildAddress,
+                                        "Error: call to getFromTheGonOneNodeAddrAndSizeSip7 in prvCpssDxChLpmRamDbgGetLeafDataSip7 \n");
+        }
+
+        /* read one range (range number i) */
+        status = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                      CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                      gonNodeAddr,
+                                      gonNodeSize,
+                                      hwBucketDataArr);
+        if (status != GT_OK)
+        {
+            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                        bucketPtr,nodeChildAddress,
+                                        "Error: call to prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7 in prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+        }
+
+        /* need to find the correct leaf out of all the leafs in the line - in HW the first leaf are kept in last bits:
+           0-25:    leaf 4
+           26-51:   leaf 3
+           52-77:   leaf 2
+           78-103:  leaf 1
+           104-129: leaf 0 */
+        U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr,
+                                   (MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS-(hwRangeTypeIndex%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS)-1)*26,
+                                   26,leafData[0]);
+
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],0,1,lpmOverEmPriority);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],1,1,entryType);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],2,1,leafType);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],2,
+                                   PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_CNS,/* 24 bits for childPointer */
+                                   nextBucketPointer);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],3,2,nhAdditionalData);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],5,18,nhPointer);
+        if(entryType==0)/* leaf */
+        {
+            if(leafType==0)/* regular leaf */
+            {
+                /* in SIP7 the pointer was increased from 16 bits (supports 48K entries L2NHE)
+                   to 18 bits(to support 192K entries – 4 in a line for the case of new L3NHE).
+                   Bits[0:1] , is the number of the entry in a line
+                   Bits [2:17]>>2 , is the line number.
+                   if the leaf is of type L2NHE we need to get the index from hw (leafNodePtr->index>>2)
+                   legal values for the index are 0...48K-1
+                   if the leaf is of type L3NHE we just get the index as it is
+                   legal values for the index are 0...192K-1
+                */
+                /* for now all entries are of type L2NHE */
+                nhPointer = nhPointer>>2;
+            }
+
+            U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],23,1,applyPbr);
+            *applyPbrPtr = BIT2BOOL_MAC(applyPbr);
+        }
+
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],0,1,nextNodeType);
+
+
+        *offsetOfLeafInLine = (MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS-(hwRangeTypeIndex%MAX_NUMBER_OF_LEAVES_IN_LPM_LINE_CNS)-1)*26 + 2;
+        *leafLineHwAddr = gonNodeAddr;
+    }
+    else
+    {   /* the HW data is already given to us as a parameter to the function */
+
+        /* bit 131-129 Embedded_leaf */
+        U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr,129,3,value);
+        if (value==4)
+        {
+            /* in sip7 value 4 mens no embeded leafs */
+            numberOfEmbeddedLeafs=0;
+        }
+        else
+        {
+            numberOfEmbeddedLeafs = value;
+        }
+
+        if (numberOfEmbeddedLeafs!=0)
+        {
+            /* check numberOfEmbeddedLeafs fit SW type */
+            switch (numberOfEmbeddedLeafs)
+            {
+            case 1:
+                if (bucketPtr->bucketType!=CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E)
+                {
+                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                            bucketPtr,nodeChildAddress,
+                                            "Error: no synchronization between HW and SW - Hw numberOfEmbeddedLeafs=1 in SW "
+                                            "embedded type - in call to prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+                }
+                break;
+            case 2:
+                if (bucketPtr->bucketType!=CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E)
+                {
+                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                            bucketPtr,nodeChildAddress,
+                                            "Error: no synchronization between HW and SW - Hw numberOfEmbeddedLeafs=2 in SW "
+                                            "embedded type - in call to prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+                }
+                break;
+            case 3:
+                if (bucketPtr->bucketType!=CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E)
+                {
+                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                            bucketPtr,nodeChildAddress,
+                                            "Error: no synchronization between HW and SW - Hw numberOfEmbeddedLeafs=3 in SW"
+                                            "embedded type - in call to prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+                }
+                break;
+            default:
+                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                        bucketPtr,nodeChildAddress,
+                                        "Error: no synchronization between HW and SW - Hw numberOfEmbeddedLeafs=0 in SW "
+                                        "embedded type - in call to prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+            }
+            switch (hwRangeTypeIndex)
+            {
+            case 0:
+                if ((numberOfEmbeddedLeafs==1)||(numberOfEmbeddedLeafs==2))
+                {
+                    /* first embedded leaf located at bit 92-127*/
+                    U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr, 92, 32, value);           /* bits 0-31  */
+                    U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr, 124, 4, valueBits32_35);  /* bits 32-35 */
+                    *offsetOfLeafInLine = 94;
+                }
+                else
+                {
+                    if (numberOfEmbeddedLeafs==3)
+                    {
+                        /* first embedded leaf located at bit 107-72*/
+                        U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr, 72, 26, value);           /* bits 0-31  */
+                        U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr, 104, 4, valueBits32_35);  /* bits 32-35 */
+                        *offsetOfLeafInLine = 74;
+                    }
+                }
+                break;
+            case 1:
+                if (numberOfEmbeddedLeafs==2)
+                {
+                    /*second embedded leaf located at bit 66-91*/
+                    U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr,66,26,value);
+                     *offsetOfLeafInLine = 68;
+                }
+                else
+                {
+                    if(numberOfEmbeddedLeafs==3)
+                    {
+                        /*second embedded leaf located at bit 71-36*/
+                        U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr,36,32,value);          /* bits 0-31  */
+                        U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr,68,4,valueBits32_35);  /* bits 32-35 */
+                        *offsetOfLeafInLine = 38;
+                    }
+                }
+                break;
+            case 2:
+                /* third embedded leaf located at bit 0-35 */
+                U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr,0,32,value);           /* bits 0-31  */
+                U32_GET_FIELD_IN_ENTRY_MAC(hwBucketDataArr,32,4,valueBits32_35);  /* bits 32-35 */
+                *offsetOfLeafInLine = 2;
+                break;
+            default:
+                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                        bucketPtr,nodeChildAddress,
+                                        "Error: no synchronization between HW and SW - illegal value in hwRangesTypeIndexArr"
+                                        " -  in call to prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+                break;
+            }
+        }
+        else
+        {
+            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, status, "Bucket",
+                                    bucketPtr,nodeChildAddress,
+                                    "Error: no synchronization between HW and SW - Hw numberOfEmbeddedLeafs=0 in SW "
+                                    "embedded type - in call to prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+        }
+
+        leafData[0] = value;
+        leafData[1] = valueBits32_35;
+
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],0,1,lpmOverEmPriority);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],1,1,entryType);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],2,1,leafType);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],2,
+                                   PRV_CPSS_DXCH_LPM_RAM_CHILD_POINTER_NUMBER_OF_BITS_CNS,/* 24 bits for childPointer */
+                                   nextBucketPointer);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],3,2,nhAdditionalData);
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],5,18,nhPointer);
+        if (leafType==0)/* leaf */
+        {
+            if (entryType == 0) /* regular leaf */
+            {
+                /* in SIP7 the pointer was increased from 16 bits (supports 48K entries L2NHE)
+                   to 18 bits(to support 192K entries – 4 in a line for the case of new L3NHE).
+                   Bits[0:1] , is the number of the entry in a line
+                   Bits [2:17]>>2 , is the line number.
+                   if the leaf is of type L2NHE we need to get the index from hw (leafNodePtr->index>>2)
+                   legal values for the index are 0...48K-1
+                   if the leaf is of type L3NHE we just get the index as it is
+                   legal values for the index are 0...192K-1
+                */
+                /* for now all entries are of type L2NHE */
+                nhPointer = nhPointer>>2;
+            }
+
+            U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],23,1,applyPbr);
+
+            *applyPbrPtr = BIT2BOOL_MAC(applyPbr);
+
+            U32_GET_FIELD_IN_ENTRY_MAC(&leafData[1],0,4,epgAssignedToLeafNode);
+            U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],24,8,value);
+            epgAssignedToLeafNode = (epgAssignedToLeafNode<<8)|value;
+
+            *epgAssignedToLeafNodePtr = epgAssignedToLeafNode;
+        }
+        U32_GET_FIELD_IN_ENTRY_MAC(&leafData[0],0,1,nextNodeType);
+
+        *leafLineHwAddr = hwBucketGonAddr;
+    }
+
+    *nextNodeTypePtr = nextNodeType;
+    *nhAdditionalDataPtr = nhAdditionalData;
+    *nextBucketPointerPtr = nextBucketPointer;
+    *nhPointerPtr = nhPointer;
+    *leafTypePtr = leafType;
+    *entryTypePtr = entryType;
+    *lpmOverEmPriorityPtr = lpmOverEmPriority;
+
+    return GT_OK;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgGetSrcBucketPointerSip7 function
+* @endinternal
+*
+* @brief   get the head of SRC tree Bucket pointer
+*
+* @param[in] bucketPtr   - pointer to the bucket
+* @param[in] rangeIndex  - index of the range we are looking for
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on
+*                                      failure
+*
+* @param[out]rangeSrcBucketPointerPtr - the root of the SRS tree
+*                                       pointer address
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+GT_STATUS prvCpssDxChLpmRamDbgGetSrcBucketPointerSip7
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC     *bucketPtr,
+    IN  GT_U32                                      rangeIndex,
+    OUT GT_UINTPTR                                  *rangeSrcBucketPointerPtr
+)
+{
+    GT_U32 i;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC     *tempRangeList;
+
+    tempRangeList = bucketPtr->rangeList;
+    for(i=0;i<rangeIndex;i++)
+    {
+       tempRangeList = tempRangeList->next;
+    }
+    if ((tempRangeList->lowerLpmPtr.nextBucket->bucketType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) &&
+        (tempRangeList->lowerLpmPtr.nextBucket->numOfRanges != 1))
+    {
+         CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+
+    if (tempRangeList->lowerLpmPtr.nextBucket->bucketType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E)
+    {
+         CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+
+
+    /* now we got the correct SW data according to the rangeIndex */
+    *rangeSrcBucketPointerPtr = tempRangeList->lowerLpmPtr.nextBucket->hwBucketOffsetHandle;
+
+    return GT_OK;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7 function
+* @endinternal
+*
+* @brief   Shadow and HW synchronization validation of a bucket
+*
+* @param[in] devNum                   - The device number
+* @param[in] shadowPtr                - pointer to shadow structure
+* @param[in] vrId                     - the virtual router id
+* @param[in] bucketPtr                - pointer to the bucket
+* @param[in] hwBucketGonAddr          - node address of the read HW
+* @param[in] hwBucketDataArr          - array holding hw data.
+*                                       in case of root this is
+*                                       a null pointer
+* @param[in] level                    - the  in the tree (first  is 0)
+* @param[in] expectedNextPointerType  - the expected type of the bucket, ignored
+*                                      for level 0
+* @param[in] numOfMaxAllowedLevels    - the maximal allowed number of levels
+*                                      for the relevant protocol and prefix type
+* @param[in] prefixType               - unicast or multicast tree
+* @param[in] protocol                 - protocol
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops on
+*                                      first failure
+*                                      GT_FALSE: continue with the test on
+*                                      failure
+* @param[in] isRootBucket             - GT_TRUE:the bucketPtr is the root bucket
+*                                      GT_FALSE:the bucketPtr is not the root bucket
+*
+* @retval GT_FAIL                  - on failure
+* @retval GT_OK                    - on success
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7
+(
+    IN  GT_U8                                     devNum,
+    IN  PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC          *shadowPtr,
+    IN  GT_U32                                    vrId,
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    IN  GT_U32                                    hwBucketGonAddr,
+    IN  GT_U32                                    hwBucketDataArr[],
+    IN  GT_U8                                     level,
+    IN  CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT       expectedNextPointerType,
+    IN  GT_U8                                     numOfMaxAllowedLevels,
+    IN  CPSS_UNICAST_MULTICAST_ENT                prefixType,
+    IN  PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT      protocol,
+    IN  GT_BOOL                                   returnOnFailure,
+    IN  GT_BOOL                                   isRootBucket
+)
+{
+    GT_STATUS status, retVal = GT_OK;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC *tempRangePtr=NULL;/* Current range pointer.   */
+    GT_U32    hwNumOfRanges;   /* the number of ranges in the HW */
+    GT_U32    *hwRangesArr;   /* the ranges values retrieved from the HW */
+    GT_U32    *hwRangesTypesArr;   /* for each range keep its type (regular,compress,leaf) */
+    GT_U32    *hwRangesBitLineArr; /* for each range keep its bit vector line */
+    GT_U32    *hwRangesTypeIndexArr; /* what is the number of this range type
+                                            from total number of lines with the same type -
+                                            where it is located in the GON */
+    GT_U32    nodeChildAddressesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS];/* the child_pointer located at the beginning of each line
+                                                                                            for regular node we have 6 pointers, for compress node one pointer */
+    GT_U32    nodeTotalChildTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS];/* 6 elements in a regular node
+                                                                                                3 types of child that can be for each range (leaf,regular,compress) */
+
+    GT_U32    nodeTotalLinesPerTypeArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS];   /* sum the number of lines in the GON according to the Type */
+    GT_U32    nodeTotalBucketPerTypesArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS][PRV_CPSS_DXCH_LPM_MAX_CHILD_TYPE_CNS]; /* sum the number of buckets (copmress, regular or leaf) in the GON according to the Type */
+
+    GT_U32    bankIndexsOfTheGonsArray[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS];  /* the indexs of the banks were the GON is located */
+
+    GT_U32    hwPointerType;   /* The type of the next entry this entry points to. can be Leaf/Trigger */
+    GT_U32    hwNhPointer;     /* This is the next hop pointer for accessing next hop table or
+                                  the pointer for the ECMP table for fetching the ECMP attributes from ECMP table */
+    GT_U32    i=0;
+    GT_U32    nonRealRangeIndex=0;
+    GT_U32                              swNodeAddr = 0;/* SW node address kept in shadow(hwBucketOffsetHandle) in line representation from the base */
+    CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT swNodeType = 0;/* the bucketType retrieved from SW */
+    GT_U32                              hwNodeAddr[6];/* HW node address */
+    GT_U32                              hwNodeSize=0; /* size of the node in lines
+                                                         regular node have 6 lines, all the rest hold 1 line*/
+    PRV_CPSS_DXCH_LPM_CHILD_TYPE_ENT    hwNodeType = 0;/* the bucketType retrieved from HW */
+    GT_U32                              hwRootNodeAddr=0;/* HW Root node address */
+    PRV_CPSS_DXCH_LPM_CHILD_TYPE_ENT    hwRootNodeType =0;/* the root bucketType retrieved from HW */
+
+    GT_U32                              swTotalNumOfRanges=0;/* number of ranges from sw including the ranges that are hidden inside a regular node */
+    GT_U32                              *swTotalRangesArr;/* the ranges values retrieved from the SW */
+    GT_U32                              *swTotalRangesTypesArr;/* the ranges types values retrieved from the SW */
+    GT_BOOL                             *swTotalRangesIsNonRealArr;/* Is the range a hidden one or not */
+
+    GT_U32 nextNodeType; /* bit 0
+                            Defines the next node entry type
+                            0x0 = Regular
+                            0x1 = Compressed
+                            valid if EntryType="Trigger" */
+
+    GT_U32 nhPointer;    /* bits 22-5
+                            Pointer to the Next Hop Table or the ECMP Table,
+                            based on the Leaf Type.
+                            valid if EntryType="Leaf" */
+    GT_U32 nhAdditionalData;/* bits 4-3
+                            Contains a set of UC security check enablers
+                            and IPv6 MC scope level:
+                            1. [4] UC SIP SA Check Mismatch Enable
+                            2. [3] UC RPF Check Enable
+                            3. [4..3] IPv6 MC Group Scope Level[1..0]
+                            valid if EntryType="Leaf" */
+    GT_U32 nextBucketPointer;/* bits 25-2
+                                Pointer to the next bucket on the (G,S) lookup
+                                valid if EntryType="Trigger" */
+    GT_UINTPTR srcBucketPointer; /* Pointer of the SW next bucket on the (G,S) lookup */
+    GT_U32 leafType; /* bit 2
+                        The leaf entry type
+                        0x0 = Regular Leaf
+                        0x1 = Multipath Leaf
+                        valid if EntryType="Leaf" */
+    GT_U32 entryType;/* bit 1
+                        In the process of (*,G) lookup.
+                        When an entry has this bit set, the (*, G) lookup
+                        terminates with a match at the current entry, and (S,
+                        G) SIP based lookup is triggered.
+                        Note that in such case, head of trie start address for
+                        the (S,G) lookup is obtained from the the (*, G)
+                        lookup stage.
+                         0x0 = Leaf
+                         0x1 = Trigger; Trigger IP MC S+G Lookup */
+    GT_U32 lpmOverEmPriority;/* bit 0
+                                Define the resolution priority between LPM and
+                                Exact Match results
+                                 0x0 = Low; Exact Match has priority over LPM result
+                                 0x1 = High;LPM result has priority over Exact Match */
+
+    GT_U32  leafLineHwAddr=0;
+    GT_U32  offsetOfLeafInLine=0;/*the offset in HW were the 24 bits for
+                                  the pointer to the next bucket on the (G,S) lookup
+                                  starts this value can be:
+                                  for a line leaf structure:
+                                  2 for Leaf0, 28 for Leaf1, 54 for Leaf2,
+                                  80 for Leaf3, 106 for Leaf4 (26*4-26*leafOffsetInLine)+2
+                                  for a line embedded leaf structure:
+                                  74, 38, 2  (72 - leafOffsetInLine*36)+2 */
+
+    GT_BOOL  applyPbr=GT_FALSE;/* bit 23 Valid if EntryType ="Leaf"
+                                             0 = OFF, 1 = ON */
+    GT_U32   epgAssignedToLeafNode=0; /* bits 24-35 Valid if EntryType="Leaf"
+                                        EPG assigned to the leaf node
+                                        On SIP search - assigns source EPG
+                                        On DIP search - assigns target EPG */
+
+    cpssOsMemSet(&hwNodeAddr[0], 0, sizeof(hwNodeAddr));
+    if (isRootBucket==GT_TRUE)
+    {
+        /* 1. check that the Root SW bucketType is the same as HW bucketType */
+
+        /* read the HW data directly from the VRF table and compare it to the SW data in the shadow */
+        status = prvCpssDxChLpmHwVrfEntryReadSip7(devNum, vrId, protocol,
+                                                  &hwRootNodeType, &hwRootNodeAddr);
+        if (status != GT_OK)
+        {
+            cpssOsPrintf("Error on reading Vrf table for vrfId=%d, and protocol=%d\n", vrId, protocol);
+            return status;
+        }
+        swNodeType = bucketPtr->bucketType;
+    }
+    else
+    {
+        /* if this is not a call to the root bucket phase, but a call done from the ranges loop in
+           prvCpssDxChLpmRamDbgRangesHwShadowSyncCheckSip7, then we need to take the data address of
+           the bucket from the shadow and to retrieved all the HW data */
+        switch (bucketPtr->bucketType)
+        {
+        case CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E:
+            for (i=0;i<PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS;i++)
+            {
+                if (bucketPtr->hwGroupOffsetHandle[i]==0)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i]=0\n");
+                }
+                else
+                {
+                    if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[i])==DMM_BLOCK_FREE_SIP7)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[i] is set as free \n");
+                    }
+                }
+                hwNodeAddr[i] = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(bucketPtr->hwGroupOffsetHandle[i]);
+                hwNodeSize=PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS;
+            }
+            hwNodeType = PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E;
+            swNodeType = bucketPtr->bucketType;
+            break;
+        case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+            /* in cases of last GON level the pointer will be null */
+            if (bucketPtr->hwGroupOffsetHandle[0]!=0)
+            {
+                if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwGroupOffsetHandle[0])==DMM_BLOCK_FREE_SIP7)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwGroupOffsetHandle[0] is set as free \n");
+                }
+                hwNodeAddr[0] = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(bucketPtr->hwGroupOffsetHandle[0]);
+            }
+            else
+            {
+                hwNodeAddr[0] = 0;
+            }
+
+            hwNodeType = PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E;
+            swNodeType = bucketPtr->bucketType;
+            hwNodeSize=PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS;
+            break;
+        case CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E:
+        case CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E:
+        default:
+            /* error - we should not get here in case of a leaf */
+            cpssOsPrintf("Error - we should not get here in case of a leaf. vrfId=%d, and protocol=%d\n", vrId, protocol);
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_STATE, LOG_ERROR_NO_MSG);
+        }
+    }
+
+    /* check that the HW next bucket type is the same as SW bucketType
+       Exception: bucketType of a MC source is different than pointerType of the
+       pointing range */
+    if(((GT_U32)expectedNextPointerType != (GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E))
+    {
+        switch (expectedNextPointerType)
+        {
+            case CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E:
+
+                if (isRootBucket==GT_TRUE)
+                {
+                    if(hwRootNodeType!=PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E)
+                    {
+                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,hwRootNodeAddr,
+                                                    "Error: no synchronization between HW and SW - NextPointerType\n");
+                    }
+                }
+                else
+                {
+                    if(hwNodeType!=PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E)
+                    {
+                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,hwNodeAddr[0],
+                                                    "Error: no synchronization between HW and SW - NextPointerType\n");
+                    }
+                }
+                break;
+            case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+            case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+            case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+            case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+                if(swNodeType!=expectedNextPointerType)
+                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,hwNodeAddr[0],
+                                                    "Error: no synchronization between HW and SW - NextPointerType\n");
+                break;
+            case CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E:
+            case CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E:
+            default:
+                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[0],
+                                                "invalid NextPointerType");
+        }
+    }
+
+    if (isRootBucket==GT_TRUE)
+    {
+        /* 2. check that the Root SW Head Of Trie is the same as HW Head Of Trie */
+
+        if(bucketPtr->hwBucketOffsetHandle==0)
+        {
+             LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,hwRootNodeAddr,
+                                            "Error: no synchronization between HW and SW - Root Head Of Trie hwBucketOffsetHandle=0 \n");
+        }
+        else
+        {
+            /* only the root uses hwBucketOffsetHandle pointer and not hwGroupOffsetHandle */
+            if(DMM_BLOCK_STATUS_SIP7(bucketPtr->hwBucketOffsetHandle)==DMM_BLOCK_FREE_SIP7)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, "Error: unexpected bucketPtr->hwBucketOffsetHandle is set as free \n");
+            }
+
+            swNodeAddr = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(bucketPtr->hwBucketOffsetHandle);
+            if(swNodeAddr != hwRootNodeAddr)
+            {
+                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwRootNodeAddr,
+                                                "Error: no synchronization between HW and SW - Root Head Of Trie\n");
+            }
+        }
+    }
+    else
+    {
+        /* no need to make the check since in case of non-root bucket we are assigning hwNodeAddr to be the value retrieved from the shadow
+           meaning hwNodeAddr is swNodeAddr, we are doing so since we are interested to check the data of this address and not the address itself
+           the checking of the address was done in previous recursive call */
+    }
+
+    cpssOsMemSet(nodeChildAddressesArr,0,sizeof(nodeChildAddressesArr));
+    cpssOsMemSet(nodeTotalChildTypesArr,0,sizeof(nodeTotalChildTypesArr));
+    cpssOsMemSet(nodeTotalLinesPerTypeArr,0,sizeof(nodeTotalLinesPerTypeArr));
+    cpssOsMemSet(nodeTotalBucketPerTypesArr,0,sizeof(nodeTotalBucketPerTypesArr));
+    cpssOsMemSet(bankIndexsOfTheGonsArray,0,sizeof(bankIndexsOfTheGonsArray));
+
+    hwRangesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (hwRangesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(hwRangesArr,0,256*sizeof(GT_U32));
+    hwRangesTypesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (hwRangesTypesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(hwRangesTypesArr,0,256*sizeof(GT_U32));
+    hwRangesBitLineArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (hwRangesBitLineArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(hwRangesBitLineArr,0,256*sizeof(GT_U32));
+    hwRangesTypeIndexArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (hwRangesTypeIndexArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(hwRangesTypeIndexArr,0,256*sizeof(GT_U32));
+
+    swTotalRangesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (swTotalRangesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(swTotalRangesArr,0,256*sizeof(GT_U32));
+    swTotalRangesTypesArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (swTotalRangesTypesArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(swTotalRangesTypesArr,0,256*sizeof(GT_U32));
+    swTotalRangesIsNonRealArr = cpssOsMalloc(256*sizeof(GT_U32));
+    if (swTotalRangesIsNonRealArr == NULL)
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_OUT_OF_CPU_MEM, LOG_ERROR_NO_MSG);
+    cpssOsMemSet(swTotalRangesIsNonRealArr,0,256*sizeof(GT_U32));
+
+    if (isRootBucket==GT_TRUE)
+    {
+        /* we already verify above that bucketPtr->hwBucketOffsetHandle != 0 */
+        hwNodeSize = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(bucketPtr->hwBucketOffsetHandle);
+
+        /* hw pointer in LPM entry is in LPM lines*/
+        if (hwRootNodeType == PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E)
+        {
+            /* check that the size of the block in HW fit to the SW size of the bucket */
+            if(hwNodeSize!=PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_REGULAR_BV_CNS)
+            {
+                 LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeSize,
+                                                "Error: no synchronization between HW and SW - hwNodeSize do not fit the SW root bucket size\n");
+            }
+        }
+        else
+        {
+            /* check that the size of the block in HW fit to the SW size of the bucket */
+            if(hwNodeSize!=PRV_CPSS_DXCH_LPM_RAM_FALCON_BUCKET_SIZE_COMPRESSED_CNS)
+            {
+                 LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeSize,
+                                                "Error: no synchronization between HW and SW - hwNodeSize do not fit the SW root bucket size\n");
+            }
+        }
+        /* read the bit vector */
+        status = prvCpssDxChLpmRamIndirectReadTableMultiEntrySip7(devNum,
+                                            CPSS_DXCH_SIP5_TABLE_LPM_MEM_E,
+                                            hwRootNodeAddr, hwNodeSize, &hwBucketDataArr[0]);
+        if (status != GT_OK)
+        {
+            cpssOsFree(hwRangesArr);
+            cpssOsFree(hwRangesTypesArr);
+            cpssOsFree(hwRangesBitLineArr);
+            cpssOsFree(hwRangesTypeIndexArr);
+
+            cpssOsFree(swTotalRangesArr);
+            cpssOsFree(swTotalRangesTypesArr);
+            cpssOsFree(swTotalRangesIsNonRealArr);
+
+            return status;
+        }
+
+       status = getNumOfRangesFromHWSip7(protocol,
+                                          level,
+                                          hwRootNodeType, /* the Root node type */
+                                          &hwBucketDataArr[0],/* read from HW according to Root address */
+                                          hwRootNodeAddr,/* hwAddr is used in the fuction only for print incase of an error */
+                                          nodeChildAddressesArr,
+                                          nodeTotalChildTypesArr,
+                                          nodeTotalLinesPerTypeArr,
+                                          nodeTotalBucketPerTypesArr,
+                                          &hwNumOfRanges,
+                                          hwRangesArr,
+                                          hwRangesTypesArr,
+                                          hwRangesTypeIndexArr,
+                                          hwRangesBitLineArr);
+        if (status != GT_OK)
+        {
+            cpssOsFree(hwRangesArr);
+            cpssOsFree(hwRangesTypesArr);
+            cpssOsFree(hwRangesBitLineArr);
+            cpssOsFree(hwRangesTypeIndexArr);
+
+            cpssOsFree(swTotalRangesArr);
+            cpssOsFree(swTotalRangesTypesArr);
+            cpssOsFree(swTotalRangesIsNonRealArr);
+
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+    }
+    else
+    {
+        /*  we are dealing with a non-root bucket */
+
+        /* hwBucketDataArr contains the HW data of the node */
+        status = getNumOfRangesFromHWSip7(protocol,
+                                          level,
+                                          hwNodeType,      /* the node type */
+                                          &hwBucketDataArr[0], /* given as a parameter to the function from the call to
+                                                                  prvCpssDxChLpmRamDbgRangesHwShadowSyncValidityCheckSip7*/
+                                          hwNodeAddr[0],/* hwAddr is used in the fuction only for print incase of an error */
+                                          nodeChildAddressesArr,
+                                          nodeTotalChildTypesArr,
+                                          nodeTotalLinesPerTypeArr,
+                                          nodeTotalBucketPerTypesArr,
+                                          &hwNumOfRanges,
+                                          hwRangesArr,
+                                          hwRangesTypesArr,
+                                          hwRangesTypeIndexArr,
+                                          hwRangesBitLineArr);
+        if (status != GT_OK)
+        {
+            cpssOsFree(hwRangesArr);
+            cpssOsFree(hwRangesTypesArr);
+            cpssOsFree(hwRangesBitLineArr);
+            cpssOsFree(hwRangesTypeIndexArr);
+
+            cpssOsFree(swTotalRangesArr);
+            cpssOsFree(swTotalRangesTypesArr);
+            cpssOsFree(swTotalRangesIsNonRealArr);
+
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+    }
+
+    /* 3. check that the SW ranges is the same as HW bitVector values
+          get the SW number of ranges including the ones hidden incase of regular node */
+    status = prvCpssDxChLpmRamDbgBucketShadowGetNumOfTotalRangesNonRealIncluddedSip7(bucketPtr,
+                                                                                    &swTotalNumOfRanges,
+                                                                                    swTotalRangesArr,
+                                                                                    swTotalRangesTypesArr,
+                                                                                    swTotalRangesIsNonRealArr);
+    if (status!=GT_OK)
+    {
+        if (returnOnFailure==GT_TRUE)
+        {
+            cpssOsFree(hwRangesArr);
+            cpssOsFree(hwRangesTypesArr);
+            cpssOsFree(hwRangesBitLineArr);
+            cpssOsFree(hwRangesTypeIndexArr);
+
+            cpssOsFree(swTotalRangesArr);
+            cpssOsFree(swTotalRangesTypesArr);
+            cpssOsFree(swTotalRangesIsNonRealArr);
+        }
+
+        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,hwNodeAddr[0],
+                                        "Error: no synchronization between HW and SW - "
+                                        "call to prvCpssDxChLpmRamDbgBucketShadowGetNumOfTotalRangesHiddenIncluddedSip7\n");
+
+    }
+    if (swTotalNumOfRanges != hwNumOfRanges)
+    {
+        if (returnOnFailure==GT_TRUE)
+        {
+            cpssOsFree(hwRangesArr);
+            cpssOsFree(hwRangesTypesArr);
+            cpssOsFree(hwRangesBitLineArr);
+            cpssOsFree(hwRangesTypeIndexArr);
+
+            cpssOsFree(swTotalRangesArr);
+            cpssOsFree(swTotalRangesTypesArr);
+            cpssOsFree(swTotalRangesIsNonRealArr);
+        }
+
+        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,hwNodeAddr[0],
+                                        "Error: no synchronization between HW and SW - Root num of ranges\n");
+    }
+
+    /* 4. check that the SW ranges values is the same as HW ranges values */
+    tempRangePtr = bucketPtr->rangeList;
+    for (i=0; i<hwNumOfRanges; i++)
+    {
+        if (swTotalRangesIsNonRealArr[i]==GT_TRUE)
+        {
+            nonRealRangeIndex++;
+        }
+        if(swTotalRangesArr[i] != hwRangesArr[i])
+        {
+            if (returnOnFailure==GT_TRUE)
+            {
+                cpssOsFree(hwRangesArr);
+                cpssOsFree(hwRangesTypesArr);
+                cpssOsFree(hwRangesBitLineArr);
+                cpssOsFree(hwRangesTypeIndexArr);
+
+                cpssOsFree(swTotalRangesArr);
+                cpssOsFree(swTotalRangesTypesArr);
+                cpssOsFree(swTotalRangesIsNonRealArr);
+            }
+
+            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                        "Error: no synchronization between HW and SW - ranges values\n");
+        }
+        else
+        {
+            /* range value is synchronized between HW and SW so now check that the SW range type
+               is the same as HW range type, if it is the same then compare the range pointer data */
+            hwPointerType = hwRangesTypesArr[i];/* HW type can be empty=0/leaf=1/regular=2/compressed=3
+                                                   SW type can be regular=0/route=3/compressed=6/
+                                                   embedded1=7/embedded2=8/embedded3=9/multipath=9 */
+
+            if(((swTotalRangesTypesArr[i] == CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)&&(hwPointerType!=PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E))||
+                ((swTotalRangesTypesArr[i]>=CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E)&&
+                 (swTotalRangesTypesArr[i]<=CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E)&&
+                 (hwPointerType!=PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E))||
+                ((swTotalRangesTypesArr[i]==CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E)&&(hwPointerType!=PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E))||
+                ((swTotalRangesTypesArr[i]==CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E)&&(hwPointerType!=PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E)))
+            {
+                if (returnOnFailure==GT_TRUE)
+                {
+                    cpssOsFree(hwRangesArr);
+                    cpssOsFree(hwRangesTypesArr);
+                    cpssOsFree(hwRangesBitLineArr);
+                    cpssOsFree(hwRangesTypeIndexArr);
+
+                    cpssOsFree(swTotalRangesArr);
+                    cpssOsFree(swTotalRangesTypesArr);
+                    cpssOsFree(swTotalRangesIsNonRealArr);
+                }
+                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                        "Error: no synchronization between HW and SW - range Pointer Type value\n");
+            }
+            else
+            {
+                /* If the pointerType is to a MC source and the MC source bucket is a regular bucket then it means that
+                   this is a root of MC source tree that points directly to a nexthop or ECMP/QoS entry */
+                if (((GT_U32)swTotalRangesTypesArr[i]==(GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E) &&
+                    (tempRangePtr->lowerLpmPtr.nextBucket->bucketType==CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E))
+                {
+                    retVal = prvCpssDxChLpmRamDbgGetLeafDataSip7(devNum,
+                                            bucketPtr,
+                                            hwBucketGonAddr,
+                                            hwBucketDataArr,
+                                            hwRangesTypesArr[i],
+                                            hwRangesTypeIndexArr[i],
+                                            nodeChildAddressesArr[hwRangesBitLineArr[i]],
+                                            nodeTotalChildTypesArr[hwRangesBitLineArr[i]],
+                                            returnOnFailure,
+                                            &nextNodeType,
+                                            &nhAdditionalData,
+                                            &nextBucketPointer,
+                                            &nhPointer,
+                                            &leafType,
+                                            &entryType,
+                                            &lpmOverEmPriority,
+                                            &leafLineHwAddr,
+                                            &offsetOfLeafInLine,
+                                            &applyPbr,
+                                            &epgAssignedToLeafNode);
+                    if (retVal!=GT_OK)
+                    {
+                        if (returnOnFailure==GT_TRUE)
+                        {
+                            cpssOsFree(hwRangesArr);
+                            cpssOsFree(hwRangesTypesArr);
+                            cpssOsFree(hwRangesBitLineArr);
+                            cpssOsFree(hwRangesTypeIndexArr);
+
+                            cpssOsFree(swTotalRangesArr);
+                            cpssOsFree(swTotalRangesTypesArr);
+                            cpssOsFree(swTotalRangesIsNonRealArr);
+                        }
+                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                    bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                    "Error: no synchronization between HW and SW - prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+                    }
+
+                    if( (entryType!=PRV_CPSS_DXCH_LPM_LEAF_ENTRY_TYPE_TRIGGER_E) &&
+                        (tempRangePtr->lowerLpmPtr.nextBucket->bucketType!=CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) )
+                    {
+                        if (returnOnFailure==GT_TRUE)
+                        {
+                            cpssOsFree(hwRangesArr);
+                            cpssOsFree(hwRangesTypesArr);
+                            cpssOsFree(hwRangesBitLineArr);
+                            cpssOsFree(hwRangesTypeIndexArr);
+
+                            cpssOsFree(swTotalRangesArr);
+                            cpssOsFree(swTotalRangesTypesArr);
+                            cpssOsFree(swTotalRangesIsNonRealArr);
+                        }
+
+                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                    bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                    "Error: no synchronization between HW and SW - Pointer value\n");
+                    }
+
+                    switch (tempRangePtr->lowerLpmPtr.nextBucket->rangeList->lowerLpmPtr.nextHopEntry->routeEntryMethod)
+                    {
+                        case PRV_CPSS_DXCH_LPM_ENTRY_TYPE_MULTIPATH_E:
+                            if (leafType != PRV_CPSS_DXCH_LPM_LEAF_MULTIPATH_TYPE_E)/*Multipath Leaf*/
+                            {
+                                if (returnOnFailure==GT_TRUE)
+                                {
+                                    cpssOsFree(hwRangesArr);
+                                    cpssOsFree(hwRangesTypesArr);
+                                    cpssOsFree(hwRangesBitLineArr);
+                                    cpssOsFree(hwRangesTypeIndexArr);
+
+                                    cpssOsFree(swTotalRangesArr);
+                                    cpssOsFree(swTotalRangesTypesArr);
+                                    cpssOsFree(swTotalRangesIsNonRealArr);
+                                }
+                                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                "Error: no synchronization between HW and SW - Pointer value\n");
+                            }
+                            else
+                            {
+                                /* 5. check that if a SW ranges is of type ECMP/QOS then HW range should point to the same NH */
+                                hwNhPointer = nhPointer;
+
+                                if (tempRangePtr->lowerLpmPtr.nextBucket->rangeList->lowerLpmPtr.nextHopEntry->routeEntryBaseMemAddr != hwNhPointer)
+                                {
+                                    if (returnOnFailure==GT_TRUE)
+                                    {
+                                        cpssOsFree(hwRangesArr);
+                                        cpssOsFree(hwRangesTypesArr);
+                                        cpssOsFree(hwRangesBitLineArr);
+                                        cpssOsFree(hwRangesTypeIndexArr);
+
+                                        cpssOsFree(swTotalRangesArr);
+                                        cpssOsFree(swTotalRangesTypesArr);
+                                        cpssOsFree(swTotalRangesIsNonRealArr);
+                                    }
+                                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                "Error: no synchronization between HW and SW - Pointer value\n");
+                                }
+                            }
+                            break;
+                        case PRV_CPSS_DXCH_LPM_ENTRY_TYPE_REGULAR_E:
+                            if (leafType != PRV_CPSS_DXCH_LPM_LEAF_REGULAR_TYPE_ENT)/*Regular Leaf*/
+                            {
+                                if (returnOnFailure==GT_TRUE)
+                                {
+                                    cpssOsFree(hwRangesArr);
+                                    cpssOsFree(hwRangesTypesArr);
+                                    cpssOsFree(hwRangesBitLineArr);
+                                    cpssOsFree(hwRangesTypeIndexArr);
+
+                                    cpssOsFree(swTotalRangesArr);
+                                    cpssOsFree(swTotalRangesTypesArr);
+                                    cpssOsFree(swTotalRangesIsNonRealArr);
+                                }
+                                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                "Error: no synchronization between HW and SW - Pointer value\n");
+                            }
+                            else
+                            {
+                                /* 5. check that if a SW ranges is of type NH then HW range should point to the same NH */
+                                hwNhPointer = nhPointer;
+                                if (tempRangePtr->lowerLpmPtr.nextBucket->rangeList->lowerLpmPtr.nextHopEntry->routeEntryBaseMemAddr != hwNhPointer)
+                                {
+                                    if (returnOnFailure==GT_TRUE)
+                                    {
+                                        cpssOsFree(hwRangesArr);
+                                        cpssOsFree(hwRangesTypesArr);
+                                        cpssOsFree(hwRangesBitLineArr);
+                                        cpssOsFree(hwRangesTypeIndexArr);
+
+                                        cpssOsFree(swTotalRangesArr);
+                                        cpssOsFree(swTotalRangesTypesArr);
+                                        cpssOsFree(swTotalRangesIsNonRealArr);
+                                    }
+                                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                "Error: no synchronization between HW and SW - Pointer value\n");
+                                }
+                            }
+                            break;
+                        default:
+                            if (returnOnFailure==GT_TRUE)
+                            {
+                                cpssOsFree(hwRangesArr);
+                                cpssOsFree(hwRangesTypesArr);
+                                cpssOsFree(hwRangesBitLineArr);
+                                cpssOsFree(hwRangesTypeIndexArr);
+
+                                cpssOsFree(swTotalRangesArr);
+                                cpssOsFree(swTotalRangesTypesArr);
+                                cpssOsFree(swTotalRangesIsNonRealArr);
+                            }
+                            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                            "Error: no synchronization between HW and SW - error in routeEntryMethod \n");
+                            break;
+                    }
+                }
+                else
+                {
+                    switch (hwPointerType)
+                    {
+                    case PRV_CPSS_DXCH_LPM_CHILD_LEAF_TYPE_E:
+
+                         /* if the range is non-hidden or hidden we should continue
+                            checking this leaf */
+                        retVal = prvCpssDxChLpmRamDbgGetLeafDataSip7(devNum,
+                                                                    bucketPtr,
+                                                                    hwBucketGonAddr,
+                                                                    hwBucketDataArr,
+                                                                    hwRangesTypesArr[i],
+                                                                    hwRangesTypeIndexArr[i],
+                                                                    nodeChildAddressesArr[hwRangesBitLineArr[i]],
+                                                                    nodeTotalChildTypesArr[hwRangesBitLineArr[i]],
+                                                                    returnOnFailure,
+                                                                    &nextNodeType,
+                                                                    &nhAdditionalData,
+                                                                    &nextBucketPointer,
+                                                                    &nhPointer,
+                                                                    &leafType,
+                                                                    &entryType,
+                                                                    &lpmOverEmPriority,
+                                                                    &leafLineHwAddr,
+                                                                    &offsetOfLeafInLine,
+                                                                    &applyPbr,
+                                                                    &epgAssignedToLeafNode);
+                        if (retVal!=GT_OK)
+                        {
+                            if (returnOnFailure==GT_TRUE)
+                            {
+                                cpssOsFree(hwRangesArr);
+                                cpssOsFree(hwRangesTypesArr);
+                                cpssOsFree(hwRangesBitLineArr);
+                                cpssOsFree(hwRangesTypeIndexArr);
+
+                                cpssOsFree(swTotalRangesArr);
+                                cpssOsFree(swTotalRangesTypesArr);
+                                cpssOsFree(swTotalRangesIsNonRealArr);
+                            }
+                            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                        "Error: no synchronization between HW and SW - prvCpssDxChLpmRamDbgGetLeafDataSip7\n");
+                        }
+
+                        if((GT_U32)swTotalRangesTypesArr[i]==(GT_U32)PRV_CPSS_DXCH_LPM_RAM_TRIE_PTR_TYPE_E)
+                        {
+                            /* we are dealing with a range that points to a SRC tree that is not a NH (this was dealt with above)
+                               Need to check that the HW is also triggered to MC */
+
+                            if(entryType!=PRV_CPSS_DXCH_LPM_LEAF_ENTRY_TYPE_TRIGGER_E)
+                            {
+                                if (returnOnFailure==GT_TRUE)
+                                {
+                                    cpssOsFree(hwRangesArr);
+                                    cpssOsFree(hwRangesTypesArr);
+                                    cpssOsFree(hwRangesBitLineArr);
+                                    cpssOsFree(hwRangesTypeIndexArr);
+
+                                    cpssOsFree(swTotalRangesArr);
+                                    cpssOsFree(swTotalRangesTypesArr);
+                                    cpssOsFree(swTotalRangesIsNonRealArr);
+                                }
+                                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                            "Error: no synchronization between HW and SW - Pointer value is not TRIGGER \n");
+                            }
+                            else
+                            {
+                                /* if entryType is trigger we need to check the hw value we got : nextBucketPointer
+                                   is the same as the value we have in the shadow
+                                   also we need to check that the HW offset of the Leaf is the same as we keept in the shadow*/
+                                if((nextBucketPointer!=tempRangePtr->lowerLpmPtr.nextBucket->nodeMemAddr)||
+                                   (offsetOfLeafInLine!=tempRangePtr->lowerLpmPtr.nextBucket->fifthAddress)||
+                                   (leafLineHwAddr!=tempRangePtr->lowerLpmPtr.nextBucket->pointingRangeMemAddr))
+                                {
+                                    if (returnOnFailure==GT_TRUE)
+                                    {
+                                        cpssOsFree(hwRangesArr);
+                                        cpssOsFree(hwRangesTypesArr);
+                                        cpssOsFree(hwRangesBitLineArr);
+                                        cpssOsFree(hwRangesTypeIndexArr);
+
+                                        cpssOsFree(swTotalRangesArr);
+                                        cpssOsFree(swTotalRangesTypesArr);
+                                        cpssOsFree(swTotalRangesIsNonRealArr);
+                                    }
+                                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                "Error: no synchronization between HW and SW - nextBucketPointer/offsetOfLeafInLine/leafLineHwAddr"
+                                                " is not equal to shadow \n");
+                                }
+
+                            }
+
+                            /* HW offset handle for MC is a special case that we use hwBucketOffsetHandle and not hwGroupOffsetHandle */
+
+                            /* get the hwGroupOffsetHandle for the SRC tree */
+                            retVal = prvCpssDxChLpmRamDbgGetSrcBucketPointerSip7(bucketPtr,
+                                                                                 (i-nonRealRangeIndex),
+                                                                                 &srcBucketPointer);
+
+                            if((retVal!=GT_OK)||(srcBucketPointer==0)||
+                               (nextBucketPointer != PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(srcBucketPointer)))
+                            {
+                                if (returnOnFailure==GT_TRUE)
+                                {
+                                    cpssOsFree(hwRangesArr);
+                                    cpssOsFree(hwRangesTypesArr);
+                                    cpssOsFree(hwRangesBitLineArr);
+                                    cpssOsFree(hwRangesTypeIndexArr);
+
+                                    cpssOsFree(swTotalRangesArr);
+                                    cpssOsFree(swTotalRangesTypesArr);
+                                    cpssOsFree(swTotalRangesIsNonRealArr);
+                                }
+                                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                            "Error: no synchronization between HW and SW - nextBucketPointer \n");
+                            }
+
+
+                            /* nextNodeType can be regular or compress */
+                            switch (nextNodeType)
+                            {
+                                case 0x0:/* Regular */
+                                    if(tempRangePtr->lowerLpmPtr.nextBucket->bucketType!=CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)
+                                    {
+                                        if (returnOnFailure==GT_TRUE)
+                                        {
+                                            cpssOsFree(hwRangesArr);
+                                            cpssOsFree(hwRangesTypesArr);
+                                            cpssOsFree(hwRangesBitLineArr);
+                                            cpssOsFree(hwRangesTypeIndexArr);
+
+                                            cpssOsFree(swTotalRangesArr);
+                                            cpssOsFree(swTotalRangesTypesArr);
+                                            cpssOsFree(swTotalRangesIsNonRealArr);
+                                        }
+                                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                    "Error: no synchronization between HW and SW - nextBucketPointer \n");
+                                    }
+                                    break;
+                                case 0x1: /* Compressed */
+                                    if((tempRangePtr->lowerLpmPtr.nextBucket->bucketType!=CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E)&&
+                                       (tempRangePtr->lowerLpmPtr.nextBucket->bucketType!=CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E)&&
+                                       (tempRangePtr->lowerLpmPtr.nextBucket->bucketType!=CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E)&&
+                                       (tempRangePtr->lowerLpmPtr.nextBucket->bucketType!=CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E))
+                                    {
+                                        if (returnOnFailure==GT_TRUE)
+                                        {
+                                            cpssOsFree(hwRangesArr);
+                                            cpssOsFree(hwRangesTypesArr);
+                                            cpssOsFree(hwRangesBitLineArr);
+                                            cpssOsFree(hwRangesTypeIndexArr);
+
+                                            cpssOsFree(swTotalRangesArr);
+                                            cpssOsFree(swTotalRangesTypesArr);
+                                            cpssOsFree(swTotalRangesIsNonRealArr);
+                                        }
+                                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                    "Error: no synchronization between HW and SW - nextBucketPointer \n");
+                                    }
+                                    break;
+                                default:
+                                    if (returnOnFailure==GT_TRUE)
+                                    {
+                                        cpssOsFree(hwRangesArr);
+                                        cpssOsFree(hwRangesTypesArr);
+                                        cpssOsFree(hwRangesBitLineArr);
+                                        cpssOsFree(hwRangesTypeIndexArr);
+
+                                        cpssOsFree(swTotalRangesArr);
+                                        cpssOsFree(swTotalRangesTypesArr);
+                                        cpssOsFree(swTotalRangesIsNonRealArr);
+                                    }
+                                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                "Error: no synchronization between HW and SW - nextBucketPointer \n");
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            switch (tempRangePtr->lowerLpmPtr.nextHopEntry->routeEntryMethod)
+                            {
+                                case PRV_CPSS_DXCH_LPM_ENTRY_TYPE_MULTIPATH_E:
+                                    if (leafType != PRV_CPSS_DXCH_LPM_LEAF_MULTIPATH_TYPE_E)/*Multipath Leaf*/
+                                    {
+                                        if (returnOnFailure==GT_TRUE)
+                                        {
+                                            cpssOsFree(hwRangesArr);
+                                            cpssOsFree(hwRangesTypesArr);
+                                            cpssOsFree(hwRangesBitLineArr);
+                                            cpssOsFree(hwRangesTypeIndexArr);
+
+                                            cpssOsFree(swTotalRangesArr);
+                                            cpssOsFree(swTotalRangesTypesArr);
+                                            cpssOsFree(swTotalRangesIsNonRealArr);
+                                        }
+                                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                        "Error: no synchronization between HW and SW - Pointer value\n");
+                                    }
+                                    else
+                                    {
+                                        /* 5. check that if a SW ranges is of type ECMP/QOS then HW range should point to the same NH */
+                                        hwNhPointer = nhPointer;
+
+                                        if (tempRangePtr->lowerLpmPtr.nextHopEntry->routeEntryBaseMemAddr != hwNhPointer)
+                                        {
+                                            if (returnOnFailure==GT_TRUE)
+                                            {
+                                                cpssOsFree(hwRangesArr);
+                                                cpssOsFree(hwRangesTypesArr);
+                                                cpssOsFree(hwRangesBitLineArr);
+                                                cpssOsFree(hwRangesTypeIndexArr);
+
+                                                cpssOsFree(swTotalRangesArr);
+                                                cpssOsFree(swTotalRangesTypesArr);
+                                                cpssOsFree(swTotalRangesIsNonRealArr);
+                                            }
+                                            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                        "Error: no synchronization between HW and SW - Pointer value\n");
+                                        }
+                                    }
+                                    break;
+                                case PRV_CPSS_DXCH_LPM_ENTRY_TYPE_REGULAR_E:
+                                    if (leafType != PRV_CPSS_DXCH_LPM_LEAF_REGULAR_TYPE_ENT)/*Regular Leaf*/
+                                    {
+                                        if (returnOnFailure==GT_TRUE)
+                                        {
+                                            cpssOsFree(hwRangesArr);
+                                            cpssOsFree(hwRangesTypesArr);
+                                            cpssOsFree(hwRangesBitLineArr);
+                                            cpssOsFree(hwRangesTypeIndexArr);
+
+                                            cpssOsFree(swTotalRangesArr);
+                                            cpssOsFree(swTotalRangesTypesArr);
+                                            cpssOsFree(swTotalRangesIsNonRealArr);
+                                        }
+                                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                        "Error: no synchronization between HW and SW - Pointer value\n");
+                                    }
+                                    else
+                                    {
+                                        /* 5. check that if a SW ranges is of type NH then HW range should point to the same NH */
+                                        hwNhPointer = nhPointer;
+                                        if (tempRangePtr->lowerLpmPtr.nextHopEntry->routeEntryBaseMemAddr != hwNhPointer)
+                                        {
+                                            if (returnOnFailure==GT_TRUE)
+                                            {
+                                                cpssOsFree(hwRangesArr);
+                                                cpssOsFree(hwRangesTypesArr);
+                                                cpssOsFree(hwRangesBitLineArr);
+                                                cpssOsFree(hwRangesTypeIndexArr);
+
+                                                cpssOsFree(swTotalRangesArr);
+                                                cpssOsFree(swTotalRangesTypesArr);
+                                                cpssOsFree(swTotalRangesIsNonRealArr);
+                                            }
+                                            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                        "Error: no synchronization between HW and SW - Pointer value\n");
+                                        }
+                                    }
+                                    break;
+                                default:
+                                    if (returnOnFailure==GT_TRUE)
+                                    {
+                                        cpssOsFree(hwRangesArr);
+                                        cpssOsFree(hwRangesTypesArr);
+                                        cpssOsFree(hwRangesBitLineArr);
+                                        cpssOsFree(hwRangesTypeIndexArr);
+
+                                        cpssOsFree(swTotalRangesArr);
+                                        cpssOsFree(swTotalRangesTypesArr);
+                                        cpssOsFree(swTotalRangesIsNonRealArr);
+                                    }
+                                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                    bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                    "Error: no synchronization between HW and SW - error in routeEntryMethod \n");
+                                    break;
+                            }
+
+                            /* in this case entryType==PRV_CPSS_DXCH_LPM_LEAF_ENTRY_TYPE_LEAF_E
+                               need to check validity of applyPbr and epgAssignedToLeafNode values */
+                            if (tempRangePtr->lowerLpmPtr.nextHopEntry->applyPbr != applyPbr)
+                            {
+                                if (returnOnFailure==GT_TRUE)
+                                {
+                                    cpssOsFree(hwRangesArr);
+                                    cpssOsFree(hwRangesTypesArr);
+                                    cpssOsFree(hwRangesBitLineArr);
+                                    cpssOsFree(hwRangesTypeIndexArr);
+
+                                    cpssOsFree(swTotalRangesArr);
+                                    cpssOsFree(swTotalRangesTypesArr);
+                                    cpssOsFree(swTotalRangesIsNonRealArr);
+                                }
+                                LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                            "Error: no synchronization between HW and SW - applyPbr value\n");
+                            }
+
+                            /* if the bucket is not embedded then the leaf is of type 5 leaft in a line
+                               meaning each leaf is of 26 bits of data - no support for epgAssignedToLeafNode */
+                            if(!((bucketPtr->bucketType>=CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E)&&
+                                 (bucketPtr->bucketType<=CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E)))
+                            {
+                                if (tempRangePtr->lowerLpmPtr.nextHopEntry->epgAssignedToLeafNode != epgAssignedToLeafNode)
+                                {
+                                    if (returnOnFailure==GT_TRUE)
+                                    {
+                                        cpssOsFree(hwRangesArr);
+                                        cpssOsFree(hwRangesTypesArr);
+                                        cpssOsFree(hwRangesBitLineArr);
+                                        cpssOsFree(hwRangesTypeIndexArr);
+
+                                        cpssOsFree(swTotalRangesArr);
+                                        cpssOsFree(swTotalRangesTypesArr);
+                                        cpssOsFree(swTotalRangesIsNonRealArr);
+                                    }
+                                    LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                                bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                                "Error: no synchronization between HW and SW - epgAssignedToLeafNode value\n");
+                                }
+                            }
+                        }
+
+                        break;
+                    case PRV_CPSS_DXCH_LPM_CHILD_REGULAR_TYPE_E:
+                    case PRV_CPSS_DXCH_LPM_CHILD_COMPRESSED_TYPE_E:
+                        /* nothing to check at this moment
+                           the node will be checked in the function
+                           prvCpssDxChLpmRamDbgRangesHwShadowSyncValidityCheckSip7 */
+                        break;
+                    default:
+                        if (returnOnFailure==GT_TRUE)
+                        {
+                            cpssOsFree(hwRangesArr);
+                            cpssOsFree(hwRangesTypesArr);
+                            cpssOsFree(hwRangesBitLineArr);
+                            cpssOsFree(hwRangesTypeIndexArr);
+
+                            cpssOsFree(swTotalRangesArr);
+                            cpssOsFree(swTotalRangesTypesArr);
+                            cpssOsFree(swTotalRangesIsNonRealArr);
+                        }
+                        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                            "Error: no synchronization between HW and SW - error in HW Pointer Type \n");
+
+                        break;
+                    }
+                }
+
+                /* check if there is a next range */
+                if((i+1)<hwNumOfRanges)
+                {
+                    /* if the next range is hidden then need to continue with
+                       the same tempRangePtr to check the hidden one */
+                    if(swTotalRangesIsNonRealArr[i+1] == GT_TRUE)
+                    {
+                         /* current range or next range is a hidden range that should have
+                            same properties as the range before */
+                        tempRangePtr=tempRangePtr;
+                    }
+                    else
+                    {
+                        if (tempRangePtr->next != NULL)
+                        {
+                            tempRangePtr = tempRangePtr->next;
+                        }
+                        else
+                        {
+                            /* if the tempRangePtr->next==NULL but (i+1)<hwNumOfRanges it means
+                               that the number of HW ranges is not equal to the number of SW ranges */
+
+                            if (returnOnFailure==GT_TRUE)
+                            {
+                                cpssOsFree(hwRangesArr);
+                                cpssOsFree(hwRangesTypesArr);
+                                cpssOsFree(hwRangesBitLineArr);
+                                cpssOsFree(hwRangesTypeIndexArr);
+
+                                cpssOsFree(swTotalRangesArr);
+                                cpssOsFree(swTotalRangesTypesArr);
+                                cpssOsFree(swTotalRangesIsNonRealArr);
+                            }
+                            LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                            bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                            "Error: no synchronization between hwNumOfRanges - and the number of ranges in the SW \n");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if(i != hwNumOfRanges)
+    {
+        if (returnOnFailure==GT_TRUE)
+        {
+            cpssOsFree(hwRangesArr);
+            cpssOsFree(hwRangesTypesArr);
+            cpssOsFree(hwRangesBitLineArr);
+            cpssOsFree(hwRangesTypeIndexArr);
+
+            cpssOsFree(swTotalRangesArr);
+            cpssOsFree(swTotalRangesTypesArr);
+            cpssOsFree(swTotalRangesIsNonRealArr);
+        }
+        LPM_SHADOW_HW_SYNC_VALIDATION_ERROR_MAC(returnOnFailure, retVal, "Bucket",
+                                        bucketPtr,hwNodeAddr[hwRangesBitLineArr[i]],
+                                        "Error: no synchronization between HW and SW - illegal ranges values\n");
+    }
+
+    /* 6. if the SW range point to a next bucket then recursively check the new bucket, stages 1-5  */
+    if (bucketPtr->bucketType != CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E)
+    {
+        /* Ranges validity check */
+        status = prvCpssDxChLpmRamDbgRangesHwShadowSyncValidityCheckSip7(devNum,
+                                                             shadowPtr,
+                                                             vrId,
+                                                             bucketPtr,
+                                                             nodeTotalChildTypesArr,
+                                                             level,
+                                                             numOfMaxAllowedLevels,
+                                                             prefixType,
+                                                             protocol,
+                                                             returnOnFailure);
+    }
+
+    cpssOsFree(hwRangesArr);
+    cpssOsFree(hwRangesTypesArr);
+    cpssOsFree(hwRangesBitLineArr);
+    cpssOsFree(hwRangesTypeIndexArr);
+
+    cpssOsFree(swTotalRangesArr);
+    cpssOsFree(swTotalRangesTypesArr);
+    cpssOsFree(swTotalRangesIsNonRealArr);
+
+    if (status != GT_OK)
+    {
+        retVal = status;
+        if (returnOnFailure == GT_TRUE)
+        {
+            return retVal;
+        }
+    }
+    return retVal;
+}
+
+/**
+* @internal
+*       prvCpssDxChLpmRamDbgHwShadowSyncCountersCheck function
+* @endinternal
+*
+* @brief   This function validates synchronization between the
+*          SW and HW of the LPM counters
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] shadowPtr                - pointer to shadow structure
+*
+* @retval GT_OK                    - on success
+* @retval GT_FAIL                  - on error
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgHwShadowSyncCountersCheckSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC         *shadowPtr
+)
+{
+    GT_DMM_PARTITION_SIP7    *partition;
+    GT_DMM_BLOCK_SIP7        *dmmBlock;
+    GT_U32              bankIndex;
+    /* for sip5 number of banks is 20, for sip6 it is 30, for sip7 we declare the arry to be 48 */
+    GT_U32              hwIpv4Counter[PRV_CPSS_DXCH_LPM_RAM_NUM_OF_MEMORIES_SIP7_CNS]={0};
+    GT_U32              hwIpv6Counter[PRV_CPSS_DXCH_LPM_RAM_NUM_OF_MEMORIES_SIP7_CNS]={0};
+    GT_U32              hwFcoeCounter[PRV_CPSS_DXCH_LPM_RAM_NUM_OF_MEMORIES_SIP7_CNS]={0};
+
+    for(bankIndex=0;bankIndex<shadowPtr->numOfLpmMemories;bankIndex++)
+    {
+        /* get the partition for the given bankIndex*/
+        partition = (GT_DMM_PARTITION_SIP7 *)shadowPtr->lpmRamStructsMemPoolPtr[bankIndex];
+
+        /* if the partition is empty --> the block is empty --> check conters are 0 */
+        if(partition->allocatedBytes == 0)
+        {
+            /* verify counters are 0 */
+            if((shadowPtr->protocolCountersPerBlockArr[bankIndex].sumOfIpv4Counters!=0)||
+               (shadowPtr->protocolCountersPerBlockArr[bankIndex].sumOfIpv6Counters!=0)||
+               (shadowPtr->protocolCountersPerBlockArr[bankIndex].sumOfFcoeCounters!=0))
+            {
+                /* error in HW/SW sync */
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL,"error in prvCpssDxChLpmRamDbgHwShadowSyncCountersCheckSip7. "
+                                                      "HW/SW sync fail: partition is empty "
+                                                      "but SW counters are different from zero. bankIndex=%d \n",bankIndex);
+            }
+        }
+        else
+        {
+            /* go over all the bank and calculate number of occupied lines */
+
+            /* find the first block in the partition */
+            dmmBlock = partition->pointedFirstBlock;
+            /* loop on all blocks and sum its lines */
+            while(dmmBlock!=NULL)
+            {
+                if(DMM_BLOCK_STATUS_SIP7(dmmBlock)!=DMM_BLOCK_FREE_SIP7)
+                {
+                    switch (GET_DMM_BLOCK_PROTOCOL_SIP7(dmmBlock))
+                    {
+                    case 0:/* ipv4 */
+                        hwIpv4Counter[bankIndex]+=PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(dmmBlock);
+                        break;
+                    case 1:/* ipv6 */
+                        hwIpv6Counter[bankIndex]+=PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(dmmBlock);
+                        break;
+                    case 2:/* fcoe */
+                        hwFcoeCounter[bankIndex]+=PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(dmmBlock);
+                        break;
+                    default:
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL,"error in prvCpssDxChLpmRamDbgHwShadowSyncCountersCheckSip7."
+                                                              "Protocol not supported  - GT_FAIL \n");
+                    }
+                }
+                dmmBlock=dmmBlock->nextByAddr;
+            }
+        }
+
+        /* check SW counters and HW counters are the same */
+        if(shadowPtr->protocolCountersPerBlockArr[bankIndex].sumOfIpv4Counters!=hwIpv4Counter[bankIndex])
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL,"error in prvCpssDxChLpmRamDbgHwShadowSyncCountersCheckSip7."
+                                                  "HW/SW sync fail: mismatch in IPv4 counter for bankIndex=%d \n",bankIndex);
+        }
+        if(shadowPtr->protocolCountersPerBlockArr[bankIndex].sumOfIpv6Counters!=hwIpv6Counter[bankIndex])
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL,"error in prvCpssDxChLpmRamDbgHwShadowSyncCountersCheckSip7."
+                                                  "HW/SW sync fail: mismatch in IPv6 counter for bankIndex=%d \n",bankIndex);
+        }
+        if(shadowPtr->protocolCountersPerBlockArr[bankIndex].sumOfFcoeCounters!=hwFcoeCounter[bankIndex])
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL,"error in prvCpssDxChLpmRamDbgHwShadowSyncCountersCheckSip7."
+                                                  "HW/SW sync fail: mismatch in FCOE counter for bankIndex=%d \n",bankIndex);
+        }
+    }
+    return GT_OK;
+}
+
+
+/**
+* @internal prvCpssDxChLpmRamDbgHwShadowSyncValidityCheckSip7 function
+* @endinternal
+*
+* @brief   This function validates synchronization between the SW and HW of the LPM
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] devNum                   - The device number
+* @param[in] lpmDbPtr                 - LPM DB
+* @param[in] vrId                     - virtual router id, 256 means "all vrIds"
+* @param[in] protocolBitmap           - protocols bitmap
+* @param[in] prefixType               - UC/MC/both prefix type
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops at first failure
+*                                      GT_FALSE: continue with the test on failure
+*
+* @retval GT_OK                    - on success
+* @retval GT_BAD_PARAM             - on illegal input parameter/s
+* @retval GT_NOT_FOUND             - LPM DB was not found
+* @retval GT_NOT_INITIALIZED       - LPM DB is not initialized
+* @retval GT_FAIL                  - on error
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+GT_STATUS prvCpssDxChLpmRamDbgHwShadowSyncValidityCheckSip7
+(
+    IN GT_U8                                    devNum,
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC     *lpmDbPtr,
+    IN GT_U32                                   vrId,
+    IN PRV_CPSS_DXCH_LPM_PROTOCOL_BMP           protocolBitmap,
+    IN CPSS_UNICAST_MULTICAST_ENT               prefixType,
+    IN GT_BOOL                                  returnOnFailure
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC  *bucketPtr;
+    CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT      bucketType;
+    GT_U32                                   shadowIdx, vrIdStartIdx, vrIdEndIdx;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC         *shadowPtr;
+    GT_U8                                    numOfMaxAllowedLevels;
+    GT_STATUS                                status, rc = GT_OK;
+    GT_U32    gonNodeAddr=0; /* Node address to read the HW data from */
+    GT_U32    hwBucketDataArr[PRV_CPSS_DXCH_LPM_RAM_FALCON_MAX_SIZE_OF_BUCKET_IN_LPM_LINES_CNS*PRV_CPSS_DXCH_LPM_RAM_SIP7_SIZE_OF_LPM_ENTRY_DATA_IN_WORDS_CNS];
+
+    cpssOsMemSet(&hwBucketDataArr[0], 0, sizeof(hwBucketDataArr));
+
+    switch(prefixType)
+    {
+        case CPSS_UNICAST_E:
+        case CPSS_MULTICAST_E:
+        case CPSS_UNICAST_MULTICAST_E:
+            break;
+        default:
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+
+    if ((PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap) == GT_FALSE) &&
+        (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap) == GT_FALSE) &&
+        (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+
+    /* FCoE is unicast only */
+    if ((PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap)) &&
+         (prefixType != CPSS_UNICAST_E))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+
+    /* if initialization has not been done for the requested protocol stack -
+       return error */
+    if ((PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap)) &&
+        (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(lpmDbPtr->protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+    else if ((PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap)) &&
+             (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(lpmDbPtr->protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+    else if ((PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap)) &&
+             (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(lpmDbPtr->protocolBitmap) == GT_FALSE))
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+
+    for (shadowIdx = 0; shadowIdx < lpmDbPtr->numOfShadowCfg; shadowIdx++)
+    {
+        shadowPtr = &lpmDbPtr->shadowArray[shadowIdx];
+        if ((vrId >= shadowPtr->vrfTblSize) && (vrId != 4096)) /* TBD: to check 4096 - vrid was increased from 4K to 32K(15bits).*/
+        {
+            /* Illegal virtual router id */
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+        }
+        if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap))
+        {
+            if (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E] == GT_FALSE)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+            }
+        }
+        if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap))
+        {
+            if (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E] == GT_FALSE)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+            }
+        }
+        if (PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap))
+        {
+            if (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E] == GT_FALSE)
+            {
+                CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+            }
+        }
+
+        if (vrId == 4096) /* TBD: to check 4096 - vrid was increased from 4K to 32K(15bits).*/
+        {
+            vrIdStartIdx = 0;
+            vrIdEndIdx = shadowPtr->vrfTblSize - 1;
+        }
+        else
+        {
+            vrIdStartIdx = vrIdEndIdx = vrId;
+        }
+
+        for (vrId = vrIdStartIdx; vrId <= vrIdEndIdx; vrId++)
+        {
+            if (shadowPtr->vrRootBucketArray[vrId].valid == 0)
+            {
+                continue;
+            }
+
+            if ((prefixType == CPSS_UNICAST_E) || (prefixType == CPSS_UNICAST_MULTICAST_E))
+            {
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap))
+                {
+                    if(shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E]==GT_FALSE)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                        "protocol=IPV4 and prefixType=UC was not "
+                                                                        "initialized for vrId=%d",vrId);
+                    }
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    numOfMaxAllowedLevels = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV4_PROTOCOL_CNS;
+                    status = prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7(devNum,
+                                                                         shadowPtr,
+                                                                         vrId,
+                                                                         bucketPtr,
+                                                                         gonNodeAddr,/* not used in the first call */
+                                                                         &hwBucketDataArr[0],
+                                                                         0,/* level */
+                                                                         bucketType,/* expectedNextPointerType */
+                                                                         numOfMaxAllowedLevels,
+                                                                         CPSS_UNICAST_E,
+                                                                         PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E,
+                                                                         returnOnFailure,
+                                                                         GT_TRUE);
+
+
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap))
+                {
+                    if(shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E]==GT_FALSE)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                        "protocol=IPV6 and prefixType=UC was not "
+                                                                        "initialized for vrId=%d",vrId);
+                    }
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    numOfMaxAllowedLevels = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_IPV6_PROTOCOL_CNS;
+                    status = prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7(devNum,
+                                                                         shadowPtr,
+                                                                         vrId,
+                                                                         bucketPtr,
+                                                                         gonNodeAddr,/* not used in the first call */
+                                                                         &hwBucketDataArr[0],
+                                                                         0,/* level */
+                                                                         bucketType,/* expectedNextPointerType */
+                                                                         numOfMaxAllowedLevels,
+                                                                         CPSS_UNICAST_E,
+                                                                         PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E,
+                                                                         returnOnFailure,
+                                                                         GT_TRUE);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+
+                if ((PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_STATUS_GET_MAC(protocolBitmap))&&(prefixType == CPSS_UNICAST_E))
+                {
+                    if(shadowPtr->vrRootBucketArray[vrId].isUnicastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E]==GT_FALSE)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                        "protocol=IFCOE and prefixType=UC was not "
+                                                                        "initialized for vrId=%d",vrId);
+                    }
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E];
+                    numOfMaxAllowedLevels = PRV_CPSS_DXCH_LPM_NUM_OF_OCTETS_IN_FCOE_PROTOCOL_CNS;
+                    status = prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7(devNum,
+                                                                         shadowPtr,
+                                                                         vrId,
+                                                                         bucketPtr,
+                                                                         gonNodeAddr,/* not used in the first call */
+                                                                         &hwBucketDataArr[0],
+                                                                         0,/* level */
+                                                                         bucketType,/* expectedNextPointerType */
+                                                                         numOfMaxAllowedLevels,
+                                                                         CPSS_UNICAST_E,
+                                                                         PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E,
+                                                                         returnOnFailure,
+                                                                         GT_TRUE);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+            }
+            if ((prefixType == CPSS_MULTICAST_E) || (prefixType == CPSS_UNICAST_MULTICAST_E))
+            {
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(protocolBitmap))
+                {
+                    if(shadowPtr->vrRootBucketArray[vrId].isMulticastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E]==GT_FALSE)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                        "protocol=IPV4 and prefixType=MC was not "
+                                                                        "initialized for vrId=%d",vrId);
+                    }
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E];
+                    numOfMaxAllowedLevels = 8;
+                    status = prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7(devNum,
+                                                                         shadowPtr,
+                                                                         vrId,
+                                                                         bucketPtr,
+                                                                         gonNodeAddr,/* not used in the first call */
+                                                                         &hwBucketDataArr[0],
+                                                                         0,/* level */
+                                                                         bucketType,/* expectedNextPointerType */
+                                                                         numOfMaxAllowedLevels,
+                                                                         CPSS_MULTICAST_E,
+                                                                         PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E,
+                                                                         returnOnFailure,
+                                                                         GT_TRUE);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+                if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_STATUS_GET_MAC(protocolBitmap))
+                {
+                    if(shadowPtr->vrRootBucketArray[vrId].isMulticastSupported[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E]==GT_FALSE)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, "SW validation not supported, "
+                                                                        "protocol=IPV6 and prefixType=MC was not "
+                                                                        "initialized for vrId=%d",vrId);
+                    }
+                    bucketPtr = shadowPtr->vrRootBucketArray[vrId].rootBucket[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    bucketType = shadowPtr->vrRootBucketArray[vrId].rootBucketType[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E];
+                    numOfMaxAllowedLevels =  (2 * PRV_CPSS_DXCH_LPM_MAX_NUM_OF_OCTETS_FOR_ADDRESS_CNS);
+                    status = prvCpssDxChLpmRamDbgBucketHwShadowSyncValidityCheckSip7(devNum,
+                                                                         shadowPtr,
+                                                                         vrId,
+                                                                         bucketPtr,
+                                                                         gonNodeAddr,/* not used in the first call */
+                                                                         &hwBucketDataArr[0],
+                                                                         0,/* level */
+                                                                         bucketType,/* expectedNextPointerType */
+                                                                         numOfMaxAllowedLevels,
+                                                                         CPSS_MULTICAST_E,
+                                                                         PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E,
+                                                                         returnOnFailure,
+                                                                         GT_TRUE);
+                    if (status != GT_OK)
+                    {
+                        rc = status;
+                        if (returnOnFailure == GT_TRUE)
+                        {
+                            return rc;
+                        }
+                    }
+                }
+            }
+
+            /* check that the SW counters for LPM lines used in each block
+               is the same as the LPM Lines used by the HW */
+            status = prvCpssDxChLpmRamDbgHwShadowSyncCountersCheckSip7(shadowPtr);
+            if (status != GT_OK)
+            {
+                rc = status;
+                if (returnOnFailure == GT_TRUE)
+                {
+                    return rc;
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgHwOctetsToBlockMappingInfoPrintSip7 function
+* @endinternal
+*
+* @brief   Print Octet to Block mapping debug information for a specific LPM DB
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+*
+* @retval GT_OK                    - on success
+* @retval GT_FAIL                  - otherwise
+* @retval GT_NOT_FOUND             - if can't find the lpm DB
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*
+* @note none.
+*
+*/
+GT_STATUS prvCpssDxChLpmRamDbgHwOctetsToBlockMappingInfoPrintSip7
+(
+    IN GT_U32                           lpmDbId
+)
+{
+    PRV_CPSS_DXCH_LPM_SHADOW_STC        *lpmDbPtr,tmpLpmDb;
+    PRV_CPSS_DXCH_LPM_HW_ENT            lpmHw;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC    *shadowPtr;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC *shadowsPtr;
+    GT_U32      i,k;
+
+    tmpLpmDb.lpmDbId = lpmDbId;
+    lpmDbPtr = prvCpssSlSearch(PRV_SHARED_IP_LPM_DIR_IP_LPM_SRC_GLOBAL_VAR_GET(lpmDbSL),&tmpLpmDb);
+    if (lpmDbPtr == NULL)
+    {
+        /* can't find the lpm DB */
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_FOUND, LOG_ERROR_NO_MSG);
+    }
+
+    lpmHw = prvCpssDxChLpmGetHwType(lpmDbPtr->shadowType);
+    if (lpmHw == PRV_CPSS_DXCH_LPM_HW_TCAM_E)
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_APPLICABLE_DEVICE, LOG_ERROR_NO_MSG);
+    }
+
+    shadowsPtr = (PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC*)(lpmDbPtr->shadow);
+    for (k = 0; k < shadowsPtr->numOfShadowCfg; k++ )
+    {
+        shadowPtr =  &(shadowsPtr->shadowArray[k]);
+
+        if ((shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E] == GT_FALSE) &&
+            (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E] == GT_FALSE) &&
+            (shadowPtr->isProtocolInitialized[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E] == GT_FALSE))
+            continue;
+
+        cpssOsPrintf("\nLPM RAM SHADOW ID [%d] GENERAL HW INFO\n\n",k);
+        cpssOsPrintf("NumEntriesBetweenBlocks 0x%x\t BlocksAllocationMethod %s\n",shadowPtr->lpmRamTotalBlocksSizeIncludingGap,
+                     (shadowPtr->lpmRamBlocksAllocationMethod == PRV_CPSS_DXCH_LPM_RAM_BLOCKS_ALLOCATION_METHOD_DYNAMIC_WITHOUT_BLOCK_SHARING_E ? " NO_SHARING" : " WITH_SHARING"));
+        for (i = 0; i < shadowPtr->numOfLpmMemories; i++)
+        {
+            cpssOsPrintf("MemBlock[%d]\t BlocksSize 0x%x\t memPoolId 0x%x\t isBlockUsed   %s\t  octetsToBlockMappingBitmap:\t IPv4 0x%x     IPv6 0x%x     FCOE 0x%x\n",
+                         i,
+                         shadowPtr->lpmRamBlocksSizeArrayPtr[i],
+                         shadowPtr->lpmRamStructsMemPoolPtr[i],
+                         (shadowPtr->lpmRamOctetsToBlockMappingPtr[i].isBlockUsed ? " YES" : " NO"),
+                         shadowPtr->lpmRamOctetsToBlockMappingPtr[i].octetsToBlockMappingBitmap[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E],
+                         shadowPtr->lpmRamOctetsToBlockMappingPtr[i].octetsToBlockMappingBitmap[PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E],
+                         shadowPtr->lpmRamOctetsToBlockMappingPtr[i].octetsToBlockMappingBitmap[PRV_CPSS_DXCH_LPM_PROTOCOL_FCOE_E]);
+        }
+        cpssOsPrintf("------------------------------------------------------------------------------------------------\n");
+    }
+
+    return GT_OK;
+}
+
+/**
+* @internal prvCpssDxChLpmDbgHwOctetPerBlockPrintSip7 function
+* @endinternal
+*
+* @brief   Print Octet per Block debug information for a specific LPM DB
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  xCat3; AC5; Lion2; Bobcat2; Caelum; Aldrin; AC3X; Bobcat3;
+*                                  Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+*                                       None.
+*/
+GT_VOID prvCpssDxChLpmDbgHwOctetPerBlockPrintSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC      *lpmDbPtr
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC  *shadowPtr;
+    GT_U32 octetsToBlockBitmap;
+    GT_U32 i,j,octetId;
+    const GT_CHAR *protocolNames[] = {"IPv4","IPv6","FCOE"};
+
+    shadowPtr = &lpmDbPtr->shadowArray[0];
+
+    for ( i = 0 ; i < shadowPtr->numOfLpmMemories ; i++ )
+    {
+        if (shadowPtr->lpmRamOctetsToBlockMappingPtr[i].isBlockUsed==GT_TRUE)
+        {
+            cpssOsPrintf("\nBlock [%d]\n",i);
+        }
+        for (j = 0; j < PRV_CPSS_DXCH_LPM_PROTOCOL_LAST_E; j++)
+        {
+            octetsToBlockBitmap = shadowPtr->lpmRamOctetsToBlockMappingPtr[i].octetsToBlockMappingBitmap[j];
+            if (octetsToBlockBitmap)
+            {
+               cpssOsPrintf("\tprotocol   %s :", protocolNames[j]);
+            }
+            else
+            {
+                continue;
+            }
+
+            octetId = 0;
+            while (octetsToBlockBitmap)
+            {
+                if (octetsToBlockBitmap & 0x1)
+                    cpssOsPrintf("\t Octet [%d]     ",octetId);
+
+                octetsToBlockBitmap >>= 1;
+                octetId++;
+            }
+            cpssOsPrintf("\n");
+        }
+    }
+
+    return;
+}
+
+static GT_VOID getOctetsInBlockString
+(
+    IN GT_U8 *octInBlock,
+    IN GT_U8 numOctInBlock,
+    IN GT_U8 numOctInString,
+    OUT GT_CHAR *printString
+)
+{
+    GT_U8 i = 0;
+    GT_CHAR  *tmpStrPtr = printString;
+
+    if((numOctInString > 3) || (numOctInBlock > 3) || (numOctInBlock == 0))
+    {
+        cpssOsSprintf(tmpStrPtr, "          ");
+        return;
+    }
+
+    cpssOsSprintf(tmpStrPtr, "[");
+    tmpStrPtr++;
+
+    for(i=0; i<numOctInString; i++)
+    {
+        if (octInBlock[i] != 99)
+        {
+            if (i == (GT_U8)(numOctInBlock - 1))
+            {
+                cpssOsSprintf(tmpStrPtr, "%2d", octInBlock[i]);
+                tmpStrPtr += 2;
+            }
+            else
+            {
+                cpssOsSprintf(tmpStrPtr, "%2d,", octInBlock[i]);
+                tmpStrPtr += 3;
+            }
+        }
+        else
+        {
+            cpssOsSprintf(tmpStrPtr, "   ");
+            tmpStrPtr += 3;
+        }
+    }
+
+    cpssOsSprintf(tmpStrPtr, "]");
+    tmpStrPtr++;
+
+    return;
+}
+
+/**
+* @internal prvCpssDxChLpmReservedLinesSanityCheckSip7 function
+* @endinternal
+*
+* @brief   Check whether the reserved lines is same as sum of swap memories
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  xCat3; AC5; Lion2; Bobcat2; Caelum; Aldrin; AC3X; Bobcat3;
+*                                  Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] shadowPtr                 - (pointer to) lpm shadow database structure
+* @param[in] bankNumber                - bank number in which reserved lines are being calculated.
+* @param[in] expectedReservedLines     - expected Reserved Lines
+*
+* @retval                  NONE
+*/
+static GT_VOID prvCpssDxChLpmReservedLinesSanityCheckSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC  *shadowPtr,
+    IN GT_U32                            bankNumber,
+    IN GT_U32                            expectedReservedLines
+)
+{
+    GT_U32  bankIndex = 0;
+    GT_U32  reservedLines = 0;
+
+    bankIndex = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(shadowPtr->defaultAddrForHeadOfTrie)/shadowPtr->lpmRamTotalBlocksSizeIncludingGap;
+    prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndex);
+    if (bankIndex == bankNumber)
+    {
+        reservedLines += PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(shadowPtr->defaultAddrForHeadOfTrie);
+    }
+
+    bankIndex = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(shadowPtr->swapMemoryAddr)/shadowPtr->lpmRamTotalBlocksSizeIncludingGap;
+    prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndex);
+    if (bankIndex == bankNumber)
+    {
+        reservedLines += PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(shadowPtr->swapMemoryAddr);
+    }
+
+    bankIndex = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(shadowPtr->secondSwapMemoryAddr)/shadowPtr->lpmRamTotalBlocksSizeIncludingGap;
+    prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndex);
+    if (bankIndex == bankNumber)
+    {
+        reservedLines += PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(shadowPtr->secondSwapMemoryAddr);
+    }
+
+    bankIndex = PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_OFFSET_FROM_DMM_MAC(shadowPtr->thirdSwapMemoryAddr)/shadowPtr->lpmRamTotalBlocksSizeIncludingGap;
+    prvCpssDxChLpmRamSip7CalcBankNumberIndex(shadowPtr,&bankIndex);
+    if (bankIndex == bankNumber)
+    {
+        reservedLines += PRV_CPSS_DXCH_LPM_RAM_GET_SIP7_LPM_SIZE_FROM_DMM_MAC(shadowPtr->thirdSwapMemoryAddr);
+    }
+
+    if (reservedLines != expectedReservedLines)
+    {
+        /* Feature not supported as size of the swap spaces is not stored in the partitions */
+        /* cpssOsPrintf("Warning: reserved lines are not as expected for bank: %d, expected: %d, observed: %d\n",
+                     bankNumber, expectedReservedLines, reservedLines); */
+    }
+}
+
+/**
+* @internal prvCpssDxChLpmDbgHwBlockInfoPrintSip7 function
+* @endinternal
+*
+* @brief   Print block debug information for a specific LPM DB
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  xCat3; AC5; Lion2; Bobcat2; Caelum; Aldrin; AC3X; Bobcat3;
+*                                  Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] lpmDbPtr - (pointer to) lpm shadow database
+*
+* @retval                     None.
+*/
+GT_VOID prvCpssDxChLpmDbgHwBlockInfoPrintSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC      *lpmDbPtr
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC  *shadowPtr;
+    PRV_CPSS_DXCH_LPM_ADDRESS_COUNTERS_INFO_STC protocolCountersPerBlockElement;
+    GT_U32 octetsToBlockBitmap;
+    GT_U32 i,j,octetId;
+    GT_U32 linesInBlock = 0;
+    GT_U8  octInBlock[3][32];
+    GT_U32 linesTotal = 0;
+    GT_BOOL is3OctPerBankMode;
+    GT_U8   numOctInBlock[3];
+    GT_U32  linesInBlockPerProtocol[3];
+    GT_U32  linesTotalPerProtocol[3];
+    GT_CHAR tempStr[100];
+    GT_U32  reservedLines = 0;
+    GT_U32  totalReservedLines = 0;
+    GT_U32  partitionSize = 0;
+
+    shadowPtr = &lpmDbPtr->shadowArray[0];
+    is3OctPerBankMode = PRV_CPSS_DXCH_LPM_RAM_OCTET_TO_BLOCK_MAPPING_3_OCT_PER_BANK_MAC(shadowPtr);
+
+    cpssOsMemSet(linesTotalPerProtocol, 0, sizeof(linesTotalPerProtocol));
+
+    if (is3OctPerBankMode)
+    {
+        cpssOsPrintf("\n");
+        cpssOsPrintf("LPM lines usage per protocol\n");
+        cpssOsPrintf("+-----+-------+-------+-------+------------------+------------------+------------------+\n");
+        cpssOsPrintf("| Blk | Size  | Used  | Free  | IPv4 [ octets ]  | IPv6 [ octets ]  | FCOE [ octets ]  |\n");
+        cpssOsPrintf("+-----+-------+-------+-------+------------------+------------------+------------------+\n");
+    }
+    else
+    {
+        cpssOsPrintf("\n");
+        cpssOsPrintf("LPM lines usage per protocol. Octet information shown for WITHOUT_BLOCK_SHARING mode.\n");
+        cpssOsPrintf("+-----+-------+-------+-------+------------+------------+------------+\n");
+        cpssOsPrintf("| Blk | Size  | Used  | Free  | IPv4 [oct] | IPv6 [oct] | FCOE [oct] |\n");
+        cpssOsPrintf("+-----+-------+-------+-------+------------+------------+------------+\n");
+    }
+
+    for ( i = 0 ; i < shadowPtr->numOfLpmMemories ; i++ )
+    {
+        cpssOsMemSet(octInBlock,99,sizeof(octInBlock));
+        cpssOsMemSet(numOctInBlock, 0, sizeof(numOctInBlock));
+        cpssOsMemSet(linesInBlockPerProtocol, 0, sizeof(linesInBlockPerProtocol));
+        for (j = 0; j < PRV_CPSS_DXCH_LPM_PROTOCOL_LAST_E; j++)
+        {
+            if ((shadowPtr->lpmRamBlocksAllocationMethod ==
+                 PRV_CPSS_DXCH_LPM_RAM_BLOCKS_ALLOCATION_METHOD_DYNAMIC_WITH_BLOCK_SHARING_E) &&
+                (is3OctPerBankMode == GT_FALSE))
+            {
+                continue;
+            }
+            octetsToBlockBitmap = shadowPtr->lpmRamOctetsToBlockMappingPtr[i].octetsToBlockMappingBitmap[j];
+            if (!octetsToBlockBitmap)
+                continue;
+            octetId = 0;
+            while (octetsToBlockBitmap)
+            {
+                if (octetsToBlockBitmap & 0x1)
+                {
+                    if (octInBlock[j][numOctInBlock[j]] == 99)
+                    {
+                        octInBlock[j][numOctInBlock[j]] = octetId;
+                        numOctInBlock[j]++;
+                    }
+                }
+                octetsToBlockBitmap >>= 1;
+                octetId++;
+            }
+        }
+        protocolCountersPerBlockElement = shadowPtr->protocolCountersPerBlockArr[i];
+        linesInBlockPerProtocol[0] = protocolCountersPerBlockElement.sumOfIpv4Counters;
+        linesInBlockPerProtocol[1] = protocolCountersPerBlockElement.sumOfIpv6Counters;
+        linesInBlockPerProtocol[2] = protocolCountersPerBlockElement.sumOfFcoeCounters;
+        linesInBlock = shadowPtr->lpmRamBlocksSizeArrayPtr[i];
+        partitionSize = ((GT_DMM_PARTITION_SIP7 *)shadowPtr->lpmRamStructsMemPoolPtr[i])->partitionSize;
+        partitionSize = partitionSize / DMM_MIN_ALLOCATE_SIZE_IN_BYTE_SIP7_CNS;
+
+        reservedLines = 0;
+        if (linesInBlock > partitionSize)
+        {
+            reservedLines = linesInBlock - partitionSize;
+        }
+
+        cpssOsPrintf("| %3d | %5d | %5d | %5d",
+                     i, linesInBlock, linesInBlockPerProtocol[0] + linesInBlockPerProtocol[1] + linesInBlockPerProtocol[2],
+                     linesInBlock - (linesInBlockPerProtocol[0] + linesInBlockPerProtocol[1] + linesInBlockPerProtocol[2] + reservedLines));
+
+        if (reservedLines > 0)
+        {
+            cpssOsPrintf("*");
+        }
+        else
+        {
+            cpssOsPrintf(" ");
+        }
+
+        for (j = 0; j < PRV_CPSS_DXCH_LPM_PROTOCOL_LAST_E; j++)
+        {
+            if (is3OctPerBankMode)
+            {
+                getOctetsInBlockString(octInBlock[j], numOctInBlock[j], 3, tempStr);
+                cpssOsPrintf("| %5d %.10s ", linesInBlockPerProtocol[j], tempStr);
+            }
+            else
+            {
+                getOctetsInBlockString(octInBlock[j], numOctInBlock[j], 1, tempStr);
+                cpssOsPrintf("| %5d %.4s ", linesInBlockPerProtocol[j], tempStr);
+            }
+        }
+
+        cpssOsPrintf("|\n");
+
+        if (reservedLines > 0)
+        {
+            totalReservedLines += reservedLines;
+            prvCpssDxChLpmReservedLinesSanityCheckSip7(shadowPtr, i, reservedLines);
+        }
+
+        linesTotalPerProtocol[0] += linesInBlockPerProtocol[0];
+        linesTotalPerProtocol[1] += linesInBlockPerProtocol[1];
+        linesTotalPerProtocol[2] += linesInBlockPerProtocol[2];
+        linesTotal += linesInBlock;
+    }
+    if (is3OctPerBankMode)
+    {
+        cpssOsPrintf("+-----+-------+-------+-------+------------------+------------------+------------------+\n");
+        cpssOsPrintf("| Sum |%7d|%7d|%7d| %7d          | %7d          | %7d          |\n",
+                         linesTotal, linesTotalPerProtocol[0] + linesTotalPerProtocol[1] + linesTotalPerProtocol[2],
+                         linesTotal - (linesTotalPerProtocol[0] + linesTotalPerProtocol[1] + linesTotalPerProtocol[2]),
+                         linesTotalPerProtocol[0], linesTotalPerProtocol[1], linesTotalPerProtocol[2]);
+        cpssOsPrintf("+-----+-------+-------+-------+------------------+------------------+------------------+\n");
+    }
+    else
+    {
+        cpssOsPrintf("+-----+-------+-------+-------+------------+------------+------------+\n");
+        cpssOsPrintf("| Sum |%7d|%7d|%7d| %7d    | %7d    | %7d    |\n",
+                         linesTotal, linesTotalPerProtocol[0] + linesTotalPerProtocol[1] + linesTotalPerProtocol[2],
+                         linesTotal - (linesTotalPerProtocol[0] + linesTotalPerProtocol[1] + linesTotalPerProtocol[2]),
+                         linesTotalPerProtocol[0], linesTotalPerProtocol[1], linesTotalPerProtocol[2]);
+        cpssOsPrintf("+-----+-------+-------+-------+------------+------------+------------+\n");
+    }
+
+    cpssOsPrintf("* Reserved lines (ex. swap memory) present in this block\n");
+
+    if (linesTotal != 0)
+    {
+        cpssOsPrintf("Total LPM memory usage : %d%\n",
+                     ((linesTotalPerProtocol[0] + linesTotalPerProtocol[1] +
+                       linesTotalPerProtocol[2] + totalReservedLines) * 100) / linesTotal);
+    }
+    cpssOsPrintf("\n");
+    return;
+}
+
+/**
+* @internal prvCpssDxChIpLpmDbgLastNeededMemInfoPrintSip7 function
+* @endinternal
+*
+* @brief   Print Needed memory information for last prefix addition
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  xCat3; AC5; Lion2; Bobcat2; Caelum; Aldrin; AC3X; Bobcat3;
+*                                  Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] shadowPtr  - (pointer to ) LPM shadow db
+*
+*/
+GT_VOID prvCpssDxChIpLpmDbgLastNeededMemInfoPrintSip7
+(
+    IN    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC  *shadowPtr
+)
+{
+    GT_U32  i, j;
+    GT_BOOL isFirstLine = GT_FALSE;
+    GT_BOOL isFirstFail = GT_FALSE;
+    GT_BOOL isFailed = GT_FALSE;
+    GT_U32  failedIndex = 0xFF;
+    GT_U32  failedOctet = 0xFF;
+
+    cpssOsPrintf("Number of octets need memory: %d\n", shadowPtr->neededMemoryListLen);
+    cpssOsPrintf("Idx, Oct, Regular, BvIdx, ReqLines, Shrink, Bank, SwapMem, Merge, Oct, Bank\n");
+    if (shadowPtr->neededMemoryListLen > 0)
+    {
+        isFirstFail = GT_TRUE;
+        for (i = 0; i < shadowPtr->neededMemoryListLen; i++)
+        {
+            cpssOsPrintf("%3d, %3d, ", i,
+                     shadowPtr->neededMemoryBlocksInfo[i].octetId);
+
+            if (shadowPtr->neededMemoryBlocksInfo[i].regularNode == GT_TRUE)
+            {
+                cpssOsPrintf("  TRUE , ");
+            }
+            else
+            {
+                cpssOsPrintf("  FALSE, ");
+            }
+
+            isFirstLine = GT_TRUE;
+            for (j=0; j<PRV_CPSS_DXCH_LPM_RAM_BIT_VECTOR_LINES_NUMBER_CNS; j++)
+            {
+                if (shadowPtr->neededMemoryBlocksInfo[i].neededMemoryBlocksSizes[j] == 0)
+                {
+                    continue;
+                }
+
+                if (isFirstLine == GT_FALSE)
+                {
+                    cpssOsPrintf("                            ");
+                }
+                cpssOsPrintf("%5d, %8d, ", j,
+                             shadowPtr->neededMemoryBlocksInfo[i].neededMemoryBlocksSizes[j]);
+
+                if (shadowPtr->neededMemoryBlocksInfo[i].shrinkOperationUsefulForDefragGlobalFlag == GT_TRUE)
+                {
+                    if (shadowPtr->neededMemoryBlocksInfo[i].shrinkOperationUsefulForDefragArr[j] == GT_TRUE)
+                    {
+                        cpssOsPrintf("  TRUE, ");
+                        if (shadowPtr->neededMemoryBlocksInfo[i].bankIndexForShrinkArr[j] != 0xFFFFFFFF)
+                        {
+                            cpssOsPrintf("%4d, %7d, ",
+                                     shadowPtr->neededMemoryBlocksInfo[i].bankIndexForShrinkArr[j],
+                                     shadowPtr->neededMemoryBlocksInfo[i].swapUsedForShrinkArr[j]);
+                        }
+                        else
+                        {
+                            cpssOsPrintf("  - ,      - , ");
+                        }
+
+                    }
+                    else
+                    {
+                        cpssOsPrintf(" FALSE,   - ,      - , ");
+                    }
+                }
+                else
+                {
+                    cpssOsPrintf(" FALSE,   - ,      - , ");
+                }
+
+                if (shadowPtr->neededMemoryBlocksInfo[i].mergeOperationUsefulForDefragGlobalFlag == GT_TRUE)
+                {
+                    if (shadowPtr->neededMemoryBlocksInfo[i].mergeOperationUsefulForDefragArr[j] == GT_TRUE)
+                    {
+                        cpssOsPrintf(" TRUE, ");
+                        if ((shadowPtr->neededMemoryBlocksInfo[i].octetIndexForMergeArr[j] != PRV_CPSS_DXCH_SIP6_LPM_RAM_MERGE_NOT_CHECKED) &&
+                            (shadowPtr->neededMemoryBlocksInfo[i].bankIndexForMergeArr[j] != PRV_CPSS_DXCH_SIP6_LPM_RAM_MERGE_NOT_CHECKED))
+                        {
+                            cpssOsPrintf("%3d, %4d",
+                                         shadowPtr->neededMemoryBlocksInfo[i].octetIndexForMergeArr[j],
+                                         shadowPtr->neededMemoryBlocksInfo[i].bankIndexForMergeArr[j]);
+                        }
+                        else
+                        {
+                            cpssOsPrintf(" - ,   - ");
+                            if (isFirstFail == GT_TRUE)
+                            {
+                                isFailed = GT_TRUE;
+                                failedIndex = i;
+                                failedOctet = shadowPtr->neededMemoryBlocksInfo[i].octetId;
+                            }
+                            isFirstFail = GT_FALSE;
+                        }
+                    }
+                    else
+                    {
+                        cpssOsPrintf("FALSE,  - ,   - ");
+                    }
+                }
+                else
+                {
+                    cpssOsPrintf("FALSE,  - ,   - ");
+                }
+
+                cpssOsPrintf("\n");
+                isFirstLine = GT_FALSE;
+            }
+        }
+        if (isFailed == GT_TRUE)
+        {
+            cpssOsPrintf("Prefix Insertion in Merge FAILED at neededMemoryIndex = %d, Octet = %d\n",
+                         failedIndex, failedOctet);
+        }
+    }
+
+    return;
+}
+
+/*
+* @internal prvCpssDxChLpmDbgHwOctetPerProtocolPrintSip7 function
+* @endinternal
+*
+* @brief   Print Octet per Protocol debug information for a specific LPM DB
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  xCat3; AC5; Lion2; Bobcat2; Caelum; Aldrin; AC3X; Bobcat3;
+*                                  Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*/
+GT_VOID prvCpssDxChLpmDbgHwOctetPerProtocolPrintSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC      *lpmDbPtr
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC  *shadowPtr;
+    GT_U32 octetsToBlockBitmap;
+    GT_U32 i,j,octetId;
+    const GT_CHAR *protocolNames[] = {"IPv4","IPv6","FCOE"};
+
+    shadowPtr = &lpmDbPtr->shadowArray[0];
+
+    for (j = 0; j < PRV_CPSS_DXCH_LPM_PROTOCOL_LAST_E; j++)
+    {
+        cpssOsPrintf("\nprotocol   %s : ",protocolNames[j]);
+        for ( i = 0 ; i < shadowPtr->numOfLpmMemories ; i++ )
+        {
+            octetsToBlockBitmap = shadowPtr->lpmRamOctetsToBlockMappingPtr[i].octetsToBlockMappingBitmap[j];
+            if (octetsToBlockBitmap)
+                cpssOsPrintf("\nBlock [%d]",i);
+            else
+                continue;
+            octetId = 0;
+            while (octetsToBlockBitmap)
+            {
+                if (octetsToBlockBitmap & 0x1)
+                    cpssOsPrintf("\t Octet [%d]",octetId);
+
+                octetsToBlockBitmap >>= 1;
+                octetId++;
+            }
+        }
+        cpssOsPrintf("\n");
+    }
+
+    return;
+}
+
+/**
+* @internal prvCpssDxChLpmDbgHwOctetPerProtocolPrintLpmLinesCountersSip7 function
+* @endinternal
+*
+* @brief   Print Octet per Protocol LPM lines debug information for a specific LPM DB
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  xCat3; AC5; Lion2; Bobcat2; Caelum; Aldrin; AC3X; Bobcat3;
+*                                  Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+*/
+GT_VOID prvCpssDxChLpmDbgHwOctetPerProtocolPrintLpmLinesCountersSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC      *lpmDbPtr
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC  *shadowPtr;
+    GT_U32 i;
+    PRV_CPSS_DXCH_LPM_ADDRESS_COUNTERS_INFO_STC protocolCountersPerBlockElement;
+    GT_U32 linesInBlock = 0;
+    GT_U32 ipv4LinesInBlock = 0;
+    GT_U32 ipv6LinesInBlock = 0;
+    GT_U32 fcoeLinesInBlock = 0;
+    GT_U32 ipv4LinesTotal = 0;
+    GT_U32 ipv6LinesTotal = 0;
+    GT_U32 fcoeLinesTotal = 0;
+    GT_U32 linesTotal = 0;
+
+    shadowPtr = &lpmDbPtr->shadowArray[0];
+
+    for ( i = 0 ; i < shadowPtr->numOfLpmMemories ; i++ )
+    {
+        protocolCountersPerBlockElement = shadowPtr->protocolCountersPerBlockArr[i];
+        ipv4LinesInBlock = protocolCountersPerBlockElement.sumOfIpv4Counters;
+        ipv6LinesInBlock = protocolCountersPerBlockElement.sumOfIpv6Counters;
+        fcoeLinesInBlock = protocolCountersPerBlockElement.sumOfFcoeCounters;
+        linesInBlock = shadowPtr->lpmRamBlocksSizeArrayPtr[i];
+
+        cpssOsPrintf("\n                         Block number = [%d]",i);
+        cpssOsPrintf(" Block size in lines = [%d]",linesInBlock);
+        cpssOsPrintf("\n num of Ipv4 LPM lines allocted in the block [%d]", ipv4LinesInBlock);
+        cpssOsPrintf("\n num of Ipv6 LPM lines allocted in the block  [%d]",ipv6LinesInBlock);
+        cpssOsPrintf("\n num of FCOE LPM lines allocted in the block  [%d]",fcoeLinesInBlock);
+        cpssOsPrintf("\n num of LPM lines allocted in the block  [%d]",ipv4LinesInBlock+fcoeLinesInBlock+ipv6LinesInBlock);
+        ipv4LinesTotal += ipv4LinesInBlock;
+        ipv6LinesTotal += ipv6LinesInBlock;
+        fcoeLinesTotal += fcoeLinesInBlock;
+        linesTotal += linesInBlock;
+    }
+    cpssOsPrintf("\n");
+    cpssOsPrintf("\n Total Ipv4 LPM lines allocted [%d]", ipv4LinesTotal);
+    cpssOsPrintf("\n Total Ipv6 LPM lines allocted [%d]", ipv6LinesTotal);
+    cpssOsPrintf("\n Total Fcoe LPM lines allocted [%d]", fcoeLinesTotal);
+    cpssOsPrintf("\n Total LPM lines allocted [%d]", ipv4LinesTotal+ipv6LinesTotal+fcoeLinesTotal);
+    cpssOsPrintf("\n Total LPM lines [%d]", linesTotal);
+    cpssOsPrintf("\n Used LPM lines [%d%]", ((ipv4LinesTotal+ipv6LinesTotal+fcoeLinesTotal)*100)/linesTotal);
+
+    cpssOsPrintf("\n");
+
+    return;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgValidityCheckSip7 function
+* @endinternal
+*
+* @brief   This function validates LPM shadow, LPM hw, and sync between LPM shadow and LPM hw.
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] devNum                   - The device number
+* @param[in] lpmDbPtr                 - LPM DB ptr
+* @param[in] vrId                     - virtual router id
+* @param[in] protocol                 - The IP protocol
+* @param[in] prefixType               - UC/MC/both prefix type
+* @param[in] validityAction           - defines which validity operation is done.
+* @param[in] returnOnFailure          - GT_TRUE: the validation check stops at first failure
+*                                      GT_FALSE: continue with the test on failure
+*
+* @retval GT_OK                    - on success
+* @retval GT_BAD_PARAM             - on illegal input parameter/s
+* @retval GT_NOT_FOUND             - LPM DB was not found
+* @retval GT_NOT_INITIALIZED       - LPM DB is not initialized
+* @retval GT_FAIL                  - on error
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+GT_STATUS prvCpssDxChLpmRamDbgValidityCheckSip7
+(
+    IN GT_U8                                    devNum,
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC     *lpmDbPtr,
+    IN GT_U32                                   vrId,
+    IN CPSS_IP_PROTOCOL_STACK_ENT               protocol,
+    IN CPSS_UNICAST_MULTICAST_ENT               prefixType,
+    IN CPSS_DXCH_IP_LPM_VALIDITY_TYPE_ENT       validityAction,
+    IN GT_BOOL                                  returnOnFailure
+)
+{
+
+    GT_STATUS                                rc = GT_OK;
+    GT_U32 i,j;
+    GT_BOOL neededProtocols[2] = {0,0};
+    PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protoclValue[2] = {0,0};
+    GT_BOOL neededPrefixTypes[2] = {0,0};
+    CPSS_UNICAST_MULTICAST_ENT prefixTypesValue[2] = {0,0};
+    PRV_CPSS_DXCH_LPM_PROTOCOL_BMP protocolBitmap[2] = {0,0};
+
+    if (vrId >= PRV_CPSS_DXCH_SIP7_LPM_RAM_NUM_OF_VIRTUAL_ROUTERS_CNS)
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+    switch (protocol)
+    {
+    case CPSS_IP_PROTOCOL_IPV4_E:
+        neededProtocols[0] = GT_TRUE;
+        protoclValue[0] = PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E;
+        prvCpssDxChLpmConvertIpProtocolStackToProtocolBitmap(CPSS_IP_PROTOCOL_IPV4_E, &protocolBitmap[0]);
+        break;
+    case CPSS_IP_PROTOCOL_IPV6_E:
+        neededProtocols[1] = GT_TRUE;
+        protoclValue[1] = PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E;
+        prvCpssDxChLpmConvertIpProtocolStackToProtocolBitmap(CPSS_IP_PROTOCOL_IPV6_E, &protocolBitmap[1]);
+        break;
+    case CPSS_IP_PROTOCOL_IPV4V6_E:
+        neededProtocols[0] = GT_TRUE;
+        neededProtocols[1] = GT_TRUE;
+        protoclValue[0] = PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E;
+        protoclValue[1] = PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E;
+        prvCpssDxChLpmConvertIpProtocolStackToProtocolBitmap(CPSS_IP_PROTOCOL_IPV4_E, &protocolBitmap[0]);
+        prvCpssDxChLpmConvertIpProtocolStackToProtocolBitmap(CPSS_IP_PROTOCOL_IPV6_E, &protocolBitmap[1]);
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+    switch (prefixType)
+    {
+    case CPSS_UNICAST_E:
+        neededPrefixTypes[0] = GT_TRUE;
+        prefixTypesValue[0] = CPSS_UNICAST_E;
+        break;
+    case CPSS_MULTICAST_E:
+        neededPrefixTypes[1] = GT_TRUE;
+        prefixTypesValue[1] = CPSS_MULTICAST_E;
+        break;
+    case CPSS_UNICAST_MULTICAST_E:
+        neededPrefixTypes[0] = GT_TRUE;
+        neededPrefixTypes[1] = GT_TRUE;
+        prefixTypesValue[0] = CPSS_UNICAST_E;
+        prefixTypesValue[1] = CPSS_MULTICAST_E;
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+    }
+    for (i =0; i < 2; i++)
+    {
+        if (neededProtocols[i] == GT_TRUE)
+        {
+            for (j = 0; j < 2; j++)
+            {
+                if (neededPrefixTypes[j] == GT_TRUE)
+                {
+                    switch (validityAction)
+                    {
+                    case CPSS_DXCH_IP_LPM_VALIDITY_SHADOW_E:
+                        rc = prvCpssDxChLpmRamDbgShadowValidityCheckSip7(lpmDbPtr, vrId, protocolBitmap[i], prefixTypesValue[j], returnOnFailure);
+                        if (rc != GT_OK)
+                        {
+                            CPSS_LOG_ERROR_AND_RETURN_MAC(rc, "shadowValidityCheck failed\n");
+                        }
+                        break;
+                    case CPSS_DXCH_IP_LPM_VALIDITY_HW_E:
+                        rc =  prvCpssDxChLpmRamDbgHwValidationSip7(devNum, vrId, protoclValue[i], prefixTypesValue[j]);
+                        if (rc != GT_OK)
+                        {
+                             CPSS_LOG_ERROR_AND_RETURN_MAC(rc, "hwValidation failed\n");
+                        }
+                        break;
+                    case CPSS_DXCH_IP_LPM_VALIDITY_SHADOW_HW_SYNC_E:
+                        rc = prvCpssDxChLpmRamDbgHwShadowSyncValidityCheckSip7(devNum,lpmDbPtr,vrId, protocolBitmap[i], prefixTypesValue[j], returnOnFailure);
+                        if (rc != GT_OK)
+                        {
+                            CPSS_LOG_ERROR_AND_RETURN_MAC(rc, "sync between hw and shadow validation failed\n");
+                        }
+                        break;
+                    case CPSS_DXCH_IP_LPM_VALIDITY_ALL_E:
+                        rc = prvCpssDxChLpmRamDbgShadowValidityCheckSip7(lpmDbPtr, vrId, protocolBitmap[i], prefixTypesValue[j], returnOnFailure);
+                        if (rc != GT_OK)
+                        {
+                           CPSS_LOG_ERROR_AND_RETURN_MAC(rc, "shadowValidityCheck failed\n");
+                        }
+
+                        rc =  prvCpssDxChLpmRamDbgHwValidationSip7(devNum, vrId, protoclValue[i], prefixTypesValue[j]);
+                        if (rc != GT_OK)
+                        {
+                          CPSS_LOG_ERROR_AND_RETURN_MAC(rc, "hwValidation failed\n");
+                        }
+
+                        rc = prvCpssDxChLpmRamDbgHwShadowSyncValidityCheckSip7(devNum,lpmDbPtr,vrId, protocolBitmap[i], prefixTypesValue[j], returnOnFailure);
+                        if (rc != GT_OK)
+                        {
+                            CPSS_LOG_ERROR_AND_RETURN_MAC(rc, "sync between hw and shadow validation failed\n");
+                        }
+                        break;
+                    default:
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, LOG_ERROR_NO_MSG);
+                    }
+
+                }
+            }
+        }
+    }
+
+    return GT_OK;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgLpmTreeTraverseSip7 function
+* @endinternal
+*
+* @brief   flushes the unicast Routing table and stays with the default entry
+*         only.
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] vrId                     - The virtual private network identifier.
+* @param[in] protocolStack            - the protocol to work on.
+* @param[in] shadowPtr                - the shadow relevant for the devices asked to act on.
+*
+* @retval GT_OK                    - on success
+* @retval GT_FAIL                  - on error
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+GT_STATUS prvCpssDxChLpmRamDbgLpmTreeTraverseSip7
+(
+    IN GT_U32                               vrId,
+    IN PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT protocol,
+    IN CPSS_UNICAST_MULTICAST_ENT           prefixType,
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC     *shadowPtr
+)
+{
+    GT_STATUS       retVal;
+    PRV_CPSS_DXCH_LPM_RAM_MEM_INFO_STC           **lpmEngineMemPtrPtr = NULL;
+
+    /* first check that the protocol was initialized */
+    if (shadowPtr->isProtocolInitialized[protocol] == GT_FALSE)
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+    switch (prefixType)
+    {
+    case CPSS_UNICAST_E:
+        lpmEngineMemPtrPtr = shadowPtr->ucSearchMemArrayPtr[protocol];
+        break;
+    case CPSS_MULTICAST_E:
+        lpmEngineMemPtrPtr = shadowPtr->mcSearchMemArrayPtr[protocol];
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, LOG_ERROR_NO_MSG);
+    }
+
+    retVal =
+            prvCpssDxChLpmRamDbgLpmTreeTraverseRunSip7(lpmEngineMemPtrPtr,
+                                                   shadowPtr,
+                                                   protocol,
+                                                   vrId,
+                                                   prefixType);
+        if (retVal != GT_OK)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+        }
+
+   return GT_OK;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgPrintLpmNodesStatisticsSip7
+* @endinternal
+*
+* @brief   print statistics of LPM nodes for given vrf, protocol, prefix type.
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] vrId                     - The virtual router id
+* @param[in] protocol                 - The IP protocol
+* @param[in] prefixType               - Unicast or multicast
+* @param[in] lpmDbPtr                 - pointer to LPM db
+*
+* @retval GT_OK                    - on success
+* @retval GT_FAIL                  - on error
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+GT_STATUS prvCpssDxChLpmRamDbgPrintLpmNodesStatisticsSip7
+(
+    IN GT_U32                             vrId,
+    IN CPSS_IP_PROTOCOL_STACK_ENT         protocol,
+    IN CPSS_UNICAST_MULTICAST_ENT         prefixType,
+    PRV_CPSS_DXCH_LPM_RAM_SHADOWS_DB_STC* lpmDbPtr
+)
+{
+    GT_STATUS           retVal = GT_OK;
+    PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC *shadowPtr;
+    GT_U32 shadowIdx;
+
+    PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT convertedProtocol;
+
+    switch (protocol)
+    {
+    case CPSS_IP_PROTOCOL_IPV4_E:
+        convertedProtocol = PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E;
+        break;
+    case CPSS_IP_PROTOCOL_IPV6_E:
+        convertedProtocol = PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E;
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_FAIL, LOG_ERROR_NO_MSG);
+    }
+    /* if initialization has not been done for the requested protocol stack -
+    return error */
+    if (PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_STATUS_GET_MAC(lpmDbPtr->protocolBitmap) == GT_FALSE)
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_INITIALIZED, LOG_ERROR_NO_MSG);
+    }
+
+    for (shadowIdx = 0 ; shadowIdx < lpmDbPtr->numOfShadowCfg; shadowIdx++)
+    {
+        shadowPtr = &lpmDbPtr->shadowArray[shadowIdx];
+        if (shadowPtr->vrRootBucketArray[vrId].valid == GT_FALSE)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_FOUND, LOG_ERROR_NO_MSG);
+        }
+
+        retVal = prvCpssDxChLpmRamDbgLpmTreeTraverseSip7(vrId,
+                                                     convertedProtocol,
+                                                     prefixType,
+                                                     shadowPtr);
+        if (retVal != GT_OK)
+        {
+            break;
+        }
+    }
+    return GT_OK;
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgSip7RamMngBucketRangeGet function
+* @endinternal
+*
+* @brief   get range from the bucket with given start address
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] pRange       - the pointer to current bucket range.
+* @param[in] rangeStart   - needed range start
+*
+* @retval GT_OK           - if OK
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgSip7RamMngBucketRangeGet
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC       **pRange,
+    IN GT_U32                                       rangeStart
+)
+{
+    while(((*pRange)->next != NULL) &&
+          (rangeStart >= (*pRange)->next->startAddr))
+       {
+
+           (*pRange) = (*pRange)->next;
+       }
+
+    return GT_OK;
+}
+
+
+/**
+* @internal prvCpssDxChLpmRamDbgSip7RamMngRootBucketRangeGet function
+* @endinternal
+*
+* @brief   get range from the bucket with given start address
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] pRange       - the pointer to current bucket range.
+* @param[in] rangeStart   - needed range start
+*
+* @retval GT_OK           - if OK
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgSip7RamMngRootBucketRangeGet
+(
+    IN IN PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC   *bucketPtr,
+    IN PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC       **pRange,
+    IN GT_U32                                       rangeStart
+)
+{
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC       *tempRangePtr = NULL;
+    tempRangePtr = bucketPtr->rangeList;
+    while(((*tempRangePtr).next != NULL) &&
+          (rangeStart >= (*tempRangePtr).next->startAddr))
+       {
+
+           tempRangePtr = (*tempRangePtr).next;
+       }
+    *pRange = tempRangePtr;
+    return GT_OK;
+}
+
+
+/**
+ * @internal lpmDbgSip7GetNumOfLeaves funciton
+ * @endinternal
+ *
+ * @note   APPLICABLE DEVICES:      AAS.
+ * @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+ *
+ * @param[in] bucketPtr - pointer to the shadow bucket.
+ *
+ * @retval number of leaves value
+ */
+static GT_U32 lpmDbgSip7GetNumOfLeaves
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC  *bucketPtr
+)
+{
+    GT_U32 numOfLeaves = 0;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC      *rangePtr = NULL;
+    /* calculate leaves number*/
+
+    rangePtr = bucketPtr->rangeList;
+    while (rangePtr != NULL)
+    {
+        if( (rangePtr->pointerType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) ||
+            (rangePtr->pointerType == CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E)  ||
+            (rangePtr->pointerType == 0xff) )
+        {
+            numOfLeaves++;
+        }
+        rangePtr = rangePtr->next;
+    }
+
+    return numOfLeaves;
+}
+
+/**
+* @internal lpmDbgSip7GetCompressedBucketType function
+* @endinternal
+*
+* @brief Get exact type of compressed bucket
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in]       bucketPtr                     - Pointer to the bucket to create a mirror from.
+* @param[out]      newCompressedBucBucketTypePtr - The new compressed type of the mirrored bucket.
+*/
+static GT_VOID lpmDbgSip7GetCompressedBucketType
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC  *bucketPtr,
+    OUT CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT     *newCompressedBucBucketTypePtr
+)
+{
+    GT_U32 numOfRanges = bucketPtr->numOfRanges;
+    GT_U32 numOfLeaves = lpmDbgSip7GetNumOfLeaves(bucketPtr);
+
+    if ((numOfRanges <=7) && (numOfLeaves == 1))
+    {
+        *newCompressedBucBucketTypePtr = CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E;
+    }
+    else if ((numOfRanges <=5) && (numOfLeaves == 2))
+    {
+        *newCompressedBucBucketTypePtr = CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E;
+    }
+    else if ((numOfRanges ==3) && (numOfLeaves == 3))
+    {
+        *newCompressedBucBucketTypePtr = CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E;
+    }
+    else
+    {
+        *newCompressedBucBucketTypePtr = CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E;
+    }
+}
+
+/**
+* @internal prvCpssDxChLpmRamDbgSip7PrintLPMNodesStatistics
+*           function
+* @endinternal
+*
+* @brief  flush given LPM bucket
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] bucketPtr                  - pointer to lpm node shadow
+* @param[in] prefixType                 - shows prefix type
+*
+* @param[out] leafStatistic             - pointer to leaf statistic data
+*
+* @retval GT_OK                    - If there is enough memory for the insertion.
+* @retval GT_OUT_OF_PP_MEM         - otherwise.
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+static GT_STATUS prvCpssDxChLpmRamDbgSip7PrintLpmNodesStatistics
+(
+    IN  PRV_CPSS_DXCH_LPM_RAM_BUCKET_SHADOW_STC     *bucketPtr,
+    IN  CPSS_UNICAST_MULTICAST_ENT                   prefixType,
+    OUT PRV_CPSS_DXCH_LPM_RAM_DBG_LEAF_STAT_STC      *leafStatistic
+)
+{
+    GT_U32                                      numberOfIter = 1;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC      *rangePtr = NULL;
+    CPSS_DXCH_LPM_NEXT_POINTER_TYPE_ENT         testBucketType = CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E;
+    GT_U32                                      numberOfLeavesInGon[6] = {0};
+    GT_U32                                      numberLeavesLinesInGon[6] = {0};
+    GT_U32                                      numberUnusedLeavesInGon[6] = {0};
+    GT_U32                                      bvId = 0;
+    GT_U32                                      kk = 0;
+    GT_BOOL                                     noLeavesInGon = GT_FALSE;
+
+
+    if (bucketPtr->bucketType == CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E)
+    {
+        numberOfIter = 6;
+    }
+
+    if ( (bucketPtr->numOfRanges == 1) && (prefixType == CPSS_MULTICAST_E) )
+    {
+        /* very special case: only in mc G* */
+        /* This is fake node --- only shadow */
+        return GT_OK;
+    }
+    if ( bucketPtr->bucketType == CPSS_DXCH_LPM_REGULAR_NODE_PTR_TYPE_E )
+    {
+         if ((bucketPtr->numOfRanges < (SIP7_MAX_NUMBER_OF_COMPRESSED_RANGES_CNS+1)) || (bucketPtr->numOfRanges > 256))
+         {
+             cpssOsPrintf(" The node type is regular, but rages number doesn't match, numOfRanges =%d\n",bucketPtr->numOfRanges);
+         }
+         leafStatistic->numberOfRegularNodes++;
+         noLeavesInGon =  GT_FALSE;
+    }
+    else
+    {
+        if ( bucketPtr->numOfRanges <= SIP7_MAX_NUMBER_OF_COMPRESSED_RANGES_CNS )
+        {
+            lpmDbgSip7GetCompressedBucketType(bucketPtr, &testBucketType);
+            if ( testBucketType !=  bucketPtr->bucketType )
+            {
+                cpssOsPrintf("Illegal node type fromswitch!!!! numOfRanges =%d, type from shadow =%d, cal type =%d\n",bucketPtr->numOfRanges,bucketPtr->bucketType,testBucketType);
+            }
+            switch ( testBucketType )
+            {
+            case CPSS_DXCH_LPM_COMPRESSED_UP_TO_7_RANGES_1_LEAF_NODE_PTR_TYPE_E:
+                noLeavesInGon =  GT_TRUE;
+                leafStatistic->numberOfEmbLeaf71Nodes++;
+                break;
+            case CPSS_DXCH_LPM_COMPRESSED_UP_TO_5_RANGES_2_LEAVES_NODE_PTR_TYPE_E:
+                noLeavesInGon =  GT_TRUE;
+                leafStatistic->numberOfEmbLeaf52Nodes++;
+                break;
+            case CPSS_DXCH_LPM_COMPRESSED_3_RANGES_3_LEAVES_NODE_PTR_TYPE_E:
+                leafStatistic->numberOfEmbLeaf33Nodes++;
+                noLeavesInGon =  GT_TRUE;
+                break;
+            case CPSS_DXCH_LPM_COMPRESSED_NODE_PTR_TYPE_E:
+                leafStatistic->numberOfCompressNodes++;
+                noLeavesInGon =  GT_FALSE;
+                break;
+            default:
+                 cpssOsPrintf("Illegal node type fromswitch!!!! numOfRanges =%d, type from shadow =%d, cal type =%d\n",bucketPtr->numOfRanges,bucketPtr->bucketType,testBucketType);
+            }
+        }
+        else
+        {
+            cpssOsPrintf("Illegal node type!!!! numOfRanges =%d, type from shadow =%d\n",bucketPtr->numOfRanges,bucketPtr->bucketType);
+        }
+
+    }
+
+    rangePtr = bucketPtr->rangeList;
+    /* calculate leaves */
+    while (rangePtr != NULL)
+    {
+        if( (rangePtr->pointerType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) ||
+            (rangePtr->pointerType == CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E)  ||
+            (rangePtr->pointerType == 0xff) )
+        {
+            if ( noLeavesInGon == GT_TRUE )
+            {
+                /*emd leaf node */
+                leafStatistic->totalLeavesInEmbLeavesNodes++;
+                if ( rangePtr->mask == 0 )
+                {
+                    leafStatistic->numberOfDefaultLeavesInEmbLeavesNodes++;
+                }
+                else
+                {
+                    leafStatistic->numberOfInsertedLeavesInEmbLeavesNodes++;
+                }
+            }
+            else
+            {
+                leafStatistic->totalNumberOfLeaves++;
+                if ( rangePtr->mask == 0 )
+                {
+                    leafStatistic->numberOfDefaultLeaves++;
+                }
+                else
+                {
+                    leafStatistic->numberOfInsertedLeaves++;
+                }
+                if ( numberOfIter == 6 )
+                {
+                    bvId = rangePtr->startAddr/44;
+                }
+                else
+                {
+                    bvId = 0;
+                }
+                numberOfLeavesInGon[bvId] = numberOfLeavesInGon[bvId]+1;
+            }
+        }
+
+        rangePtr = rangePtr->next;
+    }
+    if ( noLeavesInGon == GT_FALSE )
+    {
+        for (kk = 0; kk < numberOfIter; kk++)
+        {
+            if (  (numberOfLeavesInGon[kk] % 5) == 0 )
+            {
+                numberLeavesLinesInGon[kk] = numberOfLeavesInGon[kk] / 5;
+                numberUnusedLeavesInGon[kk] = 0;
+            }
+            else
+            {
+                numberLeavesLinesInGon[kk] = numberOfLeavesInGon[kk] / 5 + 1;
+                numberUnusedLeavesInGon[kk] = 5 - (numberOfLeavesInGon[kk] % 5);
+            }
+            leafStatistic->totalLeaveLinesNumber = leafStatistic->totalLeaveLinesNumber + numberLeavesLinesInGon[kk];
+            leafStatistic->totalUnusedLeafPlacesNumber = leafStatistic->totalUnusedLeafPlacesNumber + numberUnusedLeavesInGon[kk];
+        }
+    }
+
+    return GT_OK;
+}
+
+
+/**
+* @internal prvCpssDxChLpmRamDbgLpmTreeTraverseRunSip7
+*           function
+* @endinternal
+*
+* @brief   run over lpm tree for given protocol
+*
+* @note   APPLICABLE DEVICES:      AAS.
+* @note   NOT APPLICABLE DEVICES:  Bobcat2; Caelum; Aldrin; AC3X; Bobcat3; Aldrin2; Falcon; AC5P; AC5X; Harrier; Ironman.
+*
+* @param[in] lpmEngineMemPtrPtr       - points to a an array of PRV_CPSS_DXCH_LPM_RAM_MEM_INFO_STC
+*                                      which holds all the memory information needed for where and
+*                                      how to allocate search memory for each of the lpm levels
+* @param[in] shadowPtr                - the shadow relevant for the devices asked to act on.
+* @param[in] protocolStack            - the protocol Stack
+* @param[in] vrId                     - VR Id
+* @param[in] prefixType               - shows prefix type
+*
+* @retval GT_OK                    - If there is enough memory for the insertion.
+* @retval GT_OUT_OF_PP_MEM         - otherwise.
+* @retval GT_NOT_APPLICABLE_DEVICE - on not applicable device
+*/
+GT_STATUS prvCpssDxChLpmRamDbgLpmTreeTraverseRunSip7
+(
+    IN PRV_CPSS_DXCH_LPM_RAM_MEM_INFO_STC           **lpmEngineMemPtrPtr,
+    IN PRV_CPSS_DXCH_LPM_RAM_SHADOW_STC             *shadowPtr,
+    IN PRV_CPSS_DXCH_LPM_PROTOCOL_STACK_ENT         protocolStack,
+    IN GT_U32                                       vrId,
+    IN CPSS_UNICAST_MULTICAST_ENT                   prefixType
+)
+{
+    GT_STATUS retVal = GT_OK;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC       **currRange = NULL;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC       *tempRootRange = NULL;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC       *rangeMem[MAX_LPM_LEVELS_CNS*2] = {NULL};
+    PRV_CPSS_DXCH_LPM_RAM_MEM_INFO_STC           **currLpmEnginePtr = NULL;
+    PRV_CPSS_DXCH_LPM_RAM_MEM_INFO_STC           **rootNodeLpmEnginePtr = NULL;
+    GT_BOOL                                      isDestTreeRootBucket;
+    GT_U32                                       treeEndAddr = 0;
+    GT_U32                                       treeStartAddr = 0;
+    GT_BOOL                                      rootNode = GT_FALSE;
+    PRV_CPSS_DXCH_LPM_RAM_RANGE_SHADOW_STC       rootRangeMarker;
+    PRV_CPSS_DXCH_LPM_RAM_DBG_LEAF_STAT_STC      leafStat;
+
+    cpssOsMemSet(&leafStat,0,sizeof(PRV_CPSS_DXCH_LPM_RAM_DBG_LEAF_STAT_STC));
+    /* write the changes in the tree */
+    rootRangeMarker.lowerLpmPtr.nextBucket =
+        shadowPtr->vrRootBucketArray[vrId].rootBucket[protocolStack];
+    if ( rootRangeMarker.lowerLpmPtr.nextBucket->hwBucketOffsetHandle == 0 )
+    {
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_STATE, " hwBucketOffsetHandle can't be zero in root node\n");
+    }
+    rootRangeMarker.pointerType =
+        (GT_U8)(shadowPtr->vrRootBucketArray[vrId].rootBucketType[protocolStack]);
+    rootRangeMarker.next = NULL;
+    rootRangeMarker.startAddr = 0;
+    rootRangeMarker.mask = 0x80;
+    rootRangeMarker.updateRangeInHw = GT_TRUE;
+
+    if (prefixType == CPSS_MULTICAST_E)
+    {
+         /* verify that multicast is supported for this protocol in the VR */
+        if (shadowPtr->vrRootBucketArray[vrId].isMulticastSupported[protocolStack] == GT_FALSE)
+        {
+            CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, LOG_ERROR_NO_MSG);
+        }
+    }
+
+    /* intialize the range memory */
+    rangeMem[0] = &rootRangeMarker;
+
+    /* start with the first level */
+    rootNodeLpmEnginePtr = currLpmEnginePtr = lpmEngineMemPtrPtr;
+    lpmEngineMemPtrPtr++;
+    currRange = rangeMem;
+
+    switch (protocolStack)
+    {
+    case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E:
+        if (prefixType == CPSS_UNICAST_E)
+        {
+            treeStartAddr = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_UC_ADDRESS_SPACE_CNS;
+            treeEndAddr = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_UC_ADDRESS_SPACE_CNS;
+        }
+        else
+        {
+            treeStartAddr = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_MC_ADDRESS_SPACE_CNS;
+            treeEndAddr = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV4_MC_ADDRESS_SPACE_CNS;
+            if ((*currRange)->startAddr < treeStartAddr)
+            {
+                retVal = prvCpssDxChLpmRamDbgSip7RamMngRootBucketRangeGet((*currRange)->lowerLpmPtr.nextBucket,&tempRootRange,treeStartAddr);
+                if (retVal != GT_OK)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(retVal, " prvCpssDxChLpmSip7RamMngRootBucketRangeGet failed \n");
+                }
+                (*currRange)->lowerLpmPtr.nextBucket->rangeList = tempRootRange;
+            }
+        }
+        break;
+    case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E:
+        if (prefixType == CPSS_UNICAST_E)
+        {
+            treeStartAddr = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_UC_ADDRESS_SPACE_CNS;
+            treeEndAddr = PRV_CPSS_DXCH_LPM_RAM_END_OF_IPV6_UC_ADDRESS_SPACE_CNS;
+        }
+        else
+        {
+            treeStartAddr = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+            treeEndAddr = PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV6_MC_ADDRESS_SPACE_CNS;
+            if ((*currRange)->startAddr < treeStartAddr)
+            {
+                retVal = prvCpssDxChLpmRamDbgSip7RamMngRootBucketRangeGet((*currRange)->lowerLpmPtr.nextBucket,&tempRootRange,treeStartAddr);
+                if (retVal != GT_OK)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(retVal, "prvCpssDxChLpmSip7RamMngRootBucketRangeGet failed \n");
+                }
+                (*currRange)->lowerLpmPtr.nextBucket->rangeList = tempRootRange;
+            }
+        }
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_BAD_PARAM, "bad protocol \n");
+    }
+    while (currRange >= rangeMem)
+    {
+        if ((*currRange) == NULL)
+        {
+            /* this means that we finished with this level - move back up a level*/
+            currRange--;
+            currLpmEnginePtr--;
+            if (currRange >= rangeMem)
+            {
+                rootNode = (currLpmEnginePtr == rootNodeLpmEnginePtr) ? GT_TRUE : GT_FALSE;
+                retVal =  prvCpssDxChLpmRamDbgSip7PrintLpmNodesStatistics((*currRange)->lowerLpmPtr.nextBucket,
+                                                                          prefixType,
+                                                                          &leafStat);
+                if (retVal != GT_OK)
+                {
+                    CPSS_LOG_ERROR_AND_RETURN_MAC(retVal, "prvCpssDxChLpmSip7RamMngBucketFlush failed \n");
+                }
+                if (rootNode == GT_TRUE)
+                {
+                    break;
+                }
+                (*currRange) = (*currRange)->next;
+                isDestTreeRootBucket = (currLpmEnginePtr == lpmEngineMemPtrPtr) ? GT_TRUE : GT_FALSE;
+                if ( ((*currRange) == NULL) && (isDestTreeRootBucket == GT_TRUE) )
+                {
+                    continue;
+                }
+                if ((isDestTreeRootBucket == GT_TRUE) && ((*currRange)->startAddr > treeEndAddr))
+                {
+                    if ( (prefixType == CPSS_UNICAST_E) && (protocolStack == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) )
+                    {
+                        retVal = prvCpssDxChLpmRamDbgSip7RamMngBucketRangeGet(currRange,PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS);
+                        if (retVal != GT_OK)
+                        {
+                            CPSS_LOG_ERROR_AND_RETURN_MAC(retVal, "prvCpssDxChLpmSip7RamMngRootBucketRangeGet failed \n");
+                        }
+                        treeEndAddr = 255;
+                    }
+                    else
+                    {
+                        (*currRange) = NULL;
+                    }
+                }
+            }
+        }
+        else if (((*currRange)->pointerType == CPSS_DXCH_LPM_ROUTE_ENTRY_NEXT_PTR_TYPE_E) ||
+                 ((*currRange)->pointerType == CPSS_DXCH_LPM_MULTIPATH_ENTRY_PTR_TYPE_E) )
+        {
+            (*currRange) = (*currRange)->next;
+            isDestTreeRootBucket = (currLpmEnginePtr == lpmEngineMemPtrPtr) ? GT_TRUE : GT_FALSE;
+            if ( ((*currRange) == NULL) && (isDestTreeRootBucket == GT_TRUE) )
+            {
+                continue;
+            }
+            if ((isDestTreeRootBucket == GT_TRUE) && ((*currRange)->startAddr > treeEndAddr))
+            {
+                if ( (prefixType == CPSS_UNICAST_E) && (protocolStack == PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E) )
+                {
+                    /* get first e-class range */
+                    retVal = prvCpssDxChLpmRamDbgSip7RamMngBucketRangeGet(currRange,PRV_CPSS_DXCH_LPM_RAM_START_OF_IPV4_RESERVED_SPACE_ADDRESS_SPACE_CNS);
+                    if (retVal != GT_OK)
+                    {
+                        CPSS_LOG_ERROR_AND_RETURN_MAC(retVal, "prvCpssDxChLpmSip7RamMngRootBucketRangeGet failed \n");
+                    }
+                    treeEndAddr = 255;
+                }
+                else
+                {
+                    (*currRange) = NULL;
+                }
+
+            }
+        }
+        else
+        {
+            /* this means this range has lower levels. go and explore */
+            currRange[1] = (*currRange)->lowerLpmPtr.nextBucket->rangeList;
+
+            currRange++;
+            currLpmEnginePtr++;
+        }
+    }
+
+
+    cpssOsPrintf(" Here are lpm nodes statistics for ");
+    switch (protocolStack)
+    {
+    case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV4_E:
+        cpssOsPrintf(" IPV4 ");
+        break;
+    case PRV_CPSS_DXCH_LPM_PROTOCOL_IPV6_E:
+        cpssOsPrintf(" IPV6 ");
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, LOG_ERROR_NO_MSG);
+    }
+
+    switch (prefixType)
+    {
+    case CPSS_UNICAST_E:
+        cpssOsPrintf("unicast protocol :\n");
+        break;
+    case CPSS_MULTICAST_E:
+        cpssOsPrintf("multicast protocol :\n ");
+        break;
+    default:
+        CPSS_LOG_ERROR_AND_RETURN_MAC(GT_NOT_SUPPORTED, LOG_ERROR_NO_MSG);
+    }
+
+    cpssOsPrintf("--------------------------------------------------------------------------------------------------------\n");
+    cpssOsPrintf(" number of regular nodes = %d\n",leafStat.numberOfRegularNodes);
+    cpssOsPrintf(" number of compressed nodes = %d\n",leafStat.numberOfCompressNodes);
+    cpssOsPrintf(" number of emb leaf nodes with 1 leaf and no more than 7 ranges = %d\n", leafStat.numberOfEmbLeaf71Nodes);
+    cpssOsPrintf(" number of emb leaf nodes with 2 leaf and no more than 5 ranges = %d\n",leafStat.numberOfEmbLeaf52Nodes);
+    cpssOsPrintf(" number of emb leaf nodes with 3 leaf and no more than 3 ranges = %d\n",leafStat.numberOfEmbLeaf33Nodes);
+    cpssOsPrintf("--------------------------------------------------------------------------------------------------------\n");
+    cpssOsPrintf("--------------------------------------------------------------------------------------------------------\n");
+    cpssOsPrintf(" total number of leaves (without leaves in emb nodes) = %d\n",leafStat.totalNumberOfLeaves);
+    cpssOsPrintf(" number of leaves pointed to default (without leaves in emb nodes) = %d\n",leafStat.numberOfDefaultLeaves);
+    cpssOsPrintf(" number of leaves pointed to inserted nexthop (without leaves in emb nodes) = %d\n",leafStat.numberOfInsertedLeaves);
+    cpssOsPrintf("--------------------------------------------------------------------------------------------------------\n");
+    cpssOsPrintf(" total number of leaves line (without emb leaves)   = %d\n",leafStat.totalLeaveLinesNumber);
+    cpssOsPrintf(" total number of unused leaf places (without emb leaves) = %d\n",leafStat.totalUnusedLeafPlacesNumber);
+    cpssOsPrintf("--------------------------------------------------------------------------------------------------------\n");
+    cpssOsPrintf(" number of leaves in embedded nodes = %d\n",leafStat.totalLeavesInEmbLeavesNodes);
+    cpssOsPrintf(" number of leaves in embedded nodes pointed to default = %d\n",leafStat.numberOfDefaultLeavesInEmbLeavesNodes);
+    cpssOsPrintf(" number of leaves in embedded nodes pointed to inserted nexthop = %d\n",leafStat.numberOfInsertedLeavesInEmbLeavesNodes);
+    cpssOsPrintf("--------------------------------------------------------------------------------------------------------\n");
+    cpssOsPrintf("\n");
+    cpssOsPrintf(" ** Please take into consideration that root bucket is the same for multicast and unicast,\n");
+    cpssOsPrintf(" ** So it is counted for each prefix type\n");
+
+    return retVal;
+}

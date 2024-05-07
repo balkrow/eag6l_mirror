@@ -1,0 +1,93 @@
+/*******************************************************************************
+*              (c), Copyright 2001, Marvell International Ltd.                 *
+* THIS CODE CONTAINS CONFIDENTIAL INFORMATION OF MARVELL SEMICONDUCTOR, INC.   *
+* NO RIGHTS ARE GRANTED HEREIN UNDER ANY PATENT, MASK WORK RIGHT OR COPYRIGHT  *
+* OF MARVELL OR ANY THIRD PARTY. MARVELL RESERVES THE RIGHT AT ITS SOLE        *
+* DISCRETION TO REQUEST THAT THIS CODE BE IMMEDIATELY RETURNED TO MARVELL.     *
+* THIS CODE IS PROVIDED "AS IS". MARVELL MAKES NO WARRANTIES, EXPRESSED,       *
+* IMPLIED OR OTHERWISE, REGARDING ITS ACCURACY, COMPLETENESS OR PERFORMANCE.   *
+********************************************************************************
+*/
+/**
+********************************************************************************
+* @file snetAasIpvx.h
+*
+* @brief API declaration and data type definition for Ipvx
+*
+* @version   1
+********************************************************************************
+*/
+#ifndef __snetAasIpvxh
+#define __snetAasIpvxh
+
+#include <asicSimulation/SKernel/smain/smain.h>
+
+
+/**
+ * @enum SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_ENT
+ *
+ * @brief enumeration to hold fields of (IPVX) Router L3NHE Profile table
+*/
+typedef enum{
+      SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_PACKET_CMD_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_BYPASS_TTL_OPTIONS_OR_HOP_EXTENTION_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_CPU_CODE_INDEX_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_INGRESS_MIRRROR_TO_ANALYZER_INDEX_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_QOS_PROFILE_PRECEDE_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_TARGET_EPG_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_NEXT_HOP_VID1_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_QOS_PROFILE_MARKING_EN_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_QOS_PROFILE_INDEX_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_MODIFY_DSCP_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_MODIFY_UP_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_NEXT_HOP_EVLAN_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_DIP_ACCESS_LEVEL_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_SIP_ACCESS_LEVEL_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_IPV6_DEST_SITE_ID_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_IPV6_SCOPE_CHECK_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_COUNTER_SET_INDEX_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_MTU_INDEX_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_ARP_BC_TRAP_MIRROR_EN_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_APP_SPECIFIC_CPU_CODE_EN_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_SIP_FILTER_EN_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_DEC_TTL_OR_HOP_COUNT_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_ICMP_REDIRECT_EXCEP_MIRROR_E
+     ,SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS___LAST_VALUE___E/* used for array size */
+
+}SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_TABLE_FIELDS_ENT;
+
+/* macro to set value to field of IPVX Router L3NHE Profile format in buffer */
+#define SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_ENTRY_FIELD_SET_MAC(_dev,_memPtr,_index,fieldName,_value)          \
+    SNET_TABLE_ENTRY_FIELD_SET(_dev,_memPtr,_index,fieldName,_value,SKERNEL_TABLE_FORMAT_IPVX_ROUTER_L3NHE_PROFILE_E)
+
+/* macro to get field value ofIPVX Router L3NHE Profile  format in buffer */
+#define SMEM_SIP7_IPVX_ROUTER_L3NHE_PROFILE_ENTRY_FIELD_GET_MAC(_dev,_memPtr,_index,fieldName)                 \
+    SNET_TABLE_ENTRY_FIELD_GET(_dev,_memPtr,_index,fieldName,SKERNEL_TABLE_FORMAT_IPVX_ROUTER_L3NHE_PROFILE_E)
+
+/**
+* @internal snetAasIpvxTablesFormatInit function
+* @endinternal
+*
+* @brief   init the format of IPVX tables.
+*
+* @param[in] devObjPtr                - pointer to device object.
+*/
+void snetAasIpvxTablesFormatInit(
+    IN SKERNEL_DEVICE_OBJECT            * devObjPtr
+);
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
+#endif  /* __snetAasIpvxh */
+
+
+

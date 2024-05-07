@@ -1,0 +1,11 @@
+*.contrib*
+*.c.swp
+build_dir/
+build_dir_bm*/
+build_dir_wm*/
+build_dir_gm*/
+doc/
+.cproject
+.project
+.settings/*
+mpdSample

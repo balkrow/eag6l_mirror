@@ -1,0 +1,45 @@
+# $(warning "Started")
+
+
+#List of subfolders to include in build
+MODULES :=
+ifeq ($(EXT_MODULE), C005)
+ MODULES += C005
+endif
+
+EXTENSION_SRC :=
+EXTENSION_LUA_STANDALONE_SRC :=
+EXTENSION_INC_PATH :=
+MACSEC_APP_SRC :=
+
+ifeq ($(CONFIG_INCLUDE_STACK_EXTENSION), y)
+ MODULES += stack_extension
+endif
+
+ifeq ($(CONFIG_INCLUDE_MACSEC_APP), y)
+ MODULES += macSecApp
+endif
+
+#List of files to include in list
+DPSS_SRC :=
+STACK_SRC :=
+
+CWD := $(dir $(lastword $(MAKEFILE_LIST)))
+
+#Enable this line to add include path of this folder
+#CFLAGS := $(CFLAGS) -I$(CWD)
+
+#Recursively go into list of subfolders
+include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))
+
+#Add relative path to original Makefile, to each file in the list
+
+ifeq ($(CONFIG_INCLUDE_STACK_EXTENSION), y)
+ EXTENSION_SRC += $(DPSS_SRC)
+ EXTENSION_SRC += $(STACK_SRC)
+ CPSS_INC_PATH += $(patsubst %,extension/stack_extension/%,$(EXTENSION_INC_PATH))
+endif
+
+ifeq ($(CONFIG_INCLUDE_MACSEC_APP), y)
+ EXTENSION_SRC += $(MACSEC_APP_SRC)
+endif

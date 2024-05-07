@@ -1,0 +1,864 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0" version="2021-11-08-1.4" profile="MPD">
+  <mpd:MPD-Platform xmlns:mpd="urn:marvell:mpd:profile:yang">
+    <mpd:typedefs>
+      <mpd:typedef>
+        <mpd:name>mdio-address-type</mpd:name>
+        <mpd:type>uint8</mpd:type>
+        <mpd:description>Specifies the unique port address within the PHY</mpd:description>
+        <mpd:min>0</mpd:min>
+        <mpd:max>31</mpd:max>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>phy-number-type</mpd:name>
+        <mpd:type>uint8</mpd:type>
+        <mpd:description>Specifies the PHY Number.</mpd:description>
+        <mpd:min>0</mpd:min>
+        <mpd:max>127</mpd:max>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>speed-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description>Specifies the Speed.</mpd:description>
+        <mpd:enum>
+          <mpd:name>10M</mpd:name>
+          <mpd:description>10 Mbits/s</mpd:description>
+          <mpd:value>0</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>100M</mpd:name>
+          <mpd:description>100 Mbits/s</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>1G</mpd:name>
+          <mpd:description>1 Gbits/s</mpd:description>
+          <mpd:value>2</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>10G</mpd:name>
+          <mpd:description>10 Gbits/s</mpd:description>
+          <mpd:value>3</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>2.5G</mpd:name>
+          <mpd:description>2.5 Gbits/s</mpd:description>
+          <mpd:value>5</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>5G</mpd:name>
+          <mpd:description>5 Gbits/s</mpd:description>
+          <mpd:value>6</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>20G</mpd:name>
+          <mpd:description>20 Gbits/s</mpd:description>
+          <mpd:value>8</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>25G</mpd:name>
+          <mpd:description>25 Gbits/s</mpd:description>
+          <mpd:value>21</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>40G</mpd:name>
+          <mpd:description>40 Gbits/s</mpd:description>
+          <mpd:value>9</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>50G</mpd:name>
+          <mpd:description>50 Gbits/s</mpd:description>
+          <mpd:value>14</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>100G</mpd:name>
+          <mpd:description>100 Gbits/s</mpd:description>
+          <mpd:value>13</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>200G</mpd:name>
+          <mpd:description>200 Gbits/s</mpd:description>
+          <mpd:value>24</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>400G</mpd:name>
+          <mpd:description>400 Gbits/s</mpd:description>
+          <mpd:value>25</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>all</mpd:name>
+          <mpd:description>any speed</mpd:description>
+          <mpd:value>29</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>op-connected-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description/>
+        <mpd:enum>
+          <mpd:name>fiber</mpd:name>
+          <mpd:description>Connected SFP or SFP+ cable</mpd:description>
+          <mpd:value>0</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>dac</mpd:name>
+          <mpd:description>Connected Direct attached cable</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>rj45_sfp</mpd:name>
+          <mpd:description>Connected SFP to RJ45 gbic 1000Base-T/10GBase-T</mpd:description>
+          <mpd:value>2</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>unknown</mpd:name>
+          <mpd:description>In case not preset or failed to identify or RJ45</mpd:description>
+          <mpd:value>3</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>all</mpd:name>
+          <mpd:description>any operational mode</mpd:description>
+          <mpd:value>4</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>host-line-side-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description/>
+        <mpd:enum>
+          <mpd:name>host</mpd:name>
+          <mpd:description>Host side</mpd:description>
+          <mpd:value>0</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>line</mpd:name>
+          <mpd:description>Line side</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>all</mpd:name>
+          <mpd:description>Both host and line sides</mpd:description>
+          <mpd:value>2</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>phy-enum-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description>Specifies the PHY Part Identifier.</mpd:description>
+        <mpd:enum>
+          <mpd:name>no-phy-direct-attached-fiber</mpd:name>
+          <mpd:description>Specifies direct connection between SFP cage to Host</mpd:description>
+          <mpd:value>0</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E1543</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E1543, used for Combo ports.</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E1545</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E1545, used for Copper GE with MAC on PHY support.</mpd:description>
+          <mpd:value>2</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E1548</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E1548, used for Fiber GE.</mpd:description>
+          <mpd:value>3</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E1680</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E1680, used for Copper with speeds of 10M/100M/1G.</mpd:description>
+          <mpd:value>4</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E1680L</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E1680L, used for Copper with speeds of 10M/100M/1G.</mpd:description>
+          <mpd:value>5</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E151X</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E151X, used for Copper (HW supports combo and fiber).</mpd:description>
+          <mpd:value>6</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E3680</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E3680, used for Octal Copper 100M.</mpd:description>
+          <mpd:value>7</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E32X0</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E32X0, used for Copper or Combo port with speeds of 100M/1G/10G. Uses FW</mpd:description>
+          <mpd:value>8</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E33X0</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E33X0, used for MGIG Copper or Combo.</mpd:description>
+          <mpd:value>9</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E20X0</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E20X0, used for Copper with speeds of 10M/100M/1G/2.5G/5G.</mpd:description>
+          <mpd:value>10</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E2180</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E2180, used for Copper with speeds of 10M/100M/1G/2.5G/5G.</mpd:description>
+          <mpd:value>11</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E2540</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E2540, used for Copper with speeds of 10M/100M/1G/2.5G/5G.</mpd:description>
+          <mpd:value>12</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88X3540</mpd:name>
+          <mpd:description>Specifies PHY identifier 88X3540, used for Copper with speeds of 10M/100M/1G/2.5G/5G/10G.</mpd:description>
+          <mpd:value>13</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E1780</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E1780, used for Copper with speeds of 10M/100M/1G on one serdes lane.</mpd:description>
+          <mpd:value>14</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E2580</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E2580, used for Copper with speeds of 10M/100M/1G/2.5G/5G.</mpd:description>
+          <mpd:value>15</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88X3580</mpd:name>
+          <mpd:description>Specifies PHY identifier 88X3580, used for Copper with speeds of 10M/100M/1G/2.5G/5G/10G.</mpd:description>
+          <mpd:value>16</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>alaska-88E1112</mpd:name>
+          <mpd:description>Specifies PHY identifier 88E1112, used for Combo ports.</mpd:description>
+          <mpd:value>17</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>phy-firmware-download-method-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description>Specifies the PHY Firmware Download method.</mpd:description>
+        <mpd:enum>
+          <mpd:name>RAM</mpd:name>
+          <mpd:description>RAM, on system boot up FW downloaded to RAM</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>Flash</mpd:name>
+          <mpd:description>Flash, Downloaded only on version change (on system boot up FW loading from flash to the RAM automatically)</mpd:description>
+          <mpd:value>2</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>usx-mode-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description/>
+        <mpd:enum>
+          <mpd:name>None</mpd:name>
+          <mpd:description>Non USX, each port over a single Serdes</mpd:description>
+          <mpd:value>0</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>SXGMII</mpd:name>
+          <mpd:description>SXGMII, support multiple rates up to 10G</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>10G_DXGMII</mpd:name>
+          <mpd:description>10G DXGMII, multiplexing up to 2x5G ports over a single 10G SerDes</mpd:description>
+          <mpd:value>2</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>20G_DXGMII</mpd:name>
+          <mpd:description>20G DXGMII, multiplexing up to 2x10G ports over a single 20G SerDes</mpd:description>
+          <mpd:value>3</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>10G_QXGMII</mpd:name>
+          <mpd:description>10G QXGMII, multiplexing up to 4x2.5G ports over a single 10G SerDes</mpd:description>
+          <mpd:value>4</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>20G_QXGMII</mpd:name>
+          <mpd:description>20G QXGMII, multiplexing up to 4x5G ports over a single 20G SerDes</mpd:description>
+          <mpd:value>5</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>OXGMII</mpd:name>
+          <mpd:description>OXGMII, multiplexing up to 8x2.5G ports over a single 20G SerDes</mpd:description>
+          <mpd:value>6</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>transceiver-enum-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description/>
+        <mpd:enum>
+          <mpd:name>sfp</mpd:name>
+          <mpd:description>SFP - Small Form-Factor Pluggable</mpd:description>
+          <mpd:value>0</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>RJ45</mpd:name>
+          <mpd:description>RJ45 Ethernet connector</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>combo</mpd:name>
+          <mpd:description>combo RJ45 &amp; SFP</mpd:description>
+          <mpd:value>2</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+      <mpd:typedef>
+        <mpd:name>led-mode-enum-type</mpd:name>
+        <mpd:type>enumeration</mpd:type>
+        <mpd:description/>
+        <mpd:enum>
+          <mpd:name>single</mpd:name>
+          <mpd:description>Single led mode, one led per port</mpd:description>
+          <mpd:value>0</mpd:value>
+        </mpd:enum>
+        <mpd:enum>
+          <mpd:name>matrix</mpd:name>
+          <mpd:description>Matrix led mode, two leds per port</mpd:description>
+          <mpd:value>1</mpd:value>
+        </mpd:enum>
+      </mpd:typedef>
+    </mpd:typedefs>
+    <mpd:Mpd-feature-is-supported mpd:type="boolean">true</mpd:Mpd-feature-is-supported>
+    <mpd:MPD>
+      <mpd:automatic-parsing mpd:type="boolean">true</mpd:automatic-parsing>
+      <mpd:disable-on-init mpd:type="boolean">false</mpd:disable-on-init>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">0</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E1780</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">1</mpd:mdio-bus>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">1</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">1</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">2</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">0</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">3</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">3</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">4</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">2</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">5</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">5</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">6</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">4</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">7</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">7</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">8</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">6</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">1</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E1780</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">1</mpd:mdio-bus>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">9</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">9</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">10</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">8</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">11</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">11</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">12</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">10</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">13</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">13</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">14</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">12</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">15</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">15</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">16</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">14</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">2</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E1780</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">1</mpd:mdio-bus>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">17</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">17</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">18</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">16</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">19</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">19</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">20</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">18</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">21</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">21</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">22</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">20</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">23</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">23</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">24</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">22</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">3</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E1780</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">1</mpd:mdio-bus>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">25</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">25</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">26</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">24</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">27</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">27</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">28</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">26</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">29</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">29</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">30</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">28</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">31</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">31</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">32</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">30</mpd:mdio-address>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+          <mpd:invert-mdi mpd:type="boolean">false</mpd:invert-mdi>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">4</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E2540</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">0</mpd:mdio-bus>
+        <mpd:usx-mode mpd:type="usx-mode-type">OXGMII</mpd:usx-mode>
+        <mpd:phy-firmware-download-method mpd:type="phy-firmware-download-method-type">RAM</mpd:phy-firmware-download-method>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">33</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">1</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">34</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">0</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">35</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">3</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">36</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">2</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">5</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E2540</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">0</mpd:mdio-bus>
+        <mpd:usx-mode mpd:type="usx-mode-type">OXGMII</mpd:usx-mode>
+        <mpd:phy-firmware-download-method mpd:type="phy-firmware-download-method-type">RAM</mpd:phy-firmware-download-method>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">37</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">5</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">38</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">4</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">39</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">7</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">40</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">6</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">6</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E2540</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">0</mpd:mdio-bus>
+        <mpd:usx-mode mpd:type="usx-mode-type">OXGMII</mpd:usx-mode>
+        <mpd:phy-firmware-download-method mpd:type="phy-firmware-download-method-type">RAM</mpd:phy-firmware-download-method>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">41</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">29</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">42</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">28</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">43</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">31</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">44</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">30</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">7</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">alaska-88E2540</mpd:phy-type>
+        <mpd:mdio-device mpd:type="uint8">0</mpd:mdio-device>
+        <mpd:mdio-bus mpd:type="uint8">0</mpd:mdio-bus>
+        <mpd:usx-mode mpd:type="usx-mode-type">OXGMII</mpd:usx-mode>
+        <mpd:phy-firmware-download-method mpd:type="phy-firmware-download-method-type">RAM</mpd:phy-firmware-download-method>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">45</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">13</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">46</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">12</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">47</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">15</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">48</mpd:logical-port>
+          <mpd:mdio-address mpd:type="mdio-address-type">14</mpd:mdio-address>
+          <mpd:mtd-specific-information-type>
+            <mpd:do-swap-abcd mpd:type="boolean">false</mpd:do-swap-abcd>
+            <mpd:short-reach-serdes mpd:type="boolean">false</mpd:short-reach-serdes>
+          </mpd:mtd-specific-information-type>
+          <mpd:rj45-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">RJ45</mpd:transceiver-type>
+          </mpd:rj45-port-information-type>
+        </mpd:port-list>
+      </mpd:phy-list>
+      <mpd:phy-list>
+        <mpd:phy-number mpd:type="phy-number-type">8</mpd:phy-number>
+        <mpd:phy-type mpd:type="phy-enum-type">no-phy-direct-attached-fiber</mpd:phy-type>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">49</mpd:logical-port>
+          <mpd:fiber-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">sfp</mpd:transceiver-type>
+          </mpd:fiber-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">50</mpd:logical-port>
+          <mpd:fiber-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">sfp</mpd:transceiver-type>
+          </mpd:fiber-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">51</mpd:logical-port>
+          <mpd:fiber-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">sfp</mpd:transceiver-type>
+          </mpd:fiber-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">52</mpd:logical-port>
+          <mpd:fiber-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">sfp</mpd:transceiver-type>
+          </mpd:fiber-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">53</mpd:logical-port>
+          <mpd:fiber-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">sfp</mpd:transceiver-type>
+          </mpd:fiber-port-information-type>
+        </mpd:port-list>
+        <mpd:port-list>
+          <mpd:logical-port mpd:type="uint8">54</mpd:logical-port>
+          <mpd:fiber-port-information-type>
+            <mpd:transceiver-type mpd:type="transceiver-enum-type">sfp</mpd:transceiver-type>
+          </mpd:fiber-port-information-type>
+        </mpd:port-list>
+      </mpd:phy-list>
+    </mpd:MPD>
+  </mpd:MPD-Platform>
+</data>

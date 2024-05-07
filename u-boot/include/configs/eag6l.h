@@ -170,12 +170,12 @@
 
 #ifdef CONFIG_RAMBOOT_PBL
 #define CONFIG_SYS_FSL_PBL_PBI	\
-		"board/freescale/iugcpiuv2/ls102xa_pbi.cfg"
+		"board/freescale/eag6l/ls102xa_pbi.cfg"
 #endif
 
 #ifdef CONFIG_SD_BOOT
 #define CONFIG_SYS_FSL_PBL_RCW	\
-		"board/freescale/iugcpiuv2/ls102xa_rcw_sd.cfg"
+		"board/freescale/eag6l/ls102xa_rcw_sd.cfg"
 
 #ifdef CONFIG_SECURE_BOOT
 #define CONFIG_U_BOOT_HDR_SIZE		(16 << 10)

@@ -1,0 +1,98 @@
+From ef7b2c8a1ff720a5a9c4e46fd4be767160dda473 Mon Sep 17 00:00:00 2001
+From: Sagi <samsalem@marvell.com>
+Date: Thu, 3 Mar 2022 14:14:01 +0200
+Subject: [PATCH] efuse_tool_uboot
+
+Change-Id: Ieef17a57f510f93a63494ea25ce1e7f32ac49a26
+---
+ board/Marvell/common/Kconfig   |   8 ++
+ board/Marvell/common/Makefile  |   3 +-
+ cmd/Kconfig                    |   8 ++
+ cmd/mvebu/Makefile             |   1 +
+ cmd/mvebu/efuse_tool.c         | 137 +++++++++++++++++++++++++++++++++
+ configs/mvebu_ac5_db_defconfig |   2 +
+ 6 files changed, 158 insertions(+), 1 deletion(-)
+ create mode 100644 cmd/mvebu/efuse_tool.c
+
+diff --git a/board/Marvell/common/Kconfig b/board/Marvell/common/Kconfig
+index ec9d115ecc..ec39c2770d 100644
+--- a/board/Marvell/common/Kconfig
++++ b/board/Marvell/common/Kconfig
+@@ -10,6 +10,14 @@ config BOARD_CONFIG_EEPROM
+ 	  It will be enabled once the CMD_MVEBU_BOX_INFO or
+ 	  MULTI_DT_FILE is enabled
+ 
++config MVEBU_EFUSE_TOOL
++	bool "Support MVEBU EFUSE_TOOL Utility"
++	default n
++	help
++	  configure security fuses utility.
++
++
++
+ config MVEBU_SAR
+ 	bool "Support MVEBU SAR Utility"
+ 	default n
+diff --git a/board/Marvell/common/Makefile b/board/Marvell/common/Makefile
+index 1adfef4246..964988745f 100644
+--- a/board/Marvell/common/Makefile
++++ b/board/Marvell/common/Makefile
+@@ -5,5 +5,6 @@
+ # https://spdx.org/licenses
+ #
+ 
+-obj-$(CONFIG_BOARD_CONFIG_EEPROM)	+= cfg_eeprom.o
++obj-$(CONFIG_BOARD_CONFIG_EEPROM) += cfg_eeprom.o
+ obj-$(CONFIG_MVEBU_SAR)	+= sar.o
++obj-$(CONFIG_MVEBU_EFUSE_TOOL)	+= efuse_tool.o
+diff --git a/cmd/Kconfig b/cmd/Kconfig
+index a61e1762b5..2f0502d630 100644
+--- a/cmd/Kconfig
++++ b/cmd/Kconfig
+@@ -153,6 +153,14 @@ config CMD_MVEBU_SAR
+ 	help
+ 	  sar - Modify SOC's sample at reset (SAR) values
+ 
++config CMD_MVEBU_EFUSE_TOOL
++	bool "efuse_tool"
++	depends on MVEBU_EFUSE_TOOL
++	default n
++	help
++	  efuse_tool - efuse configuration tool.
++
++
+ config CMD_BDI
+ 	bool "bdinfo"
+ 	default y
+diff --git a/cmd/mvebu/Makefile b/cmd/mvebu/Makefile
+index 4cc19822d7..774f79fff6 100644
+--- a/cmd/mvebu/Makefile
++++ b/cmd/mvebu/Makefile
+@@ -16,3 +16,4 @@ obj-$(CONFIG_CMD_MVEBU_NAND_OEM) += pxa3xx_nand_oem.o
+ obj-$(CONFIG_CMD_MVEBU_SAR) += sar.o
+ obj-$(CONFIG_CMD_MVEBU_MV_FW_INFO) += mv_fw_info.o
+ obj-$(CONFIG_CMD_MVEBU_MV_GET_COUNTERS) += mv_get_counters.o
++obj-$(CONFIG_CMD_MVEBU_EFUSE_TOOL) += efuse_tool.o
+diff --git a/configs/mvebu_ac5_db_defconfig b/configs/mvebu_ac5_db_defconfig
+index d2d041bf5a..56884b3a0b 100644
+--- a/configs/mvebu_ac5_db_defconfig
++++ b/configs/mvebu_ac5_db_defconfig
+@@ -4,6 +4,7 @@ CONFIG_SYS_TEXT_BASE=0x200000000
+ CONFIG_SYS_MALLOC_F_LEN=0x2000
+ CONFIG_TARGET_MVEBU_ALLEYCAT5=y
+ CONFIG_MVEBU_SAR=y
++CONFIG_MVEBU_EFUSE_TOOL=y
+ CONFIG_SMBIOS_PRODUCT_NAME=""
+ CONFIG_DEBUG_UART=y
+ CONFIG_DISTRO_DEFAULTS=y
+@@ -18,6 +19,7 @@ CONFIG_ARCH_MISC_INIT=y
+ CONFIG_BOARD_EARLY_INIT_F=y
+ CONFIG_SYS_PROMPT="Marvell>> "
+ CONFIG_CMD_MVEBU_SAR=y
++CONFIG_CMD_MVEBU_EFUSE_TOOL=y
+ CONFIG_CMD_BOOTZ=y
+ # CONFIG_CMD_FLASH is not set
+ CONFIG_CMD_FUSE=y
+-- 
+2.31.1
+

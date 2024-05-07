@@ -1,0 +1,22 @@
+# $(warning "Started")
+#List of subfolders to include in build
+MODULES := \
+ src
+
+#List of files to include in list
+FILES :=
+
+CPSS_INC_PATH += extension/macSecApp/h
+CPSS_INC_PATH += extension/macSecApp/h/include
+CPSS_INC_PATH += extension/macSecApp/h/include/qslib
+CPSS_INC_PATH += extension/macSecApp/h/include/c99
+
+CWD := $(dir $(lastword $(MAKEFILE_LIST)))
+
+#Add relative path to original Makefile, to each file in the list
+MACSEC_APP_SRC += $(patsubst %,$(CWD)%,$(FILES))
+
+CFLAGS += -w
+
+#Recursively go into list of subfolders
+include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))

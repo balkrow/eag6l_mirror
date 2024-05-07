@@ -1,0 +1,121 @@
+# $(warning "Started")
+
+#List of subfolders to include in build
+MODULES := \
+        mainCmd \
+        mainExtDrv \
+        mainExtMac \
+        mainOs \
+        demo \
+        utfWrappers \
+        mainPhy \
+        cpssAppUtils
+ifneq (,$(filter $(FAMILY), DX DXPX))
+        MODULES += \
+             ezMpdCommon
+endif
+
+ifneq (,$(filter $(BUILD_CPSS_APP_PLAT), EXE EXE_SHARED))
+    MODULES += \
+      cpssAppPlatform
+    ifeq (y, $(CONFIG_MIXED_MODE))
+        MODULES += \
+          mainSysConfig
+    endif
+else
+    ifeq (LIB, $(BUILD_CPSS_APP_PLAT))
+        MODULES += \
+          cpssAppPlatform
+    else
+        MODULES += \
+          mainSysConfig
+    endif
+endif
+
+
+#List of files to include in list
+FILES :=
+
+ifeq ($(CONFIG_INCLUDE_EZ_BRINGUP), y)
+    FILES +=                                                       	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/utils/iDbgPdlUtils.c			\
+	ez_bringup/iDbgPdl/src/iDbgPdl/cpu/iDbgPdlCpu.c               	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/power/iDbgPdlPower.c           	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/phy/iDbgPdlPhy.c               	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/interface/iDbgPdlInterface.c   	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/led/iDbgPdlLed.c               	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/inband/iDbgPdlInband.c         	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/fan/iDbgPdlFan.c               	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/button/iDbgPdlBtn.c            	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/packetProcessor/iDbgPdlPp.c    	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/serdes/iDbgPdlSerdes.c         	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/logger/iDbgPdlLogger.c         	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/sfp/iDbgPdlSfp.c               	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/B2b/iDbgPdlB2b.c               	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/oob/iDbgPdlOob.c               	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/sensor/iDbgPdlSensor.c         	\
+	ez_bringup/iDbgPdl/src/iDbgPdl/init/iDbgPdlInit.c             	\
+	ez_bringup/PDLIB/src/pdlib/xml/private/prvXmlParserBuilder.c  	\
+	ez_bringup/PDLIB/src/pdlib/xml/xmlParserAppIntf.c             	\
+	ez_bringup/PDLIB/src/pdlib/lib/pdlLibMd5.c                    	\
+	ez_bringup/PDLIB/src/pdlib/lib/pdlLibLinkedList.c             	\
+	ez_bringup/PDLIB/src/pdlib/lib/pdlLibArray.c                  	\
+	ez_bringup/PDLIB/src/pdlib/lib/pdlibLib.c                      	\
+	ez_bringup/PDLIB/src/pdlib/init/pdlibInit.c                    	\
+	ez_bringup/pdl/src/pdl/cpu/pdlCpu.c                           	\
+	ez_bringup/pdl/src/pdl/power/pdlPower.c                       	\
+	ez_bringup/pdl/src/pdl/phy/pdlPhy.c                           	\
+	ez_bringup/pdl/src/pdl/parser/pdlParserGlobal.c               	\
+	ez_bringup/pdl/src/pdl/parser/auto/pdlParser.c                	\
+	ez_bringup/pdl/src/pdl/interface/pdlGpio.c                    	\
+	ez_bringup/pdl/src/pdl/interface/pdlSmiXsmi.c                 	\
+	ez_bringup/pdl/src/pdl/interface/pdlI2c.c                     	\
+	ez_bringup/pdl/src/pdl/interface/pdlInterface.c               	\
+	ez_bringup/pdl/src/pdl/interface/pdlPpReg.c                   	\
+	ez_bringup/pdl/src/pdl/led/pdlLed.c                           	\
+	ez_bringup/pdl/src/pdl/lib/pdlLib.c                           	\
+	ez_bringup/pdl/src/pdl/fan/pdlFanNCT7802.c                    	\
+	ez_bringup/pdl/src/pdl/fan/pdlFanEMC2305.c                    	\
+	ez_bringup/pdl/src/pdl/fan/pdlFanAdt7476.c                    	\
+	ez_bringup/pdl/src/pdl/fan/pdlFanTc654.c                      	\
+	ez_bringup/pdl/src/pdl/fan/pdlFanPWM.c                        	\
+	ez_bringup/pdl/src/pdl/fan/pdlFan.c                           	\
+	ez_bringup/pdl/src/pdl/packet_processor/pdlPacketProcessor.c  	\
+	ez_bringup/pdl/src/pdl/oob_port/pdlOobPort.c                  	\
+	ez_bringup/pdl/src/pdl/button/pdlBtn.c                        	\
+	ez_bringup/pdl/src/pdl/serdes/pdlSerdes.c                     	\
+	ez_bringup/pdl/src/pdl/sfp/pdlSfp.c                           	\
+	ez_bringup/pdl/src/pdl/cpld/pdlCpld.c                         	\
+	ez_bringup/pdl/src/pdl/sensor/pdlSensor.c                     	\
+	ez_bringup/pdl/src/pdl/init/pdlInit.c
+
+
+endif
+
+CWD := $(dir $(lastword $(MAKEFILE_LIST)))
+
+#Add relative path to original Makefile, to each file in the list
+CPSSENABLER_SRC := $(patsubst %,$(CWD)%,$(FILES))
+cpssEnabler_gtOs_SRC1 :=
+cpssEnabler_gtStack_SRC1 :=
+cpssEnabler_gtUtil_SRC1 :=
+cpssEnabler_mainExtDrv_SRC1 :=
+cpssEnabler_shrMemIntraCPSSdata_SRC1 :=
+cpssEnabler_confi_SRC1 :=
+cpssEnabler_dragonite_SRC1 :=
+cpssEnabler_extPhyM_SRC1 :=
+cpssEnabler_luaCLI_SRC1 :=
+cpssEnabler_mainCmd_SRC1 :=
+cpssEnabler_mainExtDrvShared_SRC1 :=
+cpssEnabler_mainPhy_SRC1 :=
+cpssEnabler_mainSysConfig_SRC1 :=
+cpssEnabler_cpssAppRef_SRC1 :=
+cpssEnabler_utfWrappers_SRC1 :=
+cpssEnabler_demo_SRC1 :=
+
+#Enable this line to add include path of this folder
+#CFLAGS := $(CFLAGS) -I$(CWD)
+
+#Recursively go into list of subfolders
+include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))
+

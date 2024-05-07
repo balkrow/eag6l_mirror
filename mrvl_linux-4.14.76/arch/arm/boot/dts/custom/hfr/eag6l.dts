@@ -30,6 +30,28 @@
 		regulator-max-microvolt = <2500000>;
 		regulator-always-on;
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		prestera_rsvd: buffer@0x200000000 {
+			/* to be used as a shared pool of DMA buffers for a set of devices */
+			compatible = "shared-dma-pool";
+			/* No one other than devices registered for that mem, may use this area */
+			no-map;
+
+			/* Base addr (first 2 cells) requires alignment, we choose start of memory */
+			reg = <0x2 0x400000 0x0 0x400000>;
+		};
+	};
+
+	mv_dma {
+		compatible = "marvell,mv_dma";
+		memory-region = <&prestera_rsvd>;
+		status = "okay";
+	};
 };
 
 &dspi0 {

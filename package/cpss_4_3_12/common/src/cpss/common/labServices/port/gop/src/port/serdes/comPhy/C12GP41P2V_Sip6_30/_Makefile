@@ -1,0 +1,29 @@
+# $(warning "Started")
+
+#List of subfolders to include in build
+MODULES :=
+
+ifeq ($(FAMILY), PX)
+MODULES :=
+endif
+
+#List of files to include in list
+FILES := \
+ mvComphyC12GP41P2V_Sip6_30_SerdesIf.c \
+ mcesdC12GP41P2V_API_Sip6_30.c \
+ mcesdC12GP41P2V_DeviceInit_Sip6_30.c \
+ mcesdC12GP41P2V_HwCntl_Sip6_30.c \
+ mcesdC12GP41P2V_RegRW_Sip6_30.c
+
+
+CWD := $(dir $(lastword $(MAKEFILE_LIST)))
+
+#Add relative path to original Makefile, to each file in the list
+COMMON_SRC += $(patsubst %,$(CWD)%,$(FILES))
+
+#Enable this line to add include path of this folder
+#CFLAGS := $(CFLAGS) -I$(CWD)
+
+#Recursively go into list of subfolders
+include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))
+

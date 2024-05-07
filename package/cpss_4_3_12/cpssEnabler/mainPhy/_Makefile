@@ -1,0 +1,141 @@
+#$(warning "cpssEnabler\mainPhy Started ")
+
+
+#List of subfolders to include in build
+MODULES := \
+# mcd
+
+ifeq (,$(findstring DX, $(FAMILY)))
+    #SUBDIRS = NONE
+    MODULES :=
+endif
+
+
+#List of files to include in list
+FILES :=
+ifeq ($(CONFIG_INCLUDE_MPD), y)
+
+mpd_path = MPD/src
+    FILES += \
+                $(mpd_path)/mpd.c \
+                $(mpd_path)/mpdInit.c \
+                $(mpd_path)/mpdUtils.c \
+                $(mpd_path)/mpdmyd.c \
+                $(mpd_path)/mpdmtd.c \
+                $(mpd_path)/mpdDebug.c
+
+mpd_external_phy_path = MPD/external_phy/mtd/src
+    FILES +=                                                        \
+                $(mpd_external_phy_path)/mtdDiagnosticsRegDumpData.c \
+                $(mpd_external_phy_path)/mtdEEE.c \
+                $(mpd_external_phy_path)/mtdHwSerdesCntl.c \
+                $(mpd_external_phy_path)/TuPtp/mtdTuPtp.c \
+                $(mpd_external_phy_path)/TuPtp/mtdTuPtpInternal.c \
+                $(mpd_external_phy_path)/mtdHXunit.c \
+                $(mpd_external_phy_path)/mtdHwCntl.c \
+                $(mpd_external_phy_path)/mtdAPIInternal.c \
+                $(mpd_external_phy_path)/mtdCunit.c \
+                $(mpd_external_phy_path)/mtdUtils.c \
+                $(mpd_external_phy_path)/mtdHunit.c \
+                $(mpd_external_phy_path)/mtdXgFastRetrain.c \
+                $(mpd_external_phy_path)/mtdInitialization.c \
+                $(mpd_external_phy_path)/mtdIntr.c \
+                $(mpd_external_phy_path)/mtdXunit.c \
+                $(mpd_external_phy_path)/mtdHwCntl.c \
+                $(mpd_external_phy_path)/mtdAPIInternal.c \
+                $(mpd_external_phy_path)/mtdCunit.c \
+                $(mpd_external_phy_path)/mtdUtils.c \
+                $(mpd_external_phy_path)/mtdHunit.c \
+                $(mpd_external_phy_path)/mtdXgFastRetrain.c \
+                $(mpd_external_phy_path)/mtdInitialization.c \
+                $(mpd_external_phy_path)/mtdIntr.c \
+                $(mpd_external_phy_path)/mtdXunit.c \
+                $(mpd_external_phy_path)/mtdFwDownload.c \
+                $(mpd_external_phy_path)/fwimages/mtdFwDlSlave.c \
+                $(mpd_external_phy_path)/fwimages/mtdFwImage.c \
+                $(mpd_external_phy_path)/serdes/mcesd/mcesdInitialization.c \
+                $(mpd_external_phy_path)/serdes/mcesd/mcesdUtils.c \
+                $(mpd_external_phy_path)/serdes/mcesd/C28GP4X2/mcesdC28GP4X2_HwCntl.c \
+                $(mpd_external_phy_path)/serdes/mcesd/C28GP4X2/mcesdC28GP4X2_API.c \
+                $(mpd_external_phy_path)/serdes/mcesd/C28GP4X2/mcesdC28GP4X2_RegRW.c \
+                $(mpd_external_phy_path)/serdes/mcesd/C28GP4X2/mcesdC28GP4X2_DeviceInit.c \
+                $(mpd_external_phy_path)/serdes/mcesd/C28GP4X2/mcesdC28GP4X2_FwDownload.c \
+                $(mpd_external_phy_path)/mtdDiagnostics.c \
+                $(mpd_external_phy_path)/mtdAPI.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdPtpInternal.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdHwMsecPtpCntl.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdPtpInit.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/aeskey.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdPtpApi.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdPtpConst.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/aescrypt.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdMsecApi.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdPtpUtils.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdMsecInternal.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/aestab.c \
+                $(mpd_external_phy_path)/LinkCryptPtp/mtdMsecEEE.c
+
+mpd_external_phy_path_2 = MPD/external_phy/alaska_c/src
+    FILES +=                                                        \
+                $(mpd_external_phy_path_2)/mydAPI.c                         \
+                $(mpd_external_phy_path_2)/mydAPIInternal.c                 \
+                $(mpd_external_phy_path_2)/mydDiagnostics.c                 \
+                $(mpd_external_phy_path_2)/mydFEC.c                         \
+                $(mpd_external_phy_path_2)/mydFwDownload.c                  \
+                $(mpd_external_phy_path_2)/mydHwCntl.c                      \
+                $(mpd_external_phy_path_2)/mydHwSerdesCntl.c                \
+                $(mpd_external_phy_path_2)/mydInitialization.c              \
+                $(mpd_external_phy_path_2)/mydIntrIOConfig.c                \
+                $(mpd_external_phy_path_2)/mydUtils.c
+
+ifneq (y, $(CONFIG_ASIC_SIMULATION))
+     FILES +=                                                         \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/aacs.c         \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/aacs_server.c  \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/aapl_core.c    \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/avsp_5410.c    \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/avsp.c         \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/dfe.c          \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/diag_core.c    \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/eye.c          \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/eye_math.c     \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/gpio_mdio.c    \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/i2c.c          \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/library.c      \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/logging.c      \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/mdio.c         \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/meas.c         \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/pmd.c          \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/pmro.c         \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/sbm.c          \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/sbus.c         \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/sensor.c       \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/serdes_core.c  \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/spico.c        \
+                $(mpd_external_phy_path_2)/serdes/avago/aapl/spico_diag.c
+ endif
+
+
+endif
+
+
+
+CWD := $(dir $(lastword $(MAKEFILE_LIST)))
+
+#Add relative path to original Makefile, to each file in the list
+CPSSENABLER_SRC += $(patsubst %,$(CWD)%,$(FILES))
+
+cpssEnabler_mainPhy_SRC1 += $(patsubst %,$(CWD)%,$(FILES))
+
+#$(warning "MODULES=$(MODULES)")
+#$(warning "CPSSENABLER_SRC=$(CPSSENABLER_SRC)")
+
+#Enable this line to add include path of this folder
+#CFLAGS := $(CFLAGS) -I$(CWD)
+TOUCH_CLEAN := "$(shell touch cpssEnabler/mainSysConfig/src/appDemo/phy/gtAppDemoPhyConfig.c)"
+GIT_VERSION := "$(shell cd cpssEnabler/mainPhy/MPD; git describe --abbrev=4 --dirty --always --tags)"
+CFLAGS += -DMPD_VERSION=\"$(GIT_VERSION)\"
+
+#Recursively go into list of subfolders
+include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))
+

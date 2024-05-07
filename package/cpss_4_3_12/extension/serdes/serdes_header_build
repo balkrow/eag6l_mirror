@@ -1,0 +1,156 @@
+#!/usr/bin/env python
+
+#########################################################################
+# This script compresses binary data for L1 SerDes FW for target device
+# and creates an output .h file containing the compressed data.
+# 
+# Usage: python serdes_header_build [options]
+#
+#########################################################################
+
+
+boardname = None
+fwname = None
+input_file = None
+
+import sys,getopt,zlib
+
+def header(boardname):
+    h  = "/*******************************************************************************\n"
+    h += "*                Copyright 2001, Marvell International Ltd.\n"
+    h += "* This code contains confidential information of Marvell semiconductor, inc\n"
+    h += "* no rights are granted herein under any patent, mask work right or copyright\n"
+    h += "* of Marvell or any third party\n"
+    h += "* Marvell reserves the right at its sole discretion to request that this code\n"
+    h += "* be immediately returned to Marvell. This code is provided \"as is\"\n"
+    h += "* Marvell makes no warranties, express, implied or otherwise, regarding its\n"
+    h += "* accuracy, completeness or performance\n"
+    h += "********************************************************************************\n"
+    h += "* "+fwname+".h\n"
+    h += "*\n"
+    h += "* DESCRIPTION:\n"
+    h += "*           This file contains L1 Serdes Firmware\n"
+    h += "*           This file FW target device is == " + boardname + " ==\n"
+    h += "*\n"
+    h += "* DEPENDENCIES:\n"
+    h += "*\n"
+    h += "******************************************************************************/\n"
+    h += "\n"
+    return h
+
+def usage():
+    print "Usage:"
+    print sys.argv[0]+" -b name [-i input] [-n fwname]..."
+    print "    -b name      - board name: AC5X/AC5P"
+    print "    -n fwname    - firmware name: COMPHYC28GP4X1156AC5X"
+    print "    -L loadaddr  - firmware load address"
+    print "    -S shmaddr   - ipc shared memory address"
+    print "    -s shmsize   - ipc shared memory size"
+    print "    -i filename  - Serdes binary file name COMPHYC28GP4X1156AC5X.1.2.3.0"
+    print "    -B type      - use type for binary data"
+    print "    -c           - compress binary (not supported by CPSS yet)"
+    print "    -C           - compress binary (simple algorithm)"
+    sys.exit(0)
+
+def simple_compress(data):
+    ret = ""
+    l = len(data)
+    p = 0
+    while p < l:
+        k = 0
+        while k < 0x80 and p+k < l:
+            i = 0
+            while i < 0x80 and p+k+i < l and data[p+k+i] == '\0':
+                i += 1
+            if i > 3:
+                if k > 0:
+                    ret += chr(k-1)
+                    ret += data[p:p+k]
+                    p += k
+                    k = 0
+                ret += chr(i-1 + 0x80)
+                p += i
+            else:
+                k += 1
+        if k > 0:
+            ret += chr(k-1)
+            ret += data[p:p+k]
+            p += k
+            k = 0
+    return ret
+
+
+if __name__ == '__main__':
+    load_addr = "0x0"
+    shm_base = "0x0"
+    shm_size = "0x0"
+    compress = "0"
+    binary_type = "GT_U8"
+
+    opts, files = getopt.getopt(sys.argv[1:], "?b:n:i:L:S:s:B:cC")
+    for (opt, val) in opts:
+        if opt == "-b":
+            boardname = val
+        elif opt == "-n":
+            fwname = val
+        elif opt == "-i":
+            input_file = val
+        elif opt == "-L":
+            load_addr = val
+        elif opt == "-S":
+            shm_base = val
+        elif opt == "-s":
+            shm_size = val
+        elif opt == "-B":
+            binary_type = val
+        elif opt == "-c":
+            compress = "1"
+        elif opt == "-C":
+            compress = "2"
+        else:
+            usage()
+
+    if boardname == None:
+        print "No board name parameter"
+        sys.exit(1)
+
+    if fwname == None:
+        print "No FW name parameter"
+        sys.exit(1)
+
+    f = open(input_file, "rb")
+    data = f.read()
+    f.close()
+    fwsize = len(data)
+    if compress == "1":
+        data = zlib.compress(data,9)
+    if compress == "2":
+        data = simple_compress(data)
+
+    #TODO add compression
+
+    h = header(boardname)
+    h += "unsigned char "+fwname+"[] = {\n"
+
+    s = ""
+    for i in range(len(data)):
+        s += " 0x%02x"%ord(data[i])
+        if i+1 < len(data):
+            s += ","
+        if len(s) > 66:
+            h += " " + s + "\n"
+            s = ""
+    if s != "":
+        h += " "+s+"\n"
+    h += "};\n"
+
+    h += "\n"
+    h += "#define "+fwname+"_fwsize  %d"%len(data)+"\n\n"
+    h += "#define "+fwname+"_INFO "+"\\\n"
+    h += '"'+fwname+'",\\\n'
+    h += fwname+",\\\n"
+    h += fwname+"_fwsize"+"\n"
+
+    f = open(boardname+"/"+fwname+".h","w")
+    f.write(h)
+    f.close()

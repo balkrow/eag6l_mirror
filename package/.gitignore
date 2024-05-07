@@ -57,7 +57,12 @@ sysmon/sysmon
 ###################################################
 # cpss
 ###################################################
-cpss/compilation_root/*
-cpss/**/.config*
-cpss/**/*.o
-cpss/**/*.ko
+cpss_4_3_5/compilation_root/*
+cpss_4_3_5//**/.config*
+cpss_4_3_5//**/*.o
+cpss_4_3_5//**/*.ko
+
+cpss_4_3_12/compilation_root/*
+cpss_4_3_12//**/.config*
+cpss_4_3_12//**/*.o
+cpss_4_3_12//**/*.ko
