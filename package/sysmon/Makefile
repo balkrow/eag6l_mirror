@@ -1,6 +1,6 @@
 # Compiler flags
 CFLAGS = -Wall -Wstrict-prototypes -pipe -O2 -fno-strength-reduce -g
-LFLAGS =
+LFLAGS = 
 INCLUDES = -I. -I../include  
 INCLUDES += -I../cpss/cpssEnabler/mainExtDrv/h -I../cpss/mainGaltisWrapper/h
 INCLUDES += -I../cpss/common/h -I../cpss/cpssEnabler/mainOs/h
@@ -23,7 +23,7 @@ PROG_OBJ = devmem.c pid_output.c
 all: sysmon
 
 sysmon:  ${OBJECT} ${PROG_OBJ} 
-	${CC}  $(CFLAGS) $(DFLAGS) $(INCLUDES) ${COMMON_LIB} ${MAINDRV_LIB}  -lreadline -ltermcap -lrt -lcrypt -o $@ $^
+	${CC}  $(CFLAGS) $(DFLAGS) $(INCLUDES) ${COMMON_LIB} ${MAINDRV_LIB}  -lreadline -ltermcap -lrt -lcrypt -lpthread -o $@ $^
 	
 clean:
 	rm -f sysmon rm *.o

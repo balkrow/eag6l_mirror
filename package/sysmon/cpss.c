@@ -8,7 +8,7 @@
 *******************************************************************************/
 /**
 ********************************************************************************
-* @file appDemoBoardConfig.c
+* @file appEAG6LBoardConfig.c
 *
 * @brief Includes board specific initialization definitions and data-structures.
 *
@@ -140,14 +140,14 @@
         #include <appDemo/boardConfig/gtDbDxBobcat2LedIfConfig.h>
         #include <appDemo/boardConfig/gtDbDxBoardTypeConfig.h>
         #include <cpssDriver/pp/hardware/prvCpssDrvObj.h>
-        extern GT_STATUS appDemoConvert2DxChPhase1Info
+        extern GT_STATUS appEAG6LConvert2DxChPhase1Info
         (
             IN  GT_U8                              dev,
             IN  CPSS_PP_PHASE1_INIT_PARAMS         *appCpssPpPhase1ParamsPtr,
             OUT CPSS_DXCH_PP_PHASE1_INIT_INFO_STC  *cpssPpPhase1InfoPtr
         );
 
-        extern GT_STATUS appDemoBc2PortInterfaceInit
+        extern GT_STATUS appEAG6LBc2PortInterfaceInit
         (
                 IN  GT_U8 dev,
                 IN  GT_U8 boardRevId
@@ -200,7 +200,7 @@
 #endif
 #ifdef CHX_FAMILY
         #include <cpss/dxCh/dxChxGen/tcam/cpssDxChTcam.h>
-        extern GT_U32 appDemoDxChTcamPclConvertedIndexGet_fromUT
+        extern GT_U32 appEAG6LDxChTcamPclConvertedIndexGet_fromUT
         (
                 IN     GT_U8                                devNum,
                 IN     GT_U32                               index,
@@ -217,17 +217,26 @@
 
 #endif /* CHX_FAMILY */
 
+
+GT_STATUS appEAG6LSoCMDCFrequency_setInDb(IN     APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT mode);
+APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT appEAG6LSoCMDCFrequency_getFromDb(void);
+GT_STATUS appEAG6LSoCMDCFrequencySet (APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT mode);
+GT_STATUS appEAG6LTraceHwAccessEnable (IN GT_U8 devNum, 
+	IN CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_ENT accessType, IN GT_BOOL enable);
+GT_STATUS appEAG6LTraceHwAccessOutputModeSet (IN CPSS_ENABLER_TRACE_OUTPUT_MODE_ENT mode);
+
+
 #define HWINIT_GLOVAR(_var) \
     PRV_SHARED_GLOBAL_VAR_GET(commonMod.genericHwInitDir._var)
 
-typedef GT_STATUS (*appDemoDbEntryGet_TYPE)
+typedef GT_STATUS (*appEAG6LDbEntryGet_TYPE)
 (
     IN  GT_CHAR *namePtr,
     OUT GT_U32  *valuePtr
 );
-extern appDemoDbEntryGet_TYPE appDemoDbEntryGet_func;
+extern appEAG6LDbEntryGet_TYPE appEAG6LDbEntryGet_func;
 /* replace cpssDxChPortModeSpeedSet when working with port manager */
-typedef GT_STATUS (*appDemoDxChPortMgrPortModeSpeedSet_TYPE)
+typedef GT_STATUS (*appEAG6LDxChPortMgrPortModeSpeedSet_TYPE)
 (
     IN  GT_U8                           devNum,
     IN  GT_PHYSICAL_PORT_NUM            portNum,
@@ -236,7 +245,7 @@ typedef GT_STATUS (*appDemoDxChPortMgrPortModeSpeedSet_TYPE)
     IN  CPSS_PORT_SPEED_ENT             speed
 );
 
-extern appDemoDxChPortMgrPortModeSpeedSet_TYPE  appDemoDxChPortMgrPortModeSpeedSet_func;
+extern appEAG6LDxChPortMgrPortModeSpeedSet_TYPE  appEAG6LDxChPortMgrPortModeSpeedSet_func;
 
 #if defined(LINUX)
 
@@ -288,7 +297,7 @@ extern GT_U32 win32GetPid
                 ...
         );
 
-        GT_STATUS gtAppDemoXcat2StackPortsModeSpeedSet
+        GT_STATUS Hfr_gtAppDemoXcat2StackPortsModeSpeedSet
         (
                 IN  GT_U8     devNum,
                 IN  GT_U8     portNum,
@@ -302,7 +311,7 @@ extern GT_U32 win32GetPid
             GT_UNUSED_PARAM(speed);
             return GT_NOT_SUPPORTED;/*xCat2 not supported*/
         }
-        GT_STATUS gtAppDemoXcat2SfpPortEnable
+        GT_STATUS Hfr_gtAppDemoXcat2SfpPortEnable
         (
                 IN  GT_U8     devNum,
                 IN  GT_U8     portNum,
@@ -314,7 +323,7 @@ extern GT_U32 win32GetPid
             GT_UNUSED_PARAM(enable);
             return GT_NOT_SUPPORTED;/*xCat2 not supported*/
         }
-        GT_STATUS util_appDemoDxChPortFWSRatesTableGet
+        GT_STATUS util_appEAG6LDxChPortFWSRatesTableGet
         (
                 IN  GT_U8 devNum,
                 IN  GT_U32 arrSize,
@@ -323,7 +332,7 @@ extern GT_U32 win32GetPid
 #endif
 
 #ifdef PX_FAMILY
-        GT_STATUS util_appDemoPxPortFWSRatesTableGet
+        GT_STATUS util_appEAG6LPxPortFWSRatesTableGet
         (
                 IN  GT_U8 devNum,
                 IN  GT_U32 arrSize,
@@ -335,10 +344,10 @@ extern GT_U32 win32GetPid
 
 
 /**********************************************************************************
-        if multiProcessAppDemo = GT_FALSE the appDemo run as regular (one process)
-        if multiProcessAppDemo = GT_TRUE the appDemo run as multiprocess application
+        if multiProcessAppDemo = GT_FALSE the appEAG6L run as regular (one process)
+        if multiProcessAppDemo = GT_TRUE the appEAG6L run as multiprocess application
                 the multiprocess application includes:
-                - appDemo process
+                - appEAG6L process
                 - fdb learning process
                 - RxTx process
         the variable multiProcessAppDemo used in file userEventHandler.c to define
@@ -350,27 +359,27 @@ extern GT_BOOL multiProcessAppDemo;
        Shows if application define PCI parameters of devices that should be processed.
        The PCI scan is skipped in this case
 *********************************************************************************/
-GT_BOOL appDemoCpssPciProvisonDone = GT_FALSE;
+GT_BOOL appEAG6LCpssPciProvisonDone = GT_FALSE;
 
 
 /**********************************************************************************
        These pointers are usable when HA two phases init is done.
 *********************************************************************************/
-CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC *ha2PhasesPhase1ParamsPhase1Ptr = NULL;
+CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC *Hfr_ha2PhasesPhase1ParamsPhase1Ptr = NULL;
 
 
 /*******************************************************************************
  * External variables
  ******************************************************************************/
-GT_U32                          appDemoPpConfigDevAmount;
+GT_U32                          appEAG6LPpConfigDevAmount;
 CPSS_PP_CONFIG_INIT_STC         ppUserLogicalConfigParams[PRV_CPSS_MAX_PP_DEVICES_CNS];
-extern APP_DEMO_PP_CONFIG       appDemoPpConfigList[];
+extern APP_DEMO_PP_CONFIG       appEAG6LPpConfigList[];
 extern GT_BOOL                  systemInitialized;
 extern GT_BOARD_LIST_ELEMENT    boardsList[];
 extern GT_U32                   boardListLen;   /* Length of boardsList array.  */
 
 /* is LSP 2.6.32 used flag */
-GT_BOOL appDemo_LSP_is_linux_2_6_32 = GT_FALSE;
+GT_BOOL appEAG6L_LSP_is_linux_2_6_32 = GT_FALSE;
 
 /* Enable printing inside interrupt routine. */
 extern GT_STATUS extDrvUartInit
@@ -426,7 +435,7 @@ extern GT_BOOL prvTgfFdbShadowUsed;
 
 #endif  /* INCLUDE_UTF */
 
-/* when appDemoOnDistributedSimAsicSide == 1
+/* when appEAG6LOnDistributedSimAsicSide == 1
    this image is running on simulation:
    1. our application on distributed "Asic side"
    2. the Other application that run on the "application side" is in
@@ -436,7 +445,7 @@ extern GT_BOOL prvTgfFdbShadowUsed;
       (because the Other side application may have difficulty running
        "Galtis wrappers" from it's side)
 */
-GT_U32  appDemoOnDistributedSimAsicSide = 0;
+GT_U32  appEAG6LOnDistributedSimAsicSide = 0;
 
 #ifdef ASIC_SIMULATION
     #include <gtStack/gtOsSocket.h>
@@ -492,37 +501,37 @@ GT_U32  appDemoOnDistributedSimAsicSide = 0;
 /*******************************************************************************
  * External variables
  ******************************************************************************/
-GT_BOOL  appDemoInitRegDefaults = GT_FALSE;
+GT_BOOL  appEAG6LInitRegDefaults = GT_FALSE;
 /*******************************************************************************
  * Local usage variables
  ******************************************************************************/
-static GT_BOOL  appDemoPrePhase1Init = GT_FALSE;
-static GT_BOOL  appDemoInitSystemOnlyPhase1and2 = GT_FALSE;
-static GT_BOOL  appDemoInitSystemPhase1and2_done = GT_FALSE;
+static GT_BOOL  appEAG6LPrePhase1Init = GT_FALSE;
+static GT_BOOL  appEAG6LInitSystemOnlyPhase1and2 = GT_FALSE;
+static GT_BOOL  appEAG6LInitSystemPhase1and2_done = GT_FALSE;
 static GT_BOOL  gIsB2bSystem;
 static GT_BOOL  eag6lCpssInitialized = GT_FALSE;
-static GT_BOOL  appDemoTrafficEnableDisableMode = GT_FALSE;
+static GT_BOOL  appEAG6LTrafficEnableDisableMode = GT_FALSE;
 static GT_BOARD_CONFIG_FUNCS   boardCfgFuncs;  /* Board specific configuration functions.  */
-/*extern*/ GT_BOOL appDemoCpssInitSkipHwReset = GT_FALSE;/* indication that the appDemo initialize devices that skipped HW reset.
+/*extern*/ GT_BOOL appEAG6LCpssInitSkipHwReset = GT_FALSE;/* indication that the appEAG6L initialize devices that skipped HW reset.
                     GT_TRUE  - the device is doing cpssInitSystem(...) after HW did NOT do soft/hard reset.
                     GT_FALSE - the device is doing cpssInitSystem(...) after HW did        soft/hard reset.
  */
-/*extern*/ GT_U32    appDemoCpssCurrentDevIndex = 0;/* the appDemo device index in appDemoPpConfigList[] that currently initialized */
+/*extern*/ GT_U32    appEAG6LCpssCurrentDevIndex = 0;/* the appEAG6L device index in appEAG6LPpConfigList[] that currently initialized */
 
 /* do we bypass the initialization of the events */
-GT_BOOL appDemoBypassEventInitialize = GT_FALSE;
-/* pointer to the function that allow override of setting done by appDemoSysConfigFuncsGet */
+GT_BOOL appEAG6LBypassEventInitialize = GT_FALSE;
+/* pointer to the function that allow override of setting done by appEAG6LSysConfigFuncsGet */
 /* TBD - not supported yet */
-APP_DEMO_SYS_CONFIG_FUNCS_EXTENTION_GET_FUNC appDemoSysConfigFuncsExtentionGetPtr = NULL;
+APP_DEMO_SYS_CONFIG_FUNCS_EXTENTION_GET_FUNC appEAG6LSysConfigFuncsExtentionGetPtr = NULL;
 #if defined  CPSS_USE_MUTEX_PROFILER
 GT_BOOL   cpssInitSystemIsDone = GT_FALSE;
 #endif
 
 /* information about read and write hw access */
-static APP_DEMO_CPSS_HW_ACCESS_INFO_STC  appDemoAccessInfo;
+static APP_DEMO_CPSS_HW_ACCESS_INFO_STC  appEAG6LAccessInfo;
 
 /* pointer to read and write  hw access db */
-static APP_DEMO_CPSS_HW_ACCESS_DB_STC    *appDemoAccessDbPtr;
+static APP_DEMO_CPSS_HW_ACCESS_DB_STC    *appEAG6LAccessDbPtr;
 /* flag for tracing read hw access */
 static GT_BOOL                            traceReadHwAccess = GT_FALSE;
 /* flag for tracing write hw access */
@@ -530,7 +539,7 @@ static GT_BOOL                            traceWriteHwAccess = GT_FALSE;
 /* flag for tracing write hw access */
 static GT_BOOL                            traceDelayHwAccess = GT_FALSE;
 /* trace output mode */
-CPSS_ENABLER_TRACE_OUTPUT_MODE_ENT appDemoTraceOutputMode = CPSS_ENABLER_TRACE_OUTPUT_MODE_DIRECT_E;
+CPSS_ENABLER_TRACE_OUTPUT_MODE_ENT appEAG6LTraceOutputMode = CPSS_ENABLER_TRACE_OUTPUT_MODE_DIRECT_E;
 
 /* first stored parameter of cpssInitSystem */
 static GT_U32                             storedBoardIdx;
@@ -912,35 +921,35 @@ static GT_CHAR* FIELDS_ARRAY[] =
 #endif
 
 /* Do common initialization for all families */
-static GT_STATUS appDemoInitGlobalModuls();
+static GT_STATUS appEAG6LInitGlobalModuls();
 
 /* Cpss initialization */
-GT_STATUS appDemoCpssInit
+GT_STATUS appEAG6LCpssInit
 (
     GT_VOID
 );
 
 /* if not used shared memory or it's unix-like simulation do compile this */
 #if !defined(SHARED_MEMORY)
-GT_STATUS appDemoGetDefaultExtDrvFuncs(
+GT_STATUS appEAG6LGetDefaultExtDrvFuncs(
     OUT CPSS_EXT_DRV_FUNC_BIND_STC  *extDrvFuncBindInfoPtr
 );
 
 
-GT_STATUS appDemoGetDefaultOsBindFuncs(
+GT_STATUS appEAG6LGetDefaultOsBindFuncs(
     OUT CPSS_OS_FUNC_BIND_STC *osFuncBindPtr
 );
 #endif /* !defined(SHARED_MEMORY) */
 
 
 #if (!defined(SHARED_MEMORY) || (defined(LINUX) && defined(ASIC_SIMULATION)))
-GT_STATUS appDemoGetDefaultTraceFuncs(
+GT_STATUS appEAG6LGetDefaultTraceFuncs(
     OUT CPSS_TRACE_FUNC_BIND_STC  *traceFuncBindInfoPtr
 );
 #endif
 
 /* HW phase 1 initialization */
-static GT_STATUS appDemoBoardPhase1Init
+static GT_STATUS appEAG6LBoardPhase1Init
 (
     IN  GT_U8                   boardRevId,
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs,
@@ -950,7 +959,7 @@ static GT_STATUS appDemoBoardPhase1Init
 );
 
 /* HW phase 2 initialization */
-static GT_STATUS appDemoBoardPhase2Init
+static GT_STATUS appEAG6LBoardPhase2Init
 (
     IN  GT_U8                   boardRevId,
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs,
@@ -960,7 +969,7 @@ static GT_STATUS appDemoBoardPhase2Init
 );
 
 /* Logical phase initialization */
-static GT_STATUS appDemoBoardLogicalInit
+static GT_STATUS appEAG6LBoardLogicalInit
 (
     IN  GT_U8                   boardRevId,
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs,
@@ -970,7 +979,7 @@ static GT_STATUS appDemoBoardLogicalInit
 );
 
 /* General phase initialization */
-static GT_STATUS appDemoBoardGeneralInit
+static GT_STATUS appEAG6LBoardGeneralInit
 (
     IN  GT_U8                   boardRevId,
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs,
@@ -981,44 +990,44 @@ static GT_STATUS appDemoBoardGeneralInit
 
 #ifdef IMPL_PP
 /* Updates PP phase 1 params according to app demo database. */
-static GT_STATUS appDemoUpdatePpPhase1Params
+static GT_STATUS appEAG6LUpdatePpPhase1Params
 (
     INOUT CPSS_PP_PHASE1_INIT_PARAMS    *paramsPtr
 );
 
 /* Updates PP phase 2 params according to app demo database. */
-static GT_STATUS appDemoUpdatePpPhase2Params
+static GT_STATUS appEAG6LUpdatePpPhase2Params
 (
     INOUT CPSS_PP_PHASE2_INIT_PARAMS    *paramsPtr
 );
 #endif
 
 /* Updates PP logical init params according to app demo database. */
-static GT_STATUS appDemoUpdatePpLogicalInitParams
+static GT_STATUS appEAG6LUpdatePpLogicalInitParams
 (
     INOUT CPSS_PP_CONFIG_INIT_STC       *paramsPtr
 );
 
 /* Updates lib init params according to app demo database. */
-GT_STATUS appDemoUpdateLibInitParams
+GT_STATUS appEAG6LUpdateLibInitParams
 (
     INOUT APP_DEMO_LIB_INIT_PARAMS      *paramsPtr
 );
 
-void appDemoRtosOnSimulationInit
+void appEAG6LRtosOnSimulationInit
 (
     void
 );
 
 
-static GT_STATUS appDemoSetHwAccessDbActiveState
+static GT_STATUS appEAG6LSetHwAccessDbActiveState
 (
     IN      GT_BOOL                             active,
     INOUT   APP_DEMO_CPSS_HW_ACCESS_DB_STC      **dbPtrPtr,
     INOUT   APP_DEMO_CPSS_HW_ACCESS_INFO_STC    *dbInfoPtr
 );
 
-static GT_STATUS appDemoTraceHwAccessAction
+static GT_STATUS appEAG6LTraceHwAccessAction
 (
     IN GT_U8                                devNum,
     IN GT_U32                               portGroupId,
@@ -1032,7 +1041,7 @@ static GT_STATUS appDemoTraceHwAccessAction
     IN CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_ENT         accessType
 );
 
-static GT_STATUS appDemoTraceStoreHwData
+static GT_STATUS appEAG6LTraceStoreHwData
 (
     IN GT_U8                                devNum,
     IN GT_U32                               portGroupId,
@@ -1048,7 +1057,7 @@ static GT_STATUS appDemoTraceStoreHwData
 );
 
 #if (!defined(SHARED_MEMORY) || (defined(LINUX) && defined(ASIC_SIMULATION)))
-static GT_STATUS appDemoTraceWriteHwAccess
+static GT_STATUS appEAG6LTraceWriteHwAccess
 (
     IN GT_U8       devNum,
     IN GT_U32      portGroupId,
@@ -1060,7 +1069,7 @@ static GT_STATUS appDemoTraceWriteHwAccess
     IN GT_U32      mask
 );
 
-static GT_STATUS appDemoTraceReadHwAccess
+static GT_STATUS appEAG6LTraceReadHwAccess
 (
     IN GT_U8       devNum,
     IN GT_U32      portGroupId,
@@ -1071,21 +1080,21 @@ static GT_STATUS appDemoTraceReadHwAccess
     IN GT_U32      *dataPtr
 );
 
-static GT_STATUS appDemoTraceDelayHwAccess
+static GT_STATUS appEAG6LTraceDelayHwAccess
 (
     IN GT_U8       devNum,
     IN GT_U32      portGroupId,
     IN GT_U32      millisec
 );
 #endif
-GT_STATUS prvAppDemoTraceHwAccessEnable
+GT_STATUS Hfr_prvAppDemoTraceHwAccessEnable
 (
     IN GT_U8                devNum,
     IN GT_U32               accessType,
     IN GT_BOOL              enable
 );
 
-GT_STATUS prvAppDemoTraceHwAccessOutputModeSet
+GT_STATUS Hfr_prvAppDemoTraceHwAccessOutputModeSet
 (
     IN GT_U32   mode
 );
@@ -1102,13 +1111,13 @@ static pid_t RxTxProcessId = 0;
 
 static char scrBuf[SCREEN_ROWS * SCREEN_COLS];
 static GT_U32 scrBufCursor;
-GT_STATUS appDemoDeviceLogicalInit
+GT_STATUS appEAG6LDeviceLogicalInit
 (
     IN GT_U8    devIdx,
     IN GT_U8    boardRevId
 );
 
-GT_STATUS appDemoDeviceGeneralInit
+GT_STATUS appEAG6LDeviceGeneralInit
 (
     IN  GT_U8   devIdx,
     IN  GT_U8   boardRevId
@@ -1137,7 +1146,7 @@ GT_STATUS appDemoDeviceGeneralInit
 *******************************************************************************/
 typedef int (*FUNCP_TRACE_PRINTF_DATA)(const char* format, ...);
 
-static GT_VOID appDemoTracePrintHwData
+static GT_VOID appEAG6LTracePrintHwData
 (
     IN GT_U32                   addr,
     IN GT_U32                   length,
@@ -1155,10 +1164,10 @@ static GT_BOOL  useDebugDeviceId = GT_FALSE;
 /* flag to state that the trace will print also functions that return GT_OK */
 /* usually we not care about 'GT_OK' only about fails */
 /* the flag can be changed before running the cpssInitSystem(...) --> from terminal vxWorks */
-GT_U32 appDemoTraceOn_GT_OK = 0;
+GT_U32 appEAG6LTraceOn_GT_OK = 0;
 
 /**
-* @internal appDemoTraceOn_GT_OK_Set function
+* @internal appEAG6LTraceOn_GT_OK_Set function
 * @endinternal
 *
 * @brief   This function configures 'print returning GT_OK' functions flag
@@ -1166,17 +1175,17 @@ GT_U32 appDemoTraceOn_GT_OK = 0;
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 *
-* @note - in unix-like systems special function needed to configure appDemoTraceOn_GT_OK
+* @note - in unix-like systems special function needed to configure appEAG6LTraceOn_GT_OK
 *       specific ifdef's needless, because this function can't harm anything
 *       - must be external to ensure it's not ommited by optimization.
 *
 */
-GT_VOID appDemoTraceOn_GT_OK_Set
+GT_VOID appEAG6LTraceOn_GT_OK_Set
 (
     GT_U32 enable
 )
 {
-    appDemoTraceOn_GT_OK = enable;
+    appEAG6LTraceOn_GT_OK = enable;
     return;
 }
 
@@ -1204,10 +1213,10 @@ typedef struct __TRACE_ENABLE_SEGMENT_STC
 } TRACE_ENABLE_SEGMENT_STC;
 
 /* pointer to the first rule in the chain */
-static TRACE_ENABLE_SEGMENT_STC *appDemoTraceEnableFilterPtr = NULL;
+static TRACE_ENABLE_SEGMENT_STC *appEAG6LTraceEnableFilterPtr = NULL;
 
 /**
-* @internal appDemoTraceEnableFilterAdd function
+* @internal appEAG6LTraceEnableFilterAdd function
 * @endinternal
 *
 * @brief   This function adds trace filtering rule.
@@ -1220,7 +1229,7 @@ static TRACE_ENABLE_SEGMENT_STC *appDemoTraceEnableFilterPtr = NULL;
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS appDemoTraceEnableFilterAdd
+GT_STATUS appEAG6LTraceEnableFilterAdd
 (
     IN GT_U32 startLineNum,
     IN GT_U32 endLineNum,
@@ -1234,16 +1243,16 @@ GT_STATUS appDemoTraceEnableFilterAdd
     {
         return GT_OUT_OF_CPU_MEM;
     }
-    node->nextPtr = appDemoTraceEnableFilterPtr;
+    node->nextPtr = appEAG6LTraceEnableFilterPtr;
     node->startLineNum = startLineNum;
     node->endLineNum = endLineNum;
     cpssOsStrCpy((GT_CHAR*)&(node->substingInPath[0]), (const GT_CHAR*)substingInPath);
-    appDemoTraceEnableFilterPtr = node;
+    appEAG6LTraceEnableFilterPtr = node;
     return GT_OK;
 }
 
 /**
-* @internal appDemoTraceEnableFilterReset function
+* @internal appEAG6LTraceEnableFilterReset function
 * @endinternal
 *
 * @brief   This function resets all trace filtering rules
@@ -1251,9 +1260,9 @@ GT_STATUS appDemoTraceEnableFilterAdd
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_VOID appDemoTraceEnableFilterReset()
+GT_VOID appEAG6LTraceEnableFilterReset()
 {
-    TRACE_ENABLE_SEGMENT_STC* node = appDemoTraceEnableFilterPtr;
+    TRACE_ENABLE_SEGMENT_STC* node = appEAG6LTraceEnableFilterPtr;
     TRACE_ENABLE_SEGMENT_STC* nextNode;
     while (node != NULL)
     {
@@ -1261,11 +1270,11 @@ GT_VOID appDemoTraceEnableFilterReset()
         cpssOsFree(node);
         node = nextNode;
     }
-    appDemoTraceEnableFilterPtr = NULL;
+    appEAG6LTraceEnableFilterPtr = NULL;
 }
 
 /**
-* @internal appDemoTraceEnableFilterCheck function
+* @internal appEAG6LTraceEnableFilterCheck function
 * @endinternal
 *
 * @brief   This function ckecks is trace printing enable for this trace statement
@@ -1276,7 +1285,7 @@ GT_VOID appDemoTraceEnableFilterReset()
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_BOOL appDemoTraceEnableFilterCheck
+GT_BOOL appEAG6LTraceEnableFilterCheck
 (
     IN GT_U8  *filePath,
     IN GT_U32 lineNum
@@ -1285,7 +1294,7 @@ GT_BOOL appDemoTraceEnableFilterCheck
     GT_U32 filePathLen = cpssOsStrlen(filePath);
     GT_U32 substrLen;
     GT_32  comparePos;
-    TRACE_ENABLE_SEGMENT_STC* node = appDemoTraceEnableFilterPtr;
+    TRACE_ENABLE_SEGMENT_STC* node = appEAG6LTraceEnableFilterPtr;
     for (; (node != NULL); node = node->nextPtr)
     {
         if ((lineNum < node->startLineNum) || (lineNum > node->endLineNum))
@@ -1322,16 +1331,16 @@ GT_BOOL appDemoTraceEnableFilterCheck
  ******************************************************************************/
 
 /**
-* @internal appDemoShowCpssSwVersion function
+* @internal appEAG6LShowCpssSwVersion function
 * @endinternal
 *
 * @brief   This function returns CPSS SW version. Also, it calls
-*         appDemoCpssInit() for CPSS initialization.
+*         appEAG6LCpssInit() for CPSS initialization.
 *
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS appDemoShowCpssSwVersion(GT_VOID)
+GT_STATUS appEAG6LShowCpssSwVersion(GT_VOID)
 {
     GT_STATUS               rc = GT_OK;
 #if (defined(LINUX) && !defined(ASIC_SIMULATION))
@@ -1413,7 +1422,7 @@ GT_STATUS appDemoShowCpssSwVersion(GT_VOID)
             lenToCmp = cpssOsStrlen(lspSubNameToCmp);
             if (0 == cpssOsStrNCmp(lspSubNameToCmp, lspbuf, lenToCmp))
             {
-                appDemo_LSP_is_linux_2_6_32 = GT_TRUE;
+                appEAG6L_LSP_is_linux_2_6_32 = GT_TRUE;
             }
         }
         fclose(lspfile);
@@ -1424,12 +1433,12 @@ GT_STATUS appDemoShowCpssSwVersion(GT_VOID)
 }
 
 /**
-* @internal scrBufReset function
+* @internal Hfr_scrBufReset function
 * @endinternal
 *
 * @brief   This function clears screen buffer and sets line pointer to 0
 */
-GT_VOID scrBufReset
+GT_VOID Hfr_scrBufReset
 (
     GT_VOID
 )
@@ -1654,7 +1663,7 @@ static GT_VOID scrBufPrintHorLine
 }
 
 /**
-* @internal appDemoShowSingleBoard function
+* @internal appEAG6LShowSingleBoard function
 * @endinternal
 *
 * @brief   This function displays single board which have an automatic
@@ -1672,7 +1681,7 @@ static GT_VOID scrBufPrintHorLine
 *       +-------------------------------+-----------------------+
 *
 */
-GT_STATUS appDemoShowSingleBoard(
+GT_STATUS appEAG6LShowSingleBoard(
     IN GT_BOARD_LIST_ELEMENT   *pBoardInfo,
     IN GT_U32   id
 )
@@ -1727,7 +1736,7 @@ GT_STATUS appDemoShowSingleBoard(
 }
 
 /**
-* @internal appDemoShowBoardsList function
+* @internal appEAG6LShowBoardsList function
 * @endinternal
 *
 * @brief   This function displays the boards list which have an automatic
@@ -1750,7 +1759,7 @@ GT_STATUS appDemoShowSingleBoard(
 *       +-------------------------------+-----------------------+
 *
 */
-GT_STATUS appDemoShowBoardsList(GT_VOID)
+GT_STATUS appEAG6LShowBoardsList(GT_VOID)
 {
     GT_BOARD_LIST_ELEMENT   *pBoardInfo;    /* Holds the board information. */
     GT_U32                  i;              /* Loops index.                 */
@@ -1760,7 +1769,7 @@ GT_STATUS appDemoShowBoardsList(GT_VOID)
     if (systemInitialized != GT_TRUE)
     {
         /* do not show board list after system initialized */
-    scrBufReset();
+    Hfr_scrBufReset();
     scrBufPrintf("\nSupported boards:\n");
 
     /* Print table header */
@@ -1786,7 +1795,7 @@ GT_STATUS appDemoShowBoardsList(GT_VOID)
         }
 
         /* print the line */
-        appDemoShowSingleBoard(pBoardInfo,i+1);
+        appEAG6LShowSingleBoard(pBoardInfo,i+1);
     }
     scrBufPrintf("\n");
     scrBufShow();
@@ -1794,24 +1803,24 @@ GT_STATUS appDemoShowBoardsList(GT_VOID)
     osPrintf("Call cpssInitSystem(index,boardRevId,multiProcessApp), where:\n");
     osPrintf("\tindex           - The index of the system to be initialized.\n");
     osPrintf("\tboardRevId      - The index of the board revision.\n");
-    osPrintf("\tmultiProcessApp - Whether appDemo run as multi process.\n");
+    osPrintf("\tmultiProcessApp - Whether appEAG6L run as multi process.\n");
     }
 
     /* show the versions after all other printings ... so it will have better visibility */
-    rc = appDemoShowCpssSwVersion();
+    rc = appEAG6LShowCpssSwVersion();
     if (rc != GT_OK)
     {
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoShowCpssSwVersion", rc);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LShowCpssSwVersion", rc);
         return rc;
     }
 
     osPrintf("\n");
 
     return GT_OK;
-} /* appDemoShowBoardsList */
+} /* appEAG6LShowBoardsList */
 
 /**
-* @internal appDemoTrafficEnable function
+* @internal appEAG6LTrafficEnable function
 * @endinternal
 *
 * @brief   Enables all PP devices and all ports
@@ -1819,7 +1828,7 @@ GT_STATUS appDemoShowBoardsList(GT_VOID)
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoTrafficEnable
+static GT_STATUS appEAG6LTrafficEnable
 (
     GT_VOID
 )
@@ -1834,13 +1843,13 @@ static GT_STATUS appDemoTrafficEnable
     {
 
         /* get init parameters from appdemo init array */
-        sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
-        dev = appDemoPpConfigList[devIdx].devNum;
+        sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
+        dev = appEAG6LPpConfigList[devIdx].devNum;
 
         if(sysCfgFuncs->cpssTrafficEnable)
         {
             /* Enable traffic for given device */
-            if(GT_FALSE == appDemoTrafficEnableDisableMode)
+            if(GT_FALSE == appEAG6LTrafficEnableDisableMode)
             {
                 rc = sysCfgFuncs->cpssTrafficEnable(dev);
 
@@ -1880,7 +1889,7 @@ static GT_STATUS localUtfHirInit(
         return rc;
     }
 
-    rc = utfInit(appDemoPpConfigList[devIdx].devNum);
+    rc = utfInit(appEAG6LPpConfigList[devIdx].devNum);
     if (rc != GT_OK)
     {
         utfPostInitPhase(GT_OK);
@@ -1894,8 +1903,8 @@ static GT_STATUS localUtfHirInit(
     return rc;
 }
 
-extern GT_STATUS   appDemoXCat3MainUtForbidenTests(void);
-extern GT_STATUS   appDemoAlleyCat5MainUtForbidenTests(void);
+extern GT_STATUS   appEAG6LXCat3MainUtForbidenTests(void);
+extern GT_STATUS   appEAG6LAlleyCat5MainUtForbidenTests(void);
 /**
 * @internal localUtfInit function
 * @endinternal
@@ -1918,7 +1927,7 @@ static GT_STATUS localUtfInit(GT_VOID)
         return rc;
     }
 
-    rc = utfInit(appDemoPpConfigList[SYSTEM_DEV_NUM_MAC(0)].devNum);
+    rc = utfInit(appEAG6LPpConfigList[SYSTEM_DEV_NUM_MAC(0)].devNum);
     if (rc != GT_OK)
     {
         utfPostInitPhase(rc);
@@ -1931,18 +1940,18 @@ static GT_STATUS localUtfInit(GT_VOID)
 #ifdef CHX_FAMILY
     if (cpssDeviceRunCheck_onEmulator())
     {
-        if(PRV_CPSS_DXCH_IS_AC3_BASED_DEVICE_MAC(appDemoPpConfigList[SYSTEM_DEV_NUM_MAC(0)].devNum))
+        if(PRV_CPSS_DXCH_IS_AC3_BASED_DEVICE_MAC(appEAG6LPpConfigList[SYSTEM_DEV_NUM_MAC(0)].devNum))
         {
-            rc = appDemoXCat3MainUtForbidenTests();
+            rc = appEAG6LXCat3MainUtForbidenTests();
         }
         if ( GT_OK != rc )
         {
             return rc;
         }
     }
-    if ( PRV_CPSS_PP_MAC(appDemoPpConfigList[SYSTEM_DEV_NUM_MAC(0)].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_AC5_E )
+    if ( PRV_CPSS_PP_MAC(appEAG6LPpConfigList[SYSTEM_DEV_NUM_MAC(0)].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_AC5_E )
     {
-        rc = appDemoAlleyCat5MainUtForbidenTests();
+        rc = appEAG6LAlleyCat5MainUtForbidenTests();
     }
     if ( GT_OK != rc )
     {
@@ -1957,7 +1966,7 @@ static GT_STATUS localUtfInit(GT_VOID)
 * @endinternal
 *
 * @brief   Run fdbLearning abd RxTx processes
-*         for multi process appDemo
+*         for multi process appEAG6L
 *         multiProcessAppDemo set by cpssInitSystem
 *         if argv[2] > 0
 *
@@ -2032,7 +2041,7 @@ static GT_STATUS localInitSharedMemoryTasks(GT_VOID)
 
 #ifdef CHX_FAMILY
 /* callback to bind */
-GT_VOID appDemoDxChCnmResetPreparation_callbackFunc(GT_VOID)
+GT_VOID appEAG6LDxChCnmResetPreparation_callbackFunc(GT_VOID)
 {
     GT_U8     devNum;   /* device number       */
     GT_U32    devIdx;   /* device index        */
@@ -2046,10 +2055,10 @@ GT_VOID appDemoDxChCnmResetPreparation_callbackFunc(GT_VOID)
             continue;
         }
 
-        rc = appDemoDxChCnmResetPreparation(devNum, GT_TRUE);
+        rc = appEAG6LDxChCnmResetPreparation(devNum, GT_TRUE);
         if (rc != GT_OK)
         {
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDxChCnmResetPreparation", rc);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDxChCnmResetPreparation", rc);
             return;
         }
     }
@@ -2058,7 +2067,7 @@ GT_VOID appDemoDxChCnmResetPreparation_callbackFunc(GT_VOID)
 #endif
 
 /**
-* @internal cpssInitSystem_afterBasicConfig function
+* @internal Hfr_cpssInitSystem_afterBasicConfig function
 * @endinternal
 *
 * @brief   This 'after basic config' part of board initialization function, the
@@ -2067,7 +2076,7 @@ GT_VOID appDemoDxChCnmResetPreparation_callbackFunc(GT_VOID)
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS cpssInitSystem_afterBasicConfig
+GT_STATUS Hfr_cpssInitSystem_afterBasicConfig
 (
     GT_VOID
 )
@@ -2090,34 +2099,34 @@ GT_STATUS cpssInitSystem_afterBasicConfig
         return rc;
     }
 
-    if(appDemoInitSystemPhase1and2_done == GT_FALSE)
+    if(appEAG6LInitSystemPhase1and2_done == GT_FALSE)
     {
         /* must run first part before this one ... we not want to crash on non initialized variables */
         return GT_NOT_INITIALIZED;
     }
 
-    /* appDemoEventHandlerPreInit:
+    /* appEAG6LEventHandlerPreInit:
         needed to be called before:
         boardCfgFuncs.boardAfterInitConfig(...)
         and before:
-        appDemoEventRequestDrvnModeInit()
+        appEAG6LEventRequestDrvnModeInit()
         */
-    rc = appDemoEventHandlerPreInit();
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoEventHandlerPreInit", rc);
+    rc = appEAG6LEventHandlerPreInit();
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LEventHandlerPreInit", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
 
-    stat=appDemoDbEntryGet("initSystemNotAfterPhase2", &value);
+    stat=appEAG6LDbEntryGet("initSystemNotAfterPhase2", &value);
     if ((stat == GT_OK) && (value != 0))
     {
         /* for this special mode only events handler should be invoked */
         /* spawn the user event handler processes */
         if (system_recovery.systemRecoveryProcess == CPSS_SYSTEM_RECOVERY_PROCESS_NOT_ACTIVE_E)
         {
-            rc = appDemoEventRequestDrvnModeInit();
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoEventRequestDrvnModeInit", rc);
+            rc = appEAG6LEventRequestDrvnModeInit();
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LEventRequestDrvnModeInit", rc);
         }
         return rc;
 
@@ -2125,36 +2134,36 @@ GT_STATUS cpssInitSystem_afterBasicConfig
     /*****************************************************************/
     /* Logic phase initialization                                    */
     /*****************************************************************/
-    rc = appDemoBoardLogicalInit((GT_U8)boardRevId,
+    rc = appEAG6LBoardLogicalInit((GT_U8)boardRevId,
                                  &boardCfgFuncs,
                                  numOfPp,
                                  numOfFa,
                                  numOfXbar);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoBoardLogicalInit", rc);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LBoardLogicalInit", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
-    stat=appDemoDbEntryGet("initSystemWithoutInterrupts", &value);
-    if ((appDemoPrePhase1Init == GT_TRUE) && ((stat == GT_NO_SUCH) || ((stat == GT_OK) && (value == 0))))
+    stat=appEAG6LDbEntryGet("initSystemWithoutInterrupts", &value);
+    if ((appEAG6LPrePhase1Init == GT_TRUE) && ((stat == GT_NO_SUCH) || ((stat == GT_OK) && (value == 0))))
     {
         /* for this special mode only events handler should be invoked */
         /* spawn the user event handler processes */
-        rc = appDemoEventRequestDrvnModeInit();
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoEventRequestDrvnModeInit", rc);
+        rc = appEAG6LEventRequestDrvnModeInit();
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LEventRequestDrvnModeInit", rc);
         return rc;
 
     }
 
-    stat=appDemoDbEntryGet("initSystemNotAfterLogical", &value);
+    stat=appEAG6LDbEntryGet("initSystemNotAfterLogical", &value);
     if ((stat == GT_OK) && (value != 0))
     {
         /* for this special mode only events handler should be invoked */
         /* spawn the user event handler processes */
         if (system_recovery.systemRecoveryProcess == CPSS_SYSTEM_RECOVERY_PROCESS_NOT_ACTIVE_E)
         {
-            rc = appDemoEventRequestDrvnModeInit();
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoEventRequestDrvnModeInit", rc);
+            rc = appEAG6LEventRequestDrvnModeInit();
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LEventRequestDrvnModeInit", rc);
         }
         return rc;
 
@@ -2163,12 +2172,12 @@ GT_STATUS cpssInitSystem_afterBasicConfig
     /*****************************************************************/
     /* General phase initialization                                  */
     /*****************************************************************/
-    rc = appDemoBoardGeneralInit((GT_U8)boardRevId,
+    rc = appEAG6LBoardGeneralInit((GT_U8)boardRevId,
                                  &boardCfgFuncs,
                                  numOfPp,
                                  numOfFa,
                                  numOfXbar);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoBoardGeneralInit", rc);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LBoardGeneralInit", rc);
     if (rc != GT_OK)
     {
         return rc;
@@ -2180,7 +2189,7 @@ GT_STATUS cpssInitSystem_afterBasicConfig
         return rc;
 #endif /*CHX_FAMILY*/
 
-    if(appDemoOnDistributedSimAsicSide == 0)
+    if(appEAG6LOnDistributedSimAsicSide == 0)
     {
         /*****************************************************************/
         /* Perform board specific settings after logical phase           */
@@ -2194,16 +2203,16 @@ GT_STATUS cpssInitSystem_afterBasicConfig
                 return rc;
             }
         }
-        stat=appDemoDbEntryGet("initSystemWithoutInterrupts", &value);
+        stat=appEAG6LDbEntryGet("initSystemWithoutInterrupts", &value);
         if ((numOfPp + numOfFa + numOfXbar) != 0       &&
-            (appDemoBypassEventInitialize == GT_FALSE) &&
+            (appEAG6LBypassEventInitialize == GT_FALSE) &&
             ( system_recovery.systemRecoveryProcess == CPSS_SYSTEM_RECOVERY_PROCESS_NOT_ACTIVE_E ) &&
             ((stat == GT_NO_SUCH) || ((stat == GT_OK) && (value == 0))))
         {
 
             /* spawn the user event handler processes */
-            rc = appDemoEventRequestDrvnModeInit();
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoEventRequestDrvnModeInit", rc);
+            rc = appEAG6LEventRequestDrvnModeInit();
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LEventRequestDrvnModeInit", rc);
             if (rc != GT_OK)
             {
                 return rc;
@@ -2212,13 +2221,13 @@ GT_STATUS cpssInitSystem_afterBasicConfig
     }
 
     /* Enable all PP devices and all ports */
-    rc = appDemoTrafficEnable();
+    rc = appEAG6LTrafficEnable();
     if (rc != GT_OK)
     {
         return rc;
     }
 
-    if(appDemoDbEntryGet("systemInitialized = not allow",&value) == GT_OK && value == 1)
+    if(appEAG6LDbEntryGet("systemInitialized = not allow",&value) == GT_OK && value == 1)
     {
         /* the system is not ready yet to state 'systemInitialized = GT_TRUE' */
     }
@@ -2229,7 +2238,7 @@ GT_STATUS cpssInitSystem_afterBasicConfig
 
     /****************************************
     * Run fdbLearning abd RxTx processes
-    * for multi process appDemo
+    * for multi process appEAG6L
     *
     *  multiProcessAppDemo set by cpssInitSystem
     *  if argv[2] == 2
@@ -2243,7 +2252,7 @@ GT_STATUS cpssInitSystem_afterBasicConfig
 
 #ifdef LINUX
     #ifdef CHX_FAMILY
-        osRegisterCpuResetFunc(appDemoDxChCnmResetPreparation_callbackFunc);
+        osRegisterCpuResetFunc(appEAG6LDxChCnmResetPreparation_callbackFunc);
     #endif
 #endif
     /*****************************************************************/
@@ -2270,7 +2279,7 @@ static GT_VOID dx_EMBCOM_init_LUA()
 #endif
 
 /**
-* @internal cpssInitSystem function
+* @internal Hfr_cpssInitSystem function
 * @endinternal
 *
 * @brief   This is the main board initialization function.
@@ -2279,13 +2288,13 @@ static GT_VOID dx_EMBCOM_init_LUA()
 *                                      be initialized from the
 *                                      board list.
 * @param[in] boardRevId           - Board revision Id.
-* @param[in] multiProcessApp      - Whether appDemo run as multi
+* @param[in] multiProcessApp      - Whether appEAG6L run as multi
 *       process
 *
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS cpssInitSystem
+GT_STATUS Hfr_cpssInitSystem
 (
     IN  GT_U32  boardIdx,
     IN  GT_U32  boardRevId,
@@ -2318,7 +2327,7 @@ GT_STATUS cpssInitSystem
 #endif
 #endif
 
-    if(appDemoDbEntryGet("appDemoActiveDeviceBmp", &value) == GT_OK && value)
+    if(appEAG6LDbEntryGet("appEAG6LActiveDeviceBmp", &value) == GT_OK && value)
     {
         doCommonInfo = GT_FALSE;
     }
@@ -2330,16 +2339,16 @@ GT_STATUS cpssInitSystem
         return rc;
     }
 
-    if((appDemoDbEntryGet("falcon_onEmulator_prepare", &value) == GT_OK) && (value != 0))
+    if((appEAG6LDbEntryGet("falcon_onEmulator_prepare", &value) == GT_OK) && (value != 0))
     {
 #ifdef CHX_FAMILY
         falcon_onEmulator_prepare();
 #endif /*CHX_FAMILY*/
     }
 
-    if((appDemoDbEntryGet("initSystemOnlyPhase1and2", &value) == GT_OK) && (value != 0))
+    if((appEAG6LDbEntryGet("initSystemOnlyPhase1and2", &value) == GT_OK) && (value != 0))
     {
-        appDemoInitSystemOnlyPhase1and2 = GT_TRUE;
+        appEAG6LInitSystemOnlyPhase1and2 = GT_TRUE;
     }
 
     if(doCommonInfo == GT_TRUE)
@@ -2355,9 +2364,9 @@ GT_STATUS cpssInitSystem
     }
 
     /* Init CPSS with register defaults and HW aceess */
-    if((appDemoDbEntryGet("initRegDefaults", &value) == GT_OK) && (value != 0))
+    if((appEAG6LDbEntryGet("initRegDefaults", &value) == GT_OK) && (value != 0))
     {
-        appDemoInitRegDefaults = GT_TRUE;
+        appEAG6LInitRegDefaults = GT_TRUE;
 
         /* when preventing from writing to HW the PP init stage will result in EEPROMDoneIntMemNotDone
            register 0x58 bits 17-18; EPROM initialization is performed and Internal memory initialization is not performed.
@@ -2373,13 +2382,13 @@ GT_STATUS cpssInitSystem
     }
     else
     {
-        appDemoInitRegDefaults = GT_FALSE;
+        appEAG6LInitRegDefaults = GT_FALSE;
     }
 
-                /*   set multiprocess or regular appDemo      */
+                /*   set multiprocess or regular appEAG6L      */
     if ( (boardIdx & APP_DEMO_CV_INIT_MASK) == APP_DEMO_CV_INIT_MASK)
     {
-        appDemoPrePhase1Init = GT_TRUE;
+        appEAG6LPrePhase1Init = GT_TRUE;
         boardIdx = boardIdx - APP_DEMO_CV_INIT_MASK;
     }
 
@@ -2408,13 +2417,13 @@ GT_STATUS cpssInitSystem
         return rc;
     }
 
-    if((appDemoDbEntryGet("legacyPort", &value) == GT_OK) && (value != 0)) /* If Legacy Port Mode was declared add portMgr with value 0 */
+    if((appEAG6LDbEntryGet("legacyPort", &value) == GT_OK) && (value != 0)) /* If Legacy Port Mode was declared add portMgr with value 0 */
     {
-        appDemoDbEntryAdd("portMgr", 0);
+        appEAG6LDbEntryAdd("portMgr", 0);
     } else {
-        if (appDemoDbEntryGet("portMgr", &value) != GT_OK) /* In case portMgr was not stated add PortMgr based on device type */
+        if (appEAG6LDbEntryGet("portMgr", &value) != GT_OK) /* In case portMgr was not stated add PortMgr based on device type */
         {
-            appDemoDbEntryAdd("portMgr", pBoardInfo->portMgr ? 1 : 0);
+            appEAG6LDbEntryAdd("portMgr", pBoardInfo->portMgr ? 1 : 0);
         }
 
     }
@@ -2430,7 +2439,7 @@ GT_STATUS cpssInitSystem
         in case of complex Init (like phonix With caelum)
         we want to save the orignal data
     */
-    if((appDemoDbEntryGet("secondCpssInitConfig", &value) == GT_NO_SUCH))
+    if((appEAG6LDbEntryGet("secondCpssInitConfig", &value) == GT_NO_SUCH))
     {
         storedBoardIdx     = boardIdx;
         storedBoardRevId   = boardRevId;
@@ -2442,7 +2451,7 @@ GT_STATUS cpssInitSystem
         /* check if we run RTOS on simulation , to connect remote simulation */
 #if (defined ASIC_SIMULATION) &&  (defined RTOS_ON_SIM)
         /*simulation initialization*/
-        appDemoRtosOnSimulationInit();
+        appEAG6LRtosOnSimulationInit();
 
 #endif /*(defined ASIC_SIMULATION) &&  (defined RTOS_ON_SIM)*/
 
@@ -2467,7 +2476,7 @@ GT_STATUS cpssInitSystem
                     break;
                 default:
                     /*bypass the need to call from terminal*/
-                    appDemoOnDistributedSimAsicSide = 1;
+                    appEAG6LOnDistributedSimAsicSide = 1;
                     break;
             }
 
@@ -2490,7 +2499,7 @@ GT_STATUS cpssInitSystem
         /* init Debug Services by default */
         GT_BOOL forceNoOsDebugServicesInit = GT_FALSE;
 
-        if(appDemoDbEntryGet("forceNoOsDebugServicesInit", &value) == GT_OK)
+        if(appEAG6LDbEntryGet("forceNoOsDebugServicesInit", &value) == GT_OK)
         {
             if (value == 0)
             {
@@ -2531,7 +2540,7 @@ GT_STATUS cpssInitSystem
         osMemSet(&appDemoSysConfig, 0, sizeof(appDemoSysConfig));
 
         /* ability to set different device numbers for stacking */
-        if(appDemoDbEntryGet("firstDevNum", &value) == GT_OK)
+        if(appEAG6LDbEntryGet("firstDevNum", &value) == GT_OK)
         {
             appDemoSysConfig.firstDevNum = (GT_U8)value;
         }
@@ -2540,11 +2549,11 @@ GT_STATUS cpssInitSystem
             appDemoSysConfig.firstDevNum = 0;
 
              /* ability to randomize device numbers */
-            if(appDemoDbEntryGet("randomFirstDevNum", &value) == GT_OK)
+            if(appEAG6LDbEntryGet("randomFirstDevNum", &value) == GT_OK)
             {
                 cpssOsSrand(cpssOsTickGet());
                 appDemoSysConfig.firstDevNum = (GT_U8)(cpssOsRand()%PRV_CPSS_MAX_PP_DEVICES_CNS);
-                appDemoDbEntryAdd("firstDevNum", appDemoSysConfig.firstDevNum);
+                appEAG6LDbEntryAdd("firstDevNum", appDemoSysConfig.firstDevNum);
             }
         }
     }
@@ -2558,15 +2567,15 @@ GT_STATUS cpssInitSystem
     }
 
 #ifdef LINUX_NOKM
-    rc = appDemoHostI2cInit();
+    rc = appEAG6LHostI2cInit();
     CPSS_ENABLER_DBG_TRACE_RC_MAC("Could not init host I2C driver\n", rc);
 #endif
 
     if(doCommonInfo == GT_TRUE)
     {
         /* Do global initialization for AppDemo before all phases */
-        rc = appDemoInitGlobalModuls();
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoInitGlobalModuls", rc);
+        rc = appEAG6LInitGlobalModuls();
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LInitGlobalModuls", rc);
         if (rc != GT_OK)
         {
             return rc;
@@ -2577,14 +2586,14 @@ GT_STATUS cpssInitSystem
     /* simplified Init */
     if(boardCfgFuncs.boardSimpleInit != NULL)
     {
-        CPSS_ENABLER_OS_RMON_CREATE_ENTRY_CHECKPOINT("appDemoBoardPhase1Init");
+        CPSS_ENABLER_OS_RMON_CREATE_ENTRY_CHECKPOINT("appEAG6LBoardPhase1Init");
         rc = boardCfgFuncs.boardSimpleInit(boardRevId);
-        CPSS_ENABLER_OS_RMON_CREATE_EXIT_CHECKPOINT("appDemoBoardPhase1Init");
+        CPSS_ENABLER_OS_RMON_CREATE_EXIT_CHECKPOINT("appEAG6LBoardPhase1Init");
         CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs.boardSimpleInit", rc);
 
 #ifdef LINUX
     #ifdef CHX_FAMILY
-        osRegisterCpuResetFunc(appDemoDxChCnmResetPreparation_callbackFunc);
+        osRegisterCpuResetFunc(appEAG6LDxChCnmResetPreparation_callbackFunc);
     #endif
 #endif
 
@@ -2612,7 +2621,7 @@ GT_STATUS cpssInitSystem
     }
 
     /* for fasten the "all PPs loops */
-    appDemoPpConfigDevAmount = numOfPp;
+    appEAG6LPpConfigDevAmount = numOfPp;
 
     storedNumOfPp =    numOfPp;
     storedNumOfFa =    numOfFa;
@@ -2635,31 +2644,31 @@ GT_STATUS cpssInitSystem
     /*****************************************************************/
     /* HW phase 1 initialization                                     */
     /*****************************************************************/
-    CPSS_ENABLER_OS_RMON_CREATE_ENTRY_CHECKPOINT("appDemoBoardPhase1Init");
-    rc = appDemoBoardPhase1Init((GT_U8)boardRevId,
+    CPSS_ENABLER_OS_RMON_CREATE_ENTRY_CHECKPOINT("appEAG6LBoardPhase1Init");
+    rc = appEAG6LBoardPhase1Init((GT_U8)boardRevId,
                                 &boardCfgFuncs,
                                 numOfPp,
                                 numOfFa,
                                 numOfXbar);
-    CPSS_ENABLER_OS_RMON_CREATE_EXIT_CHECKPOINT("appDemoBoardPhase1Init");
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoBoardPhase1Init", rc);
+    CPSS_ENABLER_OS_RMON_CREATE_EXIT_CHECKPOINT("appEAG6LBoardPhase1Init");
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LBoardPhase1Init", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
 
 #ifdef CHX_FAMILY
-    /* Getting the first devNum, which is the first device index in the appDemo device list
+    /* Getting the first devNum, which is the first device index in the appEAG6L device list
        and which other devices stored incrementally  */
     GET_FIRST_VALID_DEV_INDEX(devIdx);
 
 #endif
 
     /* Disable port VOS override */
-    if(appDemoDbEntryGet("disableVosOverride", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("disableVosOverride", &value) == GT_OK)
     {
 #ifdef CHX_FAMILY
-        rc = cpssDxChPortVosOverrideControlModeSet(appDemoPpConfigList[devIdx].devNum, value);
+        rc = cpssDxChPortVosOverrideControlModeSet(appEAG6LPpConfigList[devIdx].devNum, value);
         CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssDxChPortVosOverrideControlModeSet", rc);
         if (rc != GT_OK)
         {
@@ -2668,17 +2677,17 @@ GT_STATUS cpssInitSystem
 #endif /*CHX_FAMILY*/
     }
 
-    if (appDemoInitRegDefaults == GT_TRUE)
+    if (appEAG6LInitRegDefaults == GT_TRUE)
     {
 
 #ifdef CHX_FAMILY
-        if(PRV_CPSS_DXCH_IS_AC3_BASED_DEVICE_MAC(appDemoPpConfigList[devIdx].devNum))
+        if(PRV_CPSS_DXCH_IS_AC3_BASED_DEVICE_MAC(appEAG6LPpConfigList[devIdx].devNum))
         {
-            regsAddr = PRV_CPSS_DXCH_DEV_REGS_MAC(appDemoPpConfigList[devIdx].devNum);
+            regsAddr = PRV_CPSS_DXCH_DEV_REGS_MAC(appEAG6LPpConfigList[devIdx].devNum);
             /* Set CPU to work in SDMA mode */
-            rc = prvCpssHwPpPortGroupSetRegField(appDemoPpConfigList[devIdx].devNum, 0, regsAddr->globalRegs.cpuPortCtrlReg, 1, 1, 1);
+            rc = prvCpssHwPpPortGroupSetRegField(appEAG6LPpConfigList[devIdx].devNum, 0, regsAddr->globalRegs.cpuPortCtrlReg, 1, 1, 1);
             /* Set <sel_port_sdma> in General Configuration register to be 0 */
-            rc = prvCpssHwPpSetRegField(appDemoPpConfigList[devIdx].devNum, regsAddr->globalRegs.generalConfigurations, 0, 1, 0);
+            rc = prvCpssHwPpSetRegField(appEAG6LPpConfigList[devIdx].devNum, regsAddr->globalRegs.generalConfigurations, 0, 1, 0);
         }
 #endif /*CHX_FAMILY*/
 
@@ -2701,7 +2710,7 @@ GT_STATUS cpssInitSystem
         return rc;
     }
 
-    if((appDemoOnDistributedSimAsicSide == 0) && (appDemoPrePhase1Init == GT_FALSE))
+    if((appEAG6LOnDistributedSimAsicSide == 0) && (appEAG6LPrePhase1Init == GT_FALSE))
     {
         /* Does board specific settings after phase 1 */
         if (boardCfgFuncs.boardAfterPhase1Config != NULL)
@@ -2718,19 +2727,19 @@ GT_STATUS cpssInitSystem
     /*****************************************************************/
     /* HW phase 2 initialization                                     */
     /*****************************************************************/
-    CPSS_ENABLER_OS_RMON_CREATE_ENTRY_CHECKPOINT("appDemoBoardPhase2Init");
-    rc = appDemoBoardPhase2Init((GT_U8)boardRevId,
+    CPSS_ENABLER_OS_RMON_CREATE_ENTRY_CHECKPOINT("appEAG6LBoardPhase2Init");
+    rc = appEAG6LBoardPhase2Init((GT_U8)boardRevId,
                                 &boardCfgFuncs,
                                 numOfPp,
                                 numOfFa,
                                 numOfXbar);
-    CPSS_ENABLER_OS_RMON_CREATE_EXIT_CHECKPOINT("appDemoBoardPhase1Init");
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoBoardPhase2Init", rc);
+    CPSS_ENABLER_OS_RMON_CREATE_EXIT_CHECKPOINT("appEAG6LBoardPhase1Init");
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LBoardPhase2Init", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
-    if((appDemoOnDistributedSimAsicSide == 0) && (appDemoPrePhase1Init == GT_FALSE))
+    if((appEAG6LOnDistributedSimAsicSide == 0) && (appEAG6LPrePhase1Init == GT_FALSE))
     {
         /* Does board specific settings after phase 2 */
         if (boardCfgFuncs.boardAfterPhase2Config != NULL)
@@ -2747,16 +2756,16 @@ GT_STATUS cpssInitSystem
     }
 
     /* indicate that phase 1,2 done*/
-    appDemoInitSystemPhase1and2_done = GT_TRUE;
-    if (ha2PhasesPhase1ParamsPhase1Ptr != NULL)
+    appEAG6LInitSystemPhase1and2_done = GT_TRUE;
+    if (Hfr_ha2PhasesPhase1ParamsPhase1Ptr != NULL)
     {
-        cpssOsFree(ha2PhasesPhase1ParamsPhase1Ptr);
+        cpssOsFree(Hfr_ha2PhasesPhase1ParamsPhase1Ptr);
     }
-    if (appDemoInitSystemOnlyPhase1and2 == GT_FALSE)
+    if (appEAG6LInitSystemOnlyPhase1and2 == GT_FALSE)
     {
         /* continue to 'after basic config' */
-        rc = cpssInitSystem_afterBasicConfig();
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssInitSystem_afterBasicConfig", rc);
+        rc = Hfr_cpssInitSystem_afterBasicConfig();
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("Hfr_cpssInitSystem_afterBasicConfig", rc);
         if (rc != GT_OK)
         {
             return rc;
@@ -2783,7 +2792,7 @@ GT_STATUS cpssInitSystem
         }
     }
 
-    appDemoCpssInitSkipHwReset = GT_FALSE;/* clear it , (not really needed) */
+    appEAG6LCpssInitSkipHwReset = GT_FALSE;/* clear it , (not really needed) */
 
     cpssOsTimeRT(&end_sec, &end_nsec);
     if(end_nsec < start_nsec)
@@ -2811,15 +2820,15 @@ GT_STATUS cpssInitSystem
 } /* cpssInitSystem */
 
 /**
-* @internal cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic function
+* @internal Hfr_cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic function
 * @endinternal
 *
-* @brief   function for basic testing of the "appDemoInitSystemOnlyPhase1and2" mode.
+* @brief   function for basic testing of the "appEAG6LInitSystemOnlyPhase1and2" mode.
 *         function implemented only for 'DXCH' for bobcat2.
 *         run :
-*         @@appDemoDbEntryAdd "initSystemOnlyPhase1and2",1
+*         @@appEAG6LDbEntryAdd "initSystemOnlyPhase1and2",1
 *         cpssInitSystem 29,1,0
-*         cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic
+*         Hfr_cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic
 *         --> this will allow test 'flood' in vlan 1 and with 'add mac entry' (by configuration)
 *         also to test 'single destination'.
 *         NOTE: no 'controlled learning' as there are no 'tasks' that handle events ...
@@ -2829,11 +2838,11 @@ GT_STATUS cpssInitSystem
 * @retval GT_FAIL                  - otherwise.
 * @retval GT_NOT_INITIALIZED       - cpssInitSystem was not previously called.
 */
-GT_STATUS cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic(GT_VOID)
+GT_STATUS Hfr_cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic(GT_VOID)
 {
     GT_STATUS   rc = GT_OK;
 
-    if(appDemoInitSystemPhase1and2_done == GT_FALSE)
+    if(appEAG6LInitSystemPhase1and2_done == GT_FALSE)
     {
         /* must run first part before this one ... we not want to crash on non initialized variables */
         return GT_NOT_INITIALIZED;
@@ -2849,26 +2858,26 @@ GT_STATUS cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic(GT_VOID)
         GT_PHYSICAL_PORT_NUM portNum;
         GT_PHYSICAL_PORT_NUM cpuPortNumArr[CPSS_MAX_SDMA_CPU_PORTS_CNS]; /* array for multiple CPU ports*/
         /* loop the devices  */
-        appDemoPpConfigDevAmount = numOfDev;/* needed for START_LOOP_ALL_DEVICES*/
+        appEAG6LPpConfigDevAmount = numOfDev;/* needed for START_LOOP_ALL_DEVICES*/
         START_LOOP_ALL_DEVICES(devIdx,dev)
         {
-            if (appDemoPpConfigList[devIdx].valid != GT_TRUE)
+            if (appEAG6LPpConfigList[devIdx].valid != GT_TRUE)
             {
                 continue;
             }
 
-            if (appDemoPpConfigList[devIdx].devFamily == CPSS_PX_FAMILY_PIPE_E)
+            if (appEAG6LPpConfigList[devIdx].devFamily == CPSS_PX_FAMILY_PIPE_E)
             {
                 continue;
             }
 
-            dev = appDemoPpConfigList[devIdx].devNum;
+            dev = appEAG6LPpConfigList[devIdx].devNum;
 
             if(PRV_CPSS_SIP_5_CHECK_MAC(dev))
             {
                 /* init the ports */
-                rc = appDemoBc2PortInterfaceInit(dev,(GT_U8)boardRevId);
-                CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoBc2PortInterfaceInit", rc);
+                rc = appEAG6LBc2PortInterfaceInit(dev,(GT_U8)boardRevId);
+                CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LBc2PortInterfaceInit", rc);
                 if (rc != GT_OK)
                 {
                     return rc;
@@ -2925,7 +2934,7 @@ GT_STATUS cpssInitSystem_reducedAfterPhase2InitPortsAndTraffic(GT_VOID)
             }
 
             /*enabe the traffic on the device and on the ports */
-            rc = appDemoPpConfigList[devIdx].sysConfigFuncs.cpssTrafficEnable(dev);
+            rc = appEAG6LPpConfigList[devIdx].sysConfigFuncs.cpssTrafficEnable(dev);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssTrafficEnable", rc);
             if (rc != GT_OK)
             {
@@ -2980,10 +2989,10 @@ static GT_STATUS memoryLeakageDbg(void)
           because it originally happen before cpssInitSystem --> meaning in 'off state'
         */
         osPrintSync("cpssResetSystem : appdemo pre init (to be ready for cpssInitSystem) \n");
-        rc = appDemoCpssInit();
+        rc = appEAG6LCpssInit();
         if(rc != GT_OK)
         {
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoCpssInit", rc);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LCpssInit", rc);
             return rc;
         }
     }
@@ -2998,7 +3007,7 @@ static GT_STATUS memoryLeakageDbg(void)
 }
 
 /**
-* @internal cpssInitSystemSet function
+* @internal Hfr_cpssInitSystemSet function
 * @endinternal
 *
 * @brief   Function set the parameters for hir, specific to boardIdx and RevId
@@ -3011,7 +3020,7 @@ static GT_STATUS memoryLeakageDbg(void)
 * @param[in] boardRevId            - (pointer to) Board revision
 *       Id.
 */
-void cpssInitSystemSet
+void Hfr_cpssInitSystemSet
 (
     IN GT_U32  boardIdx,
     IN GT_U32  boardRevId
@@ -3022,7 +3031,7 @@ void cpssInitSystemSet
 }
 
 /**
-* @internal cpssInitSystemGet function
+* @internal Hfr_cpssInitSystemGet function
 * @endinternal
 *
 * @brief   Function sets parameters of cpss init system proccess.
@@ -3031,10 +3040,10 @@ void cpssInitSystemSet
 *                                      from the board list.
 * @param[out] boardRevIdPtr            - (pointer to) Board revision Id.
 * @param[out] multiProcessAppPtr       - (pointer to) Whether
-*                                      appDemo run as multi
+*                                      appEAG6L run as multi
 *                                       process.
 */
-void cpssInitSystemGet
+void Hfr_cpssInitSystemGet
 (
     OUT GT_U32  *boardIdxPtr,
     OUT GT_U32  *boardRevIdPtr,
@@ -3047,7 +3056,7 @@ void cpssInitSystemGet
 }
 
 /**
-* @internal cpssAppDemoReInitSystem function
+* @internal Hfr_cpssAppDemoReInitSystem function
 * @endinternal
 *
 * @brief   Run cpssInitSystem according to previously initialized parameters
@@ -3055,14 +3064,14 @@ void cpssInitSystemGet
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS cpssAppDemoReInitSystem
+GT_STATUS Hfr_cpssAppDemoReInitSystem
 (
     GT_VOID
 )
 {
     GT_U32 boardIdx, boardRevId, reMultiProcessApp;
 
-    cpssInitSystemGet(&boardIdx, &boardRevId, &reMultiProcessApp);
+    Hfr_cpssInitSystemGet(&boardIdx, &boardRevId, &reMultiProcessApp);
     return cpssInitSystem(boardIdx, boardRevId, reMultiProcessApp);
 }
 
@@ -3070,7 +3079,7 @@ GT_STATUS cpssAppDemoReInitSystem
 
 #ifdef CHX_FAMILY
 /*******************************************************************************
-* cpssMicroInitSequenceCreate
+* Hfr_cpssMicroInitSequenceCreate
 *
 * DESCRIPTION:
 *       Function generates micro-init config file.
@@ -3089,7 +3098,7 @@ GT_STATUS cpssAppDemoReInitSystem
 *       None.
 *
 *******************************************************************************/
-GT_STATUS cpssMicroInitSequenceCreate
+GT_STATUS Hfr_cpssMicroInitSequenceCreate
 (
     IN APP_DEMO_MICRO_INIT_STC *microInitParamsPtr
 )
@@ -3156,7 +3165,7 @@ GT_STATUS cpssMicroInitSequenceCreate
         return rc;
     }
     /* Do global initialization for AppDemo before all phases */
-    rc = appDemoInitGlobalModuls();
+    rc = appEAG6LInitGlobalModuls();
     if (rc != GT_OK)
     {
         return rc;
@@ -3182,21 +3191,21 @@ GT_STATUS cpssMicroInitSequenceCreate
         {
         /* Bobcat2 devices */
         case CPSS_BOBCAT2_ALL_DEVICES_CASES_MAC:
-            rc = appDemoBcat2B0SimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
+            rc = appEAG6LBcat2B0SimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
             break;
         /* Bobcat3 devices */
         case CPSS_BOBCAT3_ALL_DEVICES_CASES_MAC:
-            rc = appDemoBc3SimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
+            rc = appEAG6LBc3SimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
             break;
         /* BobK devices */
         case CPSS_BOBK_ALL_DEVICES_CASES_MAC:
-            rc = appDemoBobKSimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
+            rc = appEAG6LBobKSimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
             break;
         case CPSS_ALDRIN_DEVICES_CASES_MAC:
-            rc = appDemoAldrinSimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
+            rc = appEAG6LAldrinSimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
             break;
         case CPSS_ALDRIN2_ALL_DEVICES_CASES_MAC:
-            rc = appDemoBc3SimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
+            rc = appEAG6LBc3SimCoreClockSet(devIdx,microInitParamsPtr->coreClock);
             break;
         case CPSS_XCAT3_ALL_DEVICES_CASES_MAC:
         case CPSS_AC5_ALL_DEVICES_CASES_MAC:
@@ -3225,7 +3234,7 @@ GT_STATUS cpssMicroInitSequenceCreate
 #else
         corePpPhase1Params.coreClk = APP_DEMO_CPSS_AUTO_DETECT_CORE_CLOCK_CNS;
 #endif
-        if (CPSS_DXCH_ALL_SIP5_FAMILY_MAC(appDemoPpConfigList[devIdx].devFamily))
+        if (CPSS_DXCH_ALL_SIP5_FAMILY_MAC(appEAG6LPpConfigList[devIdx].devFamily))
         {
             corePpPhase1Params.mngInterfaceType = CPSS_CHANNEL_PEX_MBUS_E;
             /* Address Completion Region 1 - for Interrupt Handling    */
@@ -3239,19 +3248,19 @@ GT_STATUS cpssMicroInitSequenceCreate
         if (corePpPhase1Params.numOfPortGroups == 0)
             corePpPhase1Params.numOfPortGroups = 1;
 
-        rc = appDemoConvert2DxChPhase1Info(devIdx,&corePpPhase1Params,&cpssPpPhase1Params);
+        rc = appEAG6LConvert2DxChPhase1Info(devIdx,&corePpPhase1Params,&cpssPpPhase1Params);
         if (GT_OK != rc)
         {
             return rc;
         }
 
         /* open trace */
-        rc = appDemoTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E);
+        rc = appEAG6LTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E);
         if (GT_OK != rc)
         {
             return rc;
         }
-        rc = appDemoTraceHwAccessEnable(devIdx,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_TRUE);
+        rc = appEAG6LTraceHwAccessEnable(devIdx,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_TRUE);
         if (GT_OK != rc)
         {
             return rc;
@@ -3264,7 +3273,7 @@ GT_STATUS cpssMicroInitSequenceCreate
         }
         if (microInitParamsPtr->featuresBitmap & 0x4)
         {
-            rc = appDemoLedInterfacesInit(devIdx,boardType);
+            rc = appEAG6LLedInterfacesInit(devIdx,boardType);
 
             if (GT_OK != rc)
             {
@@ -3272,12 +3281,12 @@ GT_STATUS cpssMicroInitSequenceCreate
             }
         }
 
-        rc = appDemoTraceHwAccessEnable(devIdx,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_FALSE);
+        rc = appEAG6LTraceHwAccessEnable(devIdx,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_FALSE);
         if (GT_OK != rc)
         {
             return rc;
         }
-        rc = appDemoTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DIRECT_E);
+        rc = appEAG6LTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DIRECT_E);
         if (GT_OK != rc)
         {
             return rc;
@@ -3291,7 +3300,7 @@ GT_STATUS cpssMicroInitSequenceCreate
 #ifndef CHX_FAMILY
 #ifdef PX_FAMILY
 /**
-* @internal cpssMicroInitSequenceCreate function
+* @internal Hfr_cpssMicroInitSequenceCreate function
 * @endinternal
 *
 * @brief   Function generates micro-init config file.
@@ -3301,7 +3310,7 @@ GT_STATUS cpssMicroInitSequenceCreate
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS cpssMicroInitSequenceCreate
+GT_STATUS Hfr_cpssMicroInitSequenceCreate
 (
     IN APP_DEMO_MICRO_INIT_STC *microInitParamsPtr
 )
@@ -3310,7 +3319,7 @@ GT_STATUS cpssMicroInitSequenceCreate
     GT_BOARD_LIST_ELEMENT               *pBoardInfo = NULL;     /* Holds the board information              */
     GT_U32                              boardIdx;
     GT_SW_DEV_NUM                       devNum;
-    GT_U32                              devIndex;/* device index in the array of appDemoPpConfigList[devIndex] */
+    GT_U32                              devIndex;/* device index in the array of appEAG6LPpConfigList[devIndex] */
 
 /*    CPSS_PP_PHASE1_INIT_PARAMS          corePpPhase1Params;*/     /* Phase 1 PP params                        */
     /*CPSS_DXCH_PP_PHASE1_INIT_INFO_STC   cpssPpPhase1Params;*/
@@ -3355,13 +3364,13 @@ GT_STATUS cpssMicroInitSequenceCreate
     }
 
     /* open trace */
-    rc = appDemoTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E);
+    rc = appEAG6LTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E);
     if (GT_OK != rc)
     {
         return rc;
     }
 
-    rc = appDemoTraceHwAccessEnable(devNum,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_TRUE);
+    rc = appEAG6LTraceHwAccessEnable(devNum,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_TRUE);
     if (GT_OK != rc)
     {
         return rc;
@@ -3391,11 +3400,11 @@ GT_STATUS cpssMicroInitSequenceCreate
     {
         return rc;
     }
-    appDemoPpConfigList[devIndex].valid = GT_TRUE;
-    appDemoPpConfigList[devIndex].devNum = CAST_SW_DEVNUM(devNum);
-    appDemoPpConfigList[devIndex].deviceId = px_devType;
-    appDemoPpConfigList[devIndex].devFamily = CPSS_PX_FAMILY_PIPE_E;
-    appDemoPpConfigList[devIndex].apiSupportedBmp = APP_DEMO_PX_FUNCTIONS_SUPPORT_CNS;
+    appEAG6LPpConfigList[devIndex].valid = GT_TRUE;
+    appEAG6LPpConfigList[devIndex].devNum = CAST_SW_DEVNUM(devNum);
+    appEAG6LPpConfigList[devIndex].deviceId = px_devType;
+    appEAG6LPpConfigList[devIndex].devFamily = CPSS_PX_FAMILY_PIPE_E;
+    appEAG6LPpConfigList[devIndex].apiSupportedBmp = APP_DEMO_PX_FUNCTIONS_SUPPORT_CNS;
 
     /* enable the ports after setting the 'CG mac' as one */
 /*    rc = px_initPortStage(devNum);
@@ -3409,13 +3418,13 @@ GT_STATUS cpssMicroInitSequenceCreate
         return rc;
 */
 /*----------------------------------------------------------------------------------------*/
-    rc = appDemoTraceHwAccessEnable(devNum,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_FALSE);
+    rc = appEAG6LTraceHwAccessEnable(devNum,CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E,GT_FALSE);
     if (GT_OK != rc)
     {
         return rc;
     }
 
-    rc = appDemoTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DIRECT_E);
+    rc = appEAG6LTraceHwAccessOutputModeSet(CPSS_ENABLER_TRACE_OUTPUT_MODE_DIRECT_E);
     if (GT_OK != rc)
     {
         return rc;
@@ -3441,12 +3450,12 @@ GT_STATUS cpssMicroInitBasicForwardingTablesSet
 
 /* indication that we need to check if the current task deny LOG printings */
 static GT_U32   supportLogPerTaskId = 0;
-GT_U32 appDemoOsTaskIsLogSupportCurrTask(void);
+GT_U32 appEAG6LOsTaskIsLogSupportCurrTask(void);
 /* indication that we need to check if the current task deny Register trace printings */
 static GT_U32   supportRegisterTracePerTaskId = 0;
 
 /**
-* @internal appDemoOsLog function
+* @internal appEAG6LOsLog function
 * @endinternal
 *
 * @brief   Function for printing the logs of cpss log
@@ -3457,7 +3466,7 @@ static GT_U32   supportRegisterTracePerTaskId = 0;
 *                                      ... - additional parameters.
 *                                       None.
 */
-GT_VOID appDemoOsLog
+GT_VOID appEAG6LOsLog
 (
     IN    CPSS_LOG_LIB_ENT      lib,
     IN    CPSS_LOG_TYPE_ENT     type,
@@ -3474,7 +3483,7 @@ GT_VOID appDemoOsLog
 
     if(supportLogPerTaskId)
     {
-        if (!appDemoOsTaskIsLogSupportCurrTask())
+        if (!appEAG6LOsTaskIsLogSupportCurrTask())
         {
             /* The current task not supports CPSS-LOG */
             return;
@@ -3525,7 +3534,7 @@ GT_VOID appDemoOsLog
 }
 
 /**
-* @internal appDemoOsLogModeSet function
+* @internal appEAG6LOsLogModeSet function
 * @endinternal
 *
 * @brief   Function for setting the mode of cpss log
@@ -3536,7 +3545,7 @@ GT_VOID appDemoOsLog
 * @retval GT_OK                    - if succsess
 * @retval GT_BAD_PTR               - failed to open the file
 */
-GT_STATUS appDemoOsLogModeSet
+GT_STATUS appEAG6LOsLogModeSet
 (
     IN    APP_DEMO_CPSS_LOG_MODE_ENT      mode,
     IN    GT_CHAR_PTR                     name
@@ -3598,12 +3607,12 @@ GT_STATUS appDemoOsLogModeSet
 }
 
 /**
-* @internal appDemoOsLogStop function
+* @internal appEAG6LOsLogStop function
 * @endinternal
 *
 * @brief   Function for stop writing the logs into the file
 */
-GT_VOID appDemoOsLogStop()
+GT_VOID appEAG6LOsLogStop()
 {
 
     if (prvOsLogMode == APP_DEMO_CPSS_LOG_MODE_MEMFS_FILE_E && prvOsLogMemFsFile >= 0)
@@ -3626,7 +3635,7 @@ GT_VOID appDemoOsLogStop()
  ******************************************************************************/
 
 /**
-* @internal appDemoInitGlobalModuls function
+* @internal appEAG6LInitGlobalModuls function
 * @endinternal
 *
 * @brief   Initialize global settings for CPSS
@@ -3634,7 +3643,7 @@ GT_VOID appDemoOsLogStop()
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoInitGlobalModuls()
+static GT_STATUS appEAG6LInitGlobalModuls()
 {
     GT_U32          i;            /* Loop index */
     CPSS_SYSTEM_RECOVERY_INFO_STC system_recovery; /* holds system recovery information */
@@ -3652,38 +3661,38 @@ static GT_STATUS appDemoInitGlobalModuls()
             return GT_OK;
         }
     }
-    if (appDemoCpssPciProvisonDone == GT_TRUE)
+    if (appEAG6LCpssPciProvisonDone == GT_TRUE)
     {
-        /* if PCI provision was done appDemoPpConfigList was initiated already */
+        /* if PCI provision was done appEAG6LPpConfigList was initiated already */
         return GT_OK;
     }
 
     /* Initialize the PP array with default parameters */
     for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
     {
-        osMemSet(&appDemoPpConfigList[i], 0, sizeof(appDemoPpConfigList[i]));
+        osMemSet(&appEAG6LPpConfigList[i], 0, sizeof(appEAG6LPpConfigList[i]));
 
-        appDemoPpConfigList[i].ppPhase1Done = GT_FALSE;
-        appDemoPpConfigList[i].ppPhase2Done = GT_FALSE;
-        appDemoPpConfigList[i].ppLogicalInitDone = GT_FALSE;
-        appDemoPpConfigList[i].ppGeneralInitDone = GT_FALSE;
-        appDemoPpConfigList[i].valid = GT_FALSE;
+        appEAG6LPpConfigList[i].ppPhase1Done = GT_FALSE;
+        appEAG6LPpConfigList[i].ppPhase2Done = GT_FALSE;
+        appEAG6LPpConfigList[i].ppLogicalInitDone = GT_FALSE;
+        appEAG6LPpConfigList[i].ppGeneralInitDone = GT_FALSE;
+        appEAG6LPpConfigList[i].valid = GT_FALSE;
 
         /* default value for cpu tx/rx mode */
-        appDemoPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
-        appDemoPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
+        appEAG6LPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
+        appEAG6LPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
 
         /* cascading information */
-        appDemoPpConfigList[i].numberOfCscdTrunks = 0;
-        appDemoPpConfigList[i].numberOfCscdPorts = 0;
-        appDemoPpConfigList[i].numberOfCscdTargetDevs = 0;
-        appDemoPpConfigList[i].numberOf10GPortsToConfigure = 0;
-        appDemoPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
-        appDemoPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
-        appDemoPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
+        appEAG6LPpConfigList[i].numberOfCscdTrunks = 0;
+        appEAG6LPpConfigList[i].numberOfCscdPorts = 0;
+        appEAG6LPpConfigList[i].numberOfCscdTargetDevs = 0;
+        appEAG6LPpConfigList[i].numberOf10GPortsToConfigure = 0;
+        appEAG6LPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
+        appEAG6LPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
+        appEAG6LPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
     }
     return GT_OK;
-} /* appDemoInitGlobalModuls */
+} /* appEAG6LInitGlobalModuls */
 
 #define OS_MAX_TASK_NAME_LENGTH  50
 /* max number of tasks that the DB will hold */
@@ -3693,8 +3702,8 @@ typedef struct{
     GT_U32      valid;
     GT_CHAR     threadName[OS_MAX_TASK_NAME_LENGTH];/* the name of the task as given during osTaskCreate(...) */
     GT_TASK     tid;                                /* the taskId as returned from osTaskCreate(...) */
-    GT_U32      forbidCpssLog;                      /* indication that the task forbid cpssLog  : needed by appDemoOsLog(...)  */
-    GT_U32      forbidCpssRegisterAccessTrace;      /* indication that the task forbid register-access  : needed by appDemoTraceHwAccessEnable(...)  */
+    GT_U32      forbidCpssLog;                      /* indication that the task forbid cpssLog  : needed by appEAG6LOsLog(...)  */
+    GT_U32      forbidCpssRegisterAccessTrace;      /* indication that the task forbid register-access  : needed by appEAG6LTraceHwAccessEnable(...)  */
     GT_U32      taskSupportsGracefulExit;           /* indication that the task supports graceful exit*/
                                                     /* value 0 means not supported , otherwise supported */
     GT_U32      askTaskToGracefullyExit;            /* indication that the 'management' ask the task to gracefully exit        */
@@ -3704,7 +3713,7 @@ typedef struct{
                                                     /* value 0 means not done preparations exit the task , otherwise ready for exit the task */
                                                     /* NOTE: relevant only when taskSupportsGracefulExit = 1 and askTaskToGracefullyExit = 1 */
     struct{
-        /* the cbFunc+cookiePtr will be called during appDemoWrap_osTaskDelete() for this task */
+        /* the cbFunc+cookiePtr will be called during appEAG6LWrap_osTaskDelete() for this task */
         appDemoTaskGracefulExitLastOperation_CB_FUNC    cbFunc;
         void*   cookiePtr;
     }gracefulExitInfo;
@@ -3726,7 +3735,7 @@ static APP_DEMO_OS_TASK_INFO_STC appDemoOsTaskInfoArr[APP_DEMO_OS_TASK_MAX_NUM];
 
 #define APPDEMO_TASK_MGR_STR "APPDEMO_TASK_MGR: "
 
-static GT_STATUS internal_appDemoDeviceTaskSupportGracefulExit
+static GT_STATUS internal_appEAG6LDeviceTaskSupportGracefulExit
 (
     IN appDemoTaskGracefulExitLastOperation_CB_FUNC     cbFunc,
     IN void*                                            cookiePtr,
@@ -3764,11 +3773,11 @@ recheck_tid_lbl:
         return GT_OK;
     }
 
-    /* on LINUX HW I get here for the 'portManagerTask' , because the appDemoWrap_osTaskCreate
+    /* on LINUX HW I get here for the 'portManagerTask' , because the appEAG6LWrap_osTaskCreate
        called to osTaskCreate before registering the 'portManagerTask' in the appDemoOsTaskInfoArr[]
-       and the osTaskCreate already created the task 'portManagerTask'  that is calling to appDemoTaskSupportGracefulExit()
+       and the osTaskCreate already created the task 'portManagerTask'  that is calling to appEAG6LTaskSupportGracefulExit()
 
-       (ON WINDOWS the appDemoOsTaskInfoArr[] already hold the 'portManagerTask' by the time calling to appDemoTaskSupportGracefulExit())
+       (ON WINDOWS the appDemoOsTaskInfoArr[] already hold the 'portManagerTask' by the time calling to appEAG6LTaskSupportGracefulExit())
     */
     /* so lets do single sleep to allow context switch ... and recheck ! */
     if(!didSleep)
@@ -3786,46 +3795,46 @@ recheck_tid_lbl:
         goto recheck_tid_lbl;
     }
 
-    cpssOsPrintf(APPDEMO_TASK_MGR_STR"appDemoTaskSupportGracefulExit : tid[0x%x] not found in DB (see taksIds using appDemoWrap_osTask_printAll())\n",
+    cpssOsPrintf(APPDEMO_TASK_MGR_STR"appEAG6LTaskSupportGracefulExit : tid[0x%x] not found in DB (see taksIds using appEAG6LWrap_osTask_printAll())\n",
         tid);
 
     return GT_NOT_FOUND;
 }
 
 /* function called from the task it self to state that it supports 'Graceful Exit'     */
-/* the cbFunc+cookiePtr will be called during appDemoWrap_osTaskDelete() for this task */
-GT_STATUS appDemoTaskSupportGracefulExit
+/* the cbFunc+cookiePtr will be called during appEAG6LWrap_osTaskDelete() for this task */
+GT_STATUS appEAG6LTaskSupportGracefulExit
 (
     IN appDemoTaskGracefulExitLastOperation_CB_FUNC     cbFunc,
     IN void*                                            cookiePtr
 )
 {
-    return internal_appDemoDeviceTaskSupportGracefulExit(cbFunc,
+    return internal_appEAG6LDeviceTaskSupportGracefulExit(cbFunc,
             cookiePtr,
             GT_FALSE,
             0);
 }
 
 /* function called from the task it self to state that it supports 'Graceful Exit'
- * the cbFunc+cookiePtr will be called during appDemoWrap_osTaskDelete() for this task.
+ * the cbFunc+cookiePtr will be called during appEAG6LWrap_osTaskDelete() for this task.
  *     NOTE - It should be used for tasks created per device
  */
-GT_STATUS appDemoDeviceTaskSupportGracefulExit
+GT_STATUS appEAG6LDeviceTaskSupportGracefulExit
 (
     IN appDemoTaskGracefulExitLastOperation_CB_FUNC     cbFunc,
     IN void*                                            cookiePtr,
     IN GT_SW_DEV_NUM                                    devNum
 )
 {
-    return internal_appDemoDeviceTaskSupportGracefulExit(cbFunc,
+    return internal_appEAG6LDeviceTaskSupportGracefulExit(cbFunc,
             cookiePtr,
             GT_TRUE,
             devNum);
 }
 
 /* function called from the task it self to check if need to exit gracefully.
-   when returned GT_TRUE , the caller should also call to appDemoTaskReadyFor_osTaskDelete() */
-static GT_BOOL appDemoIsTaskNeedToGraceFullyExit(void)
+   when returned GT_TRUE , the caller should also call to appEAG6LTaskReadyFor_osTaskDelete() */
+static GT_BOOL appEAG6LIsTaskNeedToGraceFullyExit(void)
 {
 
     GT_STATUS   rc;
@@ -3856,7 +3865,7 @@ static GT_BOOL appDemoIsTaskNeedToGraceFullyExit(void)
         }
     }
 
-    cpssOsPrintf(APPDEMO_TASK_MGR_STR"appDemoIsTaskNeedToGraceFullyExit : tid[0x%x] not found in DB (see taksIds using appDemoWrap_osTask_printAll())\n",
+    cpssOsPrintf(APPDEMO_TASK_MGR_STR"appEAG6LIsTaskNeedToGraceFullyExit : tid[0x%x] not found in DB (see taksIds using appEAG6LWrap_osTask_printAll())\n",
         tid);
 
     return GT_FALSE;
@@ -3867,7 +3876,7 @@ static GT_BOOL appDemoIsTaskNeedToGraceFullyExit(void)
 /* function called from the task stating it is ready for osTaskDelete*/
 /* calling this function is not expected to 'return' to the caller , as this
    function will wait for the task to be deleted by osTaskDelete */
-static GT_STATUS appDemoTaskReadyFor_osTaskDelete(void)
+static GT_STATUS appEAG6LTaskReadyFor_osTaskDelete(void)
 {
     GT_STATUS   rc;
     GT_U32  ii;
@@ -3907,14 +3916,14 @@ static GT_STATUS appDemoTaskReadyFor_osTaskDelete(void)
         }
         else
         {
-            cpssOsPrintf(APPDEMO_TASK_MGR_STR"task[%s] not supports 'Graceful Exit' (need to call appDemoTaskSupportGracefulExit())\n",
+            cpssOsPrintf(APPDEMO_TASK_MGR_STR"task[%s] not supports 'Graceful Exit' (need to call appEAG6LTaskSupportGracefulExit())\n",
                 appDemoOsTaskInfoArr[ii].threadName);
             return GT_NOT_SUPPORTED;
 
         }
     }
 
-    cpssOsPrintf(APPDEMO_TASK_MGR_STR"appDemoTaskReadyFor_osTaskDelete : tid[0x%x] not found in DB (see taksIds using appDemoWrap_osTask_printAll())\n",
+    cpssOsPrintf(APPDEMO_TASK_MGR_STR"appEAG6LTaskReadyFor_osTaskDelete : tid[0x%x] not found in DB (see taksIds using appEAG6LWrap_osTask_printAll())\n",
         tid);
 
     return GT_NOT_FOUND;
@@ -3922,21 +3931,21 @@ static GT_STATUS appDemoTaskReadyFor_osTaskDelete(void)
 
 /* function called from the task to check if need to be terminated by osTaskDelete() */
 /* calling this function is not expected to 'return' when the to osTaskDelete() need to 'kill' it */
-void appDemoTaskCheckIfNeedTermination(void)
+void appEAG6LTaskCheckIfNeedTermination(void)
 {
-    if(GT_FALSE == appDemoIsTaskNeedToGraceFullyExit())
+    if(GT_FALSE == appEAG6LIsTaskNeedToGraceFullyExit())
     {
         /* The task not expected to be terminated */
         return;
     }
 
     /* we wait for current task to be terminated */
-    appDemoTaskReadyFor_osTaskDelete();
+    appEAG6LTaskReadyFor_osTaskDelete();
 }
 
 /* the 'system' notify to all 'supporting' device specific tasks to be ready to terminate their
    operation and be ready for graceful exit */
-void appDemoDeviceTaskStateToTerminateAllSupporingTasks_notify
+void appEAG6LDeviceTaskStateToTerminateAllSupporingTasks_notify
 (
     IN GT_SW_DEV_NUM        devNum
 )
@@ -3965,7 +3974,7 @@ void appDemoDeviceTaskStateToTerminateAllSupporingTasks_notify
 
 /* the 'system' notify to all 'supporting' tasks to be ready to terminate their
    operation and be ready for graceful exit */
-void appDemoTaskStateToTerminateAllSupporingTasks_notify(void)
+void appEAG6LTaskStateToTerminateAllSupporingTasks_notify(void)
 {
     GT_U32  ii;
     for(ii = 0 ; ii < APP_DEMO_OS_TASK_MAX_NUM ; ii++)
@@ -3985,7 +3994,7 @@ void appDemoTaskStateToTerminateAllSupporingTasks_notify(void)
 }
 
 /* Terminate all device specific task */
-void appDemoDeviceTasksTerminate
+void appEAG6LDeviceTasksTerminate
 (
     GT_SW_DEV_NUM devNum
 )
@@ -4002,7 +4011,7 @@ void appDemoDeviceTasksTerminate
         if((appDemoOsTaskInfoArr[ii].isTaskPerDevice == GT_TRUE) &&
            (appDemoOsTaskInfoArr[ii].devNum == devNum))
         {
-            /* calling  appDemoWrap_osTaskDelete() */
+            /* calling  appEAG6LWrap_osTaskDelete() */
             cpssOsTaskDelete(appDemoOsTaskInfoArr[ii].tid);
         }
     }
@@ -4010,7 +4019,7 @@ void appDemoDeviceTasksTerminate
 }
 
 /* the 'system' FORCE all 'supporting' tasks to terminate now */
-void appDemoTaskStateToTerminateAllSupporingTasks_force(void )
+void appEAG6LTaskStateToTerminateAllSupporingTasks_force(void )
 {
     GT_U32  ii;
     for(ii = 0 ; ii < APP_DEMO_OS_TASK_MAX_NUM ; ii++)
@@ -4020,7 +4029,7 @@ void appDemoTaskStateToTerminateAllSupporingTasks_force(void )
         {
             continue;
         }
-        /* calling  appDemoWrap_osTaskDelete() */
+        /* calling  appEAG6LWrap_osTaskDelete() */
         cpssOsTaskDelete(appDemoOsTaskInfoArr[ii].tid);
     }
 
@@ -4028,7 +4037,7 @@ void appDemoTaskStateToTerminateAllSupporingTasks_force(void )
 }
 
 
-GT_STATUS appDemoForbidCpssLogOnTaskIdSet(
+GT_STATUS appEAG6LForbidCpssLogOnTaskIdSet(
     IN GT_TASK tid ,
     IN GT_U32    forbid
 )
@@ -4049,12 +4058,12 @@ GT_STATUS appDemoForbidCpssLogOnTaskIdSet(
         return GT_OK;
     }
 
-    cpssOsPrintf("tid[0x%x] not found in DB (see taksIds using appDemoWrap_osTask_printAll())\n",
+    cpssOsPrintf("tid[0x%x] not found in DB (see taksIds using appEAG6LWrap_osTask_printAll())\n",
         tid);
     return GT_NOT_FOUND;
 }
 
-GT_STATUS appDemoForbidCpssLogOnTaskNameSet(
+GT_STATUS appEAG6LForbidCpssLogOnTaskNameSet(
     IN char*    name ,
     IN GT_U32    forbid
 )
@@ -4085,7 +4094,7 @@ GT_STATUS appDemoForbidCpssLogOnTaskNameSet(
         }
     }
 
-    cpssOsPrintf("task name[%s] not found in DB (see threadName using appDemoWrap_osTask_printAll())\n",
+    cpssOsPrintf("task name[%s] not found in DB (see threadName using appEAG6LWrap_osTask_printAll())\n",
         name);
     return GT_NOT_FOUND;
 }
@@ -4093,10 +4102,10 @@ GT_STATUS appDemoForbidCpssLogOnTaskNameSet(
 
 /* check if 'current task' (self) supporting the LOG or not */
 /* it is 'denied' only if this task was explicitly stated to deny the log */
-/* see :appDemoForbidCpssLogOnTaskIdSet() or appDemoForbidCpssLogOnTaskNameSet() */
+/* see :appEAG6LForbidCpssLogOnTaskIdSet() or appEAG6LForbidCpssLogOnTaskNameSet() */
 /* return : 1 - the task allowed   to print LOG */
 /* return : 0 - the task forbidden to print LOG */
-GT_U32 appDemoOsTaskIsLogSupportCurrTask(void)
+GT_U32 appEAG6LOsTaskIsLogSupportCurrTask(void)
 {
     GT_STATUS rc;
     GT_U32  ii;
@@ -4124,7 +4133,7 @@ GT_U32 appDemoOsTaskIsLogSupportCurrTask(void)
 
 /* state that the task should not generate info to the LOG , because it
    is doing 'polling' */
-void appDemoForbidCpssLogOnSelfSet(IN GT_U32   forbid)
+void appEAG6LForbidCpssLogOnSelfSet(IN GT_U32   forbid)
 {
 #if defined(SHARED_MEMORY)
 CPSS_TBD_BOOKMARK
@@ -4161,7 +4170,7 @@ CPSS_TBD_BOOKMARK
         return;
     }
 
-    cpssOsPrintf("task Id[%d] not found in DB (see names in appDemoWrap_osTask_printAll() that created by appDemoWrap_osTaskCreate)\n",
+    cpssOsPrintf("task Id[%d] not found in DB (see names in appEAG6LWrap_osTask_printAll() that created by appEAG6LWrap_osTaskCreate)\n",
         tid);
     return ;
 #endif
@@ -4169,7 +4178,7 @@ CPSS_TBD_BOOKMARK
 
 /* state that the task should not generate 'registers trace' to the trace , because it
    is doing 'polling' */
-void appDemoForbidCpssRegisterTraceOnSelfSet(IN GT_U32   forbid)
+void appEAG6LForbidCpssRegisterTraceOnSelfSet(IN GT_U32   forbid)
 {
 #if defined(SHARED_MEMORY)
 CPSS_TBD_BOOKMARK
@@ -4206,7 +4215,7 @@ CPSS_TBD_BOOKMARK
         return;
     }
 
-    cpssOsPrintf("task Id[%d] not found in DB (see names in appDemoWrap_osTask_printAll() that created by appDemoWrap_osTaskCreate)\n",
+    cpssOsPrintf("task Id[%d] not found in DB (see names in appEAG6LWrap_osTask_printAll() that created by appEAG6LWrap_osTaskCreate)\n",
         tid);
     return ;
 #endif
@@ -4214,10 +4223,10 @@ CPSS_TBD_BOOKMARK
 
 /* check if 'current task' (self) supporting the 'registers trace' or not */
 /* it is 'denied' only if this task was explicitly stated to deny the 'registers trace' */
-/* see :appDemoForbidCpssRegisterTraceOnTaskIdSet() or appDemoForbidCpssRegisterTraceOnTaskNameSet() */
+/* see :appEAG6LForbidCpssRegisterTraceOnTaskIdSet() or appEAG6LForbidCpssRegisterTraceOnTaskNameSet() */
 /* return : 1 - the task allowed   to print 'registers trace' */
 /* return : 0 - the task forbidden to print 'registers trace' */
-GT_U32 appDemoOsTaskIsRegisterTraceSupportCurrTask(void)
+GT_U32 appEAG6LOsTaskIsRegisterTraceSupportCurrTask(void)
 {
     GT_STATUS rc;
     GT_U32  ii;
@@ -4243,7 +4252,7 @@ GT_U32 appDemoOsTaskIsRegisterTraceSupportCurrTask(void)
     return 1;/* supported */
 }
 
-GT_STATUS appDemoForbidCpssRegisterTraceOnTaskIdSet(
+GT_STATUS appEAG6LForbidCpssRegisterTraceOnTaskIdSet(
     IN GT_TASK tid ,
     IN GT_U32    forbid
 )
@@ -4264,12 +4273,12 @@ GT_STATUS appDemoForbidCpssRegisterTraceOnTaskIdSet(
         return GT_OK;
     }
 
-    cpssOsPrintf("tid[0x%x] not found in DB (see taksIds using appDemoWrap_osTask_printAll())\n",
+    cpssOsPrintf("tid[0x%x] not found in DB (see taksIds using appEAG6LWrap_osTask_printAll())\n",
         tid);
     return GT_NOT_FOUND;
 }
 
-GT_STATUS appDemoForbidCpssRegisterTraceOnTaskNameSet(
+GT_STATUS appEAG6LForbidCpssRegisterTraceOnTaskNameSet(
     IN char*    name ,
     IN GT_U32    forbid
 )
@@ -4300,13 +4309,13 @@ GT_STATUS appDemoForbidCpssRegisterTraceOnTaskNameSet(
         }
     }
 
-    cpssOsPrintf("task name[%s] not found in DB (see threadName using appDemoWrap_osTask_printAll())\n",
+    cpssOsPrintf("task name[%s] not found in DB (see threadName using appEAG6LWrap_osTask_printAll())\n",
         name);
     return GT_NOT_FOUND;
 }
 
-/* appDemo wrapper for osTaskCreate(...) , to know about new task */
-GT_STATUS appDemoWrap_osTaskCreate
+/* appEAG6L wrapper for osTaskCreate(...) , to know about new task */
+GT_STATUS appEAG6LWrap_osTaskCreate
 (
     IN  const GT_CHAR *name,
     IN  GT_U32  prio,
@@ -4358,8 +4367,8 @@ GT_STATUS appDemoWrap_osTaskCreate
     return GT_OK;
 }
 
-/* appDemo wrapper for osTaskDelete(...) , to remove old task */
-GT_STATUS appDemoWrap_osTaskDelete
+/* appEAG6L wrapper for osTaskDelete(...) , to remove old task */
+GT_STATUS appEAG6LWrap_osTaskDelete
 (
     IN GT_TASK tid
 )
@@ -4378,7 +4387,7 @@ GT_STATUS appDemoWrap_osTaskDelete
 
         if(appDemoOsTaskInfoArr[ii].tid == tid)
         {
-            osPrintf(APPDEMO_TASK_MGR_STR"appDemoWrap_osTaskDelete : start terminate thread [%s] \n",
+            osPrintf(APPDEMO_TASK_MGR_STR"appEAG6LWrap_osTaskDelete : start terminate thread [%s] \n",
                 appDemoOsTaskInfoArr[ii].threadName);
 
             /* found it */
@@ -4409,7 +4418,7 @@ GT_STATUS appDemoWrap_osTaskDelete
 
     if(found == GT_TRUE)
     {
-        osPrintf(APPDEMO_TASK_MGR_STR"appDemoWrap_osTaskDelete : ended terminate thread [%s] with rc = [%d]\n",
+        osPrintf(APPDEMO_TASK_MGR_STR"appEAG6LWrap_osTaskDelete : ended terminate thread [%s] with rc = [%d]\n",
             appDemoOsTaskInfoArr[ii].threadName,rc);
 
         if(rc == GT_OK &&
@@ -4438,7 +4447,7 @@ GT_STATUS appDemoWrap_osTaskDelete
 }
 
 /* print the DB of appDemoOsTaskInfoArr[] */
-GT_STATUS appDemoWrap_osTask_printAll
+GT_STATUS appEAG6LWrap_osTask_printAll
 (
     void
 )
@@ -4476,7 +4485,7 @@ GT_STATUS appDemoWrap_osTask_printAll
 
 
 /*******************************************************************************
-* appDemoGetDefaultOsBindFuncs
+* appEAG6LGetDefaultOsBindFuncs
 *
 * DESCRIPTION:
 *       Receives default cpss bind from OS
@@ -4497,7 +4506,7 @@ GT_STATUS appDemoWrap_osTask_printAll
 /* if not used shared memory or it's unix-like simulation do compile this */
 #if !defined(SHARED_MEMORY)
 
-GT_STATUS appDemoGetDefaultOsBindFuncs(
+GT_STATUS appEAG6LGetDefaultOsBindFuncs(
     OUT CPSS_OS_FUNC_BIND_STC *osFuncBindPtr
 )
 {
@@ -4627,8 +4636,8 @@ GT_STATUS appDemoGetDefaultOsBindFuncs(
     osFuncBindPtr->osRandBindInfo.osRandFunc  = osRand;
     osFuncBindPtr->osRandBindInfo.osSrandFunc = osSrand;
 
-    osFuncBindPtr->osTaskBindInfo.osTaskCreateFunc = appDemoWrap_osTaskCreate;
-    osFuncBindPtr->osTaskBindInfo.osTaskDeleteFunc = appDemoWrap_osTaskDelete;
+    osFuncBindPtr->osTaskBindInfo.osTaskCreateFunc = appEAG6LWrap_osTaskCreate;
+    osFuncBindPtr->osTaskBindInfo.osTaskDeleteFunc = appEAG6LWrap_osTaskDelete;
     osFuncBindPtr->osTaskBindInfo.osTaskGetSelfFunc= osTaskGetSelf;
     osFuncBindPtr->osTaskBindInfo.osTaskLockFunc   = osTaskLock;
     osFuncBindPtr->osTaskBindInfo.osTaskUnLockFunc = osTaskUnLock;
@@ -4650,7 +4659,7 @@ GT_STATUS appDemoGetDefaultOsBindFuncs(
     osFuncBindPtr->osMsgQBindInfo.osMsgQRecvFunc    = osMsgQRecv;
     osFuncBindPtr->osMsgQBindInfo.osMsgQNumMsgsFunc = osMsgQNumMsgs;
     osFuncBindPtr->osMsgQBindInfo.osMsgQNumMsgsFunc = osMsgQNumMsgs;
-    osFuncBindPtr->osLogBindInfo.osLogFunc          = appDemoOsLog;
+    osFuncBindPtr->osLogBindInfo.osLogFunc          = appEAG6LOsLog;
 
     osFuncBindPtr->osSocketInfo.osSocketLastErrorFunc = osSocketLastError;
     osFuncBindPtr->osSocketInfo.osSocketLastErrorStrFunc = osSocketLastErrorStr;
@@ -4712,7 +4721,7 @@ GT_STATUS appDemoGetDefaultOsBindFuncs(
 }
 
 /**
-* @internal appDemoGetDefaultExtDrvFuncs function
+* @internal appEAG6LGetDefaultExtDrvFuncs function
 * @endinternal
 *
 * @brief   Receives default cpss bind from extDrv
@@ -4726,7 +4735,7 @@ GT_STATUS appDemoGetDefaultOsBindFuncs(
 *       pointers to functions.
 *
 */
-GT_STATUS appDemoGetDefaultExtDrvFuncs(
+GT_STATUS appEAG6LGetDefaultExtDrvFuncs(
     OUT CPSS_EXT_DRV_FUNC_BIND_STC  *extDrvFuncBindInfoPtr
 )
 {
@@ -4820,7 +4829,7 @@ GT_STATUS appDemoGetDefaultExtDrvFuncs(
 #if !defined(SHARED_MEMORY) || (defined(LINUX) && defined(ASIC_SIMULATION))
 
 /*******************************************************************************
-* appDemoPrintSynchronizedSet
+* appEAG6LPrintSynchronizedSet
 *
 * DESCRIPTION:
 *       Set cpssOsPrintf synchronized or queued.
@@ -4850,7 +4859,7 @@ static int synchronizedPrintWithDelay(const char* format, ...)
     return rc;
 }
 #endif
-GT_STATUS appDemoPrintSynchronizedSet(
+GT_STATUS appEAG6LPrintSynchronizedSet(
     IN GT_BOOL   synchronized,
     IN GT_U32    delay
 )
@@ -4872,7 +4881,7 @@ GT_STATUS appDemoPrintSynchronizedSet(
 }
 
 /**
-* @internal appDemoGetDefaultTraceFuncs function
+* @internal appEAG6LGetDefaultTraceFuncs function
 * @endinternal
 *
 * @brief   Receives default cpss bind from trace
@@ -4884,23 +4893,23 @@ GT_STATUS appDemoPrintSynchronizedSet(
 *       pointers to functions.
 *
 */
-GT_STATUS appDemoGetDefaultTraceFuncs(
+GT_STATUS appEAG6LGetDefaultTraceFuncs(
     OUT CPSS_TRACE_FUNC_BIND_STC  *traceFuncBindInfoPtr
 )
 {
     osMemSet(traceFuncBindInfoPtr,0,sizeof(*traceFuncBindInfoPtr));
 
     /* bind the external drivers functions to the CPSS */
-    traceFuncBindInfoPtr->traceHwBindInfo.traceHwAccessReadFunc  = appDemoTraceReadHwAccess;
-    traceFuncBindInfoPtr->traceHwBindInfo.traceHwAccessWriteFunc = appDemoTraceWriteHwAccess;
-    traceFuncBindInfoPtr->traceHwBindInfo.traceHwAccessDelayFunc = appDemoTraceDelayHwAccess;
+    traceFuncBindInfoPtr->traceHwBindInfo.traceHwAccessReadFunc  = appEAG6LTraceReadHwAccess;
+    traceFuncBindInfoPtr->traceHwBindInfo.traceHwAccessWriteFunc = appEAG6LTraceWriteHwAccess;
+    traceFuncBindInfoPtr->traceHwBindInfo.traceHwAccessDelayFunc = appEAG6LTraceDelayHwAccess;
 
     return GT_OK;
 }
 
 #endif
 /**
-* @internal appDemoCpssInit function
+* @internal appEAG6LCpssInit function
 * @endinternal
 *
 * @brief   This function call CPSS to do initial initialization.
@@ -4929,11 +4938,11 @@ GT_STATUS eag6lCpssInit
 #if defined(SHARED_MEMORY)
     /* Shared memory approach on ARM should use dlsym-based workaround for pointers to functions */
     rc = shrMemGetDefaultOsBindFuncsThruDynamicLoader(&osFuncBind);
-    osFuncBind.osLogBindInfo.osLogFunc = appDemoOsLog;
-    osFuncBind.osTaskBindInfo.osTaskCreateFunc = appDemoWrap_osTaskCreate;
-    osFuncBind.osTaskBindInfo.osTaskDeleteFunc = appDemoWrap_osTaskDelete;
+    osFuncBind.osLogBindInfo.osLogFunc = appEAG6LOsLog;
+    osFuncBind.osTaskBindInfo.osTaskCreateFunc = appEAG6LWrap_osTaskCreate;
+    osFuncBind.osTaskBindInfo.osTaskDeleteFunc = appEAG6LWrap_osTaskDelete;
 #else
-    rc = appDemoGetDefaultOsBindFuncs(&osFuncBind);
+    rc = appEAG6LGetDefaultOsBindFuncs(&osFuncBind);
 #endif
 
     if(rc != GT_OK) return rc;
@@ -4942,7 +4951,7 @@ GT_STATUS eag6lCpssInit
     /* Shared memory approach on ARM should use dlsym-based workaround for pointers to functions */
     rc = shrMemGetDefaultExtDrvFuncs(&extDrvFuncBindInfo);
 #else
-    rc = appDemoGetDefaultExtDrvFuncs(&extDrvFuncBindInfo);
+    rc = appEAG6LGetDefaultExtDrvFuncs(&extDrvFuncBindInfo);
 #endif
 
 
@@ -4955,7 +4964,7 @@ GT_STATUS eag6lCpssInit
        The cpssExtServicesBind will use default "not implemented" callbacks in this case.  */
     osMemSet(&traceFuncBindInfo, 0, sizeof(traceFuncBindInfo));
 #else
-    rc = appDemoGetDefaultTraceFuncs(&traceFuncBindInfo);
+    rc = appEAG6LGetDefaultTraceFuncs(&traceFuncBindInfo);
 #endif
 
     if(rc != GT_OK) return rc;
@@ -5009,20 +5018,20 @@ GT_STATUS eag6lCpssInit
 
 #ifdef IMPL_TGF
 #ifdef CHX_FAMILY
-    appDxChTcamPclConvertedIndexGetPtr = appDemoDxChTcamPclConvertedIndexGet_fromUT;
-    appDemoDxChPortMgrPortModeSpeedSet_func = appDemoDxChPortMgrPortModeSpeedSet;
+    appDxChTcamPclConvertedIndexGetPtr = appEAG6LDxChTcamPclConvertedIndexGet_fromUT;
+    appEAG6LDxChPortMgrPortModeSpeedSet_func = appEAG6LDxChPortMgrPortModeSpeedSet;
 #endif
-    appDemoDbEntryGet_func = appDemoDbEntryGet;
+    appEAG6LDbEntryGet_func = appEAG6LDbEntryGet;
 #endif
 
     eag6lCpssInitialized = GT_TRUE;
 
     return GT_OK;
-} /* appDemoCpssInit */
+} /* appEAG6LCpssInit */
 
 
 /**
-* @internal appDemoBoardPhase1Init function
+* @internal appEAG6LBoardPhase1Init function
 * @endinternal
 *
 * @brief   Perform phase1 initialization for all devices (Pp, Fa, Xbar).
@@ -5036,7 +5045,7 @@ GT_STATUS eag6lCpssInit
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoBoardPhase1Init
+static GT_STATUS appEAG6LBoardPhase1Init
 (
     IN  GT_U8                   boardRevId,       /* Revision of this board             */
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs,   /* Config functions for this board    */
@@ -5097,7 +5106,7 @@ static GT_STATUS appDemoBoardPhase1Init
 
 #ifdef IMPL_PP
 
-    if((appDemoDbEntryGet("DualDeviceIdMode", &value) == GT_OK) && value)
+    if((appEAG6LDbEntryGet("DualDeviceIdMode", &value) == GT_OK) && value)
     {
         /* We force the system to work with dual device IDs only */
         /* this option needed for checking the behavior of such system when the
@@ -5111,7 +5120,7 @@ static GT_STATUS appDemoBoardPhase1Init
         }
     }
 
-    appDemoPpConfigDevAmount = numOfDev;/*used in START_LOOP_ALL_DEVICES*/
+    appEAG6LPpConfigDevAmount = numOfDev;/*used in START_LOOP_ALL_DEVICES*/
     /* Set Pp Phase1 configuration parameters.      */
     START_LOOP_ALL_DEVICES(devIdx,_dummy)
     {
@@ -5128,16 +5137,16 @@ static GT_STATUS appDemoBoardPhase1Init
         }
 
         value = 0;
-        if ((appDemoDbEntryGet("dontOverrideSip5DefaultPciChannelType", &value) != GT_OK)
+        if ((appEAG6LDbEntryGet("dontOverrideSip5DefaultPciChannelType", &value) != GT_OK)
             || (value == 0))
         {
             /* Override SIP5 devices Default PCI compatible bus to use */
             /* 8 Address Completion Region mode                        */
-            if ((appDemoPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_BOBCAT2_E) ||
-                (appDemoPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_ALDRIN_E) ||
-                (appDemoPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_AC3X_E) ||
-                (appDemoPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_ALDRIN2_E) ||
-                (appDemoPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_BOBCAT3_E))
+            if ((appEAG6LPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_BOBCAT2_E) ||
+                (appEAG6LPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_ALDRIN_E) ||
+                (appEAG6LPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_AC3X_E) ||
+                (appEAG6LPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_ALDRIN2_E) ||
+                (appEAG6LPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_BOBCAT3_E))
             {
                 corePpPhase1Params.mngInterfaceType = CPSS_CHANNEL_PEX_MBUS_E;
                 /* Address Completion Region 1 - for Interrupt Handling    */
@@ -5149,42 +5158,42 @@ static GT_STATUS appDemoBoardPhase1Init
         }
 
         /* override PP phase 1 parameters according to app demo database */
-        rc = appDemoUpdatePpPhase1Params(&corePpPhase1Params);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpPhase1Params", rc);
+        rc = appEAG6LUpdatePpPhase1Params(&corePpPhase1Params);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpPhase1Params", rc);
         if (rc != GT_OK)
         {
             return rc;
         }
 
         /* Update PP config list device number */
-        appDemoPpConfigList[devIdx].devNum   = corePpPhase1Params.devNum;
-        appDemoPpConfigList[devIdx].valid    = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].devNum   = corePpPhase1Params.devNum;
+        appEAG6LPpConfigList[devIdx].valid    = GT_TRUE;
 
         /* get family type to understand which API should be used below */
         /* There are two type of API here: EX and DX                    */
-        rc = appDemoSysConfigFuncsGet(corePpPhase1Params.deviceId,
-                                      &appDemoPpConfigList[devIdx].sysConfigFuncs,
-                                      &appDemoPpConfigList[devIdx].apiSupportedBmp);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoSysConfigFuncsGet", rc);
+        rc = appEAG6LSysConfigFuncsGet(corePpPhase1Params.deviceId,
+                                      &appEAG6LPpConfigList[devIdx].sysConfigFuncs,
+                                      &appEAG6LPpConfigList[devIdx].apiSupportedBmp);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LSysConfigFuncsGet", rc);
         if (GT_OK != rc)
         {
             return rc;
         }
 
 
-        if(appDemoSysConfigFuncsExtentionGetPtr)
+        if(appEAG6LSysConfigFuncsExtentionGetPtr)
         {
-            rc = appDemoSysConfigFuncsExtentionGetPtr(corePpPhase1Params.deviceId,
-                                      &appDemoPpConfigList[devIdx].sysConfigFuncs,
-                                      &appDemoPpConfigList[devIdx].apiSupportedBmp);
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoSysConfigFuncsExtentionGetPtr", rc);
+            rc = appEAG6LSysConfigFuncsExtentionGetPtr(corePpPhase1Params.deviceId,
+                                      &appEAG6LPpConfigList[devIdx].sysConfigFuncs,
+                                      &appEAG6LPpConfigList[devIdx].apiSupportedBmp);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LSysConfigFuncsExtentionGetPtr", rc);
             if (GT_OK != rc)
             {
                 return rc;
             }
         }
 
-        sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
+        sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
 
 #ifdef ASIC_SIMULATION
         if(sasicgSimulationRole == SASICG_SIMULATION_ROLE_DISTRIBUTED_APPLICATION_SIDE_VIA_BROKER_E)
@@ -5199,11 +5208,11 @@ static GT_STATUS appDemoBoardPhase1Init
 
         /* check if debug device id was set */
         if (useDebugDeviceId == GT_TRUE &&
-            deviceIdDebug[appDemoPpConfigList[devIdx].devNum] != 0)
+            deviceIdDebug[appEAG6LPpConfigList[devIdx].devNum] != 0)
         {
             /* write device id to internal DB */
-            rc = prvCpssDrvDebugDeviceIdSet(appDemoPpConfigList[devIdx].devNum,
-                                            deviceIdDebug[appDemoPpConfigList[devIdx].devNum]);
+            rc = prvCpssDrvDebugDeviceIdSet(appEAG6LPpConfigList[devIdx].devNum,
+                                            deviceIdDebug[appEAG6LPpConfigList[devIdx].devNum]);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("prvCpssDrvDebugDeviceIdSet", rc);
             if (rc != GT_OK)
             {
@@ -5211,7 +5220,7 @@ static GT_STATUS appDemoBoardPhase1Init
             }
         }
 
-        if (appDemoPrePhase1Init == GT_TRUE)
+        if (appEAG6LPrePhase1Init == GT_TRUE)
         {
             rc = prvCpssPrePhase1PpInit(PRV_CPSS_PP_PRE_PHASE1_INIT_MODE_NO_PP_INIT_E);
             if (rc != GT_OK)
@@ -5221,7 +5230,7 @@ static GT_STATUS appDemoBoardPhase1Init
 
         }
         /* Do HW phase 1 */
-        rc = sysCfgFuncs->cpssHwPpPhase1Init(appDemoPpConfigList[devIdx].devNum,
+        rc = sysCfgFuncs->cpssHwPpPhase1Init(appEAG6LPpConfigList[devIdx].devNum,
                                              &corePpPhase1Params,
                                              &ppDevType);
         CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssHwPpPhase1Init", rc);
@@ -5231,58 +5240,58 @@ static GT_STATUS appDemoBoardPhase1Init
         }
 
         /* Update PP config list element of device */
-        appDemoPpConfigList[devIdx].ppPhase1Done = GT_TRUE;
-        appDemoPpConfigList[devIdx].deviceId = ppDevType;
-        appDemoPpConfigList[devIdx].maxPortNumber = PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->numOfPorts;
+        appEAG6LPpConfigList[devIdx].ppPhase1Done = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].deviceId = ppDevType;
+        appEAG6LPpConfigList[devIdx].maxPortNumber = PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->numOfPorts;
 
-        if (PRV_CPSS_SIP_5_CHECK_MAC(appDemoPpConfigList[devIdx].devNum))
+        if (PRV_CPSS_SIP_5_CHECK_MAC(appEAG6LPpConfigList[devIdx].devNum))
         {
-            appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+            appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
         }
-        else if(PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_AC5_E)
+        else if(PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_AC5_E)
         {
-            appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+            appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
         }
 #ifdef ASIC_SIMULATION
         else    /* allow simulation to test it , without HW implications ... yet */
-        if(PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_XCAT3_E)
+        if(PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_XCAT3_E)
         {
-            appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+            appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
         }
         else
-        if(PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_LION2_E)
+        if(PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_LION2_E)
         {
-            appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+            appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
         }
 #endif /*ASIC_SIMULATION*/
         else
         {
-            appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
+            appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
         }
 
         #ifdef GM_USED
         /* the GM not supports the 'soft reset' so we can not support system with it */
-        appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
+        appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
         #endif /*GM_USED*/
         if(cpssDeviceRunCheck_onEmulator())
         {
             /* on emulator we not enabled yet the soft reset  */
-            appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
+            appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
         }
 
         /* If app demo inits in reg defaults mode skip the rest of the loop */
-        if (appDemoInitRegDefaults == GT_TRUE)
+        if (appEAG6LInitRegDefaults == GT_TRUE)
             continue;
 
         /* Get list of registers to be configured.  */
         if (boardCfgFuncs->boardGetPpRegCfgList == NULL)
         {
             /* if there is no board-specific function, call the common one */
-            rc = appDemoGetPpRegCfgList(ppDevType,
+            rc = appEAG6LGetPpRegCfgList(ppDevType,
                                         gIsB2bSystem,
                                         &regCfgList,
                                         &regCfgListSize);
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoGetPpRegCfgList", rc);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LGetPpRegCfgList", rc);
             if (rc != GT_OK)
             {
                 return rc;
@@ -5291,7 +5300,7 @@ static GT_STATUS appDemoBoardPhase1Init
         else
         {
             rc = boardCfgFuncs->boardGetPpRegCfgList(boardRevId,
-                                                     appDemoPpConfigList[devIdx].devNum,
+                                                     appEAG6LPpConfigList[devIdx].devNum,
                                                      &regCfgList,
                                                      &regCfgListSize);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetPpRegCfgList", rc);
@@ -5301,12 +5310,12 @@ static GT_STATUS appDemoBoardPhase1Init
             }
         }
 
-        if (appDemoPrePhase1Init == GT_FALSE)
+        if (appEAG6LPrePhase1Init == GT_FALSE)
         {
             if(sysCfgFuncs->cpssHwPpStartInit)
             {
                 /* Set PP's registers */
-                rc = sysCfgFuncs->cpssHwPpStartInit(appDemoPpConfigList[devIdx].devNum,
+                rc = sysCfgFuncs->cpssHwPpStartInit(appEAG6LPpConfigList[devIdx].devNum,
                                                     regCfgList,
                                                     regCfgListSize);
                 CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssHwPpStartInit", rc);
@@ -5322,7 +5331,7 @@ static GT_STATUS appDemoBoardPhase1Init
 #endif /* IMPL_PP */
 
     /* If app demo inits in reg defaults mode return */
-    if (appDemoInitRegDefaults == GT_TRUE)
+    if (appEAG6LInitRegDefaults == GT_TRUE)
         return GT_OK;
 
 
@@ -5356,16 +5365,16 @@ static GT_STATUS appDemoBoardPhase1Init
             if (boardCfgFuncs->boardGetFaRegCfgList == NULL)
             {
                 /* if there is no board-specific function, call the common one */
-                rc = appDemoGetFaRegCfgList(faDevType,
+                rc = appEAG6LGetFaRegCfgList(faDevType,
 #ifdef IMPL_PP
-                                            appDemoPpConfigList[devIdx].deviceId,
+                                            appEAG6LPpConfigList[devIdx].deviceId,
 #else
                                             APP_DEMO_CPSS_NO_PP_CONNECTED_CNS,/*0xFFFFFFFF*/
 #endif
                                             &regCfgList,
                                             &regCfgListSize);
 
-                CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoGetFaRegCfgList", rc);
+                CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LGetFaRegCfgList", rc);
                 if (rc != GT_OK)
                 {
                     return rc;
@@ -5374,7 +5383,7 @@ static GT_STATUS appDemoBoardPhase1Init
             else
             {
                 rc = boardCfgFuncs->boardGetFaRegCfgList(boardRevId,
-                                                         appDemoPpConfigList[devIdx].devNum,
+                                                         appEAG6LPpConfigList[devIdx].devNum,
                                                          &regCfgList,
                                                          &regCfgListSize);
                 CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetFaRegCfgList", rc);
@@ -5384,7 +5393,7 @@ static GT_STATUS appDemoBoardPhase1Init
                 }
             }
             /* if NO PP used device number is FA device number */
-            deviceNumber = (numOfDev > 0) ? appDemoPpConfigList[devIdx].devNum : devIdx;
+            deviceNumber = (numOfDev > 0) ? appEAG6LPpConfigList[devIdx].devNum : devIdx;
 
 
             /* Set FA's registers */
@@ -5428,10 +5437,10 @@ static GT_STATUS appDemoBoardPhase1Init
 #endif /*IMPL_XBARDRIVER*/
 
     return GT_OK;
-} /* appDemoBoardPhase1Init */
+} /* appEAG6LBoardPhase1Init */
 
 /**
-* @internal appDemoBoardPhase2Init function
+* @internal appEAG6LBoardPhase2Init function
 * @endinternal
 *
 * @brief   Perform phase2 initialization for all devices (Pp, Fa, Xbar).
@@ -5445,7 +5454,7 @@ static GT_STATUS appDemoBoardPhase1Init
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoBoardPhase2Init
+static GT_STATUS appEAG6LBoardPhase2Init
 (
     IN  GT_U8                   boardRevId,     /* Board revision Id             */
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs, /* Board configuration functions */
@@ -5476,16 +5485,16 @@ static GT_STATUS appDemoBoardPhase2Init
     START_LOOP_ALL_DEVICES(devIdx,_dummy)
     {
         APP_DEMO_SYS_CONFIG_FUNCS*  sysCfgFuncs;
-        sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
+        sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
 
-        /* save value for use in appDemoAllocateDmaMem(...) */
-        appDemoCpssCurrentDevIndex = devIdx;
+        /* save value for use in appEAG6LAllocateDmaMem(...) */
+        appEAG6LCpssCurrentDevIndex = devIdx;
 
         if(sysCfgFuncs->cpssHwPpPhase2Init)
         {
             /* Get PP phase 2 params */
             rc = boardCfgFuncs->boardGetPpPh2Params(boardRevId,
-                                                    appDemoPpConfigList[devIdx].devNum,
+                                                    appEAG6LPpConfigList[devIdx].devNum,
                                                     &cpssPpPhase2Params);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetPpPh2Params", rc);
             if (rc != GT_OK)
@@ -5494,14 +5503,14 @@ static GT_STATUS appDemoBoardPhase2Init
             }
 
             /* override PP phase 2 parameters according to app demo database */
-            rc = appDemoUpdatePpPhase2Params(&cpssPpPhase2Params);
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpPhase2Params", rc);
+            rc = appEAG6LUpdatePpPhase2Params(&cpssPpPhase2Params);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpPhase2Params", rc);
             if (rc != GT_OK)
             {
                 return rc;
             }
 
-            if(appDemoOnDistributedSimAsicSide)
+            if(appEAG6LOnDistributedSimAsicSide)
             {
                 /* no need to init the external driver */
                 appDemoSysConfig.cpuEtherInfo.initFunc = NULL;
@@ -5511,10 +5520,10 @@ static GT_STATUS appDemoBoardPhase2Init
                 cpssPpPhase2Params.auqCfg.auDescBlock   = NULL;
             }
 
-            appDemoPpConfigList[devIdx].oldDevNum = appDemoPpConfigList[devIdx].devNum;
+            appEAG6LPpConfigList[devIdx].oldDevNum = appEAG6LPpConfigList[devIdx].devNum;
 
             /* PP HW phase 2 Init */
-            rc = sysCfgFuncs->cpssHwPpPhase2Init(appDemoPpConfigList[devIdx].oldDevNum,
+            rc = sysCfgFuncs->cpssHwPpPhase2Init(appEAG6LPpConfigList[devIdx].oldDevNum,
                                                  &cpssPpPhase2Params);
 
             CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssHwPpPhase2Init", rc);
@@ -5526,7 +5535,7 @@ static GT_STATUS appDemoBoardPhase2Init
         }
 
         /* Current PP init completed */
-        appDemoPpConfigList[devIdx].ppPhase2Done = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].ppPhase2Done = GT_TRUE;
     }
     END_LOOP_ALL_DEVICES
 
@@ -5539,7 +5548,7 @@ static GT_STATUS appDemoBoardPhase2Init
         for (devIdx = SYSTEM_DEV_NUM_MAC(0); devIdx < SYSTEM_DEV_NUM_MAC(numOfFa); devIdx++)
         {
             /* if NO PP used device number is FA device number */
-            deviceNumber = (numOfDev > 0) ? appDemoPpConfigList[devIdx].devNum : devIdx;
+            deviceNumber = (numOfDev > 0) ? appEAG6LPpConfigList[devIdx].devNum : devIdx;
 
             rc = boardCfgFuncs->boardGetFaPh2Params((GT_U8)boardRevId,
                                                     deviceNumber,
@@ -5572,7 +5581,7 @@ static GT_STATUS appDemoBoardPhase2Init
         {
             /* Get XBAR phase 2 params */
             rc = boardCfgFuncs->boardGetXbarPh2Params((GT_U8)boardRevId,
-                                                      appDemoPpConfigList[devIdx].devNum,
+                                                      appEAG6LPpConfigList[devIdx].devNum,
                                                       &coreXbarPhase2Params);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetXbarPh2Params", rc);
             if (rc != GT_OK)
@@ -5580,7 +5589,7 @@ static GT_STATUS appDemoBoardPhase2Init
                 return rc;
             }
 
-            coreXbarPhase2Params.devNum = appDemoPpConfigList[devIdx].devNum;
+            coreXbarPhase2Params.devNum = appEAG6LPpConfigList[devIdx].devNum;
 
             /* Init Xbar */
             rc = coreXbarHwPhase2Init(&coreXbarPhase2Params);
@@ -5594,10 +5603,10 @@ static GT_STATUS appDemoBoardPhase2Init
 #endif /*IMPL_XBARDRIVER*/
 
     return GT_OK;
-} /* appDemoBoardPhase2Init */
+} /* appEAG6LBoardPhase2Init */
 
 /**
-* @internal appDemoBoardLogicalInit function
+* @internal appEAG6LBoardLogicalInit function
 * @endinternal
 *
 * @brief   Perform logical phase initialization for all devices (Pp, Fa, Xbar).
@@ -5611,7 +5620,7 @@ static GT_STATUS appDemoBoardPhase2Init
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoBoardLogicalInit
+static GT_STATUS appEAG6LBoardLogicalInit
 (
     IN  GT_U8                   boardRevId,
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs,
@@ -5634,7 +5643,7 @@ static GT_STATUS appDemoBoardLogicalInit
         APP_DEMO_SYS_CONFIG_FUNCS*  sysCfgFuncs;
 
         /* update device config list */
-        sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
+        sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
 
         if (sysCfgFuncs->cpssPpLogicalInit == NULL)
         {
@@ -5644,7 +5653,7 @@ static GT_STATUS appDemoBoardLogicalInit
 
         /* Get PP logical init configuration */
         rc = boardCfgFuncs->boardGetPpLogInitParams(boardRevId,
-                                                    appDemoPpConfigList[devIdx].devNum,
+                                                    appEAG6LPpConfigList[devIdx].devNum,
                                                     &ppLogicalConfigParams);
         CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetPpLogInitParams", rc);
         if (rc != GT_OK)
@@ -5653,23 +5662,23 @@ static GT_STATUS appDemoBoardLogicalInit
         }
 
         /* override logical init configuration according to app demo database */
-        rc = appDemoUpdatePpLogicalInitParams(&ppLogicalConfigParams);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpLogicalInitParams", rc);
+        rc = appEAG6LUpdatePpLogicalInitParams(&ppLogicalConfigParams);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpLogicalInitParams", rc);
         if (rc != GT_OK)
         {
             return rc;
         }
 
         /* Do CPSS logical init and fill PP_INFO structure */
-        rc = sysCfgFuncs->cpssPpLogicalInit(appDemoPpConfigList[devIdx].devNum,
+        rc = sysCfgFuncs->cpssPpLogicalInit(appEAG6LPpConfigList[devIdx].devNum,
                                             &ppLogicalConfigParams);
         CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssPpLogicalInit", rc);
         if (rc != GT_OK)
         {
             return rc;
         }
-        appDemoPpConfigList[devIdx].ppLogicalInitDone = GT_TRUE;
-        osMemCpy(&ppUserLogicalConfigParams[appDemoPpConfigList[devIdx].devNum],
+        appEAG6LPpConfigList[devIdx].ppLogicalInitDone = GT_TRUE;
+        osMemCpy(&ppUserLogicalConfigParams[appEAG6LPpConfigList[devIdx].devNum],
                  &ppLogicalConfigParams,
                  sizeof(CPSS_PP_CONFIG_INIT_STC));
     }
@@ -5677,10 +5686,10 @@ static GT_STATUS appDemoBoardLogicalInit
 
     return GT_OK;
 
-} /* appDemoBoardLogicalInit */
+} /* appEAG6LBoardLogicalInit */
 
 /**
-* @internal appDemoBoardGeneralInit function
+* @internal appEAG6LBoardGeneralInit function
 * @endinternal
 *
 * @brief   Perform general initialization for all devices (Pp, Fa, Xbar).
@@ -5697,7 +5706,7 @@ static GT_STATUS appDemoBoardLogicalInit
 * @note This function must be called after logical init.
 *
 */
-static GT_STATUS appDemoBoardGeneralInit
+static GT_STATUS appEAG6LBoardGeneralInit
 (
     IN  GT_U8                   boardRevId,       /* Revision of this board             */
     IN  GT_BOARD_CONFIG_FUNCS   *boardCfgFuncs,   /* Config functions for this board    */
@@ -5724,14 +5733,14 @@ static GT_STATUS appDemoBoardGeneralInit
         GT_U8                       dev;
 
         /* get init parameters from appdemo init array */
-        sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
-        dev = appDemoPpConfigList[devIdx].devNum;
+        sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
+        dev = appEAG6LPpConfigList[devIdx].devNum;
 
         if(sysCfgFuncs->cpssLibrariesInit)
         {
             /* Get PP logical init configuration */
             rc = boardCfgFuncs->boardGetPpLogInitParams(boardRevId,
-                                                        appDemoPpConfigList[devIdx].devNum,
+                                                        appEAG6LPpConfigList[devIdx].devNum,
                                                         &ppLogicalConfigParams);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetPpLogInitParams", rc);
             if (rc != GT_OK)
@@ -5739,15 +5748,15 @@ static GT_STATUS appDemoBoardGeneralInit
                 return rc;
             }
             /* override logical init configuration according to app demo database */
-            rc = appDemoUpdatePpLogicalInitParams(&ppLogicalConfigParams);
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpLogicalInitParams", rc);
+            rc = appEAG6LUpdatePpLogicalInitParams(&ppLogicalConfigParams);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpLogicalInitParams", rc);
             if (rc != GT_OK)
             {
                 return rc;
             }
             /* Get library initialization parameters */
             rc = boardCfgFuncs->boardGetLibInitParams(boardRevId,
-                                                      appDemoPpConfigList[devIdx].devNum,
+                                                      appEAG6LPpConfigList[devIdx].devNum,
                                                       &libInitParams);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetLibInitParams", rc);
             if (rc != GT_OK)
@@ -5755,8 +5764,8 @@ static GT_STATUS appDemoBoardGeneralInit
                 return rc;
             }
             /* override library initialization parameters according to app demo database */
-            rc = appDemoUpdateLibInitParams(&libInitParams);
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdateLibInitParams", rc);
+            rc = appEAG6LUpdateLibInitParams(&libInitParams);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdateLibInitParams", rc);
             if (rc != GT_OK)
             {
                 return rc;
@@ -5765,7 +5774,7 @@ static GT_STATUS appDemoBoardGeneralInit
             /* Initialize CPSS libraries accordingly to a given parameters */
             cpssOsTimeRT(&secondsStart, &nanoSecondsStart);
             rc = sysCfgFuncs->cpssLibrariesInit(
-                appDemoPpConfigList[devIdx].devNum, &libInitParams, &ppLogicalConfigParams);
+                appEAG6LPpConfigList[devIdx].devNum, &libInitParams, &ppLogicalConfigParams);
             if (prvAppDemoFirstInitTimes.initSystemTimeCpssLibInit == 0)
             {
                 prvAppDemoFirstInitTimes.initSystemTimeCpssLibInit =
@@ -5789,7 +5798,7 @@ static GT_STATUS appDemoBoardGeneralInit
             }
         }
 
-        appDemoPpConfigList[devIdx].ppGeneralInitDone = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].ppGeneralInitDone = GT_TRUE;
     }
     END_LOOP_ALL_DEVICES
 
@@ -5798,16 +5807,16 @@ static GT_STATUS appDemoBoardGeneralInit
         GT_U32 ii;
         GT_U32 portNum;
         GT_U8  dev;
-        dev = appDemoPpConfigList[devIdx].devNum;
+        dev = appEAG6LPpConfigList[devIdx].devNum;
 
-        for(ii = 0; ii < appDemoPpConfigList[devIdx].numberOfCscdPorts; ++ii)
+        for(ii = 0; ii < appEAG6LPpConfigList[devIdx].numberOfCscdPorts; ++ii)
         {
-            portNum = appDemoPpConfigList[devIdx].cscdPortsArr[ii].portNum;
+            portNum = appEAG6LPpConfigList[devIdx].cscdPortsArr[ii].portNum;
 
-            if(NULL != appDemoPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr)
+            if(NULL != appEAG6LPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr)
             {
-                rc = appDemoPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr(dev, portNum);
-                CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr", rc);
+                rc = appEAG6LPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr(dev, portNum);
+                CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr", rc);
                 if (rc != GT_OK)
                 {
                     return rc;
@@ -5818,11 +5827,11 @@ static GT_STATUS appDemoBoardGeneralInit
     END_LOOP_ALL_DEVICES
 
     return GT_OK;
-} /* appDemoBoardGeneralInit */
+} /* appEAG6LBoardGeneralInit */
 
 #ifdef IMPL_PP
 /**
-* @internal appDemoUpdatePpPhase1Params function
+* @internal appEAG6LUpdatePpPhase1Params function
 * @endinternal
 *
 * @brief   Updates PP phase 1 params according to app demo database.
@@ -5833,7 +5842,7 @@ static GT_STATUS appDemoBoardGeneralInit
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoUpdatePpPhase1Params
+static GT_STATUS appEAG6LUpdatePpPhase1Params
 (
     INOUT CPSS_PP_PHASE1_INIT_PARAMS    *paramsPtr
 )
@@ -5843,26 +5852,26 @@ static GT_STATUS appDemoUpdatePpPhase1Params
     CPSS_NULL_PTR_CHECK_MAC(paramsPtr);
 
     /* follow this sample code to override a parameter according        */
-    /* to appDemo database entries                                      */
+    /* to appEAG6L database entries                                      */
     /* please keep the convention that database entry name is the       */
     /* same as parameter to update                                      */
-    /* if(appDemoDbEntryGet("[databse entry name]", &value) == GT_OK)   */
+    /* if(appEAG6LDbEntryGet("[databse entry name]", &value) == GT_OK)   */
     /*    paramsPtr->[parameter to update] = value;                     */
 
 
-    if(appDemoDbEntryGet("intVecNum", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("intVecNum", &value) == GT_OK)
     {
         paramsPtr->hwInfo[0].irq.switching = value;
     }
 
-    /* allow this case also from 'specific board config file' (not only from appDemoDbEntryGet(...))*/
+    /* allow this case also from 'specific board config file' (not only from appEAG6LDbEntryGet(...))*/
     if(paramsPtr->hwInfo[0].irq.switching == CPSS_PP_INTERRUPT_VECTOR_NOT_USED_CNS/*0xFFFFFFFF*/)
     {
-        appDemoBypassEventInitialize = GT_TRUE;
+        appEAG6LBypassEventInitialize = GT_TRUE;
     }
 
     /* serdes reference clock */
-    if(appDemoDbEntryGet("serdesRefClock", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("serdesRefClock", &value) == GT_OK)
     {
         switch(value)
         {
@@ -5890,7 +5899,7 @@ static GT_STATUS appDemoUpdatePpPhase1Params
     }
 
     /* TCAM Parity Daemon */
-    if(appDemoDbEntryGet("tcamParityCalcEnable", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("tcamParityCalcEnable", &value) == GT_OK)
     {
         if(value == 0)
         {
@@ -5908,7 +5917,7 @@ static GT_STATUS appDemoUpdatePpPhase1Params
         case CPSS_CHANNEL_PCI_E:
         case CPSS_CHANNEL_PEX_E:
         case CPSS_CHANNEL_PEX_MBUS_E:
-            if (appDemoDbEntryGet("mngInterfaceType", &value) == GT_OK)
+            if (appEAG6LDbEntryGet("mngInterfaceType", &value) == GT_OK)
             {
                 switch (value)
                 {
@@ -5924,12 +5933,12 @@ static GT_STATUS appDemoUpdatePpPhase1Params
         default: break;
     }
 
-    if(appDemoDbEntryGet("isrAddrCompletionRegionsBmp", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("isrAddrCompletionRegionsBmp", &value) == GT_OK)
     {
         paramsPtr->isrAddrCompletionRegionsBmp = value;
     }
 
-    if(appDemoDbEntryGet("appAddrCompletionRegionsBmp", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("appAddrCompletionRegionsBmp", &value) == GT_OK)
     {
         paramsPtr->appAddrCompletionRegionsBmp = value;
     }
@@ -5938,7 +5947,7 @@ static GT_STATUS appDemoUpdatePpPhase1Params
 }
 
 /**
-* @internal appDemoUpdatePpPhase2Params function
+* @internal appEAG6LUpdatePpPhase2Params function
 * @endinternal
 *
 * @brief   Updates PP phase 2 params according to app demo database.
@@ -5949,7 +5958,7 @@ static GT_STATUS appDemoUpdatePpPhase1Params
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoUpdatePpPhase2Params
+static GT_STATUS appEAG6LUpdatePpPhase2Params
 (
     INOUT CPSS_PP_PHASE2_INIT_PARAMS    *paramsPtr
 )
@@ -5959,17 +5968,17 @@ static GT_STATUS appDemoUpdatePpPhase2Params
     CPSS_NULL_PTR_CHECK_MAC(paramsPtr);
 
     /* follow this sample code to override a parameter according        */
-    /* to appDemo database entries                                      */
+    /* to appEAG6L database entries                                      */
     /* please keep the convention that database entry name is the       */
     /* same as parameter to update                                      */
-    /* if(appDemoDbEntryGet("[databse entry name]", &value) == GT_OK)   */
+    /* if(appEAG6LDbEntryGet("[databse entry name]", &value) == GT_OK)   */
     /*    paramsPtr->[parameter to update] = value;                     */
 
-    if(appDemoDbEntryGet("noCpu", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("noCpu", &value) == GT_OK)
     {
         paramsPtr->noTraffic2CPU = (GT_BOOL)value;
     }
-    if(appDemoDbEntryGet("netifSdmaPortGroupId", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("netifSdmaPortGroupId", &value) == GT_OK)
     {
         paramsPtr->netifSdmaPortGroupId = value;
     }
@@ -5979,7 +5988,7 @@ static GT_STATUS appDemoUpdatePpPhase2Params
 #endif /* IMPL_PP */
 
 /**
-* @internal appDemoUpdatePpLogicalInitParams function
+* @internal appEAG6LUpdatePpLogicalInitParams function
 * @endinternal
 *
 * @brief   Updates PP logical init params according to app demo database.
@@ -5991,7 +6000,7 @@ static GT_STATUS appDemoUpdatePpPhase2Params
 * @retval GT_BAD_PARAM             - on wrong value
 * @retval GT_FAIL                  - otherwise.
 */
-static GT_STATUS appDemoUpdatePpLogicalInitParams
+static GT_STATUS appEAG6LUpdatePpLogicalInitParams
 (
     INOUT CPSS_PP_CONFIG_INIT_STC       *paramsPtr
 )
@@ -6001,30 +6010,30 @@ static GT_STATUS appDemoUpdatePpLogicalInitParams
     CPSS_NULL_PTR_CHECK_MAC(paramsPtr);
 
     /* follow this sample code to override a parameter according        */
-    /* to appDemo database entries                                      */
+    /* to appEAG6L database entries                                      */
     /* please keep the convention that database entry name is the       */
     /* same as parameter to update                                      */
-    /* if(appDemoDbEntryGet("[databse entry name]", &value) == GT_OK)   */
+    /* if(appEAG6LDbEntryGet("[databse entry name]", &value) == GT_OK)   */
     /*    paramsPtr->[parameter to update] = value;                     */
 
     /* Inlif */
-    if(appDemoDbEntryGet("maxNumOfLifs", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfLifs", &value) == GT_OK)
         paramsPtr->maxNumOfLifs = value;
-    if(appDemoDbEntryGet("inlifPortMode", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("inlifPortMode", &value) == GT_OK)
         paramsPtr->inlifPortMode = (APP_DEMO_CPSS_INLIF_PORT_MODE_ENT)value;
 
     /* Policer */
-    if(appDemoDbEntryGet("maxNumOfPolicerEntries", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfPolicerEntries", &value) == GT_OK)
         paramsPtr->maxNumOfPolicerEntries = value;
-    if(appDemoDbEntryGet("policerConformCountEn", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("policerConformCountEn", &value) == GT_OK)
         paramsPtr->policerConformCountEn = (GT_BOOL)value;
 
     /* MPLS    */
-    if(appDemoDbEntryGet("maxNumOfNhlfe", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfNhlfe", &value) == GT_OK)
         paramsPtr->maxNumOfNhlfe = value;
-    if(appDemoDbEntryGet("maxNumOfMplsIfs", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfMplsIfs", &value) == GT_OK)
         paramsPtr->maxNumOfMplsIfs = value;
-    if(appDemoDbEntryGet("ipMplsMemLocation", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("ipMplsMemLocation", &value) == GT_OK)
     {
         switch(value)
         {
@@ -6040,105 +6049,105 @@ static GT_STATUS appDemoUpdatePpLogicalInitParams
     }
 
     /* PCL     */
-    if(appDemoDbEntryGet("maxNumOfPclAction", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfPclAction", &value) == GT_OK)
         paramsPtr->maxNumOfPclAction = value;
-    if(appDemoDbEntryGet("pclActionSize", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("pclActionSize", &value) == GT_OK)
         paramsPtr->pclActionSize = value;
 
     /* Policy-based routing  */
-    if(appDemoDbEntryGet("maxNumOfPceForIpPrefixes", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfPceForIpPrefixes", &value) == GT_OK)
         paramsPtr->maxNumOfPceForIpPrefixes = value;
-    if(appDemoDbEntryGet("usePolicyBasedRouting", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("usePolicyBasedRouting", &value) == GT_OK)
         paramsPtr->usePolicyBasedRouting = value;
-    if(appDemoDbEntryGet("usePolicyBasedDefaultMc", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("usePolicyBasedDefaultMc", &value) == GT_OK)
         paramsPtr->usePolicyBasedDefaultMc = value;
 
     /* LPM PBR entries */
-    if(appDemoDbEntryGet("maxNumOfPbrEntries", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfPbrEntries", &value) == GT_OK)
         paramsPtr->maxNumOfPbrEntries = value;
 
     /* Bridge           */
-    if(appDemoDbEntryGet("maxVid", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxVid", &value) == GT_OK)
         paramsPtr->maxVid = (GT_U16)value;
-    if(appDemoDbEntryGet("maxMcGroups", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxMcGroups", &value) == GT_OK)
         paramsPtr->maxMcGroups = (GT_U16)value;
 
     /* IP Unicast     */
-    if(appDemoDbEntryGet("maxNumOfVirtualRouters", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfVirtualRouters", &value) == GT_OK)
         paramsPtr->maxNumOfVirtualRouters = value;
-    if(appDemoDbEntryGet("maxNumOfIpNextHop", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfIpNextHop", &value) == GT_OK)
         paramsPtr->maxNumOfIpNextHop = value;
 
     /* IPv4 Unicast     */
-    if(appDemoDbEntryGet("maxNumOfIpv4Prefixes", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfIpv4Prefixes", &value) == GT_OK)
         paramsPtr->maxNumOfIpv4Prefixes = value;
 
     /* IPv4/IPv6 Multicast   */
-    if(appDemoDbEntryGet("maxNumOfIpv4McEntries", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfIpv4McEntries", &value) == GT_OK)
         paramsPtr->maxNumOfIpv4McEntries = value;
-    if(appDemoDbEntryGet("maxNumOfMll", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfMll", &value) == GT_OK)
         paramsPtr->maxNumOfMll = value;
 
     /* IPv6 Unicast     */
-    if(appDemoDbEntryGet("maxNumOfIpv6Prefixes", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfIpv6Prefixes", &value) == GT_OK)
         paramsPtr->maxNumOfIpv6Prefixes = value;
 
     /* IPv6 Multicast   */
-    if(appDemoDbEntryGet("maxNumOfIpv6McGroups", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfIpv6McGroups", &value) == GT_OK)
         paramsPtr->maxNumOfIpv6McGroups = value;
 
     /* Tunnels */
-    if(appDemoDbEntryGet("maxNumOfTunnelEntries", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfTunnelEntries", &value) == GT_OK)
         paramsPtr->maxNumOfTunnelEntries = value;
-    if(appDemoDbEntryGet("maxNumOfIpv4TunnelTerms", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfIpv4TunnelTerms", &value) == GT_OK)
         paramsPtr->maxNumOfIpv4TunnelTerms = value;
 
     /* tunnel termination (of all types) / TTI entries - for Dx devices */
-    if(appDemoDbEntryGet("maxNumOfTunnelTerm", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("maxNumOfTunnelTerm", &value) == GT_OK)
         paramsPtr->maxNumOfTunnelTerm = value;
 
     /* inlifs */
-    if(appDemoDbEntryGet("vlanInlifEntryType", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("vlanInlifEntryType", &value) == GT_OK)
         paramsPtr->vlanInlifEntryType = value;
 
     /* if GT_FALSE - no division of memory pools for the use of different IP versions */
-    if(appDemoDbEntryGet("ipMemDivisionOn", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("ipMemDivisionOn", &value) == GT_OK)
         paramsPtr->ipMemDivisionOn = (GT_BOOL)value;
 
     /* devision of memory between IPv4 and IPv6 prefixes*/
-    if(appDemoDbEntryGet("ipv6MemShare", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("ipv6MemShare", &value) == GT_OK)
         paramsPtr->ipv6MemShare = value;
 
     /* Number of trunks */
-    if(appDemoDbEntryGet("numOfTrunks", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("numOfTrunks", &value) == GT_OK)
         paramsPtr->numOfTrunks = value;
 
     /* PCL rule index and PCL ID for defualt IPv6 MC entry for devices */
     /* where IPv6 MC group search is implemented in PCL                */
-    if(appDemoDbEntryGet("defIpv6McPclRuleIndex", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("defIpv6McPclRuleIndex", &value) == GT_OK)
         paramsPtr->defIpv6McPclRuleIndex = value;
-    if(appDemoDbEntryGet("vrIpv6McPclId", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("vrIpv6McPclId", &value) == GT_OK)
         paramsPtr->vrIpv6McPclId = value;
 
     /* TCAM LPM DB configurations */
-    if(appDemoDbEntryGet("lpmDbPartitionEnable", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("lpmDbPartitionEnable", &value) == GT_OK)
         paramsPtr->lpmDbPartitionEnable = (GT_BOOL)value;
-    if(appDemoDbEntryGet("lpmDbFirstTcamLine", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("lpmDbFirstTcamLine", &value) == GT_OK)
         paramsPtr->lpmDbFirstTcamLine = value;
-    if(appDemoDbEntryGet("lpmDbLastTcamLine", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("lpmDbLastTcamLine", &value) == GT_OK)
         paramsPtr->lpmDbLastTcamLine = value;
-    if(appDemoDbEntryGet("lpmDbSupportIpv4", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("lpmDbSupportIpv4", &value) == GT_OK)
         paramsPtr->lpmDbSupportIpv4 = (GT_BOOL)value;
-    if(appDemoDbEntryGet("lpmDbSupportIpv6", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("lpmDbSupportIpv6", &value) == GT_OK)
         paramsPtr->lpmDbSupportIpv6 = (GT_BOOL)value;
 
 #ifdef CHX_FAMILY
     /* LPM RAM Configuration for Dynamic LPM Management */
-    if(appDemoDbEntryGet("lpmRamMemoryBlocksCfg.lpmRamBlocksAllocationMethod", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("lpmRamMemoryBlocksCfg.lpmRamBlocksAllocationMethod", &value) == GT_OK)
         paramsPtr->lpmRamMemoryBlocksCfg.blocksAllocationMethod = (CPSS_DXCH_LPM_RAM_BLOCKS_ALLOCATION_METHOD_ENT)value;
 #endif /*CHX_FAMILY*/
 
-    if(appDemoDbEntryGet("pha_packetOrderChangeEnable", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("pha_packetOrderChangeEnable", &value) == GT_OK)
         paramsPtr->pha_packetOrderChangeEnable = (GT_BOOL)value;
 
     /* note that external TCAM info parameters can't be modified */
@@ -6147,7 +6156,7 @@ static GT_STATUS appDemoUpdatePpLogicalInitParams
 }
 
 /**
-* @internal appDemoUpdateLibInitParams function
+* @internal appEAG6LUpdateLibInitParams function
 * @endinternal
 *
 * @brief   Updates lib init params according to app demo database.
@@ -6158,7 +6167,7 @@ static GT_STATUS appDemoUpdatePpLogicalInitParams
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS appDemoUpdateLibInitParams
+GT_STATUS appEAG6LUpdateLibInitParams
 (
     INOUT APP_DEMO_LIB_INIT_PARAMS      *paramsPtr
 )
@@ -6168,67 +6177,67 @@ GT_STATUS appDemoUpdateLibInitParams
     CPSS_NULL_PTR_CHECK_MAC(paramsPtr);
 
     /* follow this sample code to override a parameter according        */
-    /* to appDemo database entries                                      */
+    /* to appEAG6L database entries                                      */
     /* please keep the convention that database entry name is the       */
     /* same as parameter to update                                      */
-    /* if(appDemoDbEntryGet("[databse entry name]", &value) == GT_OK)   */
+    /* if(appEAG6LDbEntryGet("[databse entry name]", &value) == GT_OK)   */
     /*    paramsPtr->[parameter to update] = value;                     */
 
-    if(appDemoDbEntryGet("initBridge", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initBridge", &value) == GT_OK)
         paramsPtr->initBridge = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initClassifier", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initClassifier", &value) == GT_OK)
         paramsPtr->initClassifier = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initCos", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initCos", &value) == GT_OK)
         paramsPtr->initCos = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initIpv4", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initIpv4", &value) == GT_OK)
         paramsPtr->initIpv4 = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initIpv6", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initIpv6", &value) == GT_OK)
         paramsPtr->initIpv6 = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initIpv4Filter", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initIpv4Filter", &value) == GT_OK)
         paramsPtr->initIpv4Filter = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initIpv4Tunnel", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initIpv4Tunnel", &value) == GT_OK)
         paramsPtr->initIpv4Tunnel = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initLif", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initLif", &value) == GT_OK)
         paramsPtr->initLif = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initMirror", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initMirror", &value) == GT_OK)
         paramsPtr->initMirror = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initMpls", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initMpls", &value) == GT_OK)
         paramsPtr->initMpls = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initMplsTunnel", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initMplsTunnel", &value) == GT_OK)
         paramsPtr->initMplsTunnel = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initNetworkIf", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initNetworkIf", &value) == GT_OK)
         paramsPtr->initNetworkIf = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initI2c", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initI2c", &value) == GT_OK)
         paramsPtr->initI2c = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initPhy", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initPhy", &value) == GT_OK)
         paramsPtr->initPhy = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initPort", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initPort", &value) == GT_OK)
         paramsPtr->initPort = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initTc", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initTc", &value) == GT_OK)
         paramsPtr->initTc = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initTrunk", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initTrunk", &value) == GT_OK)
         paramsPtr->initTrunk = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initPcl", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initPcl", &value) == GT_OK)
         paramsPtr->initPcl = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initTcam", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initTcam", &value) == GT_OK)
         paramsPtr->initTcam = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initPolicer", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initPolicer", &value) == GT_OK)
         paramsPtr->initPolicer = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initAction", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initAction", &value) == GT_OK)
         paramsPtr->initAction = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initSflow", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initSflow", &value) == GT_OK)
         paramsPtr->initSflow = (GT_BOOL)value;
-    if(appDemoDbEntryGet("initPha", &value) == GT_OK)
+    if(appEAG6LDbEntryGet("initPha", &value) == GT_OK)
         paramsPtr->initPha = (GT_BOOL)value;
 
     return GT_OK;
 }
 
 /**
-* @internal appDemoOnDistributedSimAsicSideSet function
+* @internal appEAG6LOnDistributedSimAsicSideSet function
 * @endinternal
 *
-* @brief   set value to the appDemoOnDistributedSimAsicSide flag.
+* @brief   set value to the appEAG6LOnDistributedSimAsicSide flag.
 *
 * @param[in] value                    -  to be set
 *
@@ -6238,7 +6247,7 @@ GT_STATUS appDemoUpdateLibInitParams
 * @note Function is called from the TERMINAL
 *
 */
-GT_STATUS appDemoOnDistributedSimAsicSideSet
+GT_STATUS appEAG6LOnDistributedSimAsicSideSet
 (
     IN GT_U32  value
 )
@@ -6246,12 +6255,12 @@ GT_STATUS appDemoOnDistributedSimAsicSideSet
     if(systemInitialized == GT_TRUE)
     {
         /* will not have effect if called after initialization of system */
-        osPrintf("appDemoOnDistributedSimAsicSideSet : should be called before cpssInitSystem \n");
+        osPrintf("appEAG6LOnDistributedSimAsicSideSet : should be called before cpssInitSystem \n");
 
         return GT_BAD_STATE;
     }
 
-    /* when appDemoOnDistributedSimAsicSide != 0
+    /* when appEAG6LOnDistributedSimAsicSide != 0
        this image is running on simulation:
        1. our application on distributed "Asic side"
        2. the Other application that run on the "application side" is in
@@ -6262,14 +6271,14 @@ GT_STATUS appDemoOnDistributedSimAsicSideSet
           (because the Other side application may have difficult running
            "Galtis wrappers" from there)
     */
-    appDemoOnDistributedSimAsicSide = value;
+    appEAG6LOnDistributedSimAsicSide = value;
 
     return GT_OK;
 }
 
 #ifdef ASIC_SIMULATION
 /**
-* @internal appDemoRtosOnSimulationInit function
+* @internal appEAG6LRtosOnSimulationInit function
 * @endinternal
 *
 * @brief   initialize the Simulation section on the "target board" part of the
@@ -6278,7 +6287,7 @@ GT_STATUS appDemoOnDistributedSimAsicSideSet
 * @note Function is called as first step of the cpssInitSystem
 *
 */
-void appDemoRtosOnSimulationInit
+void appEAG6LRtosOnSimulationInit
 (
     void
 )
@@ -6359,7 +6368,7 @@ void appDemoRtosOnSimulationInit
 
 
 /**
-* @internal appDemoCpuEtherPortUsed function
+* @internal appEAG6LCpuEtherPortUsed function
 * @endinternal
 *
 * @brief   is CPU Ethernet port used (and not SDMA)
@@ -6367,13 +6376,13 @@ void appDemoRtosOnSimulationInit
 * @retval GT_TRUE                  - if CPU Ethernet port used (and not SDMA)
 * @retval GT_FALSE                 - otherwise
 */
-GT_BOOL appDemoCpuEtherPortUsed(void)
+GT_BOOL appEAG6LCpuEtherPortUsed(void)
 {
     return appDemoSysConfig.cpuEtherPortUsed;
 }
 
 /**
-* @internal appDemoEventBind function
+* @internal appEAG6LEventBind function
 * @endinternal
 *
 * @brief   This routine binds a user process to unified event. The routine returns
@@ -6402,7 +6411,7 @@ GT_BOOL appDemoCpuEtherPortUsed(void)
 * @retval GT_ALREADY_EXIST         - one of the unified events already bound to another
 *                                       handler (not applicable to CPSS_PP_TX_BUFFER_QUEUE_E)
 */
-GT_STATUS appDemoEventBind
+GT_STATUS appEAG6LEventBind
 (
     IN  CPSS_UNI_EV_CAUSE_ENT uniEventArr[],
     IN  GT_U32               arrLength,
@@ -6413,7 +6422,7 @@ GT_STATUS appDemoEventBind
 }
 
 /**
-* @internal appDemoEventSelect function
+* @internal appEAG6LEventSelect function
 * @endinternal
 *
 * @brief   This function waiting for one of the events ,relate to the handler,
@@ -6439,7 +6448,7 @@ GT_STATUS appDemoEventBind
 * @retval GT_BAD_PTR               - evBitmapArr parameter is NULL pointer
 *                                       (and evBitmapArrLength != 0)
 */
-GT_STATUS appDemoEventSelect
+GT_STATUS appEAG6LEventSelect
 (
     IN  GT_UINTPTR           hndl,
     IN  GT_U32              *timeoutPtr,
@@ -6451,7 +6460,7 @@ GT_STATUS appDemoEventSelect
 }
 
 /**
-* @internal appDemoEventRecv function
+* @internal appEAG6LEventRecv function
 * @endinternal
 *
 * @brief   This function gets general information about the selected unified event.
@@ -6481,7 +6490,7 @@ GT_STATUS appDemoEventSelect
 *                                       use dedicated "get tx ended info" function instead
 * @retval GT_BAD_PTR               - one of the parameters is NULL pointer
 */
-GT_STATUS appDemoEventRecv
+GT_STATUS appEAG6LEventRecv
 (
     IN  GT_UINTPTR            hndl,
     IN  CPSS_UNI_EV_CAUSE_ENT evCause,
@@ -6493,7 +6502,7 @@ GT_STATUS appDemoEventRecv
 }
 
 /**
-* @internal appDemoEventDeviceMaskSet function
+* @internal appEAG6LEventDeviceMaskSet function
 * @endinternal
 *
 * @brief   This routine mask/unmasks an unified event on specific device.
@@ -6520,7 +6529,7 @@ GT_STATUS appDemoEventRecv
 *       operation of the function.
 *
 */
-GT_STATUS appDemoEventDeviceMaskSet
+GT_STATUS appEAG6LEventDeviceMaskSet
 (
     IN GT_U8                    devNum,
     IN CPSS_UNI_EV_CAUSE_ENT    uniEvent,
@@ -6532,7 +6541,7 @@ GT_STATUS appDemoEventDeviceMaskSet
 
 
 /**
-* @internal appDemoPpConfigGet function
+* @internal appEAG6LPpConfigGet function
 * @endinternal
 *
 * @brief   get pointer to the application's info about the PP
@@ -6545,7 +6554,7 @@ GT_STATUS appDemoEventDeviceMaskSet
 * @retval GT_BAD_PTR               - on NULL pointer
 * @retval GT_OUT_OF_RANGE          - on devIndex > 127
 */
-GT_STATUS appDemoPpConfigGet
+GT_STATUS appEAG6LPpConfigGet
 (
     IN GT_U8    devIndex,
     OUT CMD_APP_PP_CONFIG* ppConfigPtr
@@ -6561,16 +6570,16 @@ GT_STATUS appDemoPpConfigGet
         return GT_OUT_OF_RANGE;
     }
 
-    ppConfigPtr->deviceId = appDemoPpConfigList[devIndex].deviceId;
-    ppConfigPtr->devNum = appDemoPpConfigList[devIndex].devNum;
-    ppConfigPtr->valid = appDemoPpConfigList[devIndex].valid;
-    ppConfigPtr->wa.trunkToCpuPortNum = appDemoPpConfigList[devIndex].wa.trunkToCpuPortNum;
+    ppConfigPtr->deviceId = appEAG6LPpConfigList[devIndex].deviceId;
+    ppConfigPtr->devNum = appEAG6LPpConfigList[devIndex].devNum;
+    ppConfigPtr->valid = appEAG6LPpConfigList[devIndex].valid;
+    ppConfigPtr->wa.trunkToCpuPortNum = appEAG6LPpConfigList[devIndex].wa.trunkToCpuPortNum;
 
     return GT_OK;
 }
 
 /**
-* @internal appDemoIsSystemInitialized function
+* @internal appEAG6LIsSystemInitialized function
 * @endinternal
 *
 * @brief   is system initialized
@@ -6578,7 +6587,7 @@ GT_STATUS appDemoPpConfigGet
 * @retval GT_TRUE                  - system initialized
 * @retval GT_FALSE                 - system NOT initialized
 */
-GT_BOOL appDemoIsSystemInitialized
+GT_BOOL appEAG6LIsSystemInitialized
 (
     void
 )
@@ -6587,7 +6596,7 @@ GT_BOOL appDemoIsSystemInitialized
 }
 
 /**
-* @internal prvAppDemoEventFatalErrorEnable function
+* @internal Hfr_prvAppDemoEventFatalErrorEnable function
 * @endinternal
 *
 * @brief   Set fatal error handling type.
@@ -6597,19 +6606,19 @@ GT_BOOL appDemoIsSystemInitialized
 * @retval GT_OK                    - on success
 * @retval GT_BAD_PARAM             - on wrong fatalErrorType
 */
-GT_STATUS prvAppDemoEventFatalErrorEnable
+GT_STATUS Hfr_prvAppDemoEventFatalErrorEnable
 (
     IN GT_32 fatalErrorType
 )
 {
     CPSS_ENABLER_FATAL_ERROR_TYPE  type = (CPSS_ENABLER_FATAL_ERROR_TYPE) fatalErrorType;
 
-    return appDemoEventFatalErrorEnable(type);
+    return appEAG6LEventFatalErrorEnable(type);
 }
 
 
 /**
-* @internal appDemoPpConfigPrint function
+* @internal appEAG6LPpConfigPrint function
 * @endinternal
 *
 * @brief   Return system configuration that was set by user .
@@ -6618,7 +6627,7 @@ GT_STATUS prvAppDemoEventFatalErrorEnable
 *
 * @retval GT_OK                    - on success
 */
-GT_STATUS appDemoPpConfigPrint
+GT_STATUS appEAG6LPpConfigPrint
 (
     IN  GT_U8  devNum
 )
@@ -6751,14 +6760,14 @@ GT_STATUS appDemoPpConfigPrint
 
 
 /**
-* @internal appDemoDbPpDump function
+* @internal appEAG6LDbPpDump function
 * @endinternal
 *
 * @brief   Dump App Demo DB
 *
 * @retval GT_OK                    - GT_OK ant case
 */
-GT_STATUS appDemoDbPpDump(void)
+GT_STATUS appEAG6LDbPpDump(void)
 {
 
     GT_U32 i, ii; /* iterator*/
@@ -6767,105 +6776,105 @@ GT_STATUS appDemoDbPpDump(void)
 
     for(i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
     {
-        if(appDemoPpConfigList[i].valid)
+        if(appEAG6LPpConfigList[i].valid)
         {
           osPrintf("Found device with devNum %d, device id 0x%8X, family %d, mng interface %d\n",
-                   appDemoPpConfigList[i].devNum, appDemoPpConfigList[i].deviceId,
-                   appDemoPpConfigList[i].devFamily, appDemoPpConfigList[i].channel);
-          if(appDemoPpConfigList[i].channel==CPSS_CHANNEL_PCI_E ||
-             appDemoPpConfigList[i].channel==CPSS_CHANNEL_PEX_E)
+                   appEAG6LPpConfigList[i].devNum, appEAG6LPpConfigList[i].deviceId,
+                   appEAG6LPpConfigList[i].devFamily, appEAG6LPpConfigList[i].channel);
+          if(appEAG6LPpConfigList[i].channel==CPSS_CHANNEL_PCI_E ||
+             appEAG6LPpConfigList[i].channel==CPSS_CHANNEL_PEX_E)
           {
               GT_PCI_INFO *pciInfo;
-              if (appDemoPpConfigList[i].numOfPortGroups > 1)
+              if (appEAG6LPpConfigList[i].numOfPortGroups > 1)
               {
-                  for (ii = 0; ii < appDemoPpConfigList[i].numOfPortGroups; ii++)
+                  for (ii = 0; ii < appEAG6LPpConfigList[i].numOfPortGroups; ii++)
                   {
                       /* print PCI/PEX info */
-                      pciInfo = &(appDemoPpConfigList[i].portGroupsInfo[ii].portGroupPciInfo);
+                      pciInfo = &(appEAG6LPpConfigList[i].portGroupsInfo[ii].portGroupPciInfo);
                       osPrintf(" Port Group %d PCI/PEX addr %02x:%02x.%x\n", ii,
                                 pciInfo->pciBusNum, pciInfo->pciIdSel, pciInfo->funcNo);
                   }
               }
               else
               {
-                  pciInfo = &(appDemoPpConfigList[i].pciInfo);
+                  pciInfo = &(appEAG6LPpConfigList[i].pciInfo);
                   osPrintf(" PCI/PEX addr %02x:%02x.%x\n",
                         pciInfo->pciBusNum, pciInfo->pciIdSel, pciInfo->funcNo);
               }
 
           }
-          else if (appDemoPpConfigList[i].channel==CPSS_CHANNEL_SMI_E)
+          else if (appEAG6LPpConfigList[i].channel==CPSS_CHANNEL_SMI_E)
           {
               osPrintf("   SMI address %d\n",
-                       appDemoPpConfigList[i].smiInfo.smiIdSel);
+                       appEAG6LPpConfigList[i].smiInfo.smiIdSel);
           }
 
 
-          busTypePtr = (appDemoPpConfigList[i].hwInfo.busType >= CPSS_HW_INFO_BUS_TYPE_MAX_NUM) ?
+          busTypePtr = (appEAG6LPpConfigList[i].hwInfo.busType >= CPSS_HW_INFO_BUS_TYPE_MAX_NUM) ?
                        busTypeArr[CPSS_HW_INFO_BUS_TYPE_MAX_NUM] :
-                       busTypeArr[appDemoPpConfigList[i].hwInfo.busType];
+                       busTypeArr[appEAG6LPpConfigList[i].hwInfo.busType];
 
           osPrintf(  "HW_INFO: Bus %s IRQ Switch %d IRQ Doorbell %d\n",
-                   busTypePtr , appDemoPpConfigList[i].hwInfo.irq.switching,
-                   appDemoPpConfigList[i].hwInfo.irq.doorbell);
+                   busTypePtr , appEAG6LPpConfigList[i].hwInfo.irq.switching,
+                   appEAG6LPpConfigList[i].hwInfo.irq.doorbell);
 
           osPrintf(  "HW_INFO: CNM   : Base %p Phys %p Size %d\n",
-                   appDemoPpConfigList[i].hwInfo.resource.cnm.start,
-                   appDemoPpConfigList[i].hwInfo.resource.cnm.phys,
-                   appDemoPpConfigList[i].hwInfo.resource.cnm.size);
+                   appEAG6LPpConfigList[i].hwInfo.resource.cnm.start,
+                   appEAG6LPpConfigList[i].hwInfo.resource.cnm.phys,
+                   appEAG6LPpConfigList[i].hwInfo.resource.cnm.size);
 
           osPrintf(  "HW_INFO: Switch: Base %p Phys %p Size %d\n",
-                   appDemoPpConfigList[i].hwInfo.resource.switching.start,
-                   appDemoPpConfigList[i].hwInfo.resource.switching.phys,
-                   appDemoPpConfigList[i].hwInfo.resource.switching.size);
+                   appEAG6LPpConfigList[i].hwInfo.resource.switching.start,
+                   appEAG6LPpConfigList[i].hwInfo.resource.switching.phys,
+                   appEAG6LPpConfigList[i].hwInfo.resource.switching.size);
 
 
-          if (appDemoPpConfigList[i].hwInfo.resource.resetAndInitController.start)
+          if (appEAG6LPpConfigList[i].hwInfo.resource.resetAndInitController.start)
           {
               osPrintf(  "HW_INFO: DFX   : Base %p Phys %p Size %d\n",
-                       appDemoPpConfigList[i].hwInfo.resource.resetAndInitController.start,
-                       appDemoPpConfigList[i].hwInfo.resource.resetAndInitController.phys,
-                       appDemoPpConfigList[i].hwInfo.resource.resetAndInitController.size);
+                       appEAG6LPpConfigList[i].hwInfo.resource.resetAndInitController.start,
+                       appEAG6LPpConfigList[i].hwInfo.resource.resetAndInitController.phys,
+                       appEAG6LPpConfigList[i].hwInfo.resource.resetAndInitController.size);
           }
 
-          if (appDemoPpConfigList[i].hwInfo.resource.mg1.start)
+          if (appEAG6LPpConfigList[i].hwInfo.resource.mg1.start)
           {
               osPrintf(  "HW_INFO: MG1   : Base %p Phys %p Size %d\n",
-                       appDemoPpConfigList[i].hwInfo.resource.mg1.start,
-                       appDemoPpConfigList[i].hwInfo.resource.mg1.phys,
-                       appDemoPpConfigList[i].hwInfo.resource.mg1.size);
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg1.start,
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg1.phys,
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg1.size);
           }
 
-          if (appDemoPpConfigList[i].hwInfo.resource.mg2.start)
+          if (appEAG6LPpConfigList[i].hwInfo.resource.mg2.start)
           {
               osPrintf(  "HW_INFO: MG2   : Base %p Phys %p Size %d\n",
-                       appDemoPpConfigList[i].hwInfo.resource.mg2.start,
-                       appDemoPpConfigList[i].hwInfo.resource.mg2.phys,
-                       appDemoPpConfigList[i].hwInfo.resource.mg2.size);
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg2.start,
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg2.phys,
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg2.size);
           }
 
-          if (appDemoPpConfigList[i].hwInfo.resource.mg3.start)
+          if (appEAG6LPpConfigList[i].hwInfo.resource.mg3.start)
           {
               osPrintf(  "HW_INFO: MG3   : Base %p Phys %p Size %d\n",
-                       appDemoPpConfigList[i].hwInfo.resource.mg3.start,
-                       appDemoPpConfigList[i].hwInfo.resource.mg3.phys,
-                       appDemoPpConfigList[i].hwInfo.resource.mg3.size);
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg3.start,
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg3.phys,
+                       appEAG6LPpConfigList[i].hwInfo.resource.mg3.size);
           }
 
-          if (appDemoPpConfigList[i].hwInfo.resource.sram.start)
+          if (appEAG6LPpConfigList[i].hwInfo.resource.sram.start)
           {
               osPrintf(  "HW_INFO: SRAM  : Base %p Phys %p Size %d\n",
-                       appDemoPpConfigList[i].hwInfo.resource.sram.start,
-                       appDemoPpConfigList[i].hwInfo.resource.sram.phys,
-                       appDemoPpConfigList[i].hwInfo.resource.sram.size);
+                       appEAG6LPpConfigList[i].hwInfo.resource.sram.start,
+                       appEAG6LPpConfigList[i].hwInfo.resource.sram.phys,
+                       appEAG6LPpConfigList[i].hwInfo.resource.sram.size);
           }
 
           osPrintf(  "Init flags: ppPhase1Done %d, ppPhase2Done %d, ppLogicalInitDone %d, ppGeneralInitDone %d\n",
-                     appDemoPpConfigList[i].ppPhase1Done, appDemoPpConfigList[i].ppPhase2Done,
-                     appDemoPpConfigList[i].ppLogicalInitDone, appDemoPpConfigList[i].ppGeneralInitDone);
+                     appEAG6LPpConfigList[i].ppPhase1Done, appEAG6LPpConfigList[i].ppPhase2Done,
+                     appEAG6LPpConfigList[i].ppLogicalInitDone, appEAG6LPpConfigList[i].ppGeneralInitDone);
 
           osPrintf("   Interrupt line %d\n",
-                   appDemoPpConfigList[i].intLine);
+                   appEAG6LPpConfigList[i].intLine);
 
         }
     }
@@ -6876,7 +6885,7 @@ GT_STATUS appDemoDbPpDump(void)
 
 
 /**
-* @internal appDemoDebugDeviceIdSet function
+* @internal appEAG6LDebugDeviceIdSet function
 * @endinternal
 *
 * @brief   Set given device ID value for specific device.
@@ -6886,7 +6895,7 @@ GT_STATUS appDemoDbPpDump(void)
 * @retval GT_BAD_PTR               - on NULL pointer
 * @retval GT_OUT_OF_RANGE          - on devIndex > 127
 */
-GT_STATUS appDemoDebugDeviceIdSet
+GT_STATUS appEAG6LDebugDeviceIdSet
 (
     IN GT_U8    devNum,
     IN GT_U32   deviceId
@@ -6909,7 +6918,7 @@ GT_STATUS appDemoDebugDeviceIdSet
 }
 
 /**
-* @internal appDemoDebugDeviceIdReset function
+* @internal appEAG6LDebugDeviceIdReset function
 * @endinternal
 *
 * @brief   Reverts to HW device ID value for all devices.
@@ -6917,7 +6926,7 @@ GT_STATUS appDemoDebugDeviceIdSet
 *
 * @retval GT_OK                    - on success
 */
-GT_STATUS appDemoDebugDeviceIdReset
+GT_STATUS appEAG6LDebugDeviceIdReset
 (
     IN GT_VOID
 )
@@ -6929,7 +6938,7 @@ GT_STATUS appDemoDebugDeviceIdReset
 }
 
 /**
-* @internal appDemoDebugDeviceIdGet function
+* @internal appEAG6LDebugDeviceIdGet function
 * @endinternal
 *
 * @brief   Get given device ID value for specific device.
@@ -6940,7 +6949,7 @@ GT_STATUS appDemoDebugDeviceIdReset
 * @retval GT_NO_SUCH               - on not set debug device ID
 * @retval GT_OUT_OF_RANGE          - on devIndex > 127
 */
-GT_STATUS appDemoDebugDeviceIdGet
+GT_STATUS appEAG6LDebugDeviceIdGet
 (
     IN  GT_U8    devNum,
     OUT GT_U32  *deviceIdPtr
@@ -6963,7 +6972,7 @@ GT_STATUS appDemoDebugDeviceIdGet
 }
 
 /**
-* @internal appDemoTracePrintHwData function
+* @internal appEAG6LTracePrintHwData function
 * @endinternal
 *
 * @brief   Print data of HW Trace.
@@ -6974,7 +6983,7 @@ GT_STATUS appDemoDebugDeviceIdGet
 * @param[in] printFuncPtr             - (pointer to) print function
 *                                       None.
 */
-static GT_VOID appDemoTracePrintHwData
+static GT_VOID appEAG6LTracePrintHwData
 (
     IN GT_U32                   addr,
     IN GT_U32                   length,
@@ -7009,7 +7018,7 @@ static GT_VOID appDemoTracePrintHwData
 }
 
 /**
-* @internal appDemoTraceStoreHwData function
+* @internal appEAG6LTraceStoreHwData function
 * @endinternal
 *
 * @brief   Store data of HW Trace to HW Access DB.
@@ -7028,7 +7037,7 @@ static GT_VOID appDemoTracePrintHwData
 * @param[in,out] infoDbPtr                - (pointer to) read/write HW Access Info
 *                                       None.
 */
-static GT_STATUS appDemoTraceStoreHwData
+static GT_STATUS appEAG6LTraceStoreHwData
 (
     IN GT_U8                                devNum,
     IN GT_U32                               portGroupId,
@@ -7187,12 +7196,12 @@ static GT_STATUS appDemoTraceStoreHwData
 }
 
 /* trace of ISR only */
-GT_U32  appDemoTraceIsrOnly = 0;
+GT_U32  appEAG6LTraceIsrOnly = 0;
 /* trace of non-ISR only */
-GT_U32  appDemoTraceNonIsr = 0;
+GT_U32  appEAG6LTraceNonIsr = 0;
 
 /**
-* @internal appDemoTraceIsrOnlySet function
+* @internal appEAG6LTraceIsrOnlySet function
 * @endinternal
 *
 * @brief   Enable tracing of ISR only.
@@ -7201,19 +7210,19 @@ GT_U32  appDemoTraceNonIsr = 0;
 *                                      1 - enable trace for ISR only
 *                                       old state of ISR only trace.
 */
-GT_U32 appDemoTraceIsrOnlySet
+GT_U32 appEAG6LTraceIsrOnlySet
 (
     IN GT_U32 value
 )
 {
-    GT_U32 oldvalue = appDemoTraceIsrOnly; /* old value */
+    GT_U32 oldvalue = appEAG6LTraceIsrOnly; /* old value */
 
-    appDemoTraceIsrOnly = value;
+    appEAG6LTraceIsrOnly = value;
     return oldvalue;
 }
 
 /**
-* @internal appDemoTraceNonIsrOnlySet function
+* @internal appEAG6LTraceNonIsrOnlySet function
 * @endinternal
 *
 * @brief   Enable tracing of non-ISR only.
@@ -7222,29 +7231,29 @@ GT_U32 appDemoTraceIsrOnlySet
 *                                       1 - enable trace for non-ISR only
 *                                           old state of non-ISR only trace.
 */
-GT_U32 appDemoTraceNonIsrOnlySet
+GT_U32 appEAG6LTraceNonIsrOnlySet
 (
     IN GT_U32 value
 )
 {
-    GT_U32 oldvalue = appDemoTraceNonIsr; /* old value */
+    GT_U32 oldvalue = appEAG6LTraceNonIsr; /* old value */
 
-    appDemoTraceNonIsr = value;
+    appEAG6LTraceNonIsr = value;
     return oldvalue;
 }
 
 /* indication to do sleep before print of register address */
-static GT_BOOL appDemoTrace_do_millisecSleep = GT_FALSE;
-/* the sleep in milli that needed for 'appDemoTrace_do_millisecSleep' */
-static GT_U32  appDemoTrace_millisecSleep = 0;
-/* the address that triggers the 'appDemoTrace_do_millisecSleep' */
-static GT_U32  appDemoTrace_sleep_startAddr = 0;
+static GT_BOOL appEAG6LTrace_do_millisecSleep = GT_FALSE;
+/* the sleep in milli that needed for 'appEAG6LTrace_do_millisecSleep' */
+static GT_U32  appEAG6LTrace_millisecSleep = 0;
+/* the address that triggers the 'appEAG6LTrace_do_millisecSleep' */
+static GT_U32  appEAG6LTrace_sleep_startAddr = 0;
 
 /**
-* @internal appDemoTraceHwAccessDoSlowPrint function
+* @internal appEAG6LTraceHwAccessDoSlowPrint function
 * @endinternal
 *
-* @brief   if the function appDemoTraceHwAccessAction get this address ,
+* @brief   if the function appEAG6LTraceHwAccessAction get this address ,
 *         it will start to 'sleep' before the print
 *         it is needed when the 'dump' registers show a 'last print' but we not know
 *         were the crash actually happen.
@@ -7252,16 +7261,16 @@ static GT_U32  appDemoTrace_sleep_startAddr = 0;
 * @param[in] millisecSleep            - the sleep in millisec (value 0 meaning 'disable' the sleep)
 *                                       None.
 */
-GT_STATUS appDemoTraceHwAccessDoSlowPrint(
+GT_STATUS appEAG6LTraceHwAccessDoSlowPrint(
     IN GT_U32  startAddr,
     IN GT_U32  millisecSleep
 )
 {
-    appDemoTrace_sleep_startAddr = startAddr;
-    appDemoTrace_millisecSleep   = millisecSleep;
+    appEAG6LTrace_sleep_startAddr = startAddr;
+    appEAG6LTrace_millisecSleep   = millisecSleep;
 
     /* reset the flag */
-    appDemoTrace_do_millisecSleep = GT_FALSE;
+    appEAG6LTrace_do_millisecSleep = GT_FALSE;
 
     return GT_OK;
 }
@@ -7275,7 +7284,7 @@ static struct {
 }limitToSpecificUnit[MAX_LIMITED_UNITS];
 
 /* set the address as need to be skipped from the trace */
-GT_STATUS appDemoTrace_limitToSpecificUnit(
+GT_STATUS appEAG6LTrace_limitToSpecificUnit(
     IN GT_U32   baseAddressOfUnit, /* start base address of the unit */
     IN GT_U32   numOfBytesInUnit,  /* size of the unit (in bytes) - value 0 means 'remove' the unit  */
     IN GT_U32   index /* up to 16 indexes supported 0..15 */
@@ -7347,7 +7356,7 @@ static GT_U32   isInLimitedUnit(
 static GT_U32   skipTraceAddressArr[MAX_SKIP_ADDR]={0};
 static GT_U32   skipTraceAddressMaskArr[MAX_SKIP_ADDR]={0};
 /* set the address as need to be skipped from the trace */
-GT_STATUS appDemoTrace_skipTrace_onAddress(
+GT_STATUS appEAG6LTrace_skipTrace_onAddress(
     IN GT_U32   address,
     IN GT_U32   index /* up to 16 indexes supported 0..15 */
 )
@@ -7365,7 +7374,7 @@ GT_STATUS appDemoTrace_skipTrace_onAddress(
     return GT_OK;
 }
 
-void appDemoTrace_skipTrace_maskByAddressSet(
+void appEAG6LTrace_skipTrace_maskByAddressSet(
     IN GT_U32   address,
     IN GT_U32   mask
 )
@@ -7416,7 +7425,7 @@ static GT_BOOL is_skipTrace_onAddress(
 
 
 /**
-* @internal appDemoTraceHwAccessAction function
+* @internal appEAG6LTraceHwAccessAction function
 * @endinternal
 *
 * @brief   Trace HW Access action: print or store.
@@ -7435,7 +7444,7 @@ static GT_BOOL is_skipTrace_onAddress(
 * @param[in] accessType               - access type: read or write
 *                                       None.
 */
-static GT_STATUS appDemoTraceHwAccessAction
+static GT_STATUS appEAG6LTraceHwAccessAction
 (
     IN GT_U8                                devNum,
     IN GT_U32                               portGroupId,
@@ -7460,19 +7469,19 @@ static GT_STATUS appDemoTraceHwAccessAction
     GT_CHAR buffer[APP_DEMO_FILE_MAX_LINE_LENGTH_CNS] = {0};
     GT_U32 i = 0;
     #endif
-    if (appDemoTraceIsrOnly && (isrContext == GT_FALSE))
+    if (appEAG6LTraceIsrOnly && (isrContext == GT_FALSE))
     {
         return GT_OK;
     }
 
-    if ((appDemoTraceNonIsr == GT_TRUE) && (isrContext == GT_TRUE))
+    if ((appEAG6LTraceNonIsr == GT_TRUE) && (isrContext == GT_TRUE))
     {
         return GT_OK;
     }
 
     if(supportRegisterTracePerTaskId)
     {
-        if (!appDemoOsTaskIsRegisterTraceSupportCurrTask())
+        if (!appEAG6LOsTaskIsRegisterTraceSupportCurrTask())
         {
             /* The current task not supports trace */
             return GT_OK;
@@ -7501,13 +7510,13 @@ static GT_STATUS appDemoTraceHwAccessAction
     }
 
     /* check if we got to critical address that need to add sleep before the print */
-    if(appDemoTrace_millisecSleep)
+    if(appEAG6LTrace_millisecSleep)
     {
-        if(appDemoTrace_do_millisecSleep == GT_TRUE ||
-           addr == appDemoTrace_sleep_startAddr )
+        if(appEAG6LTrace_do_millisecSleep == GT_TRUE ||
+           addr == appEAG6LTrace_sleep_startAddr )
         {
-            appDemoTrace_do_millisecSleep = GT_TRUE;
-            osTimerWkAfter(appDemoTrace_millisecSleep);
+            appEAG6LTrace_do_millisecSleep = GT_TRUE;
+            osTimerWkAfter(appEAG6LTrace_millisecSleep);
             osPrintf("..");
         }
     }
@@ -7587,7 +7596,7 @@ static GT_STATUS appDemoTraceHwAccessAction
                 }
                 printFuncPtr("  ");
                 /* print the data */
-                appDemoTracePrintHwData(addr, length, dataPtr, mask, printFuncPtr);
+                appEAG6LTracePrintHwData(addr, length, dataPtr, mask, printFuncPtr);
 
             }
 
@@ -7599,7 +7608,7 @@ static GT_STATUS appDemoTraceHwAccessAction
         case CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E:
             /* store the data */
 
-            rc = appDemoTraceStoreHwData(devNum,
+            rc = appEAG6LTraceStoreHwData(devNum,
                                         portGroupId,
                                         isrContext,
                                         addrSpace,
@@ -7608,8 +7617,8 @@ static GT_STATUS appDemoTraceHwAccessAction
                                         dataPtr,
                                         mask,
                                         accessType,
-                                         &appDemoAccessDbPtr,
-                                        &appDemoAccessInfo);
+                                         &appEAG6LAccessDbPtr,
+                                        &appEAG6LAccessInfo);
 
             if (rc != GT_OK)
             {
@@ -7647,9 +7656,9 @@ static GT_STATUS appDemoTraceHwAccessAction
     }
 
     /* check if we got to critical address that need to add sleep before the print */
-    if(appDemoTrace_do_millisecSleep)
+    if(appEAG6LTrace_do_millisecSleep)
     {
-        osTimerWkAfter(appDemoTrace_millisecSleep);
+        osTimerWkAfter(appEAG6LTrace_millisecSleep);
         osPrintf("..A..");
     }
 
@@ -7657,7 +7666,7 @@ static GT_STATUS appDemoTraceHwAccessAction
 }
 #if (!defined(SHARED_MEMORY) || (defined(LINUX) && defined(ASIC_SIMULATION)))
 /**
-* @internal appDemoTraceWriteHwAccess function
+* @internal appEAG6LTraceWriteHwAccess function
 * @endinternal
 *
 * @brief   Trace HW write access information.
@@ -7676,7 +7685,7 @@ static GT_STATUS appDemoTraceHwAccessAction
 * @retval GT_OK                    - on success
 * @retval GT_FAIL                  - on fail
 */
-static GT_STATUS appDemoTraceWriteHwAccess
+static GT_STATUS appEAG6LTraceWriteHwAccess
 (
     IN GT_U8       devNum,
     IN GT_U32      portGroupId,
@@ -7688,7 +7697,7 @@ static GT_STATUS appDemoTraceWriteHwAccess
     IN GT_U32      mask
 )
 {
-    return appDemoTraceHwAccessAction(devNum,
+    return appEAG6LTraceHwAccessAction(devNum,
                                       portGroupId,
                                       isrContext,
                                       addrSpace,
@@ -7696,12 +7705,12 @@ static GT_STATUS appDemoTraceWriteHwAccess
                                       length,
                                       dataPtr,
                                       mask,
-                                      appDemoTraceOutputMode,
+                                      appEAG6LTraceOutputMode,
                                       CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_E);
 }
 
 /**
-* @internal appDemoTraceReadHwAccess function
+* @internal appEAG6LTraceReadHwAccess function
 * @endinternal
 *
 * @brief   Trace HW read access information.
@@ -7719,7 +7728,7 @@ static GT_STATUS appDemoTraceWriteHwAccess
 * @retval GT_OK                    - on success
 * @retval GT_FAIL                  - on fail
 */
-static GT_STATUS appDemoTraceReadHwAccess
+static GT_STATUS appEAG6LTraceReadHwAccess
 (
     IN GT_U8       devNum,
     IN GT_U32      portGroupId,
@@ -7730,7 +7739,7 @@ static GT_STATUS appDemoTraceReadHwAccess
     IN GT_U32      *dataPtr
 )
 {
-    return appDemoTraceHwAccessAction(devNum,
+    return appEAG6LTraceHwAccessAction(devNum,
                                       portGroupId,
                                       isrContext,
                                       addrSpace,
@@ -7738,13 +7747,13 @@ static GT_STATUS appDemoTraceReadHwAccess
                                       length,
                                       dataPtr,
                                                                           0xFFFFFFFF,
-                                      appDemoTraceOutputMode,
+                                      appEAG6LTraceOutputMode,
                                       CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_READ_E);
 }
 
 
 /**
-* @internal appDemoTraceDelayHwAccess function
+* @internal appEAG6LTraceDelayHwAccess function
 * @endinternal
 *
 * @brief   Trace HW write access information.
@@ -7756,14 +7765,14 @@ static GT_STATUS appDemoTraceReadHwAccess
 * @retval GT_OK                    - on success
 * @retval GT_FAIL                  - on fail
 */
-static GT_STATUS appDemoTraceDelayHwAccess
+static GT_STATUS appEAG6LTraceDelayHwAccess
 (
        IN GT_U8       devNum,
        IN GT_U32      portGroupId,
        IN GT_U32      millisec
 )
 {
-    return appDemoTraceHwAccessAction(devNum,
+    return appEAG6LTraceHwAccessAction(devNum,
                                       ((portGroupId==0xFFFFFFFF)?0:portGroupId),
                                       GT_FALSE,
                                       CPSS_TRACE_HW_ACCESS_ADDR_SPACE_PP_E,
@@ -7771,12 +7780,12 @@ static GT_STATUS appDemoTraceDelayHwAccess
                                       1,
                                       &millisec,
                                       0xFFFFFFFF,
-                                      appDemoTraceOutputMode,
+                                      appEAG6LTraceOutputMode,
                                       CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_DELAY_E);
 }
 #endif
 /**
-* @internal appDemoSetHwAccessDbActiveState function
+* @internal appEAG6LSetHwAccessDbActiveState function
 * @endinternal
 *
 * @brief   Update HW Access Read/Write DB state.
@@ -7784,7 +7793,7 @@ static GT_STATUS appDemoTraceDelayHwAccess
 * @retval GT_OK                    - on success
 * @retval GT_BAD_PARAM             - on bad access type
 */
-static GT_STATUS appDemoSetHwAccessDbActiveState
+static GT_STATUS appEAG6LSetHwAccessDbActiveState
 (
     IN            GT_BOOL                                                                         active,
     INOUT   APP_DEMO_CPSS_HW_ACCESS_DB_STC      **dbPtrPtr,
@@ -7886,7 +7895,7 @@ static GT_STATUS prvAppDemoTraceHwFilesClose
 }
 #endif
 /**
-* @internal prvAppDemoTraceHwAccessEnable function
+* @internal Hfr_prvAppDemoTraceHwAccessEnable function
 * @endinternal
 *
 * @brief   Trace HW read access information.
@@ -7899,20 +7908,20 @@ static GT_STATUS prvAppDemoTraceHwFilesClose
 * @retval GT_OK                    - on success
 * @retval GT_BAD_PARAM             - on bad access type
 */
-GT_STATUS prvAppDemoTraceHwAccessEnable
+GT_STATUS Hfr_prvAppDemoTraceHwAccessEnable
 (
     IN GT_U8                devNum,
     IN GT_U32               accessType,
     IN GT_BOOL              enable
 )
 {
-    return appDemoTraceHwAccessEnable(devNum,
+    return appEAG6LTraceHwAccessEnable(devNum,
                                       (CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_ENT)accessType,
                                       enable);
 }
 
 /**
-* @internal appDemoTraceHwAccessEnable function
+* @internal appEAG6LTraceHwAccessEnable function
 * @endinternal
 *
 * @brief   Trace HW read access information.
@@ -7925,7 +7934,7 @@ GT_STATUS prvAppDemoTraceHwAccessEnable
 * @retval GT_OK                    - on success
 * @retval GT_BAD_PARAM             - on bad access type
 */
-GT_STATUS appDemoTraceHwAccessEnable
+GT_STATUS appEAG6LTraceHwAccessEnable
 (
     IN GT_U8                                devNum,
     IN CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_ENT    accessType,
@@ -7940,12 +7949,12 @@ GT_STATUS appDemoTraceHwAccessEnable
             /* Read HW Access */
             traceReadHwAccess = enable;
 
-            if (appDemoTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E)
+            if (appEAG6LTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E)
             {
                 /* update Read HW Access DB */
-                rc = appDemoSetHwAccessDbActiveState(enable,
-                                                  &appDemoAccessDbPtr,
-                                                  &appDemoAccessInfo);
+                rc = appEAG6LSetHwAccessDbActiveState(enable,
+                                                  &appEAG6LAccessDbPtr,
+                                                  &appEAG6LAccessInfo);
                 if (rc != GT_OK)
                 {
                     return rc;
@@ -7966,12 +7975,12 @@ GT_STATUS appDemoTraceHwAccessEnable
             /* Write HW Access */
              traceWriteHwAccess = enable;
 
-            if (appDemoTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E)
+            if (appEAG6LTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E)
             {
                 /* update Write HW Access DB */
-                rc = appDemoSetHwAccessDbActiveState(enable,
-                                                  &appDemoAccessDbPtr,
-                                                  &appDemoAccessInfo);
+                rc = appEAG6LSetHwAccessDbActiveState(enable,
+                                                  &appEAG6LAccessDbPtr,
+                                                  &appEAG6LAccessInfo);
                 if (rc != GT_OK)
                 {
                     return rc;
@@ -8004,12 +8013,12 @@ GT_STATUS appDemoTraceHwAccessEnable
              traceWriteHwAccess = enable;
             traceReadHwAccess = enable;
 
-            if (appDemoTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E)
+            if (appEAG6LTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_DB_E)
             {
                 /* update Read HW Access DB */
-                rc = appDemoSetHwAccessDbActiveState(enable,
-                                                  &appDemoAccessDbPtr,
-                                                  &appDemoAccessInfo);
+                rc = appEAG6LSetHwAccessDbActiveState(enable,
+                                                  &appEAG6LAccessDbPtr,
+                                                  &appEAG6LAccessInfo);
                 if (rc != GT_OK)
                 {
                     return rc;
@@ -8043,7 +8052,7 @@ GT_STATUS appDemoTraceHwAccessEnable
     {
         /* trace hw access was disabled */
         #ifdef ASIC_SIMULATION
-        if (appDemoTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_FILE_E)
+        if (appEAG6LTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_FILE_E)
         {
             rc = prvAppDemoTraceHwFilesClose();
             if (rc != GT_OK)
@@ -8058,7 +8067,7 @@ GT_STATUS appDemoTraceHwAccessEnable
 
 
 /**
-* @internal prvAppDemoTraceHwAccessOutputModeSet function
+* @internal Hfr_prvAppDemoTraceHwAccessOutputModeSet function
 * @endinternal
 *
 * @brief   Set output tracing mode.
@@ -8073,15 +8082,15 @@ GT_STATUS appDemoTraceHwAccessEnable
 *       is enabled.
 *
 */
-GT_STATUS prvAppDemoTraceHwAccessOutputModeSet
+GT_STATUS Hfr_prvAppDemoTraceHwAccessOutputModeSet
 (
     IN GT_U32   mode
 )
 {
-    return appDemoTraceHwAccessOutputModeSet((CPSS_ENABLER_TRACE_OUTPUT_MODE_ENT)mode);
+    return appEAG6LTraceHwAccessOutputModeSet((CPSS_ENABLER_TRACE_OUTPUT_MODE_ENT)mode);
 }
 /**
-* @internal appDemoTraceHwAccessOutputModeSet function
+* @internal appEAG6LTraceHwAccessOutputModeSet function
 * @endinternal
 *
 * @brief   Set output tracing mode.
@@ -8096,7 +8105,7 @@ GT_STATUS prvAppDemoTraceHwAccessOutputModeSet
 *       is enabled.
 *
 */
-GT_STATUS appDemoTraceHwAccessOutputModeSet
+GT_STATUS appEAG6LTraceHwAccessOutputModeSet
 (
     IN CPSS_ENABLER_TRACE_OUTPUT_MODE_ENT   mode
 )
@@ -8108,13 +8117,13 @@ GT_STATUS appDemoTraceHwAccessOutputModeSet
         return GT_BAD_PARAM;
     }
 
-    if (appDemoTraceOutputMode == mode)
+    if (appEAG6LTraceOutputMode == mode)
     {
         /* this mode is already set */
         return GT_OK;
     }
 
-    if (appDemoAccessInfo.outputToDbIsActive == GT_TRUE)
+    if (appEAG6LAccessInfo.outputToDbIsActive == GT_TRUE)
     {
         /* check that  DB is enabled */
         return GT_BAD_STATE;
@@ -8125,9 +8134,9 @@ GT_STATUS appDemoTraceHwAccessOutputModeSet
         if ((traceReadHwAccess == GT_TRUE) ||(traceWriteHwAccess == GT_TRUE))
         {
             /* update HW Access DB */
-            rc = appDemoSetHwAccessDbActiveState(GT_TRUE,
-                                              &appDemoAccessDbPtr,
-                                              &appDemoAccessInfo);
+            rc = appEAG6LSetHwAccessDbActiveState(GT_TRUE,
+                                              &appEAG6LAccessDbPtr,
+                                              &appEAG6LAccessInfo);
             if (rc != GT_OK)
             {
                 return rc;
@@ -8136,7 +8145,7 @@ GT_STATUS appDemoTraceHwAccessOutputModeSet
 
 
     }
-    if (appDemoTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_FILE_E)
+    if (appEAG6LTraceOutputMode == CPSS_ENABLER_TRACE_OUTPUT_MODE_FILE_E)
     {
         #ifdef ASIC_SIMULATION
         rc = prvAppDemoTraceHwFilesClose();
@@ -8148,13 +8157,13 @@ GT_STATUS appDemoTraceHwAccessOutputModeSet
           return GT_NOT_SUPPORTED;
         #endif
     }
-    appDemoTraceOutputMode = mode;
+    appEAG6LTraceOutputMode = mode;
 
     return GT_OK;
 }
 
 /**
-* @internal appDemoTraceHwAccessDbDump function
+* @internal appEAG6LTraceHwAccessDbDump function
 * @endinternal
 *
 * @brief   Dump HW Access DB.
@@ -8162,7 +8171,7 @@ GT_STATUS appDemoTraceHwAccessOutputModeSet
 * @param[in] accessType               - the type of DB to dump: read or write.
 *                                       None.
 */
-GT_STATUS appDemoTraceHwAccessDbDump
+GT_STATUS appEAG6LTraceHwAccessDbDump
 (
     IN CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_ENT accessType
 )
@@ -8191,8 +8200,8 @@ GT_STATUS appDemoTraceHwAccessDbDump
     case CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_READ_E:
     case CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_E:
     case CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_BOTH_E:
-        infoDb = appDemoAccessInfo;
-        accessDbPtr = appDemoAccessDbPtr;
+        infoDb = appEAG6LAccessInfo;
+        accessDbPtr = appEAG6LAccessDbPtr;
         break;
 
     default:
@@ -8286,7 +8295,7 @@ GT_STATUS appDemoTraceHwAccessDbDump
         if (dumpDataAndInfo == GT_TRUE)
         {
             /* dump info and data */
-            rc = appDemoTraceHwAccessAction(devNum,
+            rc = appEAG6LTraceHwAccessAction(devNum,
                 portGroupId,
                 isrContext,
                 addrSpace,
@@ -8309,7 +8318,7 @@ GT_STATUS appDemoTraceHwAccessDbDump
 }
 
 /**
-* @internal appDemoTraceHwAccessInfoCompare function
+* @internal appEAG6LTraceHwAccessInfoCompare function
 * @endinternal
 *
 * @brief   Compare given data and parameters with trace hw access DB info on
@@ -8330,7 +8339,7 @@ GT_STATUS appDemoTraceHwAccessDbDump
 *                                       parameters.
 * @retval GT_BAD_STATE             - on unexpected ISR context
 */
-GT_STATUS appDemoTraceHwAccessInfoCompare
+GT_STATUS appEAG6LTraceHwAccessInfoCompare
 (
     IN GT_U8                            dev,
     CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_ENT   accessType,
@@ -8352,7 +8361,7 @@ GT_STATUS appDemoTraceHwAccessInfoCompare
     {
         case CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_READ_E:
         case CPSS_ENABLER_TRACE_HW_ACCESS_TYPE_WRITE_E:
-            accessDbPtr = appDemoAccessDbPtr;
+            accessDbPtr = appEAG6LAccessDbPtr;
             break;
         default:
             return GT_BAD_PARAM;
@@ -8400,19 +8409,19 @@ typedef enum {
     APP_DEMO_DESCR_FIELD_TYPE_HEX32_E
 }APP_DEMO_DESCR_FIELD_TYPE_ENT;
 
-static GT_BOOL appDemoDescrDumpRawDumpEn = GT_FALSE;
+static GT_BOOL appEAG6LDescrDumpRawDumpEn = GT_FALSE;
 
-void appDemoDescrDumpRawDumpEnable
+void appEAG6LDescrDumpRawDumpEnable
 (
     IN GT_BOOL enable
 )
 {
-    appDemoDescrDumpRawDumpEn = enable;
+    appEAG6LDescrDumpRawDumpEn = enable;
 }
 
 #ifdef CHX_FAMILY
 
-static GT_STATUS appDemoDxChDescrDump
+static GT_STATUS appEAG6LDxChDescrDump
 (
     IN GT_U8                              devNum,
     IN GT_PORT_GROUPS_BMP                 portGroupsBmp,
@@ -8501,7 +8510,7 @@ static GT_STATUS appDemoDxChDescrDump
         }
 
         /* Print in Raw Format */
-        if (appDemoDescrDumpRawDumpEn != GT_FALSE)
+        if (appEAG6LDescrDumpRawDumpEn != GT_FALSE)
         {
             memoSize = sizeof(CPSS_DXCH_DIAG_DESCRIPTOR_STC);
             memoPtr  = (GT_U32*)descriptorPtr;
@@ -8648,7 +8657,7 @@ static GT_STATUS appDemoDxChDescrDump
 }
 #endif
 
-GT_STATUS appDemoDescrDump
+GT_STATUS appEAG6LDescrDump
 (
     IN GT_U8                   devNum,
     IN GT_PORT_GROUPS_BMP      portGroupsBmp,
@@ -8657,7 +8666,7 @@ GT_STATUS appDemoDescrDump
 )
 {
 #ifdef CHX_FAMILY
-    return appDemoDxChDescrDump(devNum, portGroupsBmp, descriptorType, dumpAll);
+    return appEAG6LDxChDescrDump(devNum, portGroupsBmp, descriptorType, dumpAll);
 #else
     GT_UNUSED_PARAM(devNum);
     GT_UNUSED_PARAM(portGroupsBmp);
@@ -8668,7 +8677,7 @@ GT_STATUS appDemoDescrDump
 }
 
 /**
-* @internal appDemoTrafficDisableSet function
+* @internal appEAG6LTrafficDisableSet function
 * @endinternal
 *
 * @brief   Set traffic enable/disable mode - API that will enable/disable
@@ -8677,16 +8686,16 @@ GT_STATUS appDemoDescrDump
 *                                      - GT_FALSE - enable traffic during cpssInitSystem
 *                                       None
 */
-GT_VOID appDemoTrafficDisableSet
+GT_VOID appEAG6LTrafficDisableSet
 (
     IN GT_BOOL disable
 )
 {
-    appDemoTrafficEnableDisableMode = disable;
+    appEAG6LTrafficEnableDisableMode = disable;
 }
 
 /**
-* @internal appDemoTraceHwAccessDbLine function
+* @internal appEAG6LTraceHwAccessDbLine function
 * @endinternal
 *
 * @brief   returns a line of the trace database, either the read or write database,
@@ -8698,7 +8707,7 @@ GT_VOID appDemoTrafficDisableSet
 *
 * @retval GT_OK                    - on success else if failed
 */
-GT_STATUS appDemoTraceHwAccessDbLine
+GT_STATUS appEAG6LTraceHwAccessDbLine
 (
     GT_U32 index,
     OUT APP_DEMO_CPSS_HW_ACCESS_DB_STC * dbLine
@@ -8706,12 +8715,12 @@ GT_STATUS appDemoTraceHwAccessDbLine
 {
     CPSS_NULL_PTR_CHECK_MAC(dbLine);
 
-    if (index<appDemoAccessInfo.curSize)
+    if (index<appEAG6LAccessInfo.curSize)
     {
-        dbLine->accessParamsBmp=appDemoAccessDbPtr[index].accessParamsBmp;
-        dbLine->data=appDemoAccessDbPtr[index].data;
-        dbLine->mask=appDemoAccessDbPtr[index].mask;
-        dbLine->addr=appDemoAccessDbPtr[index].addr;
+        dbLine->accessParamsBmp=appEAG6LAccessDbPtr[index].accessParamsBmp;
+        dbLine->data=appEAG6LAccessDbPtr[index].data;
+        dbLine->mask=appEAG6LAccessDbPtr[index].mask;
+        dbLine->addr=appEAG6LAccessDbPtr[index].addr;
         return GT_OK;
     }
     else
@@ -8722,7 +8731,7 @@ GT_STATUS appDemoTraceHwAccessDbLine
 }
 
 /**
-* @internal appDemoTraceHwAccessClearDb function
+* @internal appEAG6LTraceHwAccessClearDb function
 * @endinternal
 *
 * @brief   Clear HW access db
@@ -8730,21 +8739,21 @@ GT_STATUS appDemoTraceHwAccessDbLine
 * @retval GT_OK                    - on success else if failed
 */
 
-GT_STATUS appDemoTraceHwAccessClearDb
+GT_STATUS appEAG6LTraceHwAccessClearDb
 (
     GT_VOID
 )
 {
 
-    appDemoAccessInfo.curSize = 0;
-    appDemoAccessInfo.corrupted = GT_FALSE;
+    appEAG6LAccessInfo.curSize = 0;
+    appEAG6LAccessInfo.corrupted = GT_FALSE;
 
     return GT_OK;
 
 }
 
 /**
-* @internal appDemoTraceHwAccessDbIsCorrupted function
+* @internal appEAG6LTraceHwAccessDbIsCorrupted function
 * @endinternal
 *
 * @brief   Check if the HW access data base has reached the limit
@@ -8752,13 +8761,13 @@ GT_STATUS appDemoTraceHwAccessClearDb
 * @retval GT_OK                    - on success else if failed
 */
 
-GT_STATUS appDemoTraceHwAccessDbIsCorrupted
+GT_STATUS appEAG6LTraceHwAccessDbIsCorrupted
 (
     GT_BOOL * corruptedPtr
 )
 {
 
-   * corruptedPtr = appDemoAccessInfo.corrupted ;
+   * corruptedPtr = appEAG6LAccessInfo.corrupted ;
 
    return GT_OK;
 }
@@ -8769,17 +8778,17 @@ GT_STATUS appDemoTraceHwAccessDbIsCorrupted
 
 
 /**
-* @internal appDemoSupportAaMessageSet function
+* @internal appEAG6LSupportAaMessageSet function
 * @endinternal
 *
-* @brief   Configure the appDemo to support/not support the AA messages to CPU
+* @brief   Configure the appEAG6L to support/not support the AA messages to CPU
 *
 * @param[in] supportAaMessage         -
 *                                      GT_FALSE - not support processing of AA messages
 *                                      GT_TRUE - support processing of AA messages
 *                                       nothing
 */
-GT_VOID appDemoSupportAaMessageSet
+GT_VOID appEAG6LSupportAaMessageSet
 (
     IN GT_BOOL supportAaMessage
 )
@@ -8788,13 +8797,13 @@ GT_VOID appDemoSupportAaMessageSet
 }
 
 /* return GT_ABORT in callbacks: 0 - do not return GT_ABORT, != 0 - return GT_ABORT */
-GT_U32 appDemoAccessToAddrAbort = 0;
+GT_U32 appEAG6LAccessToAddrAbort = 0;
 
 /* register's address to trace */
-GT_U32 appDemoAddrToTrace = 0;
+GT_U32 appEAG6LAddrToTrace = 0;
 
 /**
-* @internal appDemoRegWriteCb function
+* @internal appEAG6LRegWriteCb function
 * @endinternal
 *
 * @brief   Register write callback function for Hw access.
@@ -8816,7 +8825,7 @@ GT_U32 appDemoAddrToTrace = 0;
 *       and return GT_OK to its caller.
 *
 */
-static GT_STATUS appDemoRegWriteCb
+static GT_STATUS appEAG6LRegWriteCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -8827,10 +8836,10 @@ static GT_STATUS appDemoRegWriteCb
 {
     char *stageStr;
     stageStr = (CPSS_DRV_HW_ACCESS_STAGE_PRE_E == stage)? "PRE" : "POST";
-    if (appDemoAddrToTrace == regAddr)
+    if (appEAG6LAddrToTrace == regAddr)
     {
-        osPrintf("appDemoRegWriteCb devNum[%d] portGroupId[%d] regAddr[0X%08X] data[0X%08X] stage[%s]\n", devNum, portGroupId, regAddr, data, stageStr);
-        if (appDemoAccessToAddrAbort)
+        osPrintf("appEAG6LRegWriteCb devNum[%d] portGroupId[%d] regAddr[0X%08X] data[0X%08X] stage[%s]\n", devNum, portGroupId, regAddr, data, stageStr);
+        if (appEAG6LAccessToAddrAbort)
         {
             return GT_ABORTED;
         }
@@ -8839,7 +8848,7 @@ static GT_STATUS appDemoRegWriteCb
 }
 
 /**
-* @internal appDemoHwAccessTraceBind function
+* @internal appEAG6LHwAccessTraceBind function
 * @endinternal
 *
 * @brief   The function binds/unbinds a callback routines for HW access.
@@ -8849,7 +8858,7 @@ static GT_STATUS appDemoRegWriteCb
 *
 * @retval GT_OK                    - on success
 */
-GT_STATUS appDemoHwAccessTraceBind
+GT_STATUS appEAG6LHwAccessTraceBind
 (
     GT_BOOL                     bind
 )
@@ -8857,18 +8866,18 @@ GT_STATUS appDemoHwAccessTraceBind
     CPSS_DRV_HW_ACCESS_OBJ_STC hwAccessObj;
     GT_STATUS rc;
     osMemSet(&hwAccessObj, 0, sizeof(hwAccessObj));
-    hwAccessObj.hwAccessRegisterWriteFunc = appDemoRegWriteCb;
+    hwAccessObj.hwAccessRegisterWriteFunc = appEAG6LRegWriteCb;
 
     rc = cpssDrvHwAccessObjectBind(&hwAccessObj, bind);
     return rc;
 }
 
-static GT_U32 appDemoHwAccessFailCounterLimit = 0;
-static GT_U32 appDemoHwWriteAccessCounter = 0;
-static GT_BOOL appDemoInsertHwFailEnable = GT_FALSE;
+static GT_U32 appEAG6LHwAccessFailCounterLimit = 0;
+static GT_U32 appEAG6LHwWriteAccessCounter = 0;
+static GT_BOOL appEAG6LInsertHwFailEnable = GT_FALSE;
 
 /**
-* @internal appDemoWriteFailerCb function
+* @internal appEAG6LWriteFailerCb function
 * @endinternal
 *
 * @brief   write fail callback function for Hw access.
@@ -8890,7 +8899,7 @@ static GT_BOOL appDemoInsertHwFailEnable = GT_FALSE;
 *       and return GT_OK to its caller.
 *
 */
-static GT_STATUS appDemoWriteFailerCb
+static GT_STATUS appEAG6LWriteFailerCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -8908,19 +8917,19 @@ static GT_STATUS appDemoWriteFailerCb
     GT_UNUSED_PARAM(length);
     GT_UNUSED_PARAM(data);
 
-    if (appDemoInsertHwFailEnable == GT_TRUE)
+    if (appEAG6LInsertHwFailEnable == GT_TRUE)
     {
         if (stage == CPSS_DRV_HW_ACCESS_STAGE_PRE_E)
         {
-            appDemoHwWriteAccessCounter++;
+            appEAG6LHwWriteAccessCounter++;
         }
 
-        if (appDemoHwAccessFailCounterLimit > 0)
+        if (appEAG6LHwAccessFailCounterLimit > 0)
         {
-            if (appDemoHwWriteAccessCounter >= appDemoHwAccessFailCounterLimit)
+            if (appEAG6LHwWriteAccessCounter >= appEAG6LHwAccessFailCounterLimit)
             {
-                appDemoHwWriteAccessCounter = 0;
-                appDemoHwAccessFailCounterLimit = 0;
+                appEAG6LHwWriteAccessCounter = 0;
+                appEAG6LHwAccessFailCounterLimit = 0;
                 return GT_FAIL;
             }
         }
@@ -8930,10 +8939,10 @@ static GT_STATUS appDemoWriteFailerCb
 
 
 /**
-* @internal appDemoHwAccessFailerBind function
+* @internal appEAG6LHwAccessFailerBind function
 * @endinternal
 *
-* @brief   The function binds/unbinds a appDemoWriteFailerCb callback for HW write access
+* @brief   The function binds/unbinds a appEAG6LWriteFailerCb callback for HW write access
 *         and set hw write fail counter.
 * @param[in] bind                     -  GT_TRUE -  callback routines.
 *                                      GT_FALSE - un bind callback routines.
@@ -8942,7 +8951,7 @@ static GT_STATUS appDemoWriteFailerCb
 *
 * @retval GT_OK                    - on success
 */
-GT_STATUS appDemoHwAccessFailerBind
+GT_STATUS appEAG6LHwAccessFailerBind
 (
     IN GT_BOOL                  bind,
     GT_U32                      failCounter
@@ -8951,25 +8960,25 @@ GT_STATUS appDemoHwAccessFailerBind
     CPSS_DRV_HW_ACCESS_OBJ_STC hwAccessObj;
     GT_STATUS rc;
     osMemSet(&hwAccessObj, 0, sizeof(hwAccessObj));
-    hwAccessObj.hwAccessRamWriteFunc = appDemoWriteFailerCb;
+    hwAccessObj.hwAccessRamWriteFunc = appEAG6LWriteFailerCb;
 
     rc = cpssDrvHwAccessObjectBind(&hwAccessObj, bind);
-    appDemoHwWriteAccessCounter = 0;
+    appEAG6LHwWriteAccessCounter = 0;
     if (bind == GT_TRUE)
     {
-        appDemoInsertHwFailEnable = GT_TRUE;
-        appDemoHwAccessFailCounterLimit  = failCounter;
+        appEAG6LInsertHwFailEnable = GT_TRUE;
+        appEAG6LHwAccessFailCounterLimit  = failCounter;
     }
     else
     {
-        appDemoInsertHwFailEnable = GT_FALSE;
-        appDemoHwAccessFailCounterLimit = 0;
+        appEAG6LInsertHwFailEnable = GT_FALSE;
+        appEAG6LHwAccessFailCounterLimit = 0;
     }
     return rc;
 }
 
 /**
-* @internal appDemoHwAccessCounterGet function
+* @internal appEAG6LHwAccessCounterGet function
 * @endinternal
 *
 * @brief   The function gets number of hw accesses
@@ -8978,12 +8987,12 @@ GT_STATUS appDemoHwAccessFailerBind
 *
 * @retval GT_OK                    - on success
 */
-GT_STATUS appDemoHwAccessCounterGet
+GT_STATUS appEAG6LHwAccessCounterGet
 (
     OUT GT_U32   *hwAccessCounterPtr
 )
 {
-    *hwAccessCounterPtr = appDemoHwWriteAccessCounter;
+    *hwAccessCounterPtr = appEAG6LHwWriteAccessCounter;
     return GT_OK;
 }
 
@@ -8997,11 +9006,11 @@ GT_STATUS appDemoHwAccessCounterGet
 #define MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS 256
 
 /* default add tracing ranges mode - override */
-APP_DEMO_HW_PP_TRACING_ADDR_ADD_MODE_ENT appDemoHwPpDrvRegWriteTracingRangesAddMode =
+APP_DEMO_HW_PP_TRACING_ADDR_ADD_MODE_ENT appEAG6LHwPpDrvRegWriteTracingRangesAddMode =
     APP_DEMO_HW_PP_TRACING_ADDR_ADD_MODE_OVERRIDE_E;
 
 /**
-* @struct  appDemoHwPpDrvRegWriteTracingRangesArr
+* @struct  appEAG6LHwPpDrvRegWriteTracingRangesArr
 *
 * @brief   Ranges for traced register addresses
 * */
@@ -9013,14 +9022,14 @@ static struct
     GT_U32 param0;
     /** addressFilter depndend */
     GT_U32 param1;
-} appDemoHwPpDrvRegWriteTracingRangesArr[MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS] =
+} appEAG6LHwPpDrvRegWriteTracingRangesArr[MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS] =
 {
     {APP_DEMO_HW_PP_TRACING_ADDR_FILTER_TABLE_END_E, 0, 0}
 };
 
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegAddressesRangeAddModeSet function
+* @internal appEAG6LHwPpDrvRegTracingRegAddressesRangeAddModeSet function
 * @endinternal
 *
 * @brief Set register address ranges add mode. Resets start index.
@@ -9028,63 +9037,63 @@ static struct
 * @param[in] addMode    - register address ranges add mode.
 *
 */
-GT_STATUS appDemoHwPpDrvRegTracingRegAddressesRangeAddModeSet
+GT_STATUS appEAG6LHwPpDrvRegTracingRegAddressesRangeAddModeSet
 (
     IN APP_DEMO_HW_PP_TRACING_ADDR_ADD_MODE_ENT addMode
 )
 {
-    appDemoHwPpDrvRegWriteTracingRangesAddMode = addMode;
+    appEAG6LHwPpDrvRegWriteTracingRangesAddMode = addMode;
     /* reset start of array */
-    appDemoHwPpDrvRegWriteTracingRangesArr[0].addressFilter =
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[0].addressFilter =
         APP_DEMO_HW_PP_TRACING_ADDR_FILTER_TABLE_END_E;
-    appDemoHwPpDrvRegWriteTracingRangesArr[0].param0 = 0;
-    appDemoHwPpDrvRegWriteTracingRangesArr[0].param1 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[0].param0 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[0].param1 = 0;
     return GT_OK;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegAddressesRangeStartIndexGet function
+* @internal appEAG6LHwPpDrvRegTracingRegAddressesRangeStartIndexGet function
 * @endinternal
 *
 * @brief Get register address ranges add start index.
 *
 *
 */
-static GT_U32 appDemoHwPpDrvRegTracingRegAddressesRangeStartIndexGet
+static GT_U32 appEAG6LHwPpDrvRegTracingRegAddressesRangeStartIndexGet
 (
     GT_VOID
 )
 {
     GT_U32 index;
 
-    switch (appDemoHwPpDrvRegWriteTracingRangesAddMode)
+    switch (appEAG6LHwPpDrvRegWriteTracingRangesAddMode)
     {
         case APP_DEMO_HW_PP_TRACING_ADDR_ADD_MODE_OVERRIDE_E:
             return 0;
         case APP_DEMO_HW_PP_TRACING_ADDR_ADD_MODE_APPEND_E:
             for (index = 0; (index < (MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS - 2)); index++)
             {
-                if (appDemoHwPpDrvRegWriteTracingRangesArr[index].addressFilter ==
+                if (appEAG6LHwPpDrvRegWriteTracingRangesArr[index].addressFilter ==
                     APP_DEMO_HW_PP_TRACING_ADDR_FILTER_TABLE_END_E)
                 {
                     return index;
                 }
             }
             cpssOsPrintf(
-                "appDemoHwPpDrvRegWriteTracingRangesArr if fill index %d\n",
+                "appEAG6LHwPpDrvRegWriteTracingRangesArr if fill index %d\n",
                 index);
             return index;
         default:
             cpssOsPrintf(
-                "Wrong appDemoHwPpDrvRegWriteTracingRangesAddMode %d\n",
-                appDemoHwPpDrvRegWriteTracingRangesAddMode);
+                "Wrong appEAG6LHwPpDrvRegWriteTracingRangesAddMode %d\n",
+                appEAG6LHwPpDrvRegWriteTracingRangesAddMode);
             break;
     }
     return 0;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegAddressesRangeSet function
+* @internal appEAG6LHwPpDrvRegTracingRegAddressesRangeSet function
 * @endinternal
 *
 * @brief Set register address ranges to be traced.
@@ -9095,7 +9104,7 @@ static GT_U32 appDemoHwPpDrvRegTracingRegAddressesRangeStartIndexGet
 *                              terminated by 0 value
 *
 */
-void appDemoHwPpDrvRegTracingRegAddressesRangeSet
+void appEAG6LHwPpDrvRegTracingRegAddressesRangeSet
 (
     IN GT_U32 regAddrMask0,
     IN GT_U32 regAddrPattern0,
@@ -9109,26 +9118,26 @@ void appDemoHwPpDrvRegTracingRegAddressesRangeSet
 
     va_start(argP, regAddrPattern0);
 
-    for (index = appDemoHwPpDrvRegTracingRegAddressesRangeStartIndexGet();
+    for (index = appEAG6LHwPpDrvRegTracingRegAddressesRangeStartIndexGet();
           (index < (MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS - 2)); index++)
     {
-        appDemoHwPpDrvRegWriteTracingRangesArr[index].addressFilter =
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[index].addressFilter =
             APP_DEMO_HW_PP_TRACING_ADDR_FILTER_MASK_PATTERN_E;
-        appDemoHwPpDrvRegWriteTracingRangesArr[index].param0 = regAddrMask;
-        appDemoHwPpDrvRegWriteTracingRangesArr[index].param1 = regAddrPattern;
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[index].param0 = regAddrMask;
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[index].param1 = regAddrPattern;
         if (regAddrMask == 0) break;
         regAddrMask = va_arg(argP, GT_U32);
         regAddrPattern = va_arg(argP, GT_U32);
     }
     va_end(argP);
-    appDemoHwPpDrvRegWriteTracingRangesArr[index + 1].addressFilter =
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[index + 1].addressFilter =
         APP_DEMO_HW_PP_TRACING_ADDR_FILTER_TABLE_END_E;
-    appDemoHwPpDrvRegWriteTracingRangesArr[index + 1].param0 = 0;
-    appDemoHwPpDrvRegWriteTracingRangesArr[index + 1].param1 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[index + 1].param0 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[index + 1].param1 = 0;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegAddressesBoundsSet function
+* @internal appEAG6LHwPpDrvRegTracingRegAddressesBoundsSet function
 * @endinternal
 *
 * @brief Set register address bounds to be traced.
@@ -9139,7 +9148,7 @@ void appDemoHwPpDrvRegTracingRegAddressesRangeSet
 *                              terminated by size==0 value
 *
 */
-void appDemoHwPpDrvRegTracingRegAddressesBoundsSet
+void appEAG6LHwPpDrvRegTracingRegAddressesBoundsSet
 (
     IN GT_U32 base0,
     IN GT_U32 size0,
@@ -9153,26 +9162,26 @@ void appDemoHwPpDrvRegTracingRegAddressesBoundsSet
 
     va_start(argP, size0);
 
-    for (index = appDemoHwPpDrvRegTracingRegAddressesRangeStartIndexGet();
+    for (index = appEAG6LHwPpDrvRegTracingRegAddressesRangeStartIndexGet();
           (index < (MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS - 2)); index++)
     {
-        appDemoHwPpDrvRegWriteTracingRangesArr[index].addressFilter =
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[index].addressFilter =
             APP_DEMO_HW_PP_TRACING_ADDR_FILTER_BASE_SIZE_E;
-        appDemoHwPpDrvRegWriteTracingRangesArr[index].param0 = base;
-        appDemoHwPpDrvRegWriteTracingRangesArr[index].param1 = size;
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[index].param0 = base;
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[index].param1 = size;
         if (size == 0) break;
         base = va_arg(argP, GT_U32);
         size = va_arg(argP, GT_U32);
     }
     va_end(argP);
-    appDemoHwPpDrvRegWriteTracingRangesArr[index + 1].addressFilter =
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[index + 1].addressFilter =
         APP_DEMO_HW_PP_TRACING_ADDR_FILTER_TABLE_END_E;
-    appDemoHwPpDrvRegWriteTracingRangesArr[index + 1].param0 = 0;
-    appDemoHwPpDrvRegWriteTracingRangesArr[index + 1].param1 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[index + 1].param0 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[index + 1].param1 = 0;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegAddressesBoundsFromArraySet function
+* @internal appEAG6LHwPpDrvRegTracingRegAddressesBoundsFromArraySet function
 * @endinternal
 *
 * @brief Set register address bounds to be traced.
@@ -9183,7 +9192,7 @@ void appDemoHwPpDrvRegTracingRegAddressesBoundsSet
 *                             The ranges list terminated by size==0 value in the array.
 *
 */
-void appDemoHwPpDrvRegTracingRegAddressesBoundsFromArraySet
+void appEAG6LHwPpDrvRegTracingRegAddressesBoundsFromArraySet
 (
     IN GT_U32 maxNumOfRanges,
     IN GT_U32 *baseArrPtr,
@@ -9195,26 +9204,26 @@ void appDemoHwPpDrvRegTracingRegAddressesBoundsFromArraySet
     GT_U32 base;
     GT_U32 size;
 
-    for (globalIndex = appDemoHwPpDrvRegTracingRegAddressesRangeStartIndexGet(), paramIndex = 0;
+    for (globalIndex = appEAG6LHwPpDrvRegTracingRegAddressesRangeStartIndexGet(), paramIndex = 0;
           ((globalIndex < (MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS - 2)) && (paramIndex < maxNumOfRanges));
           globalIndex++, paramIndex++)
     {
         base = baseArrPtr[paramIndex];
         size = sizeArrPtr[paramIndex];
         if (size == 0) break;
-        appDemoHwPpDrvRegWriteTracingRangesArr[globalIndex].addressFilter =
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[globalIndex].addressFilter =
             APP_DEMO_HW_PP_TRACING_ADDR_FILTER_BASE_SIZE_E;
-        appDemoHwPpDrvRegWriteTracingRangesArr[globalIndex].param0 = base;
-        appDemoHwPpDrvRegWriteTracingRangesArr[globalIndex].param1 = size;
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[globalIndex].param0 = base;
+        appEAG6LHwPpDrvRegWriteTracingRangesArr[globalIndex].param1 = size;
     }
-    appDemoHwPpDrvRegWriteTracingRangesArr[globalIndex].addressFilter =
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[globalIndex].addressFilter =
         APP_DEMO_HW_PP_TRACING_ADDR_FILTER_TABLE_END_E;
-    appDemoHwPpDrvRegWriteTracingRangesArr[globalIndex].param0 = 0;
-    appDemoHwPpDrvRegWriteTracingRangesArr[globalIndex].param1 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[globalIndex].param0 = 0;
+    appEAG6LHwPpDrvRegWriteTracingRangesArr[globalIndex].param1 = 0;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegAddressesBoundsAdd function
+* @internal appEAG6LHwPpDrvRegTracingRegAddressesBoundsAdd function
 * @endinternal
 *
 * @brief Add register address range to be traced.
@@ -9223,19 +9232,19 @@ void appDemoHwPpDrvRegTracingRegAddressesBoundsFromArraySet
 * @param[in]  rangeSize    -  The size or address range.
 *
 */
-GT_STATUS appDemoHwPpDrvRegTracingRegAddressesBoundsAdd
+GT_STATUS appEAG6LHwPpDrvRegTracingRegAddressesBoundsAdd
 (
     IN GT_U32 rangeAddr,
     IN GT_U32 rangeSize
 )
 {
-    appDemoHwPpDrvRegTracingRegAddressesBoundsFromArraySet(
+    appEAG6LHwPpDrvRegTracingRegAddressesBoundsFromArraySet(
         1 /*maxNumOfRanges*/, &rangeAddr, &rangeSize);
     return GT_OK;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingIsTraced function
+* @internal appEAG6LHwPpDrvRegTracingIsTraced function
 * @endinternal
 *
 * @brief   Check is register address is traced.
@@ -9246,7 +9255,7 @@ GT_STATUS appDemoHwPpDrvRegTracingRegAddressesBoundsAdd
 * @retval 0             - the register address should not be traced.
 *
 */
-GT_U32 appDemoHwPpDrvRegTracingIsTraced
+GT_U32 appEAG6LHwPpDrvRegTracingIsTraced
 (
     IN GT_U32 regAddr
 )
@@ -9255,12 +9264,12 @@ GT_U32 appDemoHwPpDrvRegTracingIsTraced
 
     for (i = 0; (i < MAX_HW_PP_DRV_REG_TRACING_RANGES_CNS); i++)
     {
-        switch (appDemoHwPpDrvRegWriteTracingRangesArr[i].addressFilter)
+        switch (appEAG6LHwPpDrvRegWriteTracingRangesArr[i].addressFilter)
         {
             case APP_DEMO_HW_PP_TRACING_ADDR_FILTER_MASK_PATTERN_E:
                 {
-                    GT_U32 mask    = appDemoHwPpDrvRegWriteTracingRangesArr[i].param0;
-                    GT_U32 pattern = appDemoHwPpDrvRegWriteTracingRangesArr[i].param1;
+                    GT_U32 mask    = appEAG6LHwPpDrvRegWriteTracingRangesArr[i].param0;
+                    GT_U32 pattern = appEAG6LHwPpDrvRegWriteTracingRangesArr[i].param1;
                     if ((regAddr & mask) == pattern)
                     {
                         return 1;
@@ -9269,8 +9278,8 @@ GT_U32 appDemoHwPpDrvRegTracingIsTraced
                 break;
             case APP_DEMO_HW_PP_TRACING_ADDR_FILTER_BASE_SIZE_E:
                 {
-                    GT_U32 low  = appDemoHwPpDrvRegWriteTracingRangesArr[i].param0;
-                    GT_U32 high = appDemoHwPpDrvRegWriteTracingRangesArr[i].param1 + low;
+                    GT_U32 low  = appEAG6LHwPpDrvRegWriteTracingRangesArr[i].param0;
+                    GT_U32 high = appEAG6LHwPpDrvRegWriteTracingRangesArr[i].param1 + low;
                     if ((regAddr >= low) && (regAddr < high))
                     {
                         return 1;
@@ -9285,7 +9294,7 @@ GT_U32 appDemoHwPpDrvRegTracingIsTraced
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegNameGet function
+* @internal appEAG6LHwPpDrvRegTracingRegNameGet function
 * @endinternal
 *
 * @brief   Get name (with path) of register by address.
@@ -9296,7 +9305,7 @@ GT_U32 appDemoHwPpDrvRegTracingIsTraced
 * @param[out] resultStr  - pointer to buffer for name of register.
 *
 */
-void appDemoHwPpDrvRegTracingRegNameGet
+void appEAG6LHwPpDrvRegTracingRegNameGet
 (
     IN APP_DEMO_HW_PP_TRACING_ADDR_PARSE_RULE_STC rulesArr[],
     IN GT_U32                                     regAddr,
@@ -9389,25 +9398,25 @@ void appDemoHwPpDrvRegTracingRegNameGet
     }
 }
 
-static APP_DEMO_HW_PP_TRACING_ADDR_PARSE_RULE_STC *appDemoHwPpDrvRegTracingRegAddrParsingPtr = NULL;
+static APP_DEMO_HW_PP_TRACING_ADDR_PARSE_RULE_STC *appEAG6LHwPpDrvRegTracingRegAddrParsingPtr = NULL;
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegNameBind function
+* @internal appEAG6LHwPpDrvRegTracingRegNameBind function
 * @endinternal
 *
 * @brief   Bind register names array.
 *
 */
-void appDemoHwPpDrvRegTracingRegNameBind
+void appEAG6LHwPpDrvRegTracingRegNameBind
 (
     IN APP_DEMO_HW_PP_TRACING_ADDR_PARSE_RULE_STC *regNameArrPtr
 )
 {
-    appDemoHwPpDrvRegTracingRegAddrParsingPtr = regNameArrPtr;
+    appEAG6LHwPpDrvRegTracingRegAddrParsingPtr = regNameArrPtr;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegName function
+* @internal appEAG6LHwPpDrvRegTracingRegName function
 * @endinternal
 *
 * @brief   Get name of register and data.
@@ -9419,7 +9428,7 @@ void appDemoHwPpDrvRegTracingRegNameBind
 * @retval 1             - (pointer to) string with name.
 *
 */
-static const char* appDemoHwPpDrvRegTracingRegName
+static const char* appEAG6LHwPpDrvRegTracingRegName
 (
     IN GT_U8  devNum,
     IN GT_U32 regAddr,
@@ -9434,17 +9443,17 @@ static const char* appDemoHwPpDrvRegTracingRegName
     data = data;
 
     str[0] = 0;
-    if (appDemoHwPpDrvRegTracingRegAddrParsingPtr)
+    if (appEAG6LHwPpDrvRegTracingRegAddrParsingPtr)
     {
-        appDemoHwPpDrvRegTracingRegNameGet(
-            appDemoHwPpDrvRegTracingRegAddrParsingPtr,
+        appEAG6LHwPpDrvRegTracingRegNameGet(
+            appEAG6LHwPpDrvRegTracingRegAddrParsingPtr,
             regAddr, str);
     }
     return str;
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingMaskToFieldCnv function
+* @internal appEAG6LHwPpDrvRegTracingMaskToFieldCnv function
 * @endinternal
 *
 * @brief   Convert register read/write mask to field offset and length.
@@ -9457,7 +9466,7 @@ static const char* appDemoHwPpDrvRegTracingRegName
 * @retval GT_FALSE                 - conversion impossible.
 *
 */
-GT_BOOL appDemoHwPpDrvRegTracingMaskToFieldCnv
+GT_BOOL appEAG6LHwPpDrvRegTracingMaskToFieldCnv
 (
     IN   GT_U32  mask,
     OUT  GT_U32  *offsetPtr,
@@ -9511,7 +9520,7 @@ GT_BOOL appDemoHwPpDrvRegTracingMaskToFieldCnv
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingWriteCb function
+* @internal appEAG6LHwPpDrvRegTracingWriteCb function
 * @endinternal
 *
 * @brief   Register write callback function for Hw access.
@@ -9533,7 +9542,7 @@ GT_BOOL appDemoHwPpDrvRegTracingMaskToFieldCnv
 *       and return GT_OK to its caller.
 *
 */
-static GT_STATUS appDemoHwPpDrvRegTracingWriteCb
+static GT_STATUS appEAG6LHwPpDrvRegTracingWriteCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -9546,9 +9555,9 @@ static GT_STATUS appDemoHwPpDrvRegTracingWriteCb
 
     if (CPSS_DRV_HW_ACCESS_STAGE_PRE_E != stage) return GT_OK;
 
-    if (appDemoHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
+    if (appEAG6LHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
 
-    name = appDemoHwPpDrvRegTracingRegName(devNum,regAddr, data);
+    name = appEAG6LHwPpDrvRegTracingRegName(devNum,regAddr, data);
     osPrintf(
         "WRITE REG dev/pg %d/%d addr 0x%08X  data 0x%08X %s\n",
         devNum, portGroupId, regAddr, data, name);
@@ -9557,7 +9566,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingWriteCb
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegFieldWriteCb function
+* @internal appEAG6LHwPpDrvRegTracingRegFieldWriteCb function
 * @endinternal
 *
 * @brief   Register field write callback function for Hw access.
@@ -9581,7 +9590,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingWriteCb
 *       and return GT_OK to its caller.
 *
 */
-static GT_STATUS appDemoHwPpDrvRegTracingRegFieldWriteCb
+static GT_STATUS appEAG6LHwPpDrvRegTracingRegFieldWriteCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -9597,15 +9606,15 @@ static GT_STATUS appDemoHwPpDrvRegTracingRegFieldWriteCb
     if (fieldLength == 32)
     {
         /* write can call setField */
-        return appDemoHwPpDrvRegTracingWriteCb(
+        return appEAG6LHwPpDrvRegTracingWriteCb(
             devNum, portGroupId, regAddr, data, stage);
     }
 
     if (CPSS_DRV_HW_ACCESS_STAGE_PRE_E != stage) return GT_OK;
 
-    if (appDemoHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
+    if (appEAG6LHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
 
-    name = appDemoHwPpDrvRegTracingRegName(devNum,regAddr, data);
+    name = appEAG6LHwPpDrvRegTracingRegName(devNum,regAddr, data);
     osPrintf(
         "SET REG FLD dev/pg %d/%d addr 0x%08X  off %d len %d data 0x%X %s\n",
         devNum, portGroupId, regAddr, fieldOffset, fieldLength, data, name);
@@ -9614,7 +9623,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingRegFieldWriteCb
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegMaskWriteCb function
+* @internal appEAG6LHwPpDrvRegTracingRegMaskWriteCb function
 * @endinternal
 *
 * @brief   Register field write callback function for Hw access.
@@ -9637,7 +9646,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingRegFieldWriteCb
 *       and return GT_OK to its caller.
 *
 */
-GT_STATUS appDemoHwPpDrvRegTracingRegMaskWriteCb
+GT_STATUS appEAG6LHwPpDrvRegTracingRegMaskWriteCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -9651,19 +9660,19 @@ GT_STATUS appDemoHwPpDrvRegTracingRegMaskWriteCb
     GT_U32  fieldOffset;
     GT_U32  fieldLength;
 
-    if (appDemoHwPpDrvRegTracingMaskToFieldCnv(
+    if (appEAG6LHwPpDrvRegTracingMaskToFieldCnv(
         mask, &fieldOffset, &fieldLength) != GT_FALSE)
     {
-        return appDemoHwPpDrvRegTracingRegFieldWriteCb(
+        return appEAG6LHwPpDrvRegTracingRegFieldWriteCb(
             devNum, portGroupId, regAddr,
             fieldOffset, fieldLength, (data >> fieldOffset), stage);
     }
 
     if (CPSS_DRV_HW_ACCESS_STAGE_PRE_E != stage) return GT_OK;
 
-    if (appDemoHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
+    if (appEAG6LHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
 
-    name = appDemoHwPpDrvRegTracingRegName(devNum, regAddr, data);
+    name = appEAG6LHwPpDrvRegTracingRegName(devNum, regAddr, data);
     osPrintf(
         "SET REG MASK dev/pg %d/%d addr 0x%08X  mask 0x%08X data 0x%08X %s\n",
         devNum, portGroupId, regAddr, mask, data, name);
@@ -9672,7 +9681,7 @@ GT_STATUS appDemoHwPpDrvRegTracingRegMaskWriteCb
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingReadCb function
+* @internal appEAG6LHwPpDrvRegTracingReadCb function
 * @endinternal
 *
 * @brief   Register read callback function for Hw access.
@@ -9694,7 +9703,7 @@ GT_STATUS appDemoHwPpDrvRegTracingRegMaskWriteCb
 *       and return GT_OK to its caller.
 *
 */
-static GT_STATUS appDemoHwPpDrvRegTracingReadCb
+static GT_STATUS appEAG6LHwPpDrvRegTracingReadCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -9707,9 +9716,9 @@ static GT_STATUS appDemoHwPpDrvRegTracingReadCb
 
     if (CPSS_DRV_HW_ACCESS_STAGE_POST_E != stage) return GT_OK;
 
-    if (appDemoHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
+    if (appEAG6LHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
 
-    name = appDemoHwPpDrvRegTracingRegName(devNum, regAddr, *data);
+    name = appEAG6LHwPpDrvRegTracingRegName(devNum, regAddr, *data);
     osPrintf(
         "READ REG dev/pg %d/%d addr 0x%08X  data 0x%08X %s\n",
         devNum, portGroupId, regAddr, *data, name);
@@ -9718,7 +9727,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingReadCb
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegFieldReadCb function
+* @internal appEAG6LHwPpDrvRegTracingRegFieldReadCb function
 * @endinternal
 *
 * @brief   Register field read callback function for Hw access.
@@ -9742,7 +9751,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingReadCb
 *       and return GT_OK to its caller.
 *
 */
-static GT_STATUS appDemoHwPpDrvRegTracingRegFieldReadCb
+static GT_STATUS appEAG6LHwPpDrvRegTracingRegFieldReadCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -9758,15 +9767,15 @@ static GT_STATUS appDemoHwPpDrvRegTracingRegFieldReadCb
     if (fieldLength == 32)
     {
         /* reead can call getField */
-        return appDemoHwPpDrvRegTracingReadCb(
+        return appEAG6LHwPpDrvRegTracingReadCb(
             devNum, portGroupId, regAddr, data, stage);
     }
 
     if (CPSS_DRV_HW_ACCESS_STAGE_POST_E != stage) return GT_OK;
 
-    if (appDemoHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
+    if (appEAG6LHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
 
-    name = appDemoHwPpDrvRegTracingRegName(devNum,regAddr, *data);
+    name = appEAG6LHwPpDrvRegTracingRegName(devNum,regAddr, *data);
     osPrintf(
         "GET REG FLD dev/pg %d/%d addr 0x%08X  off %d len %d data 0x%X %s\n",
         devNum, portGroupId, regAddr, fieldOffset, fieldLength, *data, name);
@@ -9775,7 +9784,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingRegFieldReadCb
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingRegMaskReadCb function
+* @internal appEAG6LHwPpDrvRegTracingRegMaskReadCb function
 * @endinternal
 *
 * @brief   Register field read callback function for Hw access.
@@ -9798,7 +9807,7 @@ static GT_STATUS appDemoHwPpDrvRegTracingRegFieldReadCb
 *       and return GT_OK to its caller.
 *
 */
-GT_STATUS appDemoHwPpDrvRegTracingRegMaskReadCb
+GT_STATUS appEAG6LHwPpDrvRegTracingRegMaskReadCb
 (
     IN  GT_U8    devNum,
     IN  GT_U32   portGroupId,
@@ -9813,20 +9822,20 @@ GT_STATUS appDemoHwPpDrvRegTracingRegMaskReadCb
     GT_U32  fieldLength;
     GT_U32  shiftedData;
 
-    if (appDemoHwPpDrvRegTracingMaskToFieldCnv(
+    if (appEAG6LHwPpDrvRegTracingMaskToFieldCnv(
         mask, &fieldOffset, &fieldLength) != GT_FALSE)
     {
         shiftedData = ((*data) >> fieldOffset);
-        return appDemoHwPpDrvRegTracingRegFieldReadCb(
+        return appEAG6LHwPpDrvRegTracingRegFieldReadCb(
             devNum, portGroupId, regAddr,
             fieldOffset, fieldLength, &shiftedData, stage);
     }
 
     if (CPSS_DRV_HW_ACCESS_STAGE_POST_E != stage) return GT_OK;
 
-    if (appDemoHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
+    if (appEAG6LHwPpDrvRegTracingIsTraced(regAddr) == 0) return GT_OK;
 
-    name = appDemoHwPpDrvRegTracingRegName(devNum, regAddr, *data);
+    name = appEAG6LHwPpDrvRegTracingRegName(devNum, regAddr, *data);
     osPrintf(
         "GET REG MASK dev/pg %d/%d addr 0x%08X  mask 0x%08X data 0x%08X %s\n",
         devNum, portGroupId, regAddr, mask, *data, name);
@@ -9835,7 +9844,7 @@ GT_STATUS appDemoHwPpDrvRegTracingRegMaskReadCb
 }
 
 /**
-* @internal appDemoHwPpDrvRegTracingBind function
+* @internal appEAG6LHwPpDrvRegTracingBind function
 * @endinternal
 *
 * @brief   The function binds/unbinds a callback routines for HW access.
@@ -9845,7 +9854,7 @@ GT_STATUS appDemoHwPpDrvRegTracingRegMaskReadCb
 *
 * @retval GT_OK                    - on success
 */
-GT_STATUS appDemoHwPpDrvRegTracingBind
+GT_STATUS appEAG6LHwPpDrvRegTracingBind
 (
     GT_BOOL                     bind
 )
@@ -9853,12 +9862,12 @@ GT_STATUS appDemoHwPpDrvRegTracingBind
     CPSS_DRV_HW_ACCESS_OBJ_STC hwAccessObj;
     GT_STATUS rc;
     osMemSet(&hwAccessObj, 0, sizeof(hwAccessObj));
-    hwAccessObj.hwAccessRegisterWriteFunc        = appDemoHwPpDrvRegTracingWriteCb;
-    hwAccessObj.hwAccessRegisterFieldWriteFunc   = appDemoHwPpDrvRegTracingRegFieldWriteCb;
-    hwAccessObj.hwAccessRegisterBitMaskWriteFunc = appDemoHwPpDrvRegTracingRegMaskWriteCb;
-    hwAccessObj.hwAccessRegisterReadFunc         = appDemoHwPpDrvRegTracingReadCb;
-    hwAccessObj.hwAccessRegisterFieldReadFunc    = appDemoHwPpDrvRegTracingRegFieldReadCb;
-    hwAccessObj.hwAccessRegisterBitMaskReadFunc  = appDemoHwPpDrvRegTracingRegMaskReadCb;
+    hwAccessObj.hwAccessRegisterWriteFunc        = appEAG6LHwPpDrvRegTracingWriteCb;
+    hwAccessObj.hwAccessRegisterFieldWriteFunc   = appEAG6LHwPpDrvRegTracingRegFieldWriteCb;
+    hwAccessObj.hwAccessRegisterBitMaskWriteFunc = appEAG6LHwPpDrvRegTracingRegMaskWriteCb;
+    hwAccessObj.hwAccessRegisterReadFunc         = appEAG6LHwPpDrvRegTracingReadCb;
+    hwAccessObj.hwAccessRegisterFieldReadFunc    = appEAG6LHwPpDrvRegTracingRegFieldReadCb;
+    hwAccessObj.hwAccessRegisterBitMaskReadFunc  = appEAG6LHwPpDrvRegTracingRegMaskReadCb;
 
     rc = cpssDrvHwAccessObjectBind(&hwAccessObj, bind);
     return rc;
@@ -9880,17 +9889,17 @@ static void isrTaskDisableAndSave(void)
 
     for (ii = 0; ii < PRV_CPSS_MAX_PP_DEVICES_CNS; ii++)
     {
-        if(appDemoPpConfigList[ii].valid == GT_FALSE)
+        if(appEAG6LPpConfigList[ii].valid == GT_FALSE)
         {
             continue;
         }
         /* disable ISR polling tasks that may want to read interrupt registers during the 'soft reset' */
-        if(appDemoPpConfigList[ii].channel == CPSS_CHANNEL_PEX_EAGLE_E ||
-           (appDemoPpConfigList[ii].channel == CPSS_CHANNEL_PCI_E &&
-            PRV_CPSS_SIP_6_CHECK_MAC(appDemoPpConfigList[ii].devNum)))
+        if(appEAG6LPpConfigList[ii].channel == CPSS_CHANNEL_PEX_EAGLE_E ||
+           (appEAG6LPpConfigList[ii].channel == CPSS_CHANNEL_PCI_E &&
+            PRV_CPSS_SIP_6_CHECK_MAC(appEAG6LPpConfigList[ii].devNum)))
         {
             /* get info without any PCIe operations (that may harm the BAR2 size) */
-            irq = appDemoPpConfigList[SYSTEM_DEV_NUM_MAC(0)].hwInfo.irq.switching;
+            irq = appEAG6LPpConfigList[SYSTEM_DEV_NUM_MAC(0)].hwInfo.irq.switching;
             if(irq != CPSS_PP_INTERRUPT_VECTOR_NOT_USED_CNS)
             {
                 cpssOsPrintf("Disable interrupt line [0x%8.8x] \n",
@@ -9945,23 +9954,23 @@ extern GT_STATUS prvCpssEmbComResetLib
     GT_VOID
 );
 
-extern GT_STATUS appDemoDxChResetPreparation
+extern GT_STATUS appEAG6LDxChResetPreparation
 (
     IN  GT_U8  devNum,
     IN  GT_BOOL needHwReset
 );
 
-extern GT_STATUS appDemoDxChDbReset
+extern GT_STATUS appEAG6LDxChDbReset
 (
     IN  GT_U8  devNum,
     IN  GT_BOOL needHwReset,
     IN  GT_BOOL needFullDbCleanUp
 );
 
-extern GT_STATUS appDemoPxDbReset
+extern GT_STATUS appEAG6LPxDbReset
 (
     IN  GT_U8  devNum,
-    IN  GT_U32 appDemoDbIndex,
+    IN  GT_U32 appEAG6LDbIndex,
     IN  GT_BOOL needHwReset
 );
 
@@ -9988,7 +9997,7 @@ extern GT_STATUS appDemoPxDbReset
                                (vlans , TM , LPM , NH , FDB ...)
                                assumption is that runs between tests that cleared their config.
     CPSS_SYSTEM_RESET_TYPE_GRACEFUL_EXIT_E -
-                            The function is doing graceful exit , to allow the appDemo process
+                            The function is doing graceful exit , to allow the appEAG6L process
                             (application process that manage the switch(via CPSS)) to be killed
                             (like ^C).
                             This function need to be called before the process is killed , and
@@ -10003,7 +10012,7 @@ extern GT_STATUS appDemoPxDbReset
                               5. device remove
 
                             NOTE: the process MUST be killed and new one should start by the user,
-                             and not keep working on current process because we not clean DB of appDemo.
+                             and not keep working on current process because we not clean DB of appEAG6L.
 
     CPSS_SYSTEM_RESET_TYPE___last___E - must be last for array size
 */
@@ -10030,14 +10039,14 @@ static char* cpss_system_reset_type_names_arr[
         #whatBypass);
 
 extern GT_STATUS prvIpLpmLibReset(void);
-extern GT_VOID appDemoDxChTcamDbReset(GT_VOID);
+extern GT_VOID appEAG6LDxChTcamDbReset(GT_VOID);
 static GT_U32   skipRemoveDeviceFromCpss = 0;
-GT_STATUS skipRemoveDeviceFromCpss_set(IN GT_U32 skip)
+GT_STATUS Hfr_skipRemoveDeviceFromCpss_set(IN GT_U32 skip)
 {
     skipRemoveDeviceFromCpss = skip;
     return GT_OK;
 }
-GT_STATUS skipRemoveDeviceFromCpss_get(void)
+GT_STATUS Hfr_skipRemoveDeviceFromCpss_get(void)
 {
     return skipRemoveDeviceFromCpss;
 }
@@ -10065,7 +10074,7 @@ static GT_STATUS internal_cpssResetSystem
             nanoSecondsStart, nanoSecondsEnd,
             seconds, nanoSec; /* time of Reset system */
     GT_BOOL needHwReset;/* indication that need HW reset */
-    GT_BOOL needFullDbCleanUp;/* indication that the DB of appDemo or CPSS need full cleanup
+    GT_BOOL needFullDbCleanUp;/* indication that the DB of appEAG6L or CPSS need full cleanup
                                 NOTE: on 'graceful exit' we not need full clean up
                                 as the process is going to be killed after this function */
     GT_BOOL isHwResetOnInit = GT_FALSE;
@@ -10109,12 +10118,12 @@ static GT_STATUS internal_cpssResetSystem
     {
         for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
         {
-            if(appDemoPpConfigList[i].valid == GT_FALSE)
+            if(appEAG6LPpConfigList[i].valid == GT_FALSE)
             {
                 continue;
             }
 
-            if(appDemoPpConfigList[i].devSupportSystemReset_HwSoftReset == GT_FALSE)
+            if(appEAG6LPpConfigList[i].devSupportSystemReset_HwSoftReset == GT_FALSE)
             {
                 /* the device not support the 'System reset' */
                 return GT_NOT_SUPPORTED;
@@ -10125,15 +10134,15 @@ static GT_STATUS internal_cpssResetSystem
     {
         for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
         {
-            if(appDemoPpConfigList[i].valid == GT_FALSE)
+            if(appEAG6LPpConfigList[i].valid == GT_FALSE)
             {
                 continue;
             }
 
-            if(GT_TRUE == PRV_CPSS_SIP_6_CHECK_MAC(appDemoPpConfigList[i].devNum))
+            if(GT_TRUE == PRV_CPSS_SIP_6_CHECK_MAC(appEAG6LPpConfigList[i].devNum))
             {
                 /* the device will do soft reset anyway during init , by :
-                    appDemoDxChHwPpPhase1ResetAndInit  */
+                    appEAG6LDxChHwPpPhase1ResetAndInit  */
                 isHwResetOnInit = GT_TRUE;
                 break;
             }
@@ -10153,7 +10162,7 @@ static GT_STATUS internal_cpssResetSystem
         return rc;
     }
 
-    appDemoPrePhase1Init = GT_FALSE;
+    appEAG6LPrePhase1Init = GT_FALSE;
     eag6lCpssInitialized = GT_FALSE;
 #if defined  CPSS_USE_MUTEX_PROFILER
     cpssInitSystemIsDone = GT_FALSE;
@@ -10185,7 +10194,7 @@ static GT_STATUS internal_cpssResetSystem
     else
     if(needHwReset == GT_FALSE && prvTgfFdbShadowUsed == GT_TRUE)
     {
-        osPrintSync("cpssResetSystem : flush FDB and drain AUQ before killing appDemo tasks \n");
+        osPrintSync("cpssResetSystem : flush FDB and drain AUQ before killing appEAG6L tasks \n");
         /* the next function is aware to :
         1. AUQ state before starting the FLUSH
         2. aware to using 'shadow' ... do deleting entries in SHADOW.
@@ -10220,21 +10229,21 @@ static GT_STATUS internal_cpssResetSystem
         osPrintSync("cpssResetSystem : Preparations for Reset under traffic.\n");
         for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
         {
-            if(appDemoPpConfigList[i].valid == GT_FALSE)
+            if(appEAG6LPpConfigList[i].valid == GT_FALSE)
             {
                 continue;
             }
-            devNum = appDemoPpConfigList[i].devNum;
+            devNum = appEAG6LPpConfigList[i].devNum;
 
-            if(CPSS_PX_FAMILY_PIPE_E == appDemoPpConfigList[i].devFamily)
+            if(CPSS_PX_FAMILY_PIPE_E == appEAG6LPpConfigList[i].devFamily)
             {
                 /* TBD */
             }
             else
             {
 #ifdef CHX_FAMILY
-                rc = appDemoDxChResetPreparation(devNum , needHwReset);
-                CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDxChResetPreparation", rc);
+                rc = appEAG6LDxChResetPreparation(devNum , needHwReset);
+                CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDxChResetPreparation", rc);
                 if(GT_OK != rc)
                 {
                     return rc;
@@ -10248,17 +10257,17 @@ static GT_STATUS internal_cpssResetSystem
     }
 
     osPrintSync("cpssResetSystem : indicate the supporting tasks to be ready for termination that will soon follow ... \n");
-    appDemoTaskStateToTerminateAllSupporingTasks_notify();
+    appEAG6LTaskStateToTerminateAllSupporingTasks_notify();
 
     osPrintSync("cpssResetSystem : reset events engine and kill event handlers tasks \n");
-    rc = appDemoEventRequestDrvnModeReset();
+    rc = appEAG6LEventRequestDrvnModeReset();
     if (rc != GT_OK)
     {
         goto exitCleanly_lbl;
     }
 
     osPrintSync("cpssResetSystem : terminate more tasks \n");
-    appDemoTaskStateToTerminateAllSupporingTasks_force();
+    appEAG6LTaskStateToTerminateAllSupporingTasks_force();
 
 
     /* disable ISR polling tasks that may want to read interrupt registers during the 'soft reset' */
@@ -10266,17 +10275,17 @@ static GT_STATUS internal_cpssResetSystem
 
     for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
     {
-        if(appDemoPpConfigList[i].valid == GT_FALSE)
+        if(appEAG6LPpConfigList[i].valid == GT_FALSE)
         {
             continue;
         }
-        devNum = appDemoPpConfigList[i].devNum;
+        devNum = appEAG6LPpConfigList[i].devNum;
 
 
         #ifdef CHX_FAMILY
         if(needFullDbCleanUp == GT_TRUE)
         {
-            rc = appDemoBrgFdbIpv6UcFreeAddrDataLinkedList(devNum);
+            rc = appEAG6LBrgFdbIpv6UcFreeAddrDataLinkedList(devNum);
             if(GT_OK != rc)
             {
                 return rc;
@@ -10284,7 +10293,7 @@ static GT_STATUS internal_cpssResetSystem
         }
         else
         {
-            BYPASS_DB_CLEANUP_MAC(appDemoBrgFdbIpv6UcFreeAddrDataLinkedList);
+            BYPASS_DB_CLEANUP_MAC(appEAG6LBrgFdbIpv6UcFreeAddrDataLinkedList);
         }
         #endif
         osPrintSync("cpssResetSystem : start remove device[%d] \n",
@@ -10297,18 +10306,18 @@ static GT_STATUS internal_cpssResetSystem
 
         if (resetType != CPSS_SYSTEM_RESET_TYPE_RESET_SW_AFTER_FAST_BOOT_E)
         {
-            if(CPSS_PX_FAMILY_PIPE_E == appDemoPpConfigList[i].devFamily)
+            if(CPSS_PX_FAMILY_PIPE_E == appEAG6LPpConfigList[i].devFamily)
             {
 #ifdef PX_FAMILY
-                rc = appDemoPxDbReset(devNum , i , needHwReset);
+                rc = appEAG6LPxDbReset(devNum , i , needHwReset);
                 CPSS_ENABLER_DBG_TRACE_RC_MAC("actual remove device and soft reset not implemented ", rc);
 #endif
             }
             else
             {
 #ifdef CHX_FAMILY
-                rc = appDemoDxChDbReset(devNum , needHwReset , needFullDbCleanUp);
-                CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDxChDbReset", rc);
+                rc = appEAG6LDxChDbReset(devNum , needHwReset , needFullDbCleanUp);
+                CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDxChDbReset", rc);
 #endif
             }
 
@@ -10319,7 +10328,7 @@ static GT_STATUS internal_cpssResetSystem
         else
         {
 
-            if(CPSS_PX_FAMILY_PIPE_E == appDemoPpConfigList[i].devFamily)
+            if(CPSS_PX_FAMILY_PIPE_E == appEAG6LPpConfigList[i].devFamily)
             {
 #ifdef PX_FAMILY
                 /* no DB reset, only remove device */
@@ -10356,9 +10365,9 @@ static GT_STATUS internal_cpssResetSystem
             goto exitCleanly_lbl;
         }
 
-        if(skipRemoveDeviceFromCpss_get())
+        if(Hfr_skipRemoveDeviceFromCpss_get())
         {
-            osPrintf("cpssResetSystem : DO NOT 'remove device from appDemo DB' --- SKIP the remove device operation \n");
+            osPrintf("cpssResetSystem : DO NOT 'remove device from appEAG6L DB' --- SKIP the remove device operation \n");
         }
         else
         if(needFullDbCleanUp == GT_TRUE)
@@ -10366,38 +10375,38 @@ static GT_STATUS internal_cpssResetSystem
             /* free memory if allocated */
             if(ezbIsXmlLoaded())
             {
-                appDemoEzbFree(i);
+                appEAG6LEzbFree(i);
             }
 
-            osMemSet(&(appDemoPpConfigList[i]), 0, sizeof(appDemoPpConfigList[i]));
+            osMemSet(&(appEAG6LPpConfigList[i]), 0, sizeof(appEAG6LPpConfigList[i]));
 
 
-            appDemoPpConfigList[i].ppPhase1Done = GT_FALSE;
-            appDemoPpConfigList[i].ppPhase2Done = GT_FALSE;
-            appDemoPpConfigList[i].ppLogicalInitDone = GT_FALSE;
-            appDemoPpConfigList[i].ppGeneralInitDone = GT_FALSE;
-            appDemoPpConfigList[i].valid = GT_FALSE;
-            if(appDemoPpConfigDevAmount)/* support 'PX' that NOT change the value from 0 during initialization !!! */
+            appEAG6LPpConfigList[i].ppPhase1Done = GT_FALSE;
+            appEAG6LPpConfigList[i].ppPhase2Done = GT_FALSE;
+            appEAG6LPpConfigList[i].ppLogicalInitDone = GT_FALSE;
+            appEAG6LPpConfigList[i].ppGeneralInitDone = GT_FALSE;
+            appEAG6LPpConfigList[i].valid = GT_FALSE;
+            if(appEAG6LPpConfigDevAmount)/* support 'PX' that NOT change the value from 0 during initialization !!! */
             {
-                appDemoPpConfigDevAmount--;
+                appEAG6LPpConfigDevAmount--;
             }
 
             /* default value for cpu tx/rx mode */
-            appDemoPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
-            appDemoPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
+            appEAG6LPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
+            appEAG6LPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
 
             /* cascading information */
-            appDemoPpConfigList[i].numberOfCscdTrunks = 0;
-            appDemoPpConfigList[i].numberOfCscdPorts = 0;
-            appDemoPpConfigList[i].numberOfCscdTargetDevs = 0;
-            appDemoPpConfigList[i].numberOf10GPortsToConfigure = 0;
-            appDemoPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
-            appDemoPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
-            appDemoPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
+            appEAG6LPpConfigList[i].numberOfCscdTrunks = 0;
+            appEAG6LPpConfigList[i].numberOfCscdPorts = 0;
+            appEAG6LPpConfigList[i].numberOfCscdTargetDevs = 0;
+            appEAG6LPpConfigList[i].numberOf10GPortsToConfigure = 0;
+            appEAG6LPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
+            appEAG6LPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
+            appEAG6LPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
         }
         else
         {
-            BYPASS_DB_CLEANUP_MAC(appDemoPpConfigList[i] cleanup);
+            BYPASS_DB_CLEANUP_MAC(appEAG6LPpConfigList[i] cleanup);
         }
 
         osPrintSync("cpssResetSystem : end remove device[%d] \n",
@@ -10410,7 +10419,7 @@ static GT_STATUS internal_cpssResetSystem
         /* Restore ISR polling tasks state of 'enabled' (although task are dead ... extDrv DB not fully cleaned) */
         isrTaskRestore();
 #endif
-        if(skipRemoveDeviceFromCpss_get())
+        if(Hfr_skipRemoveDeviceFromCpss_get())
         {
             osPrintf("cpssResetSystem : DO NOT 'destroy' global CPSS --- SKIP the remove device operation \n");
         }
@@ -10543,11 +10552,12 @@ exitCleanly_lbl:
         resetCounter , seconds, nanoSec);
     resetCounter++;
 
-    appDemoCpssInitSkipHwReset = (needHwReset == GT_TRUE) ? GT_FALSE : GT_TRUE;
+    appEAG6LCpssInitSkipHwReset = (needHwReset == GT_TRUE) ? GT_FALSE : GT_TRUE;
 
     return rc;
 }
 
+#if 0//FIXME
 /**
 * @internal cpssAppDemoResetSystem function
 * @endinternal
@@ -10559,7 +10569,7 @@ exitCleanly_lbl:
 * @retval GT_OK                    - on success else if failed
 *
 * For HA to simulate Crash on WM use sequence
-*    appDemoHaEmulateSwCrash()
+*    appEAG6LHaEmulateSwCrash()
 *    cpssResetSystem(GT_FALSE)
 *
 */
@@ -10592,7 +10602,7 @@ GT_STATUS cpssResetSystemNoSoftReset(void)
 * @internal cpssGracefulExit function
 * @endinternal
 *
-* @brief   The function is doing graceful exit , to allow the appDemo process
+* @brief   The function is doing graceful exit , to allow the appEAG6L process
 *          (application process that manage the switch(via CPSS)) to be killed
 *          (like ^C).
 *          This function need to be called before the process is killed , and
@@ -10607,7 +10617,7 @@ GT_STATUS cpssResetSystemNoSoftReset(void)
 *            5. device remove
 *
 *          NOTE: the process MUST be killed and new one should start by the user,
-*           and not keep working on current process because we not clean DB of appDemo.
+*           and not keep working on current process because we not clean DB of appEAG6L.
 *
 * @retval GT_OK                    - on success else if failed
 */
@@ -10640,21 +10650,21 @@ GT_STATUS cpssAppDemoDevSupportSystemResetSet(
 
     for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
     {
-        if(appDemoPpConfigList[i].valid == GT_FALSE)
+        if(appEAG6LPpConfigList[i].valid == GT_FALSE)
         {
             continue;
         }
 
-        if(appDemoPpConfigList[i].devNum != devNum)
+        if(appEAG6LPpConfigList[i].devNum != devNum)
         {
             continue;
         }
 
         cpssOsSprintf(devForceModeSystemReset_HwSoftReset_str,"devForceModeSystemReset_HwSoftReset_str_%d",devNum);
         /* add to static DB that not reset by system reset */
-        appDemoStaticDbEntryAdd(devForceModeSystemReset_HwSoftReset_str,enable ? 1 : 0);
+        appEAG6LStaticDbEntryAdd(devForceModeSystemReset_HwSoftReset_str,enable ? 1 : 0);
 
-        appDemoPpConfigList[i].devSupportSystemReset_HwSoftReset = enable;
+        appEAG6LPpConfigList[i].devSupportSystemReset_HwSoftReset = enable;
 
         return GT_OK;
     }
@@ -10688,7 +10698,7 @@ GT_STATUS cpssDevMustNotResetPortSet(
 
     cpssOsSprintf(devMustNotResetPort_str,"devMustNotResetPort_str_d[%d]p[%d]",devNum,portNum);
     /* add to static DB that not reset by system reset */
-    rc = appDemoStaticDbEntryAdd(devMustNotResetPort_str,enable ? 1 : 0);
+    rc = appEAG6LStaticDbEntryAdd(devMustNotResetPort_str,enable ? 1 : 0);
 
     return rc ;
 }
@@ -10748,26 +10758,27 @@ GT_STATUS boardExtPhyConfig
 {
     GT_STATUS rc = GT_OK;
 
-    rc = appDemoBoardExternalPhyConfig(devNum, phyType, smiInterface, smiStartAddr);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoBoardExternalPhyConfig", rc);
+    rc = appEAG6LBoardExternalPhyConfig(devNum, phyType, smiInterface, smiStartAddr);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LBoardExternalPhyConfig", rc);
 
     return rc;
 }
+#endif//FIXME
 
 /**
-* @internal appDemoDevIdxGet function
+* @internal appEAG6LDevIdxGet function
 * @endinternal
 *
-* @brief   Find device index in "appDemoPpConfigList" array based on device SW number.
+* @brief   Find device index in "appEAG6LPpConfigList" array based on device SW number.
 *
 * @param[in] devNum                   - SW device number
 *
-* @param[out] devIdxPtr                - (pointer to) device index in array "appDemoPpConfigList".
+* @param[out] devIdxPtr                - (pointer to) device index in array "appEAG6LPpConfigList".
 *
 * @retval GT_OK                    - on success, match found for devNum.
 * @retval GT_FAIL                  - no match found for devNum.
 */
-GT_STATUS appDemoDevIdxGet
+GT_STATUS appEAG6LDevIdxGet
 (
     IN  GT_U8   devNum,
     OUT GT_U32  *devIdxPtr
@@ -10777,7 +10788,7 @@ GT_STATUS appDemoDevIdxGet
 
     for ( ii = 0 ; ii < APP_DEMO_PP_CONFIG_SIZE_CNS ; ii++ )
     {
-        if ( appDemoPpConfigList[ii].devNum == devNum && appDemoPpConfigList[ii].valid)
+        if ( appEAG6LPpConfigList[ii].devNum == devNum && appEAG6LPpConfigList[ii].valid)
         {
             *devIdxPtr = ii;
             return GT_OK;
@@ -10789,7 +10800,7 @@ GT_STATUS appDemoDevIdxGet
 
 
 /**
-* @internal appDemoCopyFileFromRamFs function
+* @internal appEAG6LCopyFileFromRamFs function
 * @endinternal
 *
 * @brief   Copy file from RAMFS to local FS
@@ -10802,7 +10813,7 @@ GT_STATUS appDemoDevIdxGet
 * @retval GT_CREATE_ERROR          - on destFileName creating error
 * @retval GT_FAIL                  - on srcFileName reading error or destFileName writing error
 */
-GT_STATUS appDemoCopyFileFromRamFs
+GT_STATUS appEAG6LCopyFileFromRamFs
 (
     IN GT_CHAR_PTR srcFileName,
     IN GT_CHAR_PTR destFileName
@@ -10865,7 +10876,7 @@ GT_STATUS appDemoCopyFileFromRamFs
 }
 
 /**
-* @internal appDemoOsLogThreadModeSet function
+* @internal appEAG6LOsLogThreadModeSet function
 * @endinternal
 *
 * @brief   Function for setting the thread mode of cpss log
@@ -10877,7 +10888,7 @@ GT_STATUS appDemoCopyFileFromRamFs
 *                                      Relevant for mode = APP_DEMO_CPSS_LOG_TASK_REF_E only
 *                                       None.
 */
-GT_VOID appDemoOsLogThreadModeSet
+GT_VOID appEAG6LOsLogThreadModeSet
 (
     IN    APP_DEMO_CPSS_LOG_TASK_MODE_ENT mode,
     IN    GT_U32                          tid,
@@ -10899,24 +10910,24 @@ GT_VOID appDemoOsLogThreadModeSet
 
 
 /**
-* @internal appDemoOsLogMainUtOnly function
+* @internal appEAG6LOsLogMainUtOnly function
 * @endinternal
 *
 * @brief   Enables CPSS API logging for main UT task(s)
 */
-GT_STATUS appDemoOsLogMainUtOnly
+GT_STATUS appEAG6LOsLogMainUtOnly
 (
     GT_VOID
 )
 {
 #ifdef  INCLUDE_UTF
-    appDemoOsLogThreadModeSet(APP_DEMO_CPSS_LOG_TASK_REF_E, 0, utfTestTaskIdAddrGet());
+    appEAG6LOsLogThreadModeSet(APP_DEMO_CPSS_LOG_TASK_REF_E, 0, utfTestTaskIdAddrGet());
 #endif  /* INCLUDE_UTF */
     return GT_OK;
 }
 
 /**
-* @internal appDemoLogUtModeEnable function
+* @internal appEAG6LLogUtModeEnable function
 * @endinternal
 *
 * @brief   Enable CPSS API logging (with redirecting an output to the file) for
@@ -10924,7 +10935,7 @@ GT_STATUS appDemoOsLogMainUtOnly
 * @param[in] logFileName              - a file name where log  will be stored.
 *                                       GT_OK.
 */
-GT_STATUS appDemoLogUtModeEnable
+GT_STATUS appEAG6LLogUtModeEnable
 (
     IN GT_CHAR_PTR logFileName
 )
@@ -10941,7 +10952,7 @@ GT_STATUS appDemoLogUtModeEnable
     }
 
     /* log main UT API calls only */
-    appDemoOsLogMainUtOnly();
+    appEAG6LOsLogMainUtOnly();
 
     /* add prefix to pointer's to distinguish from them usual hex values */
     cpssLogPointerFormatSet(CPSS_LOG_POINTER_FORMAT_PREFIX_E);
@@ -10955,7 +10966,7 @@ GT_STATUS appDemoLogUtModeEnable
 #endif  /* INCLUDE_UTF */
 
     /* log into the file on local file system */
-    rc = appDemoOsLogModeSet(APP_DEMO_CPSS_LOG_MODE_LOCAL_FILE_E, logFileName);
+    rc = appEAG6LOsLogModeSet(APP_DEMO_CPSS_LOG_MODE_LOCAL_FILE_E, logFileName);
     if (rc != GT_OK)
     {
         return rc;
@@ -11137,10 +11148,10 @@ static GT_STATUS complex_cpssInitSystem_autoParamsGet
                         */
                         {
                             APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT mode;
-                            mode = appDemoSoCMDCFrequency_getFromDb();
+                            mode = appEAG6LSoCMDCFrequency_getFromDb();
                             if(mode > APP_DEMO_SOC_MDC_FREQUENCY_MODE_ACCELERATED_E) /* was not stated before the autoInitSystem(...) */
                             {
-                                appDemoSoCMDCFrequency_setInDb(APP_DEMO_SOC_MDC_FREQUENCY_MODE_NORMAL_E);
+                                appEAG6LSoCMDCFrequency_setInDb(APP_DEMO_SOC_MDC_FREQUENCY_MODE_NORMAL_E);
                             }
                         }
                         break;
@@ -11412,6 +11423,7 @@ static GT_STATUS complex_cpssInitSystem_autoParamsGet
     return GT_OK;
 }
 
+#if 0//FIXME
 /**
 * @internal autoInitSystem function
 * @endinternal
@@ -11608,6 +11620,7 @@ start_devId_classification_lbl:
 
     return cpssInitSystem(boardIdx,boardRevId,reMultiProcessApp);
 }
+#endif//FIXME
 
 /*************************************************************/
 /*          HIR FEATURE-BEGIN                                */
@@ -11615,7 +11628,7 @@ start_devId_classification_lbl:
 /************************************************************/
 
 /**
-* @internal appDemoDeviceTrafficEnable function
+* @internal appEAG6LDeviceTrafficEnable function
 * @endinternal
 *
 * @brief   Enables all ports on PP.
@@ -11625,7 +11638,7 @@ start_devId_classification_lbl:
 */
 /* All functions HIR will be compiled only if they belong to DX_FAMILY */
 
-static GT_STATUS appDemoDeviceTrafficEnable
+static GT_STATUS appEAG6LDeviceTrafficEnable
 (
     GT_U8   devIdx
 )
@@ -11636,13 +11649,13 @@ static GT_STATUS appDemoDeviceTrafficEnable
 
     /* Enable all devices and all ports */
         /* get init parameters from appdemo init array */
-    sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
-    dev = appDemoPpConfigList[devIdx].devNum;
+    sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
+    dev = appEAG6LPpConfigList[devIdx].devNum;
 
     if(sysCfgFuncs->cpssTrafficEnable)
     {
         /* Enable traffic for given device */
-        if(GT_FALSE == appDemoTrafficEnableDisableMode)
+        if(GT_FALSE == appEAG6LTrafficEnableDisableMode)
         {
             rc = sysCfgFuncs->cpssTrafficEnable(dev);
 
@@ -11684,27 +11697,27 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
     GT_U32  devNum;
     CPSS_SYSTEM_RECOVERY_INFO_STC system_recovery; /* holds system recovery information */
 
-    devNum = appDemoPpConfigList[devIdx].devNum;
+    devNum = appEAG6LPpConfigList[devIdx].devNum;
     rc  = cpssSystemRecoveryStateGet(&system_recovery);
     if (rc != GT_OK)
     {
           return rc;
     }
 
-    rc = appDemoDeviceEventHandlerPreInit(devNum);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDeviceEventHandlerPreInit", rc);
+    rc = appEAG6LDeviceEventHandlerPreInit(devNum);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDeviceEventHandlerPreInit", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
 
-    if (appDemoPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
+    if (appEAG6LPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
     {
     /*****************************************************************/
     /* Logic phase initialization                                    */
     /*****************************************************************/
-    rc = appDemoDeviceLogicalInit(devIdx, (GT_U8)boardRevId);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDeviceLogicalInit", rc);
+    rc = appEAG6LDeviceLogicalInit(devIdx, (GT_U8)boardRevId);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDeviceLogicalInit", rc);
     if (rc != GT_OK)
     {
         return rc;
@@ -11713,15 +11726,15 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
     /*****************************************************************/
     /* General phase initialization                                  */
     /*****************************************************************/
-    rc = appDemoDeviceGeneralInit(devIdx, (GT_U8)boardRevId);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDeviceGeneralInit", rc);
+    rc = appEAG6LDeviceGeneralInit(devIdx, (GT_U8)boardRevId);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDeviceGeneralInit", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
     }
 
-    if(appDemoOnDistributedSimAsicSide == 0)
+    if(appEAG6LOnDistributedSimAsicSide == 0)
     {
         /*****************************************************************/
         /* Perform board specific settings after logical phase           */
@@ -11735,15 +11748,15 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
                 return rc;
             }
         }
-        stat=appDemoDbEntryGet("initSystemWithoutInterrupts", &value);
-        if ((appDemoBypassEventInitialize == GT_FALSE) &&
+        stat=appEAG6LDbEntryGet("initSystemWithoutInterrupts", &value);
+        if ((appEAG6LBypassEventInitialize == GT_FALSE) &&
             ( system_recovery.systemRecoveryProcess == CPSS_SYSTEM_RECOVERY_PROCESS_NOT_ACTIVE_E ) &&
             ((stat == GT_NO_SUCH) || ((stat == GT_OK) && (value == 0))))
         {
 
             /* spawn the user event handler processes */
-            rc = appDemoDeviceEventRequestDrvnModeInit(devIdx);
-            CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDeviceEventRequestDrvnModeInit", rc);
+            rc = appEAG6LDeviceEventRequestDrvnModeInit(devIdx);
+            CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDeviceEventRequestDrvnModeInit", rc);
             if (rc != GT_OK)
             {
                 return rc;
@@ -11751,10 +11764,10 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
         }
     }
 
-    if (appDemoPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
+    if (appEAG6LPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
     {
     /* Enable all PP devices and all ports */
-    rc = appDemoDeviceTrafficEnable(devNum);
+    rc = appEAG6LDeviceTrafficEnable(devNum);
     if (rc != GT_OK)
     {
         return rc;
@@ -11762,7 +11775,7 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
 
 #ifdef CHX_FAMILY
     /* Link up the ports */
-    for (portNum = 0; portNum < (appDemoPpConfigList[devIdx].maxPortNumber); portNum++)
+    for (portNum = 0; portNum < (appEAG6LPpConfigList[devIdx].maxPortNumber); portNum++)
     {
         CPSS_ENABLER_PORT_SKIP_CHECK(devNum, portNum);
 
@@ -11774,7 +11787,7 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
     }
 
 
-    for (portNum = 0; portNum < (appDemoPpConfigList[devIdx].maxPortNumber); portNum++)
+    for (portNum = 0; portNum < (appEAG6LPpConfigList[devIdx].maxPortNumber); portNum++)
     {
         CPSS_ENABLER_PORT_SKIP_CHECK(devNum, portNum);
         /* Enable PP-CPU Traffic */
@@ -11827,7 +11840,7 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
 
 
 /**
-* @internal appDemoPpConfigListReset function
+* @internal appEAG6LPpConfigListReset function
 * @endinternal
 *
 * @brief Initialize the PP array index with default parameters
@@ -11838,38 +11851,38 @@ static GT_STATUS cpssInitDevice_afterBasicConfig
 * @retval GT_FAIL                  - otherwise.
 */
 
-static GT_STATUS appDemoPpConfigListReset
+static GT_STATUS appEAG6LPpConfigListReset
 (
     IN  GT_U8   devIdx
 )
 {
-    osMemSet(&appDemoPpConfigList[devIdx], 0, sizeof(appDemoPpConfigList[devIdx]));
+    osMemSet(&appEAG6LPpConfigList[devIdx], 0, sizeof(appEAG6LPpConfigList[devIdx]));
 
-    appDemoPpConfigList[devIdx].ppPhase1Done = GT_FALSE;
-    appDemoPpConfigList[devIdx].ppPhase2Done = GT_FALSE;
-    appDemoPpConfigList[devIdx].ppLogicalInitDone = GT_FALSE;
-    appDemoPpConfigList[devIdx].ppGeneralInitDone = GT_FALSE;
-    appDemoPpConfigList[devIdx].valid = GT_FALSE;
-    appDemoPpConfigList[devIdx].systemRecoveryProcess  = CPSS_SYSTEM_RECOVERY_PROCESS_NOT_ACTIVE_E;
+    appEAG6LPpConfigList[devIdx].ppPhase1Done = GT_FALSE;
+    appEAG6LPpConfigList[devIdx].ppPhase2Done = GT_FALSE;
+    appEAG6LPpConfigList[devIdx].ppLogicalInitDone = GT_FALSE;
+    appEAG6LPpConfigList[devIdx].ppGeneralInitDone = GT_FALSE;
+    appEAG6LPpConfigList[devIdx].valid = GT_FALSE;
+    appEAG6LPpConfigList[devIdx].systemRecoveryProcess  = CPSS_SYSTEM_RECOVERY_PROCESS_NOT_ACTIVE_E;
 
     /* default value for cpu tx/rx mode */
-    appDemoPpConfigList[devIdx].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
-    appDemoPpConfigList[devIdx].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
+    appEAG6LPpConfigList[devIdx].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
+    appEAG6LPpConfigList[devIdx].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
 
     /* cascading information */
-    appDemoPpConfigList[devIdx].numberOfCscdTrunks = 0;
-    appDemoPpConfigList[devIdx].numberOfCscdPorts = 0;
-    appDemoPpConfigList[devIdx].numberOfCscdTargetDevs = 0;
-    appDemoPpConfigList[devIdx].numberOf10GPortsToConfigure = 0;
-    appDemoPpConfigList[devIdx].internal10GPortConfigFuncPtr = NULL;
-    appDemoPpConfigList[devIdx].internalCscdPortConfigFuncPtr = NULL;
-    appDemoPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr = NULL;
+    appEAG6LPpConfigList[devIdx].numberOfCscdTrunks = 0;
+    appEAG6LPpConfigList[devIdx].numberOfCscdPorts = 0;
+    appEAG6LPpConfigList[devIdx].numberOfCscdTargetDevs = 0;
+    appEAG6LPpConfigList[devIdx].numberOf10GPortsToConfigure = 0;
+    appEAG6LPpConfigList[devIdx].internal10GPortConfigFuncPtr = NULL;
+    appEAG6LPpConfigList[devIdx].internalCscdPortConfigFuncPtr = NULL;
+    appEAG6LPpConfigList[devIdx].internalCscdPortRxTrainConfigFuncPtr = NULL;
 
     return GT_OK;
 }
 
 /**
-* @internal appDemoDevicePhase1Init function
+* @internal appEAG6LDevicePhase1Init function
 * @endinternal
 *
 * @brief   Perform phase1 initialization for device.
@@ -11879,7 +11892,7 @@ static GT_STATUS appDemoPpConfigListReset
 * @retval GT_OK                       - on success,
 * @retval GT_FAIL                     - otherwise.
 */
-static GT_STATUS appDemoDevicePhase1Init
+static GT_STATUS appEAG6LDevicePhase1Init
 (
     GT_U32  devIdx,
     GT_U32  boardRevId
@@ -11904,12 +11917,12 @@ static GT_STATUS appDemoDevicePhase1Init
     }
 
     value = 0;
-    if ((appDemoDbEntryGet("dontOverrideSip5DefaultPciChannelType", &value) != GT_OK)
+    if ((appEAG6LDbEntryGet("dontOverrideSip5DefaultPciChannelType", &value) != GT_OK)
         || (value == 0))
     {
         /* Override SIP5 devices Default PCI compatible bus to use */
         /* 8 Address Completion Region mode                        */
-        if (CPSS_DXCH_ALL_SIP5_FAMILY_MAC(appDemoPpConfigList[devIdx].devFamily))
+        if (CPSS_DXCH_ALL_SIP5_FAMILY_MAC(appEAG6LPpConfigList[devIdx].devFamily))
         {
             corePpPhase1Params.mngInterfaceType = CPSS_CHANNEL_PEX_MBUS_E;
             /* Address Completion Region 1 - for Interrupt Handling    */
@@ -11921,48 +11934,48 @@ static GT_STATUS appDemoDevicePhase1Init
     }
 
     /* override PP phase 1 parameters according to app demo database */
-    rc = appDemoUpdatePpPhase1Params(&corePpPhase1Params);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpPhase1Params", rc);
+    rc = appEAG6LUpdatePpPhase1Params(&corePpPhase1Params);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpPhase1Params", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
 
     /* Update PP config list device number */
-    appDemoPpConfigList[devIdx].devNum   = corePpPhase1Params.devNum;
-    appDemoPpConfigList[devIdx].valid    = GT_TRUE;
+    appEAG6LPpConfigList[devIdx].devNum   = corePpPhase1Params.devNum;
+    appEAG6LPpConfigList[devIdx].valid    = GT_TRUE;
 
     /* get family type to understand which API should be used below */
     /* There are two type of API here: EX and DX                    */
-    rc = appDemoSysConfigFuncsGet(corePpPhase1Params.deviceId,
-                                    &appDemoPpConfigList[devIdx].sysConfigFuncs,
-                                    &appDemoPpConfigList[devIdx].apiSupportedBmp);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoSysConfigFuncsGet", rc);
+    rc = appEAG6LSysConfigFuncsGet(corePpPhase1Params.deviceId,
+                                    &appEAG6LPpConfigList[devIdx].sysConfigFuncs,
+                                    &appEAG6LPpConfigList[devIdx].apiSupportedBmp);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LSysConfigFuncsGet", rc);
     if (GT_OK != rc)
     {
         return rc;
     }
 
-    if(appDemoSysConfigFuncsExtentionGetPtr)
+    if(appEAG6LSysConfigFuncsExtentionGetPtr)
     {
-        rc = appDemoSysConfigFuncsExtentionGetPtr(corePpPhase1Params.deviceId,
-                                    &appDemoPpConfigList[devIdx].sysConfigFuncs,
-                                    &appDemoPpConfigList[devIdx].apiSupportedBmp);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoSysConfigFuncsExtentionGetPtr", rc);
+        rc = appEAG6LSysConfigFuncsExtentionGetPtr(corePpPhase1Params.deviceId,
+                                    &appEAG6LPpConfigList[devIdx].sysConfigFuncs,
+                                    &appEAG6LPpConfigList[devIdx].apiSupportedBmp);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LSysConfigFuncsExtentionGetPtr", rc);
         if (GT_OK != rc)
         {
             return rc;
         }
     }
 
-    sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
+    sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
 
     /* check if debug device id was set */
     if (useDebugDeviceId == GT_TRUE)
     {
         /* write device id to internal DB */
-        rc = prvCpssDrvDebugDeviceIdSet(appDemoPpConfigList[devIdx].devNum,
-                                        deviceIdDebug[appDemoPpConfigList[devIdx].devNum]);
+        rc = prvCpssDrvDebugDeviceIdSet(appEAG6LPpConfigList[devIdx].devNum,
+                                        deviceIdDebug[appEAG6LPpConfigList[devIdx].devNum]);
         CPSS_ENABLER_DBG_TRACE_RC_MAC("prvCpssDrvDebugDeviceIdSet", rc);
         if (rc != GT_OK)
         {
@@ -11970,7 +11983,7 @@ static GT_STATUS appDemoDevicePhase1Init
         }
     }
 
-    if (appDemoPrePhase1Init == GT_TRUE)
+    if (appEAG6LPrePhase1Init == GT_TRUE)
     {
         rc = prvCpssPrePhase1PpInit(PRV_CPSS_PP_PRE_PHASE1_INIT_MODE_NO_PP_INIT_E);
         if (rc != GT_OK)
@@ -11980,7 +11993,7 @@ static GT_STATUS appDemoDevicePhase1Init
 
     }
     /* Do HW phase 1 */
-    rc = sysCfgFuncs->cpssHwPpPhase1Init(appDemoPpConfigList[devIdx].devNum,
+    rc = sysCfgFuncs->cpssHwPpPhase1Init(appEAG6LPpConfigList[devIdx].devNum,
                                             &corePpPhase1Params,
                                             &ppDevType);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssHwPpPhase1Init", rc);
@@ -11990,62 +12003,62 @@ static GT_STATUS appDemoDevicePhase1Init
     }
 
     /* Update PP config list element of device */
-    appDemoPpConfigList[devIdx].ppPhase1Done = GT_TRUE;
-    appDemoPpConfigList[devIdx].deviceId = ppDevType;
-    appDemoPpConfigList[devIdx].maxPortNumber = PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->numOfPorts;
+    appEAG6LPpConfigList[devIdx].ppPhase1Done = GT_TRUE;
+    appEAG6LPpConfigList[devIdx].deviceId = ppDevType;
+    appEAG6LPpConfigList[devIdx].maxPortNumber = PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->numOfPorts;
 
-    if(PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_PUMA3_E &&
-        PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->revision > 0 )
+    if(PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_PUMA3_E &&
+        PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->revision > 0 )
     {
         /*Puma3, starting revision B0*/
-        appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
     }
-    else if (PRV_CPSS_SIP_5_CHECK_MAC(appDemoPpConfigList[devIdx].devNum))
+    else if (PRV_CPSS_SIP_5_CHECK_MAC(appEAG6LPpConfigList[devIdx].devNum))
     {
-        appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
     }
 #ifdef ASIC_SIMULATION
     else    /* allow simulation to test it , without HW implications ... yet */
-    if(PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_XCAT3_E ||
-       PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_AC5_E)
+    if(PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_XCAT3_E ||
+       PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_AC5_E)
     {
-        appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
     }
     else
-    if(PRV_CPSS_PP_MAC(appDemoPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_LION2_E)
+    if(PRV_CPSS_PP_MAC(appEAG6LPpConfigList[devIdx].devNum)->devFamily == CPSS_PP_FAMILY_DXCH_LION2_E)
     {
-        appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
+        appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_TRUE;
     }
 #endif /*ASIC_SIMULATION*/
     else
     {
-        appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
+        appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
     }
 
     #ifdef GM_USED
     /* the GM not supports the 'soft reset' so we can not support system with it */
-    appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
+    appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
     #endif /*GM_USED*/
     if(cpssDeviceRunCheck_onEmulator())
     {
         /* on emulator we not enabled yet the soft reset  */
-        appDemoPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
+        appEAG6LPpConfigList[devIdx].devSupportSystemReset_HwSoftReset  = GT_FALSE;
     }
 
 
     /* If app demo inits in reg defaults mode skip the rest of the loop */
-    if (appDemoInitRegDefaults == GT_TRUE)
+    if (appEAG6LInitRegDefaults == GT_TRUE)
         return GT_OK;
 
     /* Get list of registers to be configured.  */
     if (boardCfgFuncs.boardGetPpRegCfgList == NULL)
     {
         /* if there is no board-specific function, call the common one */
-        rc = appDemoGetPpRegCfgList(ppDevType,
+        rc = appEAG6LGetPpRegCfgList(ppDevType,
                                     gIsB2bSystem,
                                     &regCfgList,
                                     &regCfgListSize);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoGetPpRegCfgList", rc);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LGetPpRegCfgList", rc);
         if (rc != GT_OK)
         {
             return rc;
@@ -12054,7 +12067,7 @@ static GT_STATUS appDemoDevicePhase1Init
     else
     {
         rc = boardCfgFuncs.boardGetPpRegCfgList(boardRevId,
-                                                    appDemoPpConfigList[devIdx].devNum,
+                                                    appEAG6LPpConfigList[devIdx].devNum,
                                                     &regCfgList,
                                                     &regCfgListSize);
         CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetPpRegCfgList", rc);
@@ -12064,12 +12077,12 @@ static GT_STATUS appDemoDevicePhase1Init
         }
     }
 
-    if (appDemoPrePhase1Init == GT_FALSE)
+    if (appEAG6LPrePhase1Init == GT_FALSE)
     {
         if(sysCfgFuncs->cpssHwPpStartInit)
         {
             /* Set PP's registers */
-            rc = sysCfgFuncs->cpssHwPpStartInit(appDemoPpConfigList[devIdx].devNum,
+            rc = sysCfgFuncs->cpssHwPpStartInit(appEAG6LPpConfigList[devIdx].devNum,
                                                 regCfgList,
                                                 regCfgListSize);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssHwPpStartInit", rc);
@@ -12081,14 +12094,14 @@ static GT_STATUS appDemoDevicePhase1Init
     }
 
      /* If app demo inits in reg defaults mode return */
-    if (appDemoInitRegDefaults == GT_TRUE)
+    if (appEAG6LInitRegDefaults == GT_TRUE)
         return GT_OK;
 
     return GT_OK;
 }
 
 /**
-* @internal appDemoDevicePhase2Init function
+* @internal appEAG6LDevicePhase2Init function
 * @endinternal
 *
 * @brief   Perform phase2 initialization for PP device.
@@ -12102,7 +12115,7 @@ static GT_STATUS appDemoDevicePhase1Init
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS appDemoDevicePhase2Init
+GT_STATUS appEAG6LDevicePhase2Init
 (
     IN  GT_U8                   devIdx,
     IN  GT_U8                   boardRevId     /* Board revision Id             */
@@ -12112,12 +12125,12 @@ GT_STATUS appDemoDevicePhase2Init
     CPSS_PP_PHASE2_INIT_PARAMS          cpssPpPhase2Params;     /* PP phase 2 params                        */
     APP_DEMO_SYS_CONFIG_FUNCS*  sysCfgFuncs;
 
-    /* save value for use in appDemoAllocateDmaMem(...) */
-    appDemoCpssCurrentDevIndex = devIdx;
+    /* save value for use in appEAG6LAllocateDmaMem(...) */
+    appEAG6LCpssCurrentDevIndex = devIdx;
     /* Get PP phase 2 params */
-    appDemoCpssInitSkipHwReset = GT_TRUE;
+    appEAG6LCpssInitSkipHwReset = GT_TRUE;
     rc = boardCfgFuncs.boardGetPpPh2Params(boardRevId,
-                                            appDemoPpConfigList[devIdx].devNum,
+                                            appEAG6LPpConfigList[devIdx].devNum,
                                             &cpssPpPhase2Params);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs.boardGetPpPh2Params", rc);
     if (rc != GT_OK)
@@ -12126,14 +12139,14 @@ GT_STATUS appDemoDevicePhase2Init
     }
 
     /* override PP phase 2 parameters according to app demo database */
-    rc = appDemoUpdatePpPhase2Params(&cpssPpPhase2Params);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpPhase2Params", rc);
+    rc = appEAG6LUpdatePpPhase2Params(&cpssPpPhase2Params);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpPhase2Params", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
 
-    if(appDemoOnDistributedSimAsicSide)
+    if(appEAG6LOnDistributedSimAsicSide)
     {
         /* no need to init the external driver */
         appDemoSysConfig.cpuEtherInfo.initFunc = NULL;
@@ -12143,14 +12156,14 @@ GT_STATUS appDemoDevicePhase2Init
         cpssPpPhase2Params.auqCfg.auDescBlock   = NULL;
     }
 
-    appDemoPpConfigList[devIdx].oldDevNum = appDemoPpConfigList[devIdx].devNum;
-    sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
+    appEAG6LPpConfigList[devIdx].oldDevNum = appEAG6LPpConfigList[devIdx].devNum;
+    sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
 
     if(sysCfgFuncs->cpssHwPpPhase2Init)
     {
 
         /* PP HW phase 2 Init */
-        rc = sysCfgFuncs->cpssHwPpPhase2Init(appDemoPpConfigList[devIdx].oldDevNum,
+        rc = sysCfgFuncs->cpssHwPpPhase2Init(appEAG6LPpConfigList[devIdx].oldDevNum,
                                                 &cpssPpPhase2Params);
 
         CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssHwPpPhase2Init", rc);
@@ -12162,13 +12175,13 @@ GT_STATUS appDemoDevicePhase2Init
     }
 
     /* Current PP init completed */
-    appDemoPpConfigList[devIdx].ppPhase2Done = GT_TRUE;
+    appEAG6LPpConfigList[devIdx].ppPhase2Done = GT_TRUE;
 
     return GT_OK;
 }
 
 /**
-* @internal appDemoDeviceLogicalInit function
+* @internal appEAG6LDeviceLogicalInit function
 * @endinternal
 *
 * @brief   Perform logical phase initialization for a Pp.
@@ -12178,7 +12191,7 @@ GT_STATUS appDemoDevicePhase2Init
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS appDemoDeviceLogicalInit
+GT_STATUS appEAG6LDeviceLogicalInit
 (
     IN GT_U8    devIdx,
     IN GT_U8    boardRevId
@@ -12190,12 +12203,12 @@ GT_STATUS appDemoDeviceLogicalInit
     APP_DEMO_SYS_CONFIG_FUNCS*  sysCfgFuncs;
 
     /* update device config list */
-    sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
+    sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
 
 
     /* Get PP logical init configuration */
     rc = boardCfgFuncs.boardGetPpLogInitParams(boardRevId,
-                                                appDemoPpConfigList[devIdx].devNum,
+                                                appEAG6LPpConfigList[devIdx].devNum,
                                                 &ppLogicalConfigParams);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetPpLogInitParams", rc);
     if (rc != GT_OK)
@@ -12204,32 +12217,32 @@ GT_STATUS appDemoDeviceLogicalInit
     }
 
     /* override logical init configuration according to app demo database */
-    rc = appDemoUpdatePpLogicalInitParams(&ppLogicalConfigParams);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpLogicalInitParams", rc);
+    rc = appEAG6LUpdatePpLogicalInitParams(&ppLogicalConfigParams);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpLogicalInitParams", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
 
     /* Do CPSS logical init and fill PP_INFO structure */
-    rc = sysCfgFuncs->cpssPpLogicalInit(appDemoPpConfigList[devIdx].devNum,
+    rc = sysCfgFuncs->cpssPpLogicalInit(appEAG6LPpConfigList[devIdx].devNum,
                                         &ppLogicalConfigParams);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("sysCfgFuncs->cpssPpLogicalInit", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
-    appDemoPpConfigList[devIdx].ppLogicalInitDone = GT_TRUE;
-    osMemCpy(&ppUserLogicalConfigParams[appDemoPpConfigList[devIdx].devNum],
+    appEAG6LPpConfigList[devIdx].ppLogicalInitDone = GT_TRUE;
+    osMemCpy(&ppUserLogicalConfigParams[appEAG6LPpConfigList[devIdx].devNum],
                 &ppLogicalConfigParams,
                 sizeof(CPSS_PP_CONFIG_INIT_STC));
 
     return GT_OK;
 
-} /* appDemoDeviceLogicalInit */
+} /* appEAG6LDeviceLogicalInit */
 
 /**
-* @internal appDemoDeviceGeneralInit function
+* @internal appEAG6LDeviceGeneralInit function
 * @endinternal
 *
 * @brief   Perform general initialization for a Pp.
@@ -12243,7 +12256,7 @@ GT_STATUS appDemoDeviceLogicalInit
 * @note This function must be called after logical init.
 *
 */
-GT_STATUS appDemoDeviceGeneralInit
+GT_STATUS appEAG6LDeviceGeneralInit
 (
     IN  GT_U8   devIdx,
     IN  GT_U8   boardRevId
@@ -12258,12 +12271,12 @@ GT_STATUS appDemoDeviceGeneralInit
     GT_U32    nanoSecondsStart;
 
     /* get init parameters from appdemo init array */
-    sysCfgFuncs = &appDemoPpConfigList[devIdx].sysConfigFuncs;
-    dev = appDemoPpConfigList[devIdx].devNum;
+    sysCfgFuncs = &appEAG6LPpConfigList[devIdx].sysConfigFuncs;
+    dev = appEAG6LPpConfigList[devIdx].devNum;
 
     /* Get PP logical init configuration */
     rc = boardCfgFuncs.boardGetPpLogInitParams(boardRevId,
-                                                appDemoPpConfigList[devIdx].devNum,
+                                                appEAG6LPpConfigList[devIdx].devNum,
                                                 &ppLogicalConfigParams);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetPpLogInitParams", rc);
     if (rc != GT_OK)
@@ -12271,15 +12284,15 @@ GT_STATUS appDemoDeviceGeneralInit
         return rc;
     }
     /* override logical init configuration according to app demo database */
-    rc = appDemoUpdatePpLogicalInitParams(&ppLogicalConfigParams);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdatePpLogicalInitParams", rc);
+    rc = appEAG6LUpdatePpLogicalInitParams(&ppLogicalConfigParams);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdatePpLogicalInitParams", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
     /* Get library initialization parameters */
     rc = boardCfgFuncs.boardGetLibInitParams(boardRevId,
-                                                appDemoPpConfigList[devIdx].devNum,
+                                                appEAG6LPpConfigList[devIdx].devNum,
                                                 &libInitParams);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("boardCfgFuncs->boardGetLibInitParams", rc);
     if (rc != GT_OK)
@@ -12287,8 +12300,8 @@ GT_STATUS appDemoDeviceGeneralInit
         return rc;
     }
     /* override library initialization parameters according to app demo database */
-    rc = appDemoUpdateLibInitParams(&libInitParams);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoUpdateLibInitParams", rc);
+    rc = appEAG6LUpdateLibInitParams(&libInitParams);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LUpdateLibInitParams", rc);
     if (rc != GT_OK)
     {
         return rc;
@@ -12299,7 +12312,7 @@ GT_STATUS appDemoDeviceGeneralInit
     {
         cpssOsTimeRT(&secondsStart, &nanoSecondsStart);
         rc = sysCfgFuncs->cpssLibrariesInit(
-            appDemoPpConfigList[devIdx].devNum, &libInitParams, &ppLogicalConfigParams);
+            appEAG6LPpConfigList[devIdx].devNum, &libInitParams, &ppLogicalConfigParams);
         if (prvAppDemoFirstInitTimes.initSystemTimeCpssLibInit == 0)
         {
             prvAppDemoFirstInitTimes.initSystemTimeCpssLibInit =
@@ -12323,11 +12336,12 @@ GT_STATUS appDemoDeviceGeneralInit
         }
     }
 
-    appDemoPpConfigList[devIdx].ppGeneralInitDone = GT_TRUE;
+    appEAG6LPpConfigList[devIdx].ppGeneralInitDone = GT_TRUE;
 
     return GT_OK;
 }
 
+#if 0//FIXME
 /**
   * @cpssSystemBaseInit function
   *
@@ -12352,7 +12366,7 @@ static GT_STATUS internal_cpssSystemBaseInit
         return rc;
     }
 
-    if(appDemoDbEntryGet("appDemoActiveDeviceBmp", &value) == GT_OK && value)
+    if(appEAG6LDbEntryGet("appEAG6LActiveDeviceBmp", &value) == GT_OK && value)
     {
         doCommonInfo = GT_FALSE;
     }
@@ -12367,7 +12381,7 @@ static GT_STATUS internal_cpssSystemBaseInit
     /* SoC Drv to Access SMI Master Registers */
     extDrvSoCInit();
     /* WA: change smi speed */
-    appDemoSoCMDCFrequencySet(APP_DEMO_SOC_MDC_FREQUENCY_MODE_ACCELERATED_E);
+    appEAG6LSoCMDCFrequencySet(APP_DEMO_SOC_MDC_FREQUENCY_MODE_ACCELERATED_E);
 #endif
 
     /* Enable printing inside interrupt routine. */
@@ -12396,25 +12410,26 @@ static GT_STATUS internal_cpssSystemBaseInit
 
     return rc;
 } /* cpssSystemBaseInit */
+#endif//FIXME
 
 /* Global variable for storing board revision ID */
-GT_U8 boardRevId_g = 1;
+GT_U8 Hfr_boardRevId_g = 1;
 
 /**
-* @internal appDemoBoardRevIdSet function
+* @internal appEAG6LBoardRevIdSet function
 * @endinternal
 *
 * @brief   set the Board Revision ID.
 *
 * @param[in] boardRevID         - Board Revision ID to be set
 */
-GT_STATUS appDemoBoardRevIdSet
+GT_STATUS appEAG6LBoardRevIdSet
 (
     IN  GT_U8  boardRevId
 )
 {
-    boardRevId_g = boardRevId;
-    cpssOsPrintf("boardRevId_g: %d\n",boardRevId_g);
+    Hfr_boardRevId_g = boardRevId;
+    cpssOsPrintf("boardRevId_g: %d\n",Hfr_boardRevId_g);
     return GT_OK;
 }
 
@@ -12459,7 +12474,7 @@ static GT_STATUS internal_cpssPpInsert
     GT_STATUS rc;
 
     GT_U32  boardIdx = 0;
-    GT_U8   boardRevId = boardRevId_g;
+    GT_U8   boardRevId = Hfr_boardRevId_g;
     GT_U32  start_sec  = 0;
     GT_U32  start_nsec = 0;
     GT_U32  ph1_start_sec  = 0;
@@ -12478,7 +12493,7 @@ static GT_STATUS internal_cpssPpInsert
     userForceBoardType(GT_NA);
 
     /* check if we are after 'cpssInitSystem' */
-    cpssInitSystemGet(&prev_boardIdx,&prev_boardRevId,&multiProcessApp);
+    Hfr_cpssInitSystemGet(&prev_boardIdx,&prev_boardRevId,&multiProcessApp);
 
     rc = cpssSystemRecoveryStateGet(&system_recovery);
     if (rc != GT_OK)
@@ -12555,40 +12570,40 @@ static GT_STATUS internal_cpssPpInsert
     }
 
     /* Check if device was previously Inserted */
-    if (appDemoPpConfigList[devNum].valid == GT_TRUE)
+    if (appEAG6LPpConfigList[devNum].valid == GT_TRUE)
     {
-        if (appDemoPpConfigList[devNum].channel == CPSS_CHANNEL_PCI_E)
+        if (appEAG6LPpConfigList[devNum].channel == CPSS_CHANNEL_PCI_E)
         {
             cpssOsPrintf("PP [%d] Already Inserted, pciBusNum %d, pciDevNum %d\n", devNum,
-                         appDemoPpConfigList[devNum].pciInfo.pciBusNum, appDemoPpConfigList[devNum].pciInfo.pciIdSel);
+                         appEAG6LPpConfigList[devNum].pciInfo.pciBusNum, appEAG6LPpConfigList[devNum].pciInfo.pciIdSel);
         }
-        else if (appDemoPpConfigList[devNum].channel == CPSS_CHANNEL_SMI_E)
+        else if (appEAG6LPpConfigList[devNum].channel == CPSS_CHANNEL_SMI_E)
         {
             cpssOsPrintf("PP [%d] Already Inserted, SMI Slave devAddr %d\n", devNum,
-                         appDemoPpConfigList[devNum].smiInfo.smiIdSel);
+                         appEAG6LPpConfigList[devNum].smiInfo.smiIdSel);
         }
         return GT_BAD_PARAM;
     }
 
     for(i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
     {
-        if(appDemoPpConfigList[i].valid == GT_FALSE)
+        if(appEAG6LPpConfigList[i].valid == GT_FALSE)
             continue;
 
-        if((appDemoPpConfigList[i].channel == CPSS_CHANNEL_PCI_E) &&
+        if((appEAG6LPpConfigList[i].channel == CPSS_CHANNEL_PCI_E) &&
            (busType == CPSS_CHANNEL_PCI_E))
         {
-            if(appDemoPpConfigList[i].pciInfo.pciBusNum == busNum &&
-               appDemoPpConfigList[i].pciInfo.pciIdSel == busDevNum)
+            if(appEAG6LPpConfigList[i].pciInfo.pciBusNum == busNum &&
+               appEAG6LPpConfigList[i].pciInfo.pciIdSel == busDevNum)
             {
                 cpssOsPrintf("PP [%d] Already Inserted, pciBusNum %d, pciDevNum %d\n", i, busNum, busDevNum);
                 return GT_BAD_PARAM;
             }
         }
-        else if((appDemoPpConfigList[i].channel == CPSS_CHANNEL_SMI_E) &&
+        else if((appEAG6LPpConfigList[i].channel == CPSS_CHANNEL_SMI_E) &&
                 (busType == CPSS_CHANNEL_SMI_E))
         {
-            if(appDemoPpConfigList[i].smiInfo.smiIdSel == busDevNum)
+            if(appEAG6LPpConfigList[i].smiInfo.smiIdSel == busDevNum)
             {
                 cpssOsPrintf("PP [%d] Already Inserted, SMI slave devAddr %d\n", i, busDevNum);
                 return GT_BAD_PARAM;
@@ -12597,30 +12612,30 @@ static GT_STATUS internal_cpssPpInsert
     }
 
     /* Do initialization for device specific AppDemo before all phases */
-    appDemoPpConfigListReset(devNum);
+    appEAG6LPpConfigListReset(devNum);
 
     switch(busType)
     {
         case CPSS_CHANNEL_PCI_E:
         case CPSS_CHANNEL_PEX_E:
-            rc = appDemoHotInsRmvSysGetPciInfo(devNum, busNum, busDevNum);
-            if((CPSS_PP_FAMILY_DXCH_ALDRIN_E == appDemoPpConfigList[devNum].devFamily) ||
-               (CPSS_PP_FAMILY_DXCH_ALDRIN2_E == appDemoPpConfigList[devNum].devFamily))
+            rc = appEAG6LHotInsRmvSysGetPciInfo(devNum, busNum, busDevNum);
+            if((CPSS_PP_FAMILY_DXCH_ALDRIN_E == appEAG6LPpConfigList[devNum].devFamily) ||
+               (CPSS_PP_FAMILY_DXCH_ALDRIN2_E == appEAG6LPpConfigList[devNum].devFamily))
                 boardIdx = 29;
-            else if(CPSS_PP_FAMILY_DXCH_FALCON_E == appDemoPpConfigList[devNum].devFamily)
+            else if(CPSS_PP_FAMILY_DXCH_FALCON_E == appEAG6LPpConfigList[devNum].devFamily)
             {
                 boardIdx = 35;
                 fullInitDone = GT_TRUE;
             }
-            else if(CPSS_PP_FAMILY_DXCH_AC5P_E == appDemoPpConfigList[devNum].devFamily)
+            else if(CPSS_PP_FAMILY_DXCH_AC5P_E == appEAG6LPpConfigList[devNum].devFamily)
             {
                 boardIdx = 37;
                 fullInitDone = GT_TRUE;
             }
             break;
         case CPSS_CHANNEL_SMI_E:
-            rc = appDemoHotInsRmvSysGetSmiInfo(devNum, busNum, busDevNum);
-            if(CPSS_PX_FAMILY_PIPE_E == appDemoPpConfigList[devNum].devFamily)
+            rc = appEAG6LHotInsRmvSysGetSmiInfo(devNum, busNum, busDevNum);
+            if(CPSS_PX_FAMILY_PIPE_E == appEAG6LPpConfigList[devNum].devFamily)
                 boardIdx = 33;
             break;
         default:
@@ -12635,13 +12650,13 @@ static GT_STATUS internal_cpssPpInsert
     if(boardIdx == 0)
     {
         cpssOsPrintf("HIR feature not supported for this device\n");
-        appDemoPpConfigListReset(devNum);
+        appEAG6LPpConfigListReset(devNum);
         return GT_NOT_SUPPORTED;
     }
 
     if(!prev_boardIdx)
     {
-        cpssInitSystemSet(boardIdx, boardRevId);
+        Hfr_cpssInitSystemSet(boardIdx, boardRevId);
     }
 
     /* take time from the 'phase1 init' stage (not including the 'PCI scan' operations) */
@@ -12694,8 +12709,8 @@ static GT_STATUS internal_cpssPpInsert
     /* HW phase 1 initialization                                     */
     /*****************************************************************/
     /* Device specific settings phase 1 */
-    rc = appDemoDevicePhase1Init(devNum, boardRevId);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDevicePhase1Init",rc);
+    rc = appEAG6LDevicePhase1Init(devNum, boardRevId);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDevicePhase1Init",rc);
     if (rc != GT_OK)
     {
         goto EXIT_CLEANLY_INSERT_LBL;
@@ -12712,15 +12727,15 @@ static GT_STATUS internal_cpssPpInsert
         }
     }
 
-    /* Sets value of appDemoHwDevNumOffset to Zero.
+    /* Sets value of appEAG6LHwDevNumOffset to Zero.
        This makes HW Dev Id same as Sw DevNum.     */
-    appDemoHwDevNumOffsetSet(0);
+    appEAG6LHwDevNumOffsetSet(0);
 
     /*****************************************************************/
     /* HW phase 2 initialization                                     */
     /*****************************************************************/
-    rc = appDemoDevicePhase2Init(devNum, boardRevId);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDevicePhase2Init",rc);
+    rc = appEAG6LDevicePhase2Init(devNum, boardRevId);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDevicePhase2Init",rc);
     if (rc != GT_OK)
     {
         goto EXIT_CLEANLY_INSERT_LBL;
@@ -12746,33 +12761,33 @@ AFTER_BASIC_CONFIG_INIT_LBL:
         goto EXIT_CLEANLY_INSERT_LBL;
     }
 
-    appDemoPpConfigDevAmount = appDemoPpConfigDevAmount + 1;
+    appEAG6LPpConfigDevAmount = appEAG6LPpConfigDevAmount + 1;
 
 EXIT_CLEANLY_INSERT_LBL:
     if(rc != GT_OK)
     {
         /* Remove Device from CPSS DB if Insert fails in the middle */
-        if (appDemoPpConfigList[devNum].devFamily == CPSS_PX_FAMILY_PIPE_E)
+        if (appEAG6LPpConfigList[devNum].devFamily == CPSS_PX_FAMILY_PIPE_E)
         {
 #if PX_FAMILY
-            cpssPxCfgDevRemove(appDemoPpConfigList[devNum].devNum);
+            cpssPxCfgDevRemove(appEAG6LPpConfigList[devNum].devNum);
 #endif
         }
         else
         {
 #ifdef CHX_FAMILY
-            cpssDxChCfgDevRemove(appDemoPpConfigList[devNum].devNum);
+            cpssDxChCfgDevRemove(appEAG6LPpConfigList[devNum].devNum);
 #endif
         }
-        rc = appDemoPpConfigListReset(devNum);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoPpConfigListReset", rc);
+        rc = appEAG6LPpConfigListReset(devNum);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LPpConfigListReset", rc);
         if (rc != GT_OK)
         {
             return GT_OK;
         }
     }
 
-    appDemoPpConfigList[devNum].systemRecoveryProcess = system_recovery.systemRecoveryProcess;
+    appEAG6LPpConfigList[devNum].systemRecoveryProcess = system_recovery.systemRecoveryProcess;
 
     rc = cpssOsTimeRT(&end_sec, &end_nsec);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssOsTimeRT", rc);
@@ -12808,7 +12823,7 @@ EXIT_CLEANLY_INSERT_LBL:
 }
 
 #ifdef CHX_FAMILY
-extern GT_STATUS appDemoDxChLpmDbReset();
+extern GT_STATUS appEAG6LDxChLpmDbReset();
 #endif
 extern GT_BOOL portMgr;
 
@@ -12855,11 +12870,11 @@ static GT_STATUS internal_cpssPpRemove
     GT_U32    reMultiProcessApp;/* dummy*/
     GT_U32    boardIdx, boardRevId;
 
-    cpssInitSystemGet(&boardIdx, &boardRevId, &reMultiProcessApp);
+    Hfr_cpssInitSystemGet(&boardIdx, &boardRevId, &reMultiProcessApp);
 
-    if (GT_OK != appDemoDevIdxGet(CAST_SW_DEVNUM(devNum), &devIdx))
+    if (GT_OK != appEAG6LDevIdxGet(CAST_SW_DEVNUM(devNum), &devIdx))
     {
-        cpssOsPrintf("PP [%d] Not found in appDemoPpConfigList[].devNum \n",
+        cpssOsPrintf("PP [%d] Not found in appEAG6LPpConfigList[].devNum \n",
         devNum);
         return GT_BAD_PARAM;
     }
@@ -12874,41 +12889,41 @@ static GT_STATUS internal_cpssPpRemove
     /* BC3 + 2 pipes are initialized by cpssInitSystem 36,1
      * Below check is block removal of BC3(CB) if it is initialized by 36,1 */
     if((boardIdx == 36) &&
-       (appDemoPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_BOBCAT3_E))
+       (appEAG6LPpConfigList[devIdx].devFamily == CPSS_PP_FAMILY_DXCH_BOBCAT3_E))
     {
         cpssOsPrintf("BC3(CB) removal is not supported in board(36,1)\n");
         return GT_NOT_SUPPORTED;
     }
 
-    if((appDemoPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
-       && ((appDemoPpConfigList[devIdx].ppPhase1Done == GT_FALSE)
-       || (appDemoPpConfigList[devIdx].ppPhase2Done == GT_FALSE)
-       || ((appDemoPpConfigList[devIdx].ppLogicalInitDone == GT_FALSE)
-       || (appDemoPpConfigList[devIdx].ppGeneralInitDone == GT_FALSE))))
+    if((appEAG6LPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
+       && ((appEAG6LPpConfigList[devIdx].ppPhase1Done == GT_FALSE)
+       || (appEAG6LPpConfigList[devIdx].ppPhase2Done == GT_FALSE)
+       || ((appEAG6LPpConfigList[devIdx].ppLogicalInitDone == GT_FALSE)
+       || (appEAG6LPpConfigList[devIdx].ppGeneralInitDone == GT_FALSE))))
     {
         cpssOsPrintf("PP [%d] Not Initialized\n",devNum);
         cpssOsPrintf("Init flags: ppPhase1Done %d, ppPhase2Done %d,ppLogicalInitDone %d, ppGeneralInitDone %d\n",
-                     appDemoPpConfigList[devIdx].ppPhase1Done,appDemoPpConfigList[devIdx].ppPhase2Done,
-                     appDemoPpConfigList[devIdx].ppLogicalInitDone,appDemoPpConfigList[devIdx].ppGeneralInitDone);
+                     appEAG6LPpConfigList[devIdx].ppPhase1Done,appEAG6LPpConfigList[devIdx].ppPhase2Done,
+                     appEAG6LPpConfigList[devIdx].ppLogicalInitDone,appEAG6LPpConfigList[devIdx].ppGeneralInitDone);
 
         return GT_NOT_INITIALIZED;
     }
 
-    if(appDemoPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
+    if(appEAG6LPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
     {
         cpssOsPrintf("%s Removal of PP on PCI Bus %d  Dev %d device [0x%8.8x] \n",
                      (removalType == APP_DEMO_CPSS_HIR_REMOVAL_UNMANAGED_E)? "Unmanaged" : "Managed",
-                     appDemoPpConfigList[devIdx].pciInfo.pciBusNum,
-                     appDemoPpConfigList[devIdx].pciInfo.pciIdSel,
-                     (appDemoPpConfigList[devIdx].pciInfo.pciDevVendorId.devId << 16) |
-                     (appDemoPpConfigList[devIdx].pciInfo.pciDevVendorId.vendorId));
+                     appEAG6LPpConfigList[devIdx].pciInfo.pciBusNum,
+                     appEAG6LPpConfigList[devIdx].pciInfo.pciIdSel,
+                     (appEAG6LPpConfigList[devIdx].pciInfo.pciDevVendorId.devId << 16) |
+                     (appEAG6LPpConfigList[devIdx].pciInfo.pciDevVendorId.vendorId));
     }
-    else if(appDemoPpConfigList[devIdx].channel == CPSS_CHANNEL_SMI_E)
+    else if(appEAG6LPpConfigList[devIdx].channel == CPSS_CHANNEL_SMI_E)
     {
         cpssOsPrintf("%s Removal of PP of SMI slave Dev %d device [0x%8.8x] \n",
                      (removalType == APP_DEMO_CPSS_HIR_REMOVAL_UNMANAGED_E)? "Unmanaged" : "Managed",
-                     appDemoPpConfigList[devIdx].smiInfo.smiIdSel,
-                     appDemoPpConfigList[devIdx].deviceId);
+                     appEAG6LPpConfigList[devIdx].smiInfo.smiIdSel,
+                     appEAG6LPpConfigList[devIdx].deviceId);
     }
 
     rc = cpssOsTimeRT(&start_sec, &start_nsec);
@@ -12919,7 +12934,7 @@ static GT_STATUS internal_cpssPpRemove
     }
 
     /* If system recovery porcess is fastBoot then skip HW disable steps */
-    if(appDemoPpConfigList[devNum].systemRecoveryProcess == CPSS_SYSTEM_RECOVERY_PROCESS_FAST_BOOT_E)
+    if(appEAG6LPpConfigList[devNum].systemRecoveryProcess == CPSS_SYSTEM_RECOVERY_PROCESS_FAST_BOOT_E)
     {
         removalType = APP_DEMO_CPSS_HIR_REMOVAL_UNMANAGED_E;
     }
@@ -12927,10 +12942,10 @@ static GT_STATUS internal_cpssPpRemove
     /* Link down the ports */
     /* Kill all tasks belongs to the device, including 'Port Manager Task' */
     /* prepare device specific tasks for graceful termination */
-    appDemoDeviceTaskStateToTerminateAllSupporingTasks_notify(devNum);
+    appEAG6LDeviceTaskStateToTerminateAllSupporingTasks_notify(devNum);
 
     /* terminate device specific tasks */
-    appDemoDeviceTasksTerminate(devNum);
+    appEAG6LDeviceTasksTerminate(devNum);
 
     /* HW disable steps - Applicable for Managed Removal/Restart*/
     if(removalType != APP_DEMO_CPSS_HIR_REMOVAL_UNMANAGED_E)
@@ -12943,15 +12958,15 @@ static GT_STATUS internal_cpssPpRemove
             return rc;
         }
 
-        if (appDemoPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
+        if (appEAG6LPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
         {
 #ifdef CHX_FAMILY
-        for (portNum = 0; portNum < (appDemoPpConfigList[devIdx].maxPortNumber); portNum++)
+        for (portNum = 0; portNum < (appEAG6LPpConfigList[devIdx].maxPortNumber); portNum++)
         {
-            CPSS_ENABLER_PORT_SKIP_CHECK(appDemoPpConfigList[devIdx].devNum, portNum);
+            CPSS_ENABLER_PORT_SKIP_CHECK(appEAG6LPpConfigList[devIdx].devNum, portNum);
             if(portMgr)
             {
-                (void)appDemoPortInitSeqDeletePortStage(appDemoPpConfigList[devIdx].devNum,
+                (void)appEAG6LPortInitSeqDeletePortStage(appEAG6LPpConfigList[devIdx].devNum,
                         portNum);
             }
             else
@@ -12976,9 +12991,9 @@ static GT_STATUS internal_cpssPpRemove
         }
 
         /* Disable CPU traffic */
-        for (portNum = 0; portNum < (appDemoPpConfigList[devIdx].maxPortNumber); portNum++)
+        for (portNum = 0; portNum < (appEAG6LPpConfigList[devIdx].maxPortNumber); portNum++)
         {
-            CPSS_ENABLER_PORT_SKIP_CHECK(appDemoPpConfigList[devIdx].devNum, portNum);
+            CPSS_ENABLER_PORT_SKIP_CHECK(appEAG6LPpConfigList[devIdx].devNum, portNum);
             /* Disable PP-CPU Traffic-egress */
             rc = cpssDxChNstPortEgressFrwFilterSet(devNum, portNum, CPSS_NST_EGRESS_FRW_FILTER_FROM_CPU_E, GT_TRUE);
             CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssDxChNstPortEgressFrwFilterSet", rc);
@@ -13057,8 +13072,8 @@ static GT_STATUS internal_cpssPpRemove
         }
 
         /* Masks unified events specific to device*/
-        rc = appDemoDeviceEventMaskSet(devNum, CPSS_EVENT_MASK_E);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDeviceEventMaskSet", rc);
+        rc = appEAG6LDeviceEventMaskSet(devNum, CPSS_EVENT_MASK_E);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDeviceEventMaskSet", rc);
         if (rc != GT_OK)
         {
             return rc;
@@ -13066,7 +13081,7 @@ static GT_STATUS internal_cpssPpRemove
     }
 
     /* SW cleanup - Applicable for all removal Types*/
-    if (appDemoPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
+    if (appEAG6LPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
     {
 #ifdef CHX_FAMILY
         GT_U8    devListArr[1];
@@ -13084,12 +13099,12 @@ static GT_STATUS internal_cpssPpRemove
         }
 
         /* Delete LPM DB while removing last device*/
-        if((appDemoPpConfigDevAmount-1) == 0)
+        if((appEAG6LPpConfigDevAmount-1) == 0)
         {
-            rc = appDemoDxChLpmDbReset();
+            rc = appEAG6LDxChLpmDbReset();
             if (rc != GT_OK)
             {
-                CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDxChLpmDbReset", rc);
+                CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDxChLpmDbReset", rc);
                 return rc;
             }
         }
@@ -13169,19 +13184,19 @@ static GT_STATUS internal_cpssPpRemove
           }  */
 
     /* Delete Event DB when last device is removed */
-    rc = appDemoDeviceEventRequestDrvnModeReset(devNum);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDeviceEventRequestDrvnModeReset", rc);
+    rc = appEAG6LDeviceEventRequestDrvnModeReset(devNum);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDeviceEventRequestDrvnModeReset", rc);
     if (rc != GT_OK)
     {
         return rc;
     }
 
     /* Deallocate FUQ, AUQ, SDMA Tx/Rx Bescriptors & Buffers */
-    if(appDemoPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
+    if(appEAG6LPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
     {
 #ifdef CHX_FAMILY
-        rc = appDemoDeAllocateDmaMem(devNum);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDeAllocateDmaMem", rc);
+        rc = appEAG6LDeAllocateDmaMem(devNum);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDeAllocateDmaMem", rc);
         if (rc != GT_OK)
         {
             return rc;
@@ -13191,12 +13206,12 @@ static GT_STATUS internal_cpssPpRemove
 
     if(removalType != APP_DEMO_CPSS_HIR_REMOVAL_UNMANAGED_E)
     {
-        if (appDemoPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
+        if (appEAG6LPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
         {
 #ifdef CHX_FAMILY
             /* Disable All Skip Reset options ,exclude PEX */
             /* this Enable Skip Reset for PEX */
-            if(appDemoPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
+            if(appEAG6LPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
             {
                 rc = cpssDxChHwPpSoftResetSkipParamSet(devNum, CPSS_HW_PP_RESET_SKIP_TYPE_ALL_EXCLUDE_PEX_E, GT_FALSE);
                 CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssDxChHwPpSoftResetSkipParamSet", rc);
@@ -13213,12 +13228,12 @@ static GT_STATUS internal_cpssPpRemove
 
     if(removalType == APP_DEMO_CPSS_HIR_REMOVAL_RESET_E)
     {
-        if (appDemoPpConfigList[devIdx].devFamily == CPSS_PX_FAMILY_PIPE_E)
+        if (appEAG6LPpConfigList[devIdx].devFamily == CPSS_PX_FAMILY_PIPE_E)
         {
 #if PX_FAMILY
             /* Disable All Skip Reset options ,exclude PEX */
             /* this Enable Skip Reset for PEX */
-            if(appDemoPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
+            if(appEAG6LPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
             {
                 rc = cpssPxHwPpSoftResetSkipParamSet(devNum, CPSS_HW_PP_RESET_SKIP_TYPE_ALL_EXCLUDE_PEX_E, GT_FALSE);
                 CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssPxHwPpSoftResetSkipParamSet", rc);
@@ -13237,7 +13252,7 @@ static GT_STATUS internal_cpssPpRemove
         return rc;
     }
 
-    if (appDemoPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
+    if (appEAG6LPpConfigList[devIdx].devFamily != CPSS_PX_FAMILY_PIPE_E)
     {
 #ifdef CHX_FAMILY
         rc = cpssDxChCfgDevRemove(devNum);
@@ -13270,14 +13285,14 @@ static GT_STATUS internal_cpssPpRemove
         }
     }
 
-    rc = appDemoPpConfigListReset(devIdx);
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoPpConfigListReset", rc);
+    rc = appEAG6LPpConfigListReset(devIdx);
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LPpConfigListReset", rc);
     if (rc != GT_OK)
     {
         return GT_OK;
     }
 
-    appDemoPpConfigDevAmount=appDemoPpConfigDevAmount-1;
+    appEAG6LPpConfigDevAmount=appEAG6LPpConfigDevAmount-1;
 
     rc = cpssOsTimeRT(&end_sec, &end_nsec);
     CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssOsTimeRT", rc);
@@ -13299,6 +13314,7 @@ static GT_STATUS internal_cpssPpRemove
     return rc;
 }
 
+#if 0//FIXME
 /**
 * @internal cpssPpShowDevices function
 * @endinternal
@@ -13312,25 +13328,25 @@ void cpssPpShowDevices ()
     cpssOsPrintf("DevNum   VendorId  DeviceId  BusType    Bus    Dev \n");
     for(devIdx = 0; devIdx < PRV_CPSS_MAX_PP_DEVICES_CNS; devIdx++)
     {
-        if(appDemoPpConfigList[devIdx].valid == GT_FALSE)
+        if(appEAG6LPpConfigList[devIdx].valid == GT_FALSE)
             continue;
 
-        if(appDemoPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
+        if(appEAG6LPpConfigList[devIdx].channel == CPSS_CHANNEL_PCI_E)
         {
             cpssOsPrintf("   %d     0x%04x    0x%04x      PCI       %d       %d\n",
-                         appDemoPpConfigList[devIdx].devNum,
-                         appDemoPpConfigList[devIdx].pciInfo.pciDevVendorId.vendorId,
-                         appDemoPpConfigList[devIdx].pciInfo.pciDevVendorId.devId,
-                         appDemoPpConfigList[devIdx].pciInfo.pciBusNum,
-                         appDemoPpConfigList[devIdx].pciInfo.pciIdSel);
+                         appEAG6LPpConfigList[devIdx].devNum,
+                         appEAG6LPpConfigList[devIdx].pciInfo.pciDevVendorId.vendorId,
+                         appEAG6LPpConfigList[devIdx].pciInfo.pciDevVendorId.devId,
+                         appEAG6LPpConfigList[devIdx].pciInfo.pciBusNum,
+                         appEAG6LPpConfigList[devIdx].pciInfo.pciIdSel);
         }
-        else if(appDemoPpConfigList[devIdx].channel == CPSS_CHANNEL_SMI_E)
+        else if(appEAG6LPpConfigList[devIdx].channel == CPSS_CHANNEL_SMI_E)
         {
             cpssOsPrintf("   %d     0x%04x    0x%04x      SMI       %d       %d\n",
-                         appDemoPpConfigList[devIdx].devNum,
-                         appDemoPpConfigList[devIdx].deviceId & 0xFFFF,
-                         appDemoPpConfigList[devIdx].deviceId >> 16,
-                         0, appDemoPpConfigList[devIdx].smiInfo.smiIdSel);
+                         appEAG6LPpConfigList[devIdx].devNum,
+                         appEAG6LPpConfigList[devIdx].deviceId & 0xFFFF,
+                         appEAG6LPpConfigList[devIdx].deviceId >> 16,
+                         0, appEAG6LPpConfigList[devIdx].smiInfo.smiIdSel);
         }
     }
 }
@@ -13396,7 +13412,7 @@ void cpssLspci (void)
 * @param[out] pciInfoArray         -   list of all detected PCI devices
 *
 */
-void cpssLspciGet
+void Hfr_cpssLspciGet
 (
     OUT GT_U32       *numOfPciDevElemPtr,
     OUT GT_PCI_INFO  pciInfoArray[]
@@ -13465,7 +13481,7 @@ void cpssPciRemove (
 * @brief  Rescan all PCI devices.
 *
 */
-void cpssPciRescan (void)
+void Hfr_cpssPciRescan (void)
 {
 #if (defined(LINUX) && !defined(ASIC_SIMULATION))
     int fd;
@@ -13483,27 +13499,28 @@ void cpssPciRescan (void)
     close(fd);
 #endif
 }
+#endif//FIXME
 
 static APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT savedSmiMcdFrequency = 0xFF;/* not saved */
-/* function to save value needed to be called to appDemoSoCMDCFrequencySet(...)
+/* function to save value needed to be called to appEAG6LSoCMDCFrequencySet(...)
    after calling extDrvSoCInit()
    this function only save in DB the value !
 */
-GT_STATUS appDemoSoCMDCFrequency_setInDb(IN     APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT mode)
+GT_STATUS appEAG6LSoCMDCFrequency_setInDb(IN     APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT mode)
 {
     savedSmiMcdFrequency = mode;
     return GT_OK;/* fix for JIRA : CPSS-8929 : MDC frequency change */
 }
-/* function to get value needed to be called to appDemoSoCMDCFrequencySet(...)
+/* function to get value needed to be called to appEAG6LSoCMDCFrequencySet(...)
    after calling extDrvSoCInit()
    this function only get saved value from DB!
    */
-APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT appDemoSoCMDCFrequency_getFromDb(void)
+APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT appEAG6LSoCMDCFrequency_getFromDb(void)
 {
     return savedSmiMcdFrequency;
 }
 /**
-* @internal appDemoSoCMDCFrequencySet function
+* @internal appEAG6LSoCMDCFrequencySet function
 * @endinternal
 *
 * @brief  set SoC MDC frequency. Note: Changing MDC clock
@@ -13513,7 +13530,7 @@ APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT appDemoSoCMDCFrequency_getFromDb(void)
                         2 - accel (/8)
 *
 */
-GT_STATUS appDemoSoCMDCFrequencySet (
+GT_STATUS appEAG6LSoCMDCFrequencySet (
     APP_DEMO_SOC_MDC_FREQUENCY_MODE_ENT mode
 )
 {
@@ -13534,6 +13551,7 @@ GT_STATUS appDemoSoCMDCFrequencySet (
 #endif
     return GT_OK;
 }
+#if 0//FIXME
 /**
 * @internal cpssBaseInitSystem function
 * @endinternal
@@ -13551,7 +13569,7 @@ GT_STATUS cpssSystemBaseInit
 
     if (!isHirApp)
     {
-        cpssOsPrintf ("Not Running in HIR mode. Please run appDemo(Sim) with -hir flag\n");
+        cpssOsPrintf ("Not Running in HIR mode. Please run appEAG6L(Sim) with -hir flag\n");
         rc = GT_FAIL;
         return rc;
     }
@@ -13563,6 +13581,7 @@ GT_STATUS cpssSystemBaseInit
     }
     return rc;
 }
+#endif//FIXME
 
 
 /**
@@ -13583,7 +13602,7 @@ GT_STATUS cpssSystemBaseInit
 * @retval GT_BAD_PARAM      - on wrong devNum(>31). Already used busNum/busDevNum.
 * @retval GT_FAIL           - otherwise.
 */
-GT_STATUS cpssPpInsert
+GT_STATUS Hfr_cpssPpInsert
 (
     IN  CPSS_PP_INTERFACE_CHANNEL_ENT           busType,
     IN  GT_U32                                  busNum,
@@ -13597,7 +13616,7 @@ GT_STATUS cpssPpInsert
 
     if (!isHirApp)
     {
-        cpssOsPrintf ("Not Running in HIR mode. Please run appDemo(Sim) with -hir flag\n");
+        cpssOsPrintf ("Not Running in HIR mode. Please run appEAG6L(Sim) with -hir flag\n");
         rc = GT_FAIL;
         return rc;
     }
@@ -13622,7 +13641,7 @@ GT_STATUS cpssPpInsert
 * @retval GT_OK                    - on success,
 * @retval GT_FAIL                  - otherwise.
 */
-GT_STATUS cpssPpRemove
+GT_STATUS Hfr_cpssPpRemove
 (
     IN  GT_SW_DEV_NUM devNum,
     IN  APP_DEMO_CPSS_HIR_REMOVAL_TYPE_ENT removalType
@@ -13632,7 +13651,7 @@ GT_STATUS cpssPpRemove
 
     if (!isHirApp)
     {
-        cpssOsPrintf ("Not Running in HIR mode. Please run appDemo(Sim) with -hir flag\n");
+        cpssOsPrintf ("Not Running in HIR mode. Please run appEAG6L(Sim) with -hir flag\n");
         rc = GT_FAIL;
         return rc;
     }
@@ -13644,7 +13663,7 @@ GT_STATUS cpssPpRemove
 
 
 /**
-* @internal appDemoBusDevInfo function
+* @internal appEAG6LBusDevInfo function
 * @endinternal
 *
 * @brief   This routine sets the PCI device init information of the managed device(s) by this CPSS instance
@@ -13661,7 +13680,7 @@ GT_STATUS cpssPpRemove
 *
 */
 
-GT_STATUS appDemoBusDevInfo
+GT_STATUS appEAG6LBusDevInfo
 (
   IN  APP_DEMO_INIT_DEV_INFO_STC deviceArray[],
   IN  GT_U32 sizeOfArray
@@ -13673,81 +13692,81 @@ GT_STATUS appDemoBusDevInfo
     GT_STATUS       rc = GT_OK;
     static GT_U32 provisionedDevNumbers = 0;
 
-    if (appDemoCpssPciProvisonDone == GT_FALSE)
+    if (appEAG6LCpssPciProvisonDone == GT_FALSE)
     {
         /* Initialize the PP array with default parameters */
         for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
         {
-            osMemSet(&appDemoPpConfigList[i], 0, sizeof(appDemoPpConfigList[i]));
+            osMemSet(&appEAG6LPpConfigList[i], 0, sizeof(appEAG6LPpConfigList[i]));
 
-            appDemoPpConfigList[i].ppPhase1Done = GT_FALSE;
-            appDemoPpConfigList[i].ppPhase2Done = GT_FALSE;
-            appDemoPpConfigList[i].ppLogicalInitDone = GT_FALSE;
-            appDemoPpConfigList[i].ppGeneralInitDone = GT_FALSE;
-            appDemoPpConfigList[i].valid = GT_FALSE;
+            appEAG6LPpConfigList[i].ppPhase1Done = GT_FALSE;
+            appEAG6LPpConfigList[i].ppPhase2Done = GT_FALSE;
+            appEAG6LPpConfigList[i].ppLogicalInitDone = GT_FALSE;
+            appEAG6LPpConfigList[i].ppGeneralInitDone = GT_FALSE;
+            appEAG6LPpConfigList[i].valid = GT_FALSE;
 
             /* default value for cpu tx/rx mode */
-            appDemoPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
-            appDemoPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
+            appEAG6LPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
+            appEAG6LPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
 
             /* cascading information */
-            appDemoPpConfigList[i].numberOfCscdTrunks = 0;
-            appDemoPpConfigList[i].numberOfCscdPorts = 0;
-            appDemoPpConfigList[i].numberOfCscdTargetDevs = 0;
-            appDemoPpConfigList[i].numberOf10GPortsToConfigure = 0;
-            appDemoPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
-            appDemoPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
-            appDemoPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
+            appEAG6LPpConfigList[i].numberOfCscdTrunks = 0;
+            appEAG6LPpConfigList[i].numberOfCscdPorts = 0;
+            appEAG6LPpConfigList[i].numberOfCscdTargetDevs = 0;
+            appEAG6LPpConfigList[i].numberOf10GPortsToConfigure = 0;
+            appEAG6LPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
+            appEAG6LPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
+            appEAG6LPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
         }
 
         appDemoSysConfig.firstDevNum = (GT_U8)(deviceArray[0].swDevId);
-        appDemoDbEntryAdd("firstDevNum", appDemoSysConfig.firstDevNum);
+        appEAG6LDbEntryAdd("firstDevNum", appDemoSysConfig.firstDevNum);
     }
     firstDevNum = (GT_U8)(deviceArray[0].swDevId);
-    /* Now copy provisioned data to  relevant appDemo indexes */
+    /* Now copy provisioned data to  relevant appEAG6L indexes */
 
     for (i = 0; i < sizeOfArray; i++)
     {
-        if (appDemoPpConfigList[firstDevNum + i].valid == GT_FALSE)
+        if (appEAG6LPpConfigList[firstDevNum + i].valid == GT_FALSE)
         {
             provisionedDevNumbers++;
         }
 
-        appDemoPpConfigList[firstDevNum+i].channel = CPSS_CHANNEL_PCI_E;
-        appDemoPpConfigList[firstDevNum + i].pciInfo.pciDevVendorId.vendorId = 0x11ab;
-        appDemoPpConfigList[firstDevNum + i].pciInfo.pciDevVendorId.devId = (GT_U16)(deviceArray[i].devType);
-        appDemoPpConfigList[firstDevNum + i].pciInfo.pciIdSel = deviceArray[i].pciDev;
-        appDemoPpConfigList[firstDevNum + i].pciInfo.pciBusNum = deviceArray[i].pciBus;
-        appDemoPpConfigList[firstDevNum + i].pciInfo.funcNo = deviceArray[i].pciFunc;
+        appEAG6LPpConfigList[firstDevNum+i].channel = CPSS_CHANNEL_PCI_E;
+        appEAG6LPpConfigList[firstDevNum + i].pciInfo.pciDevVendorId.vendorId = 0x11ab;
+        appEAG6LPpConfigList[firstDevNum + i].pciInfo.pciDevVendorId.devId = (GT_U16)(deviceArray[i].devType);
+        appEAG6LPpConfigList[firstDevNum + i].pciInfo.pciIdSel = deviceArray[i].pciDev;
+        appEAG6LPpConfigList[firstDevNum + i].pciInfo.pciBusNum = deviceArray[i].pciBus;
+        appEAG6LPpConfigList[firstDevNum + i].pciInfo.funcNo = deviceArray[i].pciFunc;
 
         /* Get the Pci header info  */
         for(j = 0; j < 16; j ++)
         {
-            appDemoPpConfigList[firstDevNum + i].pciInfo.pciHeaderInfo[j] = deviceArray[i].pciHeaderInfo[j];
+            appEAG6LPpConfigList[firstDevNum + i].pciInfo.pciHeaderInfo[j] = deviceArray[i].pciHeaderInfo[j];
         }
 
-        appDemoPpConfigList[firstDevNum + i].devNum = (GT_U8)(deviceArray[i].swDevId);
-        appDemoPpConfigList[firstDevNum + i].hwDevNum = (GT_HW_DEV_NUM)(deviceArray[i].hwDevId);
-        rc = getDevFamily(&appDemoPpConfigList[firstDevNum + i].pciInfo.pciDevVendorId,
-                              &appDemoPpConfigList[firstDevNum + i].devFamily,
+        appEAG6LPpConfigList[firstDevNum + i].devNum = (GT_U8)(deviceArray[i].swDevId);
+        appEAG6LPpConfigList[firstDevNum + i].hwDevNum = (GT_HW_DEV_NUM)(deviceArray[i].hwDevId);
+        rc = getDevFamily(&appEAG6LPpConfigList[firstDevNum + i].pciInfo.pciDevVendorId,
+                              &appEAG6LPpConfigList[firstDevNum + i].devFamily,
                               &isPex);
         if (GT_OK != rc)
         {
             return GT_FAIL;
         }
-        appDemoPpConfigList[firstDevNum + i].valid = GT_TRUE;
+        appEAG6LPpConfigList[firstDevNum + i].valid = GT_TRUE;
     }
 
-    appDemoCpssPciProvisonDone = GT_TRUE;
-    appDemoPpConfigDevAmount = provisionedDevNumbers;
+    appEAG6LCpssPciProvisonDone = GT_TRUE;
+    appEAG6LPpConfigDevAmount = provisionedDevNumbers;
 
-    osPrintf("appDemoBusDevInfo is completely done, appDemoPpConfigDevAmount = %d\n",appDemoPpConfigDevAmount);
+    osPrintf("appEAG6LBusDevInfo is completely done, appEAG6LPpConfigDevAmount = %d\n",appEAG6LPpConfigDevAmount);
     return GT_OK;
 }
 
 
 /**
-* @internal appDemoSystemRecoveryHa2phasesInitDataSet function
+* @internal appEAG6LSystemRecoveryHa2phasesInitDataSet function
 * @endinternal
 *
 * @brief  This function is intended to set data for HA two phases init.
@@ -13771,7 +13790,7 @@ GT_STATUS appDemoBusDevInfo
 *
 */
 
-GT_STATUS appDemoSystemRecoveryHa2phasesInitDataSet
+GT_STATUS appEAG6LSystemRecoveryHa2phasesInitDataSet
 (
     IN GT_U8 devNum,
     IN CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC *ha2PhasesPhase1ParamsPhase1
@@ -13781,72 +13800,72 @@ GT_STATUS appDemoSystemRecoveryHa2phasesInitDataSet
     GT_BOOL         isPex;
     GT_STATUS       rc = GT_OK;
 
-    ha2PhasesPhase1ParamsPhase1Ptr = (CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC*)osMalloc(sizeof(CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC));
-    if (ha2PhasesPhase1ParamsPhase1Ptr == NULL)
+    Hfr_ha2PhasesPhase1ParamsPhase1Ptr = (CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC*)osMalloc(sizeof(CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC));
+    if (Hfr_ha2PhasesPhase1ParamsPhase1Ptr == NULL)
     {
         return GT_OUT_OF_CPU_MEM;
     }
-    osMemSet(ha2PhasesPhase1ParamsPhase1Ptr,0,sizeof(CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC));
+    osMemSet(Hfr_ha2PhasesPhase1ParamsPhase1Ptr,0,sizeof(CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC));
 
-    osMemCpy(ha2PhasesPhase1ParamsPhase1Ptr,ha2PhasesPhase1ParamsPhase1,sizeof(CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC));
+    osMemCpy(Hfr_ha2PhasesPhase1ParamsPhase1Ptr,ha2PhasesPhase1ParamsPhase1,sizeof(CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC));
    /* Initialize the PP array with default parameters */
     for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
     {
-        osMemSet(&appDemoPpConfigList[i], 0, sizeof(appDemoPpConfigList[i]));
+        osMemSet(&appEAG6LPpConfigList[i], 0, sizeof(appEAG6LPpConfigList[i]));
 
-        appDemoPpConfigList[i].ppPhase1Done = GT_FALSE;
-        appDemoPpConfigList[i].ppPhase2Done = GT_FALSE;
-        appDemoPpConfigList[i].ppLogicalInitDone = GT_FALSE;
-        appDemoPpConfigList[i].ppGeneralInitDone = GT_FALSE;
-        appDemoPpConfigList[i].valid = GT_FALSE;
+        appEAG6LPpConfigList[i].ppPhase1Done = GT_FALSE;
+        appEAG6LPpConfigList[i].ppPhase2Done = GT_FALSE;
+        appEAG6LPpConfigList[i].ppLogicalInitDone = GT_FALSE;
+        appEAG6LPpConfigList[i].ppGeneralInitDone = GT_FALSE;
+        appEAG6LPpConfigList[i].valid = GT_FALSE;
 
         /* default value for cpu tx/rx mode */
-        appDemoPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
-        appDemoPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
+        appEAG6LPpConfigList[i].cpuPortMode = CPSS_NET_CPU_PORT_MODE_SDMA_E;
+        appEAG6LPpConfigList[i].allocMethod = CPSS_RX_BUFF_STATIC_ALLOC_E;
 
         /* cascading information */
-        appDemoPpConfigList[i].numberOfCscdTrunks = 0;
-        appDemoPpConfigList[i].numberOfCscdPorts = 0;
-        appDemoPpConfigList[i].numberOfCscdTargetDevs = 0;
-        appDemoPpConfigList[i].numberOf10GPortsToConfigure = 0;
-        appDemoPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
-        appDemoPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
-        appDemoPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
+        appEAG6LPpConfigList[i].numberOfCscdTrunks = 0;
+        appEAG6LPpConfigList[i].numberOfCscdPorts = 0;
+        appEAG6LPpConfigList[i].numberOfCscdTargetDevs = 0;
+        appEAG6LPpConfigList[i].numberOf10GPortsToConfigure = 0;
+        appEAG6LPpConfigList[i].internal10GPortConfigFuncPtr = NULL;
+        appEAG6LPpConfigList[i].internalCscdPortConfigFuncPtr = NULL;
+        appEAG6LPpConfigList[i].internalCscdPortRxTrainConfigFuncPtr = NULL;
     }
 
     appDemoSysConfig.firstDevNum = devNum;
-    appDemoDbEntryAdd("firstDevNum", devNum);
+    appEAG6LDbEntryAdd("firstDevNum", devNum);
 
-    appDemoPpConfigList[devNum].channel = CPSS_CHANNEL_PCI_E;
-    appDemoPpConfigList[devNum].pciInfo.pciDevVendorId.vendorId = 0x11ab;
+    appEAG6LPpConfigList[devNum].channel = CPSS_CHANNEL_PCI_E;
+    appEAG6LPpConfigList[devNum].pciInfo.pciDevVendorId.vendorId = 0x11ab;
     cpssOsPrintf(" devId =%x\n", ha2PhasesPhase1ParamsPhase1->devType);
-    appDemoPpConfigList[devNum].pciInfo.pciDevVendorId.devId = (GT_U16)ha2PhasesPhase1ParamsPhase1->devType;
+    appEAG6LPpConfigList[devNum].pciInfo.pciDevVendorId.devId = (GT_U16)ha2PhasesPhase1ParamsPhase1->devType;
     cpssOsPrintf(" pciIdSel =%x\n", ha2PhasesPhase1ParamsPhase1->pciDev);
 
-    appDemoPpConfigList[devNum].pciInfo.pciIdSel = ha2PhasesPhase1ParamsPhase1->pciDev;
+    appEAG6LPpConfigList[devNum].pciInfo.pciIdSel = ha2PhasesPhase1ParamsPhase1->pciDev;
     cpssOsPrintf(" pciBusNum =%x\n", ha2PhasesPhase1ParamsPhase1->pciBus);
 
-    appDemoPpConfigList[devNum].pciInfo.pciBusNum = ha2PhasesPhase1ParamsPhase1->pciBus;
+    appEAG6LPpConfigList[devNum].pciInfo.pciBusNum = ha2PhasesPhase1ParamsPhase1->pciBus;
     cpssOsPrintf(" funcNo =%x\n", ha2PhasesPhase1ParamsPhase1->pciFunc);
 
-    appDemoPpConfigList[devNum].pciInfo.funcNo = ha2PhasesPhase1ParamsPhase1->pciFunc;
+    appEAG6LPpConfigList[devNum].pciInfo.funcNo = ha2PhasesPhase1ParamsPhase1->pciFunc;
     /* Get the Pci header info  */
     for(j = 0; j < 16; j ++)
     {
-        appDemoPpConfigList[devNum].pciInfo.pciHeaderInfo[j] = ha2PhasesPhase1ParamsPhase1->pciHeaderInfo[j];
+        appEAG6LPpConfigList[devNum].pciInfo.pciHeaderInfo[j] = ha2PhasesPhase1ParamsPhase1->pciHeaderInfo[j];
     }
     cpssOsPrintf(" devNum =%d\n",devNum);
 
-    appDemoPpConfigList[devNum].devNum = devNum;
-    rc = getDevFamily(&appDemoPpConfigList[devNum].pciInfo.pciDevVendorId,
-                          &appDemoPpConfigList[devNum].devFamily,
+    appEAG6LPpConfigList[devNum].devNum = devNum;
+    rc = getDevFamily(&appEAG6LPpConfigList[devNum].pciInfo.pciDevVendorId,
+                          &appEAG6LPpConfigList[devNum].devFamily,
                           &isPex);
     if (GT_OK != rc)
     {
         return GT_FAIL;
     }
-    appDemoPpConfigList[devNum].valid = GT_TRUE;
-    cpssOsPrintf("appDemoSystemRecoveryHa2phasesInitDataSet is completely done\n");
+    appEAG6LPpConfigList[devNum].valid = GT_TRUE;
+    cpssOsPrintf("appEAG6LSystemRecoveryHa2phasesInitDataSet is completely done\n");
 
     return GT_OK;
 }
@@ -13855,7 +13874,7 @@ GT_STATUS appDemoSystemRecoveryHa2phasesInitDataSet
 
 
 /**
-* @internal appDemoSystemRecoveryHa2phasesInitDataGet function
+* @internal appEAG6LSystemRecoveryHa2phasesInitDataGet function
 * @endinternal
 *
  *@brief  This function is intended to get data for HA two
@@ -13881,7 +13900,7 @@ GT_STATUS appDemoSystemRecoveryHa2phasesInitDataSet
 *
 */
 
-GT_STATUS appDemoSystemRecoveryHa2phasesInitDataGet
+GT_STATUS appEAG6LSystemRecoveryHa2phasesInitDataGet
 (
     IN GT_U8 devNum,
     OUT CPSS_PP_HA_2_PHASES_INIT_PHASE1_STC *ha2PhasesPhase1ParamsPhase1
@@ -13896,18 +13915,18 @@ GT_STATUS appDemoSystemRecoveryHa2phasesInitDataGet
 
     for (i = 0; i < PRV_CPSS_MAX_PP_DEVICES_CNS; i++)
     {
-       if (appDemoPpConfigList[i].valid == GT_TRUE)
+       if (appEAG6LPpConfigList[i].valid == GT_TRUE)
        {
-           if (appDemoPpConfigList[i].devNum == devNum)
+           if (appEAG6LPpConfigList[i].devNum == devNum)
            {
-               ha2PhasesPhase1ParamsPhase1->devType = appDemoPpConfigList[devNum].pciInfo.pciDevVendorId.devId;
-               ha2PhasesPhase1ParamsPhase1->pciBus =  appDemoPpConfigList[devNum].pciInfo.pciBusNum;
-               ha2PhasesPhase1ParamsPhase1->pciDev =  appDemoPpConfigList[devNum].pciInfo.pciIdSel;
-               ha2PhasesPhase1ParamsPhase1->pciFunc = appDemoPpConfigList[devNum].pciInfo.funcNo;
+               ha2PhasesPhase1ParamsPhase1->devType = appEAG6LPpConfigList[devNum].pciInfo.pciDevVendorId.devId;
+               ha2PhasesPhase1ParamsPhase1->pciBus =  appEAG6LPpConfigList[devNum].pciInfo.pciBusNum;
+               ha2PhasesPhase1ParamsPhase1->pciDev =  appEAG6LPpConfigList[devNum].pciInfo.pciIdSel;
+               ha2PhasesPhase1ParamsPhase1->pciFunc = appEAG6LPpConfigList[devNum].pciInfo.funcNo;
                /* Get the Pci header info  */
                for(j = 0; j < 16; j ++)
                {
-                   ha2PhasesPhase1ParamsPhase1->pciHeaderInfo[j] = appDemoPpConfigList[devNum].pciInfo.pciHeaderInfo[j];
+                   ha2PhasesPhase1ParamsPhase1->pciHeaderInfo[j] = appEAG6LPpConfigList[devNum].pciInfo.pciHeaderInfo[j];
                }
 
                /* support is done only for case when pci scan is forbidden, pci bus read enabled and pci write is disabled*/
@@ -13919,10 +13938,10 @@ GT_STATUS appDemoSystemRecoveryHa2phasesInitDataGet
 }
 
 /**
-* @internal appDemoSystemRecoveryHsPostCompletionState function
+* @internal appEAG6LSystemRecoveryHsPostCompletionState function
 * @endinternal
 *
-*@brief  This function wraps all appDemo functions that needs to be called at the end of Hitless startup (HS) process,
+*@brief  This function wraps all appEAG6L functions that needs to be called at the end of Hitless startup (HS) process,
 *        after completion stage.
 *        meaning need to be called after calling cpssSystemRecoveryStateSet with CPSS_SYSTEM_RECOVERY_COMPLETION_STATE_E
 *
@@ -13930,7 +13949,7 @@ GT_STATUS appDemoSystemRecoveryHa2phasesInitDataGet
 * @retval GT_FAIL                  - otherwise.
 *
 */
-GT_STATUS appDemoSystemRecoveryHsPostCompletionState
+GT_STATUS appEAG6LSystemRecoveryHsPostCompletionState
 (
     GT_VOID
 )
@@ -13941,8 +13960,8 @@ GT_STATUS appDemoSystemRecoveryHsPostCompletionState
     GT_U32              devIndex; /* device index                */
 
     /*spawns the App Demo event handler*/
-    rc = appDemoEventRequestDrvnModeInit();
-    CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoEventRequestDrvnModeInit", rc);
+    rc = appEAG6LEventRequestDrvnModeInit();
+    CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LEventRequestDrvnModeInit", rc);
     if(rc != GT_OK)
     {
         return rc;
@@ -13954,8 +13973,8 @@ GT_STATUS appDemoSystemRecoveryHsPostCompletionState
 #ifdef CHX_FAMILY
         /* Data Integrity module initialization. It should be done after events init. */
         /* it was skipped during HS */
-        rc = appDemoDataIntegrityInit(devNum);
-        CPSS_ENABLER_DBG_TRACE_RC_MAC("appDemoDataIntegrityInit", rc);
+        rc = appEAG6LDataIntegrityInit(devNum);
+        CPSS_ENABLER_DBG_TRACE_RC_MAC("appEAG6LDataIntegrityInit", rc);
         if(GT_OK != rc)
         {
             return rc;
@@ -13978,7 +13997,7 @@ GT_STATUS appDemoSystemRecoveryHsPostCompletionState
 }
 
 /**
-* @internal appDemoSystemRenumber function
+* @internal appEAG6LSystemRenumber function
 * @endinternal
 *
 *@brief  This function renumbers internal database to new device number.
@@ -13991,7 +14010,7 @@ GT_STATUS appDemoSystemRecoveryHsPostCompletionState
 * @retval GT_FAIL                  - otherwise.
 *
 */
-GT_STATUS appDemoSystemRenumber
+GT_STATUS appEAG6LSystemRenumber
 (
     IN GT_U8 oldDevNum,
     IN GT_U8 newDevNum
@@ -14004,28 +14023,28 @@ GT_STATUS appDemoSystemRenumber
 
     START_LOOP_ALL_DEVICES(devIndex,devNum)
     {
-        if (appDemoPpConfigList[devIndex].devNum == oldDevNum &&
-            appDemoPpConfigList[devIndex].valid)
+        if (appEAG6LPpConfigList[devIndex].devNum == oldDevNum &&
+            appEAG6LPpConfigList[devIndex].valid)
         {
-                appDemoPpConfigList[devIndex].devNum = newDevNum;
-                appDemoPpConfigList[devIndex].oldDevNum = oldDevNum;
+                appEAG6LPpConfigList[devIndex].devNum = newDevNum;
+                appEAG6LPpConfigList[devIndex].oldDevNum = oldDevNum;
 #ifdef CHX_FAMILY
-                if(CPSS_PX_FAMILY_PIPE_E != appDemoPpConfigList[devIndex].devFamily)
+                if(CPSS_PX_FAMILY_PIPE_E != appEAG6LPpConfigList[devIndex].devFamily)
                 {
-                    rc = cpssDxChCfgHwDevNumGet(appDemoPpConfigList[devIndex].devNum, & hwDevNum);
+                    rc = cpssDxChCfgHwDevNumGet(appEAG6LPpConfigList[devIndex].devNum, & hwDevNum);
                     CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssDxChCfgHwDevNumGet", rc);
                 }
 #endif
 #ifdef PX_FAMILY
-                if(CPSS_PX_FAMILY_PIPE_E == appDemoPpConfigList[devIndex].devFamily)
+                if(CPSS_PX_FAMILY_PIPE_E == appEAG6LPpConfigList[devIndex].devFamily)
                 {
-                    rc = cpssPxCfgHwDevNumGet(appDemoPpConfigList[devIndex].devNum, & hwDevNum);
+                    rc = cpssPxCfgHwDevNumGet(appEAG6LPpConfigList[devIndex].devNum, & hwDevNum);
                     CPSS_ENABLER_DBG_TRACE_RC_MAC("cpssPxCfgHwDevNumGet", rc);
                 }
 #endif
                 if (rc == GT_OK)
                 {
-                    appDemoPpConfigList[devIndex].hwDevNum = hwDevNum;
+                    appEAG6LPpConfigList[devIndex].hwDevNum = hwDevNum;
                 }
         }
     }
@@ -14035,7 +14054,7 @@ GT_STATUS appDemoSystemRenumber
 
 #ifdef CHX_FAMILY
 /**
-* @internal appDemoDebugPrvUnitRegsDetaledPrint function
+* @internal appEAG6LDebugPrvUnitRegsDetaledPrint function
 * @endinternal
 *
 * @brief   Print registers with fields of the given Unit.
@@ -14048,7 +14067,7 @@ GT_STATUS appDemoSystemRenumber
 * @retval GT_BAD_PARAM             - on wrong port number or device
 * @retval GT_HW_ERROR              - on hardware error
 */
-GT_STATUS appDemoDebugPrvUnitRegsDetaledPrint
+GT_STATUS appEAG6LDebugPrvUnitRegsDetaledPrint
 (
     IN  GT_U8  devNum,
     IN  const APP_DEMO_REG_PRINT_UNIT_STC *unitRegsPtr,
