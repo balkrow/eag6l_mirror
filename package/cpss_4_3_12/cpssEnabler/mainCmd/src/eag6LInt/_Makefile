@@ -1,14 +1,10 @@
 # $(warning "Started") 
 
-
 #List of subfolders to include in build
 
-MODULES := \
- cmdShell \
- eag6LInt 
-
 #List of files to include in list
-FILES := 
+FILES := eag6lInt.c \
+		 multi_thread.c
 
 
 CWD := $(dir $(lastword $(MAKEFILE_LIST)))
@@ -17,7 +13,7 @@ CWD := $(dir $(lastword $(MAKEFILE_LIST)))
 CPSSENABLER_SRC += $(patsubst %,$(CWD)%,$(FILES))
 
 #Enable this line to add include path of this folder
-#CFLAGS := $(CFLAGS) -I$(CWD)
+#CFLAGS := -Wno-error=unused-parameter
 
 #Recursively go into list of subfolders
 include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))

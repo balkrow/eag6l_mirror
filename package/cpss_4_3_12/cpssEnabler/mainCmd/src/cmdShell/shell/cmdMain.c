@@ -94,6 +94,9 @@ GT_STATUS luaCLI_LoadConfigurationFile(
 #endif /* CMD_LUA_CLI */
 #ifdef  CMD_FS
 GT_STATUS cmdTFTPDstart(void);
+#if 1/*add by balkrow*/
+GT_STATUS eag6lOAMstart(void);
+#endif
 #endif
 #ifdef _WIN32
 IOStreamPTR cmdStreamCreateWin32Console(void);
@@ -299,7 +302,11 @@ GT_STATUS cmdInit
 #endif
 #ifdef  CMD_FS
     cmdFSinit();
+#if 1/*add by balkrow*/
+    eag6lOAMstart();
+#else
     cmdTFTPDstart();
+#endif
 
 #endif
 #endif /* CMD_INCLUDE_TCPIP */
