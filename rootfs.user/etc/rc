@@ -13,20 +13,6 @@ mdev -s
 
 ln -s /proc/mounts /etc/mtab
 
-if [ ! -d /mnt/flash/boot ]
-then
-ln -s /media/boot/ /mnt/flash/boot
-fi
-
-if [ ! -d /mnt/flash/log ]
-then
-ln -s /media/log/ /mnt/flash/log
-fi
-
-if [ ! -d /mnt/flash/factory ]
-then
-ln -s /media/factory/ /mnt/flash/factory
-fi
 
 if [ ! -d /etc/dropbear ]
 then

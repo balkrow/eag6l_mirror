@@ -352,13 +352,14 @@ int part_get_info(struct blk_desc *dev_desc, int part,
 
 int part_get_info_whole_disk(struct blk_desc *dev_desc, disk_partition_t *info)
 {
-#if 1//add by balkrow
-	if(info->part_num == 3)
+#if 1/*[20]eMMC partition에 bank1,bank2 추가, by balkrow 2024-05-20*/
+	if(info->part_num == 2)
+		info->start = (268 * 1024 * 1024)/512;
+	else if(info->part_num == 1)
 		info->start = (140 * 1024 * 1024)/512;
 	else
 		info->start = (12 * 1024 * 1024)/512;
-#else
-	info->start = 0;
+
 #endif
 	info->size = dev_desc->lba;
 	info->blksz = dev_desc->blksz;
@@ -563,7 +564,7 @@ int blk_get_device_part_str(const char *ifname, const char *dev_part_str,
 		 * it's an error.
 		 */
 #if 1//add by balkrow
-		if ((part > 0 && part != 3) || (!allow_whole_dev)) {
+		if ((part > 0 && part != 1 & part != 2 ) || (!allow_whole_dev)) {
 #else
 		if ((part > 0) || (!allow_whole_dev)) {
 #endif
