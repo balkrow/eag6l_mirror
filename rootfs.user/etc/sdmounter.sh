@@ -1,35 +1,28 @@
 #!/bin/sh
  
-#destdir=/mnt/sd
-
 MNT_FLASH_DIR=/mnt/flash
 MNT_SD_DIR=/mnt/sd
 MEDIA_DIR=/media
 
 P3_DEV_NAME=mmcblk0p3
 P3_DEV=/dev/${P3_DEV_NAME}
-P3_DIR=${MEDIA_DIR}/boot
+P3_DIR=${MEDIA_DIR}/bank1
 
 P4_DEV_NAME=mmcblk0p4
 P4_DEV=/dev/${P4_DEV_NAME}
-P4_DIR=${MEDIA_DIR}/factory
-
-#P5_DEV_NAME=mmcblk0p5
-#P5_DEV=/dev/${P5_DEV_NAME}
-#P5_DIR=${MEDIA_DIR}/pm
-
-#P6_DEV_NAME=mmcblk0p6
-#P6_DEV=/dev/${P6_DEV_NAME}
-#P6_DIR=${MEDIA_DIR}/config
+P4_DIR=${MEDIA_DIR}/bank2
 
 P5_DEV_NAME=mmcblk0p5
 P5_DEV=/dev/${P5_DEV_NAME}
-P5_DIR=${MEDIA_DIR}/log
+P5_DIR=${MEDIA_DIR}/factory
 
 P6_DEV_NAME=mmcblk0p6
 P6_DEV=/dev/${P6_DEV_NAME}
-P6_DIR=${MNT_FLASH_DIR}
-#P8_DIR=${MEDIA_DIR}/data
+P6_DIR=${MEDIA_DIR}/log
+
+P7_DEV_NAME=mmcblk0p7
+P7_DEV=/dev/${P7_DEV_NAME}
+P7_DIR=${MNT_FLASH_DIR}
 
 eMMC_mount()
 {
@@ -45,12 +38,9 @@ eMMC_mount()
 	elif [ $1 = ${P6_DEV_NAME} ]; then
 		EMMC_DIR=${P6_DIR}
 		EMMC_DEV=${P6_DEV}
-	#elif [ $1 = ${P7_DEV_NAME} ]; then
-	#	EMMC_DIR=${P7_DIR}
-	#	EMMC_DEV=${P7_DEV}
-	#elif [ $1 = ${P8_DEV_NAME} ]; then
-	#	EMMC_DIR=${P8_DIR}
-	#	EMMC_DEV=${P8_DEV}
+	elif [ $1 = ${P7_DEV_NAME} ]; then
+		EMMC_DIR=${P7_DIR}
+		EMMC_DEV=${P7_DEV}
 	else
 		#echo "Unknown Device : $1"
 		exit;

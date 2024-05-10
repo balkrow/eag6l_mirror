@@ -2323,6 +2323,17 @@ static int image_check_time (ulong addr)
 /* If do_boom or do_js2fsload faile pleased erase the bootimage in the bootargs!*/
 void store_bootimagename( char *name)
 {
+	char bootargs_tmp[1024] = {0, }; 
+	char *b_tmp = NULL;
+	char *bootver = NULL;
+	char *baudrate = NULL;
+
+	b_tmp = env_get("bootargs");
+	strncpy(bootargs_tmp, b_tmp, 1024);
+	strcat(bootargs_tmp, " bootbank=");
+	strcat(bootargs_tmp, name);
+	env_set("bootargs", bootargs_tmp);
+
 #if 0
     char bootargs_tmp[1024]; 
     char *b_tmp = NULL;
@@ -2385,7 +2396,7 @@ void eraser_btimg( void )
 	strncpy(bootargs_tmp, b_tmp, 1024);
 	
 	b_tmp = NULL;
-	if ((b_tmp = strstr(bootargs_tmp, "bootimage=")) != NULL) {
+	if ((b_tmp = strstr(bootargs_tmp, "bootbank=")) != NULL) {
 		*b_tmp = '\0';
 		env_set("bootargs", bootargs_tmp);
 	}
@@ -2397,6 +2408,80 @@ void eraser_btimg( void )
 
 	#endif	
 }
+
+#if 1/*[20]eMMC partition에 bank1,bank2 추가, 2024-05-20*/
+int hfr_other_bank(cmd_tbl_t *cmdtp, int flag, int bank)
+{
+	char temp_argv[5][256];
+	char * imgload_argv[5];
+	char temp_boot_argv[5][256];
+	char *bootm_argv[1];
+	int ret = -1;
+	int i = 0;
+	struct mmc *mmc;
+	int dev_num;
+
+	dev_num = 0;
+
+	mmc = find_mmc_device(dev_num);
+
+	if (mmc) {
+		mmc_init(mmc);
+	}
+
+	for(i = 0 ; i < 5; i ++)
+	{
+		memset(temp_argv[i], 0 , 256);
+		imgload_argv[i] = temp_argv[i];
+	}
+
+	strcpy(imgload_argv[0], "ext4load");
+	strcpy(imgload_argv[1], "mmc");
+	if(bank == 1) {
+		strcpy(imgload_argv[2], "0:0");
+		store_bootimagename("bank1");
+		env_set( "bank", "0");
+	} else {
+		strcpy(imgload_argv[2], "0:1");
+		store_bootimagename("bank2");
+		env_set( "bank", "1");
+	}
+	strcpy(imgload_argv[3], "82000000");
+	strcpy(imgload_argv[4], "uImage");
+
+	printf("Try boot from %s\n", (bank == 2) ? "factory" : (bank == 1) ? "bank1" : "bank2");
+	ret = do_ext4_load(cmdtp,flag, 5, imgload_argv);
+	if(ret == 1)
+	{
+		printf("failed in do_ext4_load \n");
+		eraser_btimg();
+		return -1;
+	}
+	if(image_check(0x82000000))
+	{
+		eraser_btimg();
+		return -1;
+	}
+	else
+	{
+		memset(temp_boot_argv, 0, 10);
+		bootm_argv[0] = temp_boot_argv[0];
+		bootm_argv[1] = temp_boot_argv[1];
+		strcpy(temp_boot_argv[0], "bootm");
+		strcpy(temp_boot_argv[1], "82000000");
+		ret = do_bootm(cmdtp, flag, 2, bootm_argv); 
+		if(ret ==1)
+		{
+			printf("failed in do_bootm \n");
+			eraser_btimg();
+			return -1;
+
+		}
+		//run_command("saveenv", 0);
+	}
+	return 0;
+}
+#endif
 
 int hfr_factory_mmcboot(cmd_tbl_t *cmdtp, int flag)
 {
@@ -2425,28 +2510,23 @@ int hfr_factory_mmcboot(cmd_tbl_t *cmdtp, int flag)
 
 	strcpy(imgload_argv[0], "ext4load");
 	strcpy(imgload_argv[1], "mmc");
-	strcpy(imgload_argv[2], "0:3");
+	strcpy(imgload_argv[2], "0:2");
 	strcpy(imgload_argv[3], "82000000");
 
 	store_bootimagename("factory");
 	strcpy(imgload_argv[4], "uImage");
+	env_set( "bank", "2");
 
 	ret = do_ext4_load(cmdtp,flag, 5, imgload_argv);
 	if(ret == 1)
 	{
 		printf("failed in do_ext4_load \n");
 		eraser_btimg();
-#if 0/* [#17] uboot 의 setup cli 기능 추가, 2023-11-21, balkrow */
-		try_boot(cmdtp,flag);
-#endif
 		return -1;
 	}
 	if(image_check(0x82000000))
 	{
 		eraser_btimg();
-#if 0/* [#17] uboot 의 setup cli 기능 추가, 2023-11-21, balkrow */
-		try_boot(cmdtp,flag);
-#endif
 		return -1;
 	}
 	else
@@ -2461,12 +2541,10 @@ int hfr_factory_mmcboot(cmd_tbl_t *cmdtp, int flag)
 		{
 			printf("failed in do_bootm \n");
 			eraser_btimg();
-#if 0/* [#17] uboot 의 setup cli 기능 추가, 2023-11-21, balkrow */
-			try_boot(cmdtp,flag);
-#endif
 			return -1;
 
 		}
+		//run_command("saveenv", 0);
 	}
 	return 0;
 }
@@ -2914,6 +2992,11 @@ int boot_flash_image(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	char * imgload_argv[5];
 	char temp_boot_argv[5][256];
 	char *bootm_argv[1];
+#if 1/*[20]eMMC partition에 bank1,bank2 추가, 2024-05-20*/
+	char *bank_str;
+	int bank;
+#endif
+
 	int ret = -1;
 	int i = 0;
 	struct mmc *mmc;
@@ -2934,7 +3017,17 @@ int boot_flash_image(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		mmc_init(mmc);
 	}
 
-
+#if 1/*[20]eMMC partition에 bank1,bank2 추가, 2024-05-20*/
+	bank_str = env_get("bank");
+	if(bank_str == NULL)
+		bank = 0;
+	else if(!strcmp(bank_str, "1"))
+		bank = 1;		
+	else if(!strcmp(bank_str, "2"))
+		bank = 2;		
+	else 
+		bank = 0;
+#endif
 
 	for(i = 0 ; i < 5; i ++)
 	{
@@ -2944,12 +3037,29 @@ int boot_flash_image(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 
 	strcpy(imgload_argv[0], "ext4load");
 	strcpy(imgload_argv[1], "mmc");
+
+#if 1/*[20]eMMC partition에 bank1,bank2 추가, 2024-05-20*/
+	if(bank == 1) {
+		strcpy(imgload_argv[2], "0:1");
+		store_bootimagename("bank2");
+	} else if(bank == 2) {
+		strcpy(imgload_argv[2], "0:2");
+		store_bootimagename("factory");
+	} else if(bank == 0) {
+		strcpy(imgload_argv[2], "0:0");
+		store_bootimagename("bank1");
+	} else { 
+		strcpy(imgload_argv[2], "0:2");
+		store_bootimagename("factory");
+	}
+#else
 	strcpy(imgload_argv[2], "0:0");
+#endif
 	strcpy(imgload_argv[3], "82000000");
 
 	if(argc == 1)
 	{
-		store_bootimagename("default");
+		//store_bootimagename("default");
 		strcpy(imgload_argv[4], "uImage");
 	}
 	else if(argc > 2)
@@ -2965,22 +3075,31 @@ int boot_flash_image(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	{
 		strcpy(imgload_argv[4], "/boot/");
 		strcat(imgload_argv[4], argv[1]);
-		store_bootimagename(argv[1]);
+		//store_bootimagename(argv[1]);
 	}
 
+	printf("Try boot from %s\n", (bank == 2) ? "factory" : (bank == 1) ? "bank2" : "bank1");
 	ret = do_ext4_load(cmdtp,flag, 5, imgload_argv);
 	if(ret == 1)
 	{
 		printf("failed in do_ext4_load \n");
 		eraser_btimg();
-		hfr_factory_mmcboot(cmdtp,flag);
+		/*try boot other bank*/
+		if(hfr_other_bank(cmdtp, flag, bank) != 0) {
+			/*try boot default bank*/
+			hfr_factory_mmcboot(cmdtp,flag);
+		}
 		return -1;
 	}
 
 	if(image_check(0x82000000))
 	{
 		eraser_btimg();
-		hfr_factory_mmcboot(cmdtp,flag);
+		/*try boot other bank*/
+		if(hfr_other_bank(cmdtp, flag, bank) != 0) {
+			/*try boot default bank*/
+			hfr_factory_mmcboot(cmdtp,flag);
+		}
 		return -1;
 	}
 	else
@@ -2995,9 +3114,11 @@ int boot_flash_image(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		{
 			printf("failed in do_bootm \n");
 			eraser_btimg();
-#if 0/* [#17] uboot 의 setup cli 기능 추가, 2023-11-21, balkrow */
-			try_boot(cmdtp,flag);
-#endif
+			/*try boot other bank*/
+			if(hfr_other_bank(cmdtp, flag, bank) != 0) {
+				/*try boot default bank*/
+				hfr_factory_mmcboot(cmdtp,flag);
+			}
 			return -1;
 
 		}

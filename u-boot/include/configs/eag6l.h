@@ -277,84 +277,18 @@
 	func(DHCP, dhcp, na)
 #include <config_distro_bootcmd.h>
 
-#if 1/*add by balkrow*/
 #define CONFIG_SERVERIP 192.168.157.13
 #define CONFIG_IPADDR 192.168.157.221
 
 #define CONFIG_EXTRA_ENV_SETTINGS					\
-	"bootargs=root=/dev/ram0 rw console=ttyS0,115200 panic=60 blkdevparts=mmcblk0:1M@4K(uboot),10M@2M(uboot_env),128M(boot),128M(factory),128M(log),-(flash)\0"		\
+	"bootargs=root=/dev/ram0 rw console=ttyS0,115200 panic=60 blkdevparts=mmcblk0:1M@4K(uboot),10M@2M(uboot_env),128M(bank1),128M(bank2),128M(factory),128M(log),-(flash)\0"		\
 	"initrd_high=0x8f000000\0"					\
 	"fdt_high=0x88000000\0"						\
 	"bootup=tftp 0x82000000 balkrow/eag6l-boot-v1.0.0.bin && mmc rescan && mmc dev 0 && mmc erase 8 0x800 && mmc write 0x82000000 8 0x800\0"						\
 	"ipaddr=192.168.157.221\0"						\
 	"serverip=192.168.157.13\0"						\
+	"bank=0\0"						\
 	"ethact=eTSEC0\0"						\
-
-#else
-#define CONFIG_EXTRA_ENV_SETTINGS					\
-	"bootargs=root=/dev/ram0 rw console=ttyS0,115200\0"		\
-	"initrd_high=0xffffffff\0"					\
-	"fdt_high=0xffffffff\0"						\
-	"fdt_addr=0x64f00000\0"						\
-	"kernel_addr=0x61000000\0"					\
-	"kernelheader_addr=0x60800000\0"				\
-	"scriptaddr=0x80000000\0"					\
-	"scripthdraddr=0x80080000\0"					\
-	"fdtheader_addr_r=0x80100000\0"					\
-	"kernelheader_addr_r=0x80200000\0"				\
-	"kernel_addr_r=0x80008000\0"					\
-	"kernelheader_size=0x40000\0"					\
-	"fdt_addr_r=0x8f000000\0"					\
-	"ramdisk_addr_r=0xa0000000\0"					\
-	"load_addr=0x80008000\0"					\
-	"kernel_size=0x2800000\0"					\
-	"kernel_addr_sd=0x8000\0"					\
-	"kernel_size_sd=0x14000\0"					\
-	"kernelhdr_addr_sd=0x4000\0"					\
-	"kernelhdr_size_sd=0x10\0"					\
-	BOOTENV								\
-	"boot_scripts=ls1021atsn_boot.scr\0"				\
-	"boot_script_hdr=hdr_ls1021atsn_bs.out\0"			\
-		"scan_dev_for_boot_part="				\
-			"part list ${devtype} ${devnum} devplist; "	\
-			"env exists devplist || setenv devplist 1; "	\
-			"for distro_bootpart in ${devplist}; do "	\
-			"if fstype ${devtype} "				\
-				"${devnum}:${distro_bootpart} "		\
-				"bootfstype; then "			\
-				"run scan_dev_for_boot; "		\
-			"fi; "						\
-		"done\0"						\
-	"scan_dev_for_boot="						\
-		"echo Scanning ${devtype} "				\
-				"${devnum}:${distro_bootpart}...; "	\
-		"for prefix in ${boot_prefixes}; do "			\
-			"run scan_dev_for_scripts; "			\
-			"run scan_dev_for_extlinux; "			\
-		"done;"							\
-		"\0"							\
-	"boot_a_script="						\
-		"load ${devtype} ${devnum}:${distro_bootpart} "		\
-			"${scriptaddr} ${prefix}${script}; "		\
-		"env exists secureboot && load ${devtype} "		\
-			"${devnum}:${distro_bootpart} "			\
-			"${scripthdraddr} ${prefix}${boot_script_hdr} "	\
-			"&& esbc_validate ${scripthdraddr};"		\
-		"source ${scriptaddr}\0"				\
-	"qspi_bootcmd=echo Trying load from qspi..;"			\
-		"sf probe && sf read $load_addr "			\
-		"$kernel_addr $kernel_size; env exists secureboot "	\
-		"&& sf read $kernelheader_addr_r $kernelheader_addr "	\
-		"$kernelheader_size && esbc_validate ${kernelheader_addr_r}; " \
-		"bootm $load_addr#$board\0"				\
-	"sd_bootcmd=echo Trying load from SD ..;"			\
-		"mmcinfo && mmc read $load_addr "			\
-		"$kernel_addr_sd $kernel_size_sd && "			\
-		"env exists secureboot && mmc read $kernelheader_addr_r " \
-		"$kernelhdr_addr_sd $kernelhdr_size_sd "		\
-		" && esbc_validate ${kernelheader_addr_r};"		\
-		"bootm $load_addr#$board\0"
-#endif
 
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_CBSIZE		256	/* Console I/O Buffer Size */
