@@ -19,26 +19,28 @@ then
 mkdir -p /etc/dropbear
 fi
 
+if [ -d /media/log ]
+then
+ln -s /media/log /var/log
+fi
+
 # load all kernel modules
 for KMODULE in $(ls /lib/modules/*.ko)
 do
       insmod $KMODULE
 done
 
-#echo -n "waiting for entropy available"
-#while [ `cat /proc/sys/kernel/random/entropy_avail` -le 1 ]
-#do
-#	ent=`cat /proc/sys/kernel/random/entropy_avail`
-#	echo -n "."
-# 	sleep 0.05 
-#done
-
-dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
-dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
-dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
-dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
+#dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
+#dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
+#dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
+#dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
 
 ifconfig eth0 192.168.157.236 netmask 255.255.255.0
 ifconfig eth0 up
 
-dropbear -E
+#dropbear -E
+for i in $( ls -v /etc/rcS.d/S* 2> /dev/null)
+do
+    [ ! -f "$i" ] && continue;
+    $i start
+done
