@@ -1,0 +1,26 @@
+#!/bin/sh
+. /etc/init.d/functions
+case "$1" in
+    start)
+    echo "Starting appDemo daemon..."
+    appDemo -daemon
+    evaluate_retval
+    ;;
+    stop)
+    echo "Stopping appDemo daemon..."
+    killproc appDemo
+    ;;
+    restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+    status)
+    statusproc appDemo
+    ;;
+    *)
+    echo "Usage: $0 {start|stop|reload|restart|status}"
+    exit 1
+    ;;
+esac
+exit 0

@@ -1,0 +1,26 @@
+#!/bin/sh
+. /etc/init.d/functions
+case "$1" in
+    start)
+    echo "Starting Quagga daemon..."
+	zebra -f /etc/zebra.conf -u root -g root -d
+    evaluate_retval
+    ;;
+    stop)
+    echo "Stopping Quagga daemon..."
+    killproc zebra
+    ;;
+    restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+    status)
+    statusproc zebra
+    ;;
+    *)
+    echo "Usage: $0 {start|stop|reload|restart|status}"
+    exit 1
+    ;;
+esac
+exit 0

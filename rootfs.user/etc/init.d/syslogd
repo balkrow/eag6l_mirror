@@ -1,0 +1,26 @@
+#!/bin/sh
+. /etc/init.d/functions
+case "$1" in
+    start)
+    echo "Starting syslogd daemon..."
+    syslogd -b 10 -f /etc/syslog.conf 
+    evaluate_retval
+    ;;
+    stop)
+    echo "Stopping syslogd daemon..."
+    killproc syslogd
+    ;;
+    restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+    status)
+    statusproc syslogd
+    ;;
+    *)
+    echo "Usage: $0 {start|stop|reload|restart|status}"
+    exit 1
+    ;;
+esac
+exit 0
