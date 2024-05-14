@@ -14,7 +14,8 @@ function _config {
 }
 
 function _build {
-	make ${MAKEOPT} TARGET=armv7 FAMILY=DX appDemo || exit -1
+	#make ${MAKEOPT} TARGET=armv7 FAMILY=DX CONFIG_PRV_CPSS_MAX_PP_DEVICES_CNS=2 CONFIG_CPSS_MAX_PORTS_NUM_CNS=128 LOG_ENABLE=n CMD_LUA_CLI=n appDemo || exit -1
+	make ${MAKEOPT} TARGET=armv7 FAMILY=DX CONFIG_PRV_CPSS_MAX_PP_DEVICES_CNS=2 CONFIG_CPSS_MAX_PORTS_NUM_CNS=128 appDemo || exit -1
 	make ${MAKEOPT} TARGET=armv7 FAMILY=DX KERNEL_FOLDER=../../build/kernel modules || exit -1
 }
 
@@ -24,7 +25,8 @@ function _demo {
 
 
 function _install {
-	#cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvEthOpsDrv.ko ${INSTALL_ROOT}/lib/modules
+	cp -avf ./compilation_root/master/armv7_DX/appDemo ${INSTALL_ROOT}/sbin
+	${CROSS_COMPILE}strip ${INSTALL_ROOT}/sbin/appDemo
 	cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvcpss.ko ${INSTALL_ROOT}/lib/modules
 	exit 0
 }
