@@ -10,7 +10,7 @@ noinst_LIBRARIES = libsysmon.a
 sbin_PROGRAMS = sysmon
 
 libsysmon_a_SOURCES = \
-	sysmon.c sysmon_zebra.c
+	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c
 
 noinst_HEADERS = \
 	sysmon.h
@@ -18,7 +18,7 @@ noinst_HEADERS = \
 sysmon_SOURCES = \
 	sysmon_main.c $(libsysmon_a_SOURCES)
 
-sysmon_LDADD = ../lib/libzebra.la @LIBCAP@
+sysmon_LDADD = ../lib/libzebra.la @LIBCAP@ -lm
 
 examplesdir = $(exampledir)
 #dist_examples_DATA = ripd.conf.sample

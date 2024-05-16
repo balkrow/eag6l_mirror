@@ -5,6 +5,7 @@
 #include <cmdShell/FS/cmdFS.h>
 #include <gtOs/gtOsTask.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -12,84 +13,122 @@
 
 #include "multi_thread.h"
 #include "eag6l.h"
+#include "../../../../../quagga-1.2.4/sysmon/sys_fifo.h"
 
 int sysrdfifo;
 int syswrfifo;
 
-struct multi_thread_master *sysmon_intf_master;
 
-static int sysmon_recv_fifo(struct multi_thread *thread)
+struct multi_thread_master *master;
 
+
+static int send_to_sysmon_master(sysmon_fifo_msg_t * msg)
 {
+	if((sysrdfifo = open(SYSMON_FIFO_READ/*to-master*/, O_RDWR)) < 0)
+		return 1;
 
-        int len = 0;
-	SYS_IPC_DATA req;
+	write(sysrdfifo, msg, sizeof(sysmon_fifo_msg_t));
 
-        len = read(MULTI_THREAD_FD (thread),&req, sizeof(SYS_IPC_DATA));
+	close(sysrdfifo);
 
-        if (len < 0)
-        {
-                multi_thread_add_read (sysmon_intf_master, sysmon_recv_fifo, NULL, MULTI_THREAD_FD (thread));
-                return 0;
-        }
-
-	/**TODO: define request type, process**/
-	
-
-        multi_thread_add_read (sysmon_intf_master, sysmon_recv_fifo, NULL, MULTI_THREAD_FD (thread));
 	return 0;
 }
 
-int sysmon_ipc_fifo_recv_init (void )
+static int sysmon_slave_system_command(sysmon_fifo_msg_t * msg)
 {
-        umask(0000);
-        (void) unlink(SYSMON_FIFO_READ);
-        (void) unlink(SYSMON_FIFO_WRITE);
-
-        if(mkfifo(SYSMON_FIFO_READ, 0666) != 0)
+    if(msg->type > sysmon_cmd_fifo_test && msg->type < sysmon_cmd_fifo_max)
+    {
+        switch(msg->type)
         {
-                return 1;
-        }
-        if(mkfifo(SYSMON_FIFO_WRITE, 0666) != 0)
-        {
-                return 1;
-        }
+			case sysmon_cmd_fifo_hello_test:
+				cmdOsPrintf("sysmon_cmd_fifo_hello_test (REQ) : %s\n", msg->noti_msg);
 
-        if( (sysrdfifo = open (SYSMON_FIFO_READ,O_RDWR)) < 0)
-                return 1;
-        if( (syswrfifo = open (SYSMON_FIFO_WRITE,O_RDWR)) < 0)
-                return 1;
+				strcpy(msg->buffer, ">>> TEST DONE <<<");
+				send_to_sysmon_master(msg);
+				break;
+            case sysmon_cmd_fifo_sftp_get:
+                cmdOsPrintf("sysmon_cmd_fifo_sftp_get (REQ) :port[%d].\n", msg->portid);
+                break;
+            case sysmon_cmd_fifo_sftp_set:
+                cmdOsPrintf("sysmon_cmd_fifo_sftp_se (REQ) : port[%d].\n", msg->portid);
+                break;
 
-        multi_thread_add_read (sysmon_intf_master, sysmon_recv_fifo, NULL, sysrdfifo);
+				/*TODO*/
 
-        return 0;
+			default:
+				break;
+		}
+	}
+
+	return 0;
 }
 
-void sysmon_intf_init (void) 
+static int sysmon_slave_recv_fifo(struct multi_thread *thread)
 {
-	sysmon_intf_master = multi_thread_make_master();
-	sysmon_ipc_fifo_recv_init();
+	int len = 0;
+	sysmon_fifo_msg_t req;
+
+	memset(&req, 0, sizeof req);
+	len = read(MULTI_THREAD_FD (thread),&req, sizeof(sysmon_fifo_msg_t));
+	if (len < 0)
+	{
+		multi_thread_add_read (master, sysmon_slave_recv_fifo, NULL, MULTI_THREAD_FD (thread));
+		return 0;
+	}
+
+	/**TODO: define request type, process**/
+	sysmon_slave_system_command(&req);
+
+	multi_thread_add_read (master, sysmon_slave_recv_fifo, NULL, MULTI_THREAD_FD (thread));
+	return 0;
 }
 
+int sysmon_slave_fifo_recv_init (void )
+{
+	umask(0000);
+	(void) unlink(SYSMON_FIFO_WRITE);
 
+	if(mkfifo(SYSMON_FIFO_WRITE, 0666) != 0)
+	{
+		return 1;
+	}
 
+	if( (syswrfifo = open (SYSMON_FIFO_WRITE, O_RDWR)) < 0)
+		return 1;
+
+	multi_thread_add_read (master, sysmon_slave_recv_fifo, NULL, syswrfifo);
+
+	return 0;
+}
+
+void sysmon_slave_init (void) 
+{
+	master = multi_thread_make_master();
+	sysmon_slave_fifo_recv_init();
+}
+
+#if 0/*test-code*/
 int _echo_to_terminal (struct multi_thread *thread)
 {
 	thread = thread;
-        cmdOsPrintf("eag6l_intf_task run\n");
-	multi_thread_add_timer (sysmon_intf_master, _echo_to_terminal, NULL, 10);
+    cmdOsPrintf("sysmon_slave_task run\n");
+	multi_thread_add_timer (master, _echo_to_terminal, NULL, 10);
 	return 0;
 }
+#endif/*test-code*/
 
 static unsigned __TASKCONV OAM_thread(void)
 {
 	struct multi_thread thread;
-	sysmon_intf_init();
 
+	sysmon_slave_init();
+
+#if 0/*test-code*/
 	/*add timer*/
-	multi_thread_add_timer (sysmon_intf_master, _echo_to_terminal, NULL, 10);
+	multi_thread_add_timer (master, _echo_to_terminal, NULL, 10);
+#endif/*test-code*/
 
-	while (multi_thread_fetch (sysmon_intf_master, &thread))
+	while (multi_thread_fetch (master, &thread))
 		multi_thread_call (&thread);
 
 #ifdef __GNUC__

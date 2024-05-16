@@ -104,11 +104,13 @@ am__v_AR_0 = @echo "  AR      " $@;
 am__v_AR_1 = 
 libsysmon_a_AR = $(AR) $(ARFLAGS)
 libsysmon_a_LIBADD =
-am_libsysmon_a_OBJECTS = sysmon.$(OBJEXT) sysmon_zebra.$(OBJEXT)
+am_libsysmon_a_OBJECTS = sysmon.$(OBJEXT) sysmon_zebra.$(OBJEXT) \
+	sys_i2c.$(OBJEXT) sys_fifo.$(OBJEXT)
 libsysmon_a_OBJECTS = $(am_libsysmon_a_OBJECTS)
 am__installdirs = "$(DESTDIR)$(sbindir)"
 PROGRAMS = $(sbin_PROGRAMS)
-am__objects_1 = sysmon.$(OBJEXT) sysmon_zebra.$(OBJEXT)
+am__objects_1 = sysmon.$(OBJEXT) sysmon_zebra.$(OBJEXT) \
+	sys_i2c.$(OBJEXT) sys_fifo.$(OBJEXT)
 am_sysmon_OBJECTS = sysmon_main.$(OBJEXT) $(am__objects_1)
 sysmon_OBJECTS = $(am_sysmon_OBJECTS)
 sysmon_DEPENDENCIES = ../lib/libzebra.la
@@ -360,7 +362,7 @@ INSTALL_SDATA = @INSTALL@ -m 600
 AM_CFLAGS = $(WERROR)
 noinst_LIBRARIES = libsysmon.a
 libsysmon_a_SOURCES = \
-	sysmon.c sysmon_zebra.c
+	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c
 
 noinst_HEADERS = \
 	sysmon.h
@@ -368,7 +370,7 @@ noinst_HEADERS = \
 sysmon_SOURCES = \
 	sysmon_main.c $(libsysmon_a_SOURCES)
 
-sysmon_LDADD = ../lib/libzebra.la @LIBCAP@
+sysmon_LDADD = ../lib/libzebra.la @LIBCAP@ -lm
 examplesdir = $(exampledir)
 all: all-am
 
@@ -472,6 +474,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sys_fifo.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sys_i2c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon_main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon_zebra.Po@am__quote@
