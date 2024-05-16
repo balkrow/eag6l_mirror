@@ -20,7 +20,12 @@
 #define ZEBRA_ROUTE_OLSR                 12
 #define ZEBRA_ROUTE_BABEL                13
 #define ZEBRA_ROUTE_NHRP                 14
+#if 1/*[#22] sysmon 기능 을 Quagga에 추가, balkrow, 2024-05-14 */
+#define ZEBRA_ROUTE_SYSMON               15
+#define ZEBRA_ROUTE_MAX                  16
+#else
 #define ZEBRA_ROUTE_MAX                  15
+#endif
 
 #define SHOW_ROUTE_V4_HEADER \
   "Codes: K - kernel route, C - connected, S - static, R - RIP,%s" \

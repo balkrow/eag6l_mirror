@@ -5,18 +5,17 @@ INSTALL_ROOT=${TOPDIR}/rootfs
 QUAGGA=`pwd`
 
 function _clean {
-	[ -f Makefile ] && make distclean
+	[ -f Makefile ] && make distclean && rm -fr install || exit -1
 }
 
 function _config {
 	./configure											\
 		--host=${CROSS_COMPILE_PFX}							\
 		--prefix=$QUAGGA/install \
-		--program-prefix=/usr \
 		--sysconfdir=/etc \
 		--disable-doc --disable-bgpd --disable-ripd --disable-ripngd --disable-ospfd \
 		--disable-ospf6d --disable-nhrpd --disable-isisd --disable-pimd --disable-bgp-announce \
-		--disable-ospfapi --disable-ospfclient \
+		--disable-ospfapi --disable-ospfclient --enable-sysmon \
 		|| exit -1
 }
 
@@ -25,13 +24,16 @@ function _build {
 }
 
 function _install {
-	cp -avf install/sbin/zebra $INSTALL_ROOT/sbin
+	cp -avf zebra/.libs/zebra $INSTALL_ROOT/sbin
 	${CROSS_COMPILE}strip $INSTALL_ROOT/sbin/zebra 
 
-	cp -avf install/bin/vtysh $INSTALL_ROOT/bin
+	cp -avf vtysh/.libs/vtysh $INSTALL_ROOT/bin
 	${CROSS_COMPILE}strip $INSTALL_ROOT/bin/vtysh 
 
-	cp -avf install/lib/libzebra.so* $INSTALL_ROOT/lib
+	cp -avf sysmon/.libs/sysmon $INSTALL_ROOT/sbin
+	${CROSS_COMPILE}strip $INSTALL_ROOT/sbin/sysmon 
+
+	cp -avf lib/.libs/libzebra.so* $INSTALL_ROOT/lib
 	${CROSS_COMPILE}strip $INSTALL_ROOT/lib/libzebra.so*
 
 	cp -avf vtysh.conf $INSTALL_ROOT/etc

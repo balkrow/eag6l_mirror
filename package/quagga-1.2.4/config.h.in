@@ -486,6 +486,9 @@
 /* Define to 1 if you have the <syslog.h> header file. */
 #undef HAVE_SYSLOG_H
 
+/* SYSMON */
+#undef HAVE_SYSMON
+
 /* Define to 1 if you have the <sys/capability.h> header file. */
 #undef HAVE_SYS_CAPABILITY_H
 
@@ -707,6 +710,9 @@
 /* ripngd PID */
 #undef PATH_RIPNGD_PID
 
+/* sysmon PID */
+#undef PATH_SYSMON_PID
+
 /* watchquagga PID */
 #undef PATH_WATCHQUAGGA_PID
 
@@ -730,6 +736,9 @@
 
 /* rip vty socket */
 #undef RIP_VTYSH_PATH
+
+/* rip vty socket */
+#undef SYSMON_VTYSH_PATH
 
 /* Define to the type of arg 1 for `select'. */
 #undef SELECT_TYPE_ARG1
