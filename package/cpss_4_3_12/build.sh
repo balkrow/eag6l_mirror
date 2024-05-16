@@ -2,6 +2,7 @@
 
 #cd $(dirname $0)
 INSTALL_ROOT=${TOPDIR}/rootfs
+branch_name=`git symbolic-ref --short HEAD` 
 
 function _clean {
 	[ -f Makefile ] && make ${MAKEOPT} TARGET=armv7 FAMILY=DX clean || exit -1
@@ -25,7 +26,7 @@ function _demo {
 
 
 function _install {
-	cp -avf ./compilation_root/master/armv7_DX/appDemo ${INSTALL_ROOT}/sbin
+	cp -avf ./compilation_root/${branch_name}/armv7_DX/appDemo ${INSTALL_ROOT}/sbin
 	${CROSS_COMPILE}strip ${INSTALL_ROOT}/sbin/appDemo
 	cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvcpss.ko ${INSTALL_ROOT}/lib/modules
 	exit 0
