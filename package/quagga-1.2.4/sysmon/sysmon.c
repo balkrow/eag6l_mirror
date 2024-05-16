@@ -12,11 +12,12 @@
 */
 #include "zebra.h"
 #include "sysmon.h" 
+#include "sys_fifo.h" 
 #include <getopt.h>
 #include "log.h" 
 #include "thread.h" 
 
-#undef DEBUG
+#define DEBUG
 
 int32_t hdrv_fd;
 struct thread_master *master;
@@ -25,7 +26,7 @@ char* progname;
 
 
 #ifdef DEBUG
-static void print_console(const char *fmt, ...)
+void print_console(const char *fmt, ...)
 {
 	va_list args;
 	char *p;
@@ -41,7 +42,7 @@ static void print_console(const char *fmt, ...)
 	free(p);
 }
 #else
-static void print_console(const char *fmt, ...)
+void print_console(const char *fmt, ...)
 {
 
 }
@@ -61,13 +62,27 @@ int test_timer_func(struct thread *thread) {
 	return 0;
 }
 
+#if 0//PWY_FIXME
+int sfp_timer_func(struct thread *thread)
+{
+extern void update_sfp(void);
+
+    thread_add_timer (master, (int)sfp_timer_func, NULL, 5);
+    update_sfp();
+    return 0;
+}
+#endif //PWY_FIXME
 
 /* Allocate new sys structure and set default value. */
-void
-sysmon_thread_init (void)
+void sysmon_thread_init (void)
 {
 	//TODO
+#if 0//PWY_FIXME
 	thread_add_timer (master, test_timer_func, NULL, 1);
+#endif //PWY_FIXME
+#if 0//PWY_FIXME cuased a thread crash after 10 sec.
+	thread_add_timer (master, sfp_timer_func, NULL, 10);
+#endif //PWY_FIXME
 }
 
 
@@ -104,5 +119,6 @@ void sysmon_init(void) {
 		print_console("sysmon init failure\n");
 
 	sysmon_thread_init();
+	sysmon_master_fifo_init ();
 	
 }
