@@ -659,6 +659,7 @@ NHRPD
 OSPF6D
 OSPFD
 RIPNGD
+SYSMON
 RIPD
 BGPD
 ZEBRA
@@ -679,6 +680,8 @@ NHRPD_FALSE
 NHRPD_TRUE
 OSPFD_FALSE
 OSPFD_TRUE
+SYSMON_FALSE
+SYSMON_TRUE
 RIPD_FALSE
 RIPD_TRUE
 BGPD_FALSE
@@ -904,6 +907,7 @@ enable_pcreposix
 enable_fpm
 enable_werror
 enable_protobuf
+enable_sysmon
 enable_dev_build
 enable_largefile
 '
@@ -1601,6 +1605,7 @@ Optional Features:
   --enable-fpm            enable Forwarding Plane Manager support
   --enable-werror         enable -Werror (recommended for developers only)
   --enable-protobuf       Enable experimental protobuf support
+  --enable-sysmon         Enable eag6l oam support
   --enable-dev-build      build for development
   --disable-largefile     omit support for large files
 
@@ -16367,6 +16372,11 @@ if test "${enable_protobuf+set}" = set; then :
   enableval=$enable_protobuf;
 fi
 
+# Check whether --enable-sysmon was given.
+if test "${enable_sysmon+set}" = set; then :
+  enableval=$enable_sysmon;
+fi
+
 
 # Check whether --enable-dev_build was given.
 if test "${enable_dev_build+set}" = set; then :
@@ -16607,6 +16617,12 @@ fi
 if test "${enable_irdp}" = "yes"; then
 
 $as_echo "#define HAVE_IRDP /**/" >>confdefs.h
+
+fi
+
+if test "${enable_sysmon}" = "yes"; then
+
+$as_echo "#define HAVE_SYSMON /**/" >>confdefs.h
 
 fi
 
@@ -21435,6 +21451,20 @@ else
 fi
 
 
+if test "${enable_sysmon}" = "no";then
+  SYSMON=""
+else
+  SYSMON="sysmon"
+fi
+ if test "x$SYSMON" = "xsysmon"; then
+  SYSMON_TRUE=
+  SYSMON_FALSE='#'
+else
+  SYSMON_TRUE='#'
+  SYSMON_FALSE=
+fi
+
+
 if test "${enable_ospfd}" = "no";then
   OSPFD=""
 else
@@ -21561,6 +21591,7 @@ else
 $as_echo "#define DISABLE_BGP_ANNOUNCE 0" >>confdefs.h
 
 fi
+
 
 
 
@@ -26069,6 +26100,11 @@ _ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
+#define PATH_SYSMON_PID "$quagga_statedir/sysmon.pid"
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
 #define PATH_RIPNGD_PID "$quagga_statedir/ripngd.pid"
 _ACEOF
 
@@ -26120,6 +26156,11 @@ _ACEOF
 
 cat >>confdefs.h <<_ACEOF
 #define RIP_VTYSH_PATH "$quagga_statedir/ripd.vty"
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define SYSMON_VTYSH_PATH "$quagga_statedir/sysmon.vty"
 _ACEOF
 
 
@@ -26293,7 +26334,7 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_htonl_works" >&5
 $as_echo "$ac_cv_htonl_works" >&6; }
 
-ac_config_files="$ac_config_files Makefile lib/Makefile qpb/Makefile zebra/Makefile ripd/Makefile ripngd/Makefile bgpd/Makefile ospfd/Makefile watchquagga/Makefile ospf6d/Makefile isisd/Makefile vtysh/Makefile doc/Makefile ospfclient/Makefile tests/Makefile m4/Makefile pimd/Makefile nhrpd/Makefile redhat/Makefile pkgsrc/Makefile fpm/Makefile redhat/quagga.spec redhat/quagga.sysconfig lib/version.h isisd/topology/Makefile pkgsrc/bgpd.sh pkgsrc/ospf6d.sh pkgsrc/ospfd.sh pkgsrc/ripd.sh pkgsrc/ripngd.sh pkgsrc/zebra.sh"
+ac_config_files="$ac_config_files Makefile lib/Makefile qpb/Makefile zebra/Makefile ripd/Makefile sysmon/Makefile ripngd/Makefile bgpd/Makefile ospfd/Makefile watchquagga/Makefile ospf6d/Makefile isisd/Makefile vtysh/Makefile doc/Makefile ospfclient/Makefile tests/Makefile m4/Makefile pimd/Makefile nhrpd/Makefile redhat/Makefile pkgsrc/Makefile fpm/Makefile redhat/quagga.spec redhat/quagga.sysconfig lib/version.h isisd/topology/Makefile pkgsrc/bgpd.sh pkgsrc/ospf6d.sh pkgsrc/ospfd.sh pkgsrc/ripd.sh pkgsrc/ripngd.sh pkgsrc/zebra.sh"
 
 ac_config_files="$ac_config_files solaris/Makefile"
 
@@ -26474,6 +26515,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${RIPD_TRUE}" && test -z "${RIPD_FALSE}"; then
   as_fn_error $? "conditional \"RIPD\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${SYSMON_TRUE}" && test -z "${SYSMON_FALSE}"; then
+  as_fn_error $? "conditional \"SYSMON\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${OSPFD_TRUE}" && test -z "${OSPFD_FALSE}"; then
@@ -27392,6 +27437,7 @@ do
     "qpb/Makefile") CONFIG_FILES="$CONFIG_FILES qpb/Makefile" ;;
     "zebra/Makefile") CONFIG_FILES="$CONFIG_FILES zebra/Makefile" ;;
     "ripd/Makefile") CONFIG_FILES="$CONFIG_FILES ripd/Makefile" ;;
+    "sysmon/Makefile") CONFIG_FILES="$CONFIG_FILES sysmon/Makefile" ;;
     "ripngd/Makefile") CONFIG_FILES="$CONFIG_FILES ripngd/Makefile" ;;
     "bgpd/Makefile") CONFIG_FILES="$CONFIG_FILES bgpd/Makefile" ;;
     "ospfd/Makefile") CONFIG_FILES="$CONFIG_FILES ospfd/Makefile" ;;

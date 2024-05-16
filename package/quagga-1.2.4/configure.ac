@@ -356,6 +356,8 @@ AC_ARG_ENABLE(werror,
   AS_HELP_STRING([--enable-werror], [enable -Werror (recommended for developers only)]))
 AC_ARG_ENABLE([protobuf],
   AS_HELP_STRING([--enable-protobuf], [Enable experimental protobuf support]))
+AC_ARG_ENABLE([sysmon],
+  AS_HELP_STRING([--enable-sysmon], [Enable eag6l oam support]))
 
 AC_ARG_ENABLE([dev_build],
     AS_HELP_STRING([--enable-dev-build], [build for development]))
@@ -443,6 +445,10 @@ fi
 
 if test "${enable_irdp}" = "yes"; then
   AC_DEFINE(HAVE_IRDP,, IRDP )
+fi
+
+if test "${enable_sysmon}" = "yes"; then
+  AC_DEFINE(HAVE_SYSMON,, SYSMON )
 fi
 
 if test "${enable_isisd}" != "no" && test "${enable_isis_topology}" = yes; then
@@ -1234,6 +1240,13 @@ else
 fi
 AM_CONDITIONAL(RIPD, test "x$RIPD" = "xripd")
 
+if test "${enable_sysmon}" = "no";then
+  SYSMON=""
+else
+  SYSMON="sysmon"
+fi
+AM_CONDITIONAL(SYSMON, test "x$SYSMON" = "xsysmon")
+
 if test "${enable_ospfd}" = "no";then
   OSPFD=""
 else
@@ -1304,6 +1317,7 @@ AC_SUBST(DOC)
 AC_SUBST(ZEBRA)
 AC_SUBST(BGPD)
 AC_SUBST(RIPD)
+AC_SUBST(SYSMON)
 AC_SUBST(RIPNGD)
 AC_SUBST(OSPFD)
 AC_SUBST(OSPF6D)
@@ -1610,6 +1624,7 @@ AC_SUBST(quagga_statedir)
 
 AC_DEFINE_UNQUOTED(PATH_ZEBRA_PID, "$quagga_statedir/zebra.pid",zebra PID)
 AC_DEFINE_UNQUOTED(PATH_RIPD_PID, "$quagga_statedir/ripd.pid",ripd PID)
+AC_DEFINE_UNQUOTED(PATH_SYSMON_PID, "$quagga_statedir/sysmon.pid",sysmon PID)
 AC_DEFINE_UNQUOTED(PATH_RIPNGD_PID, "$quagga_statedir/ripngd.pid",ripngd PID)
 AC_DEFINE_UNQUOTED(PATH_BGPD_PID, "$quagga_statedir/bgpd.pid",bgpd PID)
 AC_DEFINE_UNQUOTED(PATH_OSPFD_PID, "$quagga_statedir/ospfd.pid",ospfd PID)
@@ -1621,6 +1636,7 @@ AC_DEFINE_UNQUOTED(PATH_WATCHQUAGGA_PID, "$quagga_statedir/watchquagga.pid",watc
 AC_DEFINE_UNQUOTED(ZEBRA_SERV_PATH, "$quagga_statedir/zserv.api",zebra api socket)
 AC_DEFINE_UNQUOTED(ZEBRA_VTYSH_PATH, "$quagga_statedir/zebra.vty",zebra vty socket)
 AC_DEFINE_UNQUOTED(RIP_VTYSH_PATH, "$quagga_statedir/ripd.vty",rip vty socket)
+AC_DEFINE_UNQUOTED(SYSMON_VTYSH_PATH, "$quagga_statedir/sysmon.vty",sysmon vty socket)
 AC_DEFINE_UNQUOTED(RIPNG_VTYSH_PATH, "$quagga_statedir/ripngd.vty",ripng vty socket)
 AC_DEFINE_UNQUOTED(BGP_VTYSH_PATH, "$quagga_statedir/bgpd.vty",bgpd vty socket)
 AC_DEFINE_UNQUOTED(OSPF_VTYSH_PATH, "$quagga_statedir/ospfd.vty",ospfd vty socket)
@@ -1649,7 +1665,7 @@ AC_CACHE_VAL(ac_cv_htonl_works,
 )
 AC_MSG_RESULT($ac_cv_htonl_works)
 
-AC_CONFIG_FILES([Makefile lib/Makefile qpb/Makefile zebra/Makefile ripd/Makefile 
+AC_CONFIG_FILES([Makefile lib/Makefile qpb/Makefile zebra/Makefile ripd/Makefile sysmon/Makefile 
 	  ripngd/Makefile bgpd/Makefile ospfd/Makefile watchquagga/Makefile
 	  ospf6d/Makefile isisd/Makefile vtysh/Makefile
 	  doc/Makefile ospfclient/Makefile tests/Makefile m4/Makefile

@@ -61,6 +61,9 @@ struct vtysh_client
   { .fd = -1, .name = "isisd", .flag = VTYSH_ISISD, .path = ISIS_VTYSH_PATH},
   { .fd = -1, .name = "pimd", .flag = VTYSH_PIMD, .path = PIM_VTYSH_PATH},
   { .fd = -1, .name = "nhrpd", .flag = VTYSH_NHRPD, .path = NHRP_VTYSH_PATH},
+#if 1/*[#22] sysmon 기능 을 Quagga에 추가, balkrow, 2024-05-14*/
+  { .fd = -1, .name = "sysmon", .flag = VTYSH_SYSMON, .path = SYSMON_VTYSH_PATH},
+#endif
 };
 
 
@@ -1579,6 +1582,21 @@ DEFUN (vtysh_show_work_queues,
   return ret;
 }
 
+#if 1/*[#22] sysmon 기능 을 Quagga에 추가, balkrow, 2024-05-14*/
+DEFUN (vtysh_show_work_queues_daemon,
+       vtysh_show_work_queues_daemon_cmd,
+       "show work-queues (zebra|ripd|ripngd|ospfd|ospf6d|bgpd|isisd|sysmon)",
+       SHOW_STR
+       "Work Queue information\n"
+       "For the zebra daemon\n"
+       "For the rip daemon\n"
+       "For the ripng daemon\n"
+       "For the ospf daemon\n"
+       "For the ospfv6 daemon\n"
+       "For the bgp daemon\n"
+       "For the isis daemon\n"
+       "For the sysmon daemon\n")
+#else
 DEFUN (vtysh_show_work_queues_daemon,
        vtysh_show_work_queues_daemon_cmd,
        "show work-queues (zebra|ripd|ripngd|ospfd|ospf6d|bgpd|isisd)",
@@ -1591,6 +1609,7 @@ DEFUN (vtysh_show_work_queues_daemon,
        "For the ospfv6 daemon\n"
        "For the bgp daemon\n"
        "For the isis daemon\n")
+#endif
 {
   unsigned int i;
   int ret = CMD_SUCCESS;
