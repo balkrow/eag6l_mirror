@@ -203,6 +203,13 @@
 	 */
 };
 
+&i2c1 {
+        phc@5b {
+            compatible = "idt,8a34000";
+            reg = <0x5b>;
+        };
+}
+
 &ifc {
 	status = "disabled";
 };

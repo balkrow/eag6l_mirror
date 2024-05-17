@@ -227,3 +227,8 @@ obj-$(CONFIG_MFD_SUN4I_GPADC)	+= sun4i-gpadc.o
 obj-$(CONFIG_MFD_STM32_LPTIMER)	+= stm32-lptimer.o
 obj-$(CONFIG_MFD_STM32_TIMERS) 	+= stm32-timers.o
 obj-$(CONFIG_MFD_MXS_LRADC)     += mxs-lradc.o
+#[#28]PLL chip (Renesas 8A34043) linux driver 작업
+rsmu-i2c-objs			:= rsmu_core.o rsmu_i2c.o
+rsmu-spi-objs			:= rsmu_core.o rsmu_spi.o
+obj-$(CONFIG_MFD_RSMU_I2C)	+= rsmu-i2c.o
+obj-$(CONFIG_MFD_RSMU_SPI)	+= rsmu-spi.o
