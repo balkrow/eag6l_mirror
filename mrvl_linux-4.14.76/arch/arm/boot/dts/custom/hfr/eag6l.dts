@@ -202,13 +202,14 @@
 	 * - TI ADS7924 4-channel ADC at 0x49
 	 */
 };
-
+/*
 &i2c1 {
         phc@5b {
             compatible = "idt,8a34000";
             reg = <0x5b>;
         };
 }
+*/
 
 &ifc {
 	status = "disabled";
