@@ -8,7 +8,9 @@ function _clean {
 	[ -f Makefile ] && make distclean && rm -fr install || exit -1
 }
 
+#[#31]DB-98DX7312-8SFP1QSFP 용 setup.env 추가 및 개발환경 수정
 function _config {
+  if [ ${BUILD_BOARD_NAME} == "eag6l" ] ; then
 	./configure											\
 		--host=${CROSS_COMPILE_PFX}							\
 		--prefix=$QUAGGA/install \
@@ -17,6 +19,20 @@ function _config {
 		--disable-ospf6d --disable-nhrpd --disable-isisd --disable-pimd --disable-bgp-announce \
 		--disable-ospfapi --disable-ospfclient --enable-sysmon \
 		|| exit -1
+   elif [ ${BUILD_BOARD_NAME} == "ac5x_db" ] ; then
+   CC=${CROSS_COMPILE}gcc \
+   AR=${CROSS_COMPILE}ar \
+   LD=${CROSS_COMPILE}ld \
+   RANLIB=${CROSS_COMPILE}ranlib \
+	./configure											\
+		--prefix=$QUAGGA/install \
+		--host=arm-linux \
+		--sysconfdir=/etc \
+		--disable-doc --disable-bgpd --disable-ripd --disable-ripngd --disable-ospfd \
+		--disable-ospf6d --disable-nhrpd --disable-isisd --disable-pimd --disable-bgp-announce \
+		--disable-ospfapi --disable-ospfclient --enable-sysmon \
+		|| exit -1
+   fi
 }
 
 function _build {
