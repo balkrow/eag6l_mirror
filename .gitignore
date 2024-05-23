@@ -1,11 +1,14 @@
-./build/
+.build/
 *.img
 *.cpio
 tags
 rootfs
 rootfs_cpss
 *.txt
+!u-boot/scripts/config_whitelist.txt
+!package/quagga-1.2.4/lib/route_types.txt
 *.bin
 *.tar
 *.tgz
 setup_internal.env
+!rootfs.user/lib/modules/*
