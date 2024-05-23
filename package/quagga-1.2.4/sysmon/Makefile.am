@@ -10,7 +10,7 @@ noinst_LIBRARIES = libsysmon.a
 sbin_PROGRAMS = sysmon
 
 libsysmon_a_SOURCES = \
-	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c
+	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c svc_fsm.c
 
 noinst_HEADERS = \
 	sysmon.h

@@ -290,12 +290,12 @@ main (int argc, char **argv)
   vrf_init ();
   sysmon_zclient_init (master);
 
+  /* Get configuration file. */
+  vty_read_config (config_file, config_default);
+
   /* sysmon related initialization. */
   sysmon_init ();
 	
-  /* Get configuration file. */
-  //vty_read_config (config_file, config_default);
-
   /* Start execution only if not in dry-run mode */
   if(dryrun)
     return (0);
@@ -314,7 +314,7 @@ main (int argc, char **argv)
   vty_serv_sock (vty_addr, vty_port, SYSMON_VTYSH_PATH);
 
   /* Print banner. */
-  zlog_notice ("SYSMON %s starting: vty@%d", QUAGGA_VERSION, vty_port);
+  //zlog_notice ("SYSMON %s starting: vty@%d", QUAGGA_VERSION, vty_port);
 
   /* Execute each thread. */
   thread_main (master);
