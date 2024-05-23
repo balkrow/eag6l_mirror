@@ -74,3 +74,10 @@ cpss_4_3_12//**/*.ko
 ###################################################
 quagga-1.2.4/**/Makefile.in
 quagga-1.2.4/autom4te.cache/*
+quagga-1.2.4/**/*.o
+quagga-1.2.4/**/*.lo
+quagga-1.2.4/**/Makefile
+quagga-1.2.4/**/.deps
+quagga-1.2.4/**/*.la
+quagga-1.2.4/**/*.a
+quagga-1.2.4/**/.libs
