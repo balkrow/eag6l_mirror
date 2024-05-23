@@ -16,6 +16,9 @@
 #include <getopt.h>
 #include "log.h" 
 #include "thread.h" 
+#if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
+#include "svc_fsm.h" 
+#endif
 
 #define DEBUG
 
@@ -23,6 +26,21 @@ int32_t hdrv_fd;
 struct thread_master *master;
 //const char *pid_file = PATH_SYSMON_PID;
 char* progname;
+
+#if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
+extern  SVC_ST transition(SVC_ST state, SVC_EVT event);
+extern SVC_EVT svc_init(SVC_ST st);
+extern SVC_EVT svc_init_fail(SVC_ST st);
+extern SVC_EVT svc_dpram_check(SVC_ST st);
+extern SVC_EVT svc_fpga_check(SVC_ST st);
+extern SVC_EVT svc_cpld_check(SVC_ST st);
+extern SVC_EVT svc_sdk_init(SVC_ST st);
+extern SVC_EVT svc_get_inven(SVC_ST st);
+extern SVC_EVT svc_init_done(SVC_ST st);
+
+SVC_FSM svc_fsm;
+void init_svc_fsm(void);
+#endif
 
 
 #ifdef DEBUG
@@ -73,9 +91,54 @@ extern void update_sfp(void);
 }
 #endif //PWY_FIXME
 
+#if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
+void init_svc_fsm(void) {
+	svc_fsm.state = SVC_ST_INIT;
+	svc_fsm.evt = SVC_EVT_INIT;
+
+	/*TODO: must be mapping function*/	
+	svc_fsm.cb[SVC_ST_INIT] = svc_init;
+	svc_fsm.cb[SVC_ST_INIT_FAIL] = svc_init_fail;
+	svc_fsm.cb[SVC_ST_DPRAM_CHK] = svc_dpram_check;
+	svc_fsm.cb[SVC_ST_FPGA_CHK] = svc_fpga_check;
+	svc_fsm.cb[SVC_ST_CPLD_CHK] = svc_cpld_check;
+	svc_fsm.cb[SVC_ST_SDK_INIT] = svc_sdk_init;
+	svc_fsm.cb[SVC_ST_GET_INVEN] = svc_get_inven;
+	svc_fsm.cb[SVC_ST_INIT_DONE] = svc_init_done;
+}
+
+/*
+SVC_EVT getSvcEvent(SVC_ST state) {
+
+}
+*/
+
+int svc_fsm_timer(struct thread *thread) {
+	SVC_ST state;
+	SVC_EVT event;
+
+	state = transition(svc_fsm.state, svc_fsm.evt);
+
+	if(svc_fsm.cb[state] != NULL)
+		event = svc_fsm.cb[state](state);
+
+	svc_fsm.state = state;
+	svc_fsm.evt = event;
+#ifdef DEBUG
+	zlog_notice("FSM state=%x, evt=%x", svc_fsm.state, svc_fsm.evt);
+#endif
+
+	thread_add_timer (master, svc_fsm_timer, NULL, 1);
+	return 0;
+}
+#endif
+
 /* Allocate new sys structure and set default value. */
 void sysmon_thread_init (void)
 {
+#if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
+	thread_add_timer (master, svc_fsm_timer, NULL, 1);
+#endif
 	//TODO
 #if 0//PWY_FIXME
 	thread_add_timer (master, test_timer_func, NULL, 1);
@@ -83,6 +146,7 @@ void sysmon_thread_init (void)
 #if 0//PWY_FIXME cuased a thread crash after 10 sec.
 	thread_add_timer (master, sfp_timer_func, NULL, 10);
 #endif //PWY_FIXME
+
 }
 
 
@@ -106,8 +170,7 @@ int hdriv_open(void) {
 
 	hdrv_fd = open("/dev/hdrv",O_RDWR);
 	if ( hdrv_fd < 0 ) {
-		//zlog_warn("hdriver open err\n");
-		print_console("hdriver open err\n");
+		zlog_err("hdriver open err");
 		return -1;
 	}
 	return 0;
@@ -116,8 +179,13 @@ int hdriv_open(void) {
 void sysmon_init(void) {
 
 	if(hdriv_open() == -1)
-		print_console("sysmon init failure\n");
+		zlog_err("sysmon init failure");
 
+	zlog_notice("init sysmon");
+
+#if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
+	init_svc_fsm();
+#endif
 	sysmon_thread_init();
 	sysmon_master_fifo_init ();
 	

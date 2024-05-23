@@ -6,7 +6,7 @@ case "$1" in
 				zebra -f /etc/zebra.conf -u root -g root -d
 				evaluate_retval
 				echo "Starting sysmon daemon..."
-				sysmon -u root -g root -d
+				sysmon -f /etc/sysmon.conf -u root -g root -d
 				evaluate_retval
 				;;
 		stop)

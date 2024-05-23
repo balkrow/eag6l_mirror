@@ -38,6 +38,7 @@ function _install {
 
 	cp -avf vtysh.conf $INSTALL_ROOT/etc
 	cp -avf zebra.conf $INSTALL_ROOT/etc
+	cp -avf sysmon.conf $INSTALL_ROOT/etc
 }
 
 if [ $# -eq 0 ]; then

@@ -54,6 +54,9 @@ const char *zlog_proto_names[] =
   "PIM",
   "MASC",
   "NHRP",
+#if 1/*[#26] system managent FSM 추가, balkrow, 2024-05-20*/
+  "SYSMON",
+#endif
   NULL,
 };
 
