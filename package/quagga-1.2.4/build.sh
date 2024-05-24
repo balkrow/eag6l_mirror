@@ -40,6 +40,9 @@ function _build {
 }
 
 function _install {
+
+  if [ ${BUILD_BOARD_NAME} == "eag6l" ] ; then
+
 	cp -avf zebra/.libs/zebra $INSTALL_ROOT/sbin
 	${CROSS_COMPILE}strip $INSTALL_ROOT/sbin/zebra 
 
@@ -55,6 +58,11 @@ function _install {
 	cp -avf vtysh.conf $INSTALL_ROOT/etc
 	cp -avf zebra.conf $INSTALL_ROOT/etc
 	cp -avf sysmon.conf $INSTALL_ROOT/etc
+
+  elif [ ${BUILD_BOARD_NAME} == "ac5x_db" ] ; then
+	cp -avf sysmon/.libs/sysmon ~
+	${CROSS_COMPILE}strip ~/sysmon
+  fi
 }
 
 if [ $# -eq 0 ]; then

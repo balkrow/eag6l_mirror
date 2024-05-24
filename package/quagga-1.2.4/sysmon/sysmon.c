@@ -184,9 +184,9 @@ void sysmon_init(void) {
 	zlog_notice("init sysmon");
 
 #if 1/*[#26] system managent FSM ¿¿, balkrow, 2024-05-20*/
+	sysmon_master_fifo_init ();
 	init_svc_fsm();
 #endif
 	sysmon_thread_init();
-	sysmon_master_fifo_init ();
 	
 }
