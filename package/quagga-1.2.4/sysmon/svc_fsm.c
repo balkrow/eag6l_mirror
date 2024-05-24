@@ -12,8 +12,24 @@ SVC_FSM svc_fsm[] =
 };
 */
 
+#if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
+#include "sys_fifo.h"
+extern uint8_t gAppDemoIPCstate;
+extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
+uint16_t gSvcFSMretry = 0;
+#define DEBUG
+#define CLR_RETRY_CNT gSvcFSMretry = 0
+#endif
+
 SVC_EVT svc_init(SVC_ST st) {
-	return SVC_EVT_NONE;
+#if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
+	if(gAppDemoIPCstate == IPC_INIT_FAIL) 
+		return SVC_EVT_IPC_COM_FAIL;
+	else if(gSysmonToCpssFuncs[gHello](1, gHello) == FIFO_CMD_SUCCESS)
+		return SVC_EVT_IPC_COM_SUCCESS;
+	else
+		return SVC_EVT_IPC_COM_FAIL;
+#endif
 }
 
 SVC_EVT svc_init_fail(SVC_ST st) {
@@ -56,8 +72,18 @@ SVC_EVT svc_sdk_init(SVC_ST st) {
 #if FSM_SIM
 	return SVC_EVT_SDK_INIT_SUCCESS;
 #else
+	SVC_EVT evt;
+
 	/* check sdk_init result*/
-	return SVC_EVT_SDK_INIT_SUCCESS;
+	if(gSysmonToCpssFuncs[gSDKInit](1, gSDKInit) == FIFO_CMD_SUCCESS)
+		evt = SVC_EVT_SDK_INIT_SUCCESS;
+	else	
+		evt = SVC_EVT_SDK_INIT_FAIL;
+
+#ifdef DEBUG
+	zlog_notice("called %s ret=%d", __func__, evt);
+#endif
+		return evt;
 #endif
 }
 
@@ -78,19 +104,25 @@ SVC_EVT svc_init_done(SVC_ST st) {
 
 SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
+	SVC_ST ret = SVC_ST_INIT_FAIL;
+
 	switch (state) {
 
 	case SVC_ST_INIT:
-		if(event == SVC_EVT_INIT)
-			return SVC_ST_DPRAM_CHK; 
-		else
-			return SVC_ST_INIT_FAIL; 
+		if(event == SVC_EVT_IPC_COM_SUCCESS)
+			ret = SVC_ST_DPRAM_CHK; 
+		else if(gSvcFSMretry++ < SVC_FSM_INIT_MAX_RETRY) 
+			ret = SVC_ST_INIT; 
+		else {
+			CLR_RETRY_CNT;
+			goto init_fail;
+		}
 		break;
 	case SVC_ST_DPRAM_CHK:
 		if(event == SVC_EVT_DPRAM_ACCESS_SUCCESS)
-			return SVC_ST_FPGA_CHK; 
+			ret = SVC_ST_FPGA_CHK; 
 		else if (event == SVC_EVT_DPRAM_ACCESS_FAIL)
-			return SVC_ST_INIT_FAIL; 
+			goto init_fail;
 		/*		
 		 *TODO: 			
 		else
@@ -99,9 +131,9 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 		break;
 	case SVC_ST_FPGA_CHK:
 		if(event == SVC_EVT_FPGA_ACCESS_SUCCESS)
-			return SVC_ST_CPLD_CHK; 
+			ret = SVC_ST_CPLD_CHK; 
 		else if (event == SVC_EVT_FPGA_ACCESS_FAIL)
-			return SVC_ST_INIT_FAIL; 
+			goto init_fail;
 		/*		
 		 *TODO: 			
 		else
@@ -111,9 +143,9 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
 	case SVC_ST_CPLD_CHK:
 		if(event == SVC_EVT_CPLD_ACCESS_SUCCESS)
-			return SVC_ST_SDK_INIT; 
+			ret = SVC_ST_SDK_INIT; 
 		else if (event == SVC_EVT_CPLD_ACCESS_FAIL)
-			return SVC_ST_INIT_FAIL; 
+			goto init_fail;
 		/*		
 		 *TODO: 			
 		else
@@ -123,9 +155,9 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
 	case SVC_ST_SDK_INIT:
 		if(event == SVC_EVT_SDK_INIT_SUCCESS)
-			return SVC_ST_GET_INVEN; 
+			ret = SVC_ST_GET_INVEN; 
 		else if (event == SVC_EVT_SDK_INIT_FAIL)
-			return SVC_ST_INIT_FAIL; 
+			goto init_fail;
 		/*		
 		 *TODO: 			
 		else
@@ -135,15 +167,20 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
 	case SVC_ST_GET_INVEN:
 		if(event == SVC_EVT_GET_INVEN_SUCCESS)
-			return SVC_ST_INIT_DONE; 
+			ret = SVC_ST_INIT_DONE; 
 		else if (event == SVC_EVT_GET_INVEN_FAIL)
-			return SVC_ST_INIT_FAIL; 
+			goto init_fail;
 		/*		
 		 *TODO: 			
 		else
 			return SVC_ST_DPRAM_CHK;		
 		*/
 		break;
+#if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
+	case SVC_ST_INIT_DONE:
+		ret = SVC_ST_INIT_DONE; 
+		break;
+#endif
 	default:
 		/*		
 		 * TODO: 			
@@ -151,4 +188,9 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 		*/
 		break;
 	}
+
+normal_return:
+	return ret;
+init_fail:
+	return SVC_ST_INIT_FAIL;
 }

@@ -13,7 +13,7 @@ CWD := $(dir $(lastword $(MAKEFILE_LIST)))
 CPSSENABLER_SRC += $(patsubst %,$(CWD)%,$(FILES))
 
 #Enable this line to add include path of this folder
-#CFLAGS := -Wno-error=unused-parameter
+CFLAGS += -I${TOPDIR}/package/quagga-1.2.4/sysmon 
 
 #Recursively go into list of subfolders
 include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))

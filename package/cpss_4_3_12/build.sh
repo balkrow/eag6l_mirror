@@ -43,9 +43,9 @@ function _install {
 	${CROSS_COMPILE}strip ${INSTALL_ROOT}/sbin/appDemo
 	cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvcpss.ko ${INSTALL_ROOT}/lib/modules
   elif [ ${BUILD_BOARD_NAME} == "ac5x_db" ] ; then
-	cp -avf ./compilation_root/${branch_name}/armv8_DX/appDemo ${INSTALL_ROOT}/sbin
-	${CROSS_COMPILE}strip ${INSTALL_ROOT}/sbin/appDemo
-	cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvcpss.ko ${INSTALL_ROOT}/lib/modules
+	cp -avf ./compilation_root/${branch_name}/armv8_DX/appDemo ~
+	${CROSS_COMPILE}strip ~/appDemo
+	cp -avf cpssEnabler/mainExtDrv/src/gtExtDrv/linuxNoKernelModule/drivers/mvcpss.ko ~
   fi
 	exit 0
 }

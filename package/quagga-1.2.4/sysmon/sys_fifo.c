@@ -26,12 +26,83 @@
 
 #include <dirent.h>
 
+#if 1/*[#34] aldrin3s chip initial 真 真, balkrow, 2024-05-23*/
+#define DEBUG
+#endif
 
 extern struct thread_master *master;
 
-
-static int send_to_sysmon_slave(sysmon_fifo_msg_t * msg)
+/*define send callback function */
+#if 1/*[#34] aldrin3s chip initial 真 真, balkrow, 2024-05-23*/
+uint8_t gCpssSDKInit(int args, ...)
 {
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t msg;
+
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+	if(args !=  1)
+		return IPC_CMD_FAIL;
+
+	va_start(argP, args);
+        msg.type = va_arg(argP, uint32_t);	
+	va_end(argP);
+	
+	if(send_to_sysmon_slave(&msg) == 0)
+		ret = IPC_CMD_FAIL;
+
+	return ret;
+}
+
+uint8_t gCpssHello(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+	if(args !=  1)
+		return IPC_CMD_FAIL;
+
+	va_start(argP, args);
+        msg.type = va_arg(argP, uint32_t);	
+	va_end(argP);
+	
+	if(send_to_sysmon_slave(&msg) == 0)
+		ret = IPC_CMD_FAIL;
+
+	return ret;
+}
+
+cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
+{
+	gCpssSDKInit,	
+	gCpssHello,	
+};
+
+const uint32_t funcsListLen = sizeof(gSysmonToCpssFuncs) / sizeof(cSysmonToCPSSFuncs);
+/*define recv callback function */
+
+
+
+uint8_t gAppDemoIPCstate = IPC_INIT_SUCCESS; 
+int32_t syscmdrdfifo;
+int32_t syscmdwrfifo;
+#endif
+
+int send_to_sysmon_slave(sysmon_fifo_msg_t * msg)
+{
+#if 1/*[#34] aldrin3s chip initial 真 真, balkrow, 2024-05-23*/
+
+#ifdef DEBUG
+	zlog_notice("msg %x send to cpss", msg->type);
+#endif
+	return write(syscmdwrfifo, msg, sizeof(sysmon_fifo_msg_t));
+#else
 	int syscmdwrfifo = 0;
 
 	if((syscmdwrfifo = open(SYSMON_FIFO_WRITE/*to-slave*/, O_RDWR)) < 0)
@@ -42,10 +113,16 @@ static int send_to_sysmon_slave(sysmon_fifo_msg_t * msg)
 	close(syscmdwrfifo);
 
 	return 0;
+#endif
 }
 
 static int sysmon_master_system_command(sysmon_fifo_msg_t * msg)
 {
+#if 1/*[#34] aldrin3s chip initial 真 真, balkrow, 2024-05-23*/
+#ifdef DEBUG
+	zlog_info("recv msg %x from cpss", msg->type);
+#endif
+#else
 	if(msg->type > sysmon_cmd_fifo_test && msg->type < sysmon_cmd_fifo_max)   
 	{
 		switch(msg->type)
@@ -67,7 +144,7 @@ static int sysmon_master_system_command(sysmon_fifo_msg_t * msg)
 				break;
 		}
 	}
-
+#endif
 	return 0;
 }
 
@@ -89,6 +166,7 @@ static int sysmon_master_recv_fifo(struct thread *thread)
 	return 0;
 }
 
+#if 0/*[#34] aldrin3s chip initial 真 真, balkrow, 2024-05-23*/
 static int sysmon_master_hello_test(struct thread *thread)
 {
     int len = 0;
@@ -103,9 +181,17 @@ static int sysmon_master_hello_test(struct thread *thread)
 	send_to_sysmon_slave(&msg);
     return 0;
 }
+#endif
 
 void sysmon_master_fifo_init (void)
 {
+#if 1/*[#34] aldrin3s chip initial 真 真, balkrow, 2024-05-23*/
+	if((syscmdrdfifo = open (SYSMON_FIFO_READ, O_RDWR)) < 0)
+		gAppDemoIPCstate = IPC_INIT_FAIL;
+
+	if((syscmdwrfifo = open (SYSMON_FIFO_WRITE, O_RDWR)) < 0)
+		gAppDemoIPCstate = IPC_INIT_FAIL;
+#else
 	int syscmdrdfifo;
 
 	umask(0000);
@@ -115,6 +201,7 @@ void sysmon_master_fifo_init (void)
 		return;
 	if((syscmdrdfifo = open (SYSMON_FIFO_READ, O_RDWR)) < 0)
 		return;
+#endif
 
 	thread_add_read(master, sysmon_master_recv_fifo, NULL, syscmdrdfifo);
 
