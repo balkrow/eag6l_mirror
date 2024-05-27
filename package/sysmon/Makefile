@@ -17,7 +17,7 @@ COMMON_LIB = ../cpss/compilation_root/master/armv7_DX/common/libs/COMMON.a
 MAINDRV_LIB = ../cpss/compilation_root/master/armv7_DX/mainPpDrv/libs/MAINPPDRV.a ../cpss/compilation_root/master/armv7_DX/cpssEnabler/libs/CPSSENABLER.a
 
 
-OBJECT = sysmon.c thread.c memory.c pqueue.c sigevent.c memtypes.c cpss.c
+OBJECT = sysmon.c thread.c memory.c pqueue.c sigevent.c memtypes.c cpss.c rdl_fsm.c
 PROG_OBJ = devmem.c pid_output.c
 
 all: sysmon
