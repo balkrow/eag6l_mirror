@@ -878,6 +878,11 @@
 #define PORT_ALM_MASK_FT_RESET		0x8000
 
 
+#define PWM_NOT_USED        (-99.9f)
+#define DEF_PWM_MIN         (-53.0f)
+#define DEF_PWM_MAX         (20.0f)
+
+
     struct inventory
     {
         i8 manufact[32];

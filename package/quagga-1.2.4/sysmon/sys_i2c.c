@@ -27,7 +27,7 @@
 #define IF_MIN_SLOT_NUM       1
 #define IF_MAX_SLOT_NUM       1
 #define IF_MIN_PORT_NUM       1
-#define IF_MAX_PORT_NUM       28
+#define IF_MAX_PORT_NUM       PORT_ID_EAG6L_MAX
 #define IF_AGGR_MAX_NUM       IF_TOTAL_NUM  /* 12 */
 #define IF_AGGR_CLI_RANGE     "<1-12>"
 
@@ -37,6 +37,8 @@
 #define SFP_IIC_ADDR      0x50
 #define DIAG_SFP_IIC_ADDR 0x51
 #define CPLD_IIC_ADDR     0x55
+
+#define I2C_MUX                    0x70
 
 #define SFP_INS1                   0x20
 #define SFP_INS2                   0x21
@@ -305,6 +307,26 @@ static int32_t i2c_smbus_read_byte_data(int fd, unsigned char cmd)
 	return data.byte;
 }
 
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+static int32_t i2c_smbus_write_byte_data(int fd, unsigned char addr, unsigned char val)
+{
+	union i2c_smbus_data data;
+	int err;
+
+	memset(&data, 0, sizeof data);
+	data.byte = val;
+
+	err = i2c_smbus_access(fd, I2C_SMBUS_WRITE, addr,
+			I2C_SMBUS_BYTE_DATA, &data);
+	if (err < 0)
+	{
+		return err;
+	}
+
+	return data.byte;
+}
+#endif
+
 void i2c_set_slave_addr(int fd, unsigned char addr, int force)
 {
 	ioctl_or_perror_and_die(fd, force ? I2C_SLAVE_FORCE : I2C_SLAVE,
@@ -320,14 +342,14 @@ void i2c_set_slave_addr(int fd, unsigned char addr, int force)
  */
 int i2c_dev_open(int i2cbus)
 {
-	char filename[sizeof("/dev/i2c-%d", i2cbus)];
+	char filename[30];
 	int fd;
 
 	sprintf(filename, "/dev/i2c-%d", i2cbus);
 	fd = open(filename, O_RDWR);
 	if (fd < 0) 
 	{
-		printf("can't open %s \n", filename);
+		zlog_notice("i2c_dev_open : can't open %s \n", filename);
 		perror("[DW] i2c_dev_open : ");
 	}
 
@@ -371,6 +393,28 @@ data_addr : CPLD data address
 
 	return status;
 }
+
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+void i2c_set_sfp_channel_no(int bus, int portno)
+{
+	int fd, ret;
+
+	fd = i2c_dev_open(bus);
+	if(fd < 0) {
+		HX_I2C_DBG_U("[%s:%s:%d] fd:%d\n",__FILE__,__FUNCTION__,__LINE__,fd);
+		return;
+	}
+
+	i2c_set_slave_addr(fd, I2C_MUX, 1);
+
+	ret = i2c_smbus_write_byte_data(fd, I2C_MUX, (unsigned char)(1 << (portno - 1)));
+	if(ret < 0)
+		zlog_notice("i2c_set_sfp_channel_no : portno[%d] ret[%d].n", portno, ret);
+
+	close(fd);
+	return;
+}
+#endif
 
 int32_t i2c_smbus_read_i2c_block_data(int file, uint8_t command, uint8_t length,
                     uint8_t *values)
@@ -475,6 +519,11 @@ int filling_sfp_data_realtime(int bus, unsigned char addr, unsigned char port, i
 {
 	int rc_len;
 
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(bus, port);
+#endif
+
 	rc_len = get_value_by_register_len(bus, addr, 0, array_size, &test_char[0]);
 
 	if(rc_len != array_size)
@@ -495,27 +544,26 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 	int is_zr = 0;
 	int	bus;
 
-#if 0//PWY_FIXME
-#if 1/*[119] don't display sfp ddm in du port, balkrow, 2022-07-27*/
-	if(portno == PORT_ID_FHM_CELL1_DU1)
+#if 0/*[119] don't display sfp ddm in du port, balkrow, 2022-07-27*/
+	if(portno == PORT_ID_EAG6L_PORT1)
 		bus = 26;
-	else if(portno == PORT_ID_FHM_CELL1_DU2)
+	else if(portno == PORT_ID_EAG6L_PORT2)
 		bus = 27;
-	else if(portno == PORT_ID_FHM_CELL2_DU1)
+	else if(portno == PORT_ID_EAG6L_PORT3)
 		bus = 28;
-	else if(portno == PORT_ID_FHM_CELL2_DU2)
+	else if(portno == PORT_ID_EAG6L_PORT4)
 		bus = 29;
-	else if(portno >= PORT_ID_FHM_CELL2_RU1)
+	else if(portno >= PORT_ID_EAG6L_PORT5)
 		bus = portno - 1;
 	else
-#endif
-#endif //PWY_FIXME
 	bus = portno + 1;
+#endif
+	bus = 0;
 
 	filling_sfp_data_realtime(bus, SFP_IIC_ADDR, portno, HZ_I2C_SFP_INFO_START, HZ_I2C_SFP_INFO,
-			&slot_sfp_info.data[portno-IF_MIN_PORT_NUM][HZ_I2C_SFP_INFO_START]);
+			&slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START]);
 
-	raw = &slot_sfp_info.data[portno-1][HZ_I2C_SFP_INFO_START];
+	raw = &slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START];
 
 	len_sm_1 = 0;
 	if( raw->length_km )
@@ -564,6 +612,10 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 	memcpy( &mod_inv->vendor, &raw->vendor_name[0], 16 );
 	memcpy( &mod_inv->part_num, &raw->vendor_pn[0], 16 );
 
+if(mod_inv->serial_num[0])	zlog_notice("INV SN [%s]", mod_inv->serial_num);/*ZZPP*/
+if(mod_inv->vendor[0])	zlog_notice("INV VENDOR [%s]", mod_inv->vendor);/*ZZPP*/
+if(mod_inv->part_num[0])	zlog_notice("INV PN [%s]", mod_inv->part_num);/*ZZPP*/
+if(mod_inv->date_code[0])	zlog_notice("INV DATE CODE [%s]", mod_inv->date_code);/*ZZPP*/
 	return;
 }
 
@@ -731,26 +783,27 @@ int get_sfp_info_diag(int portno, struct port_status * port_sts)
 
 #if 1/*[119] don't display sfp ddm in du port, balkrow, 2022-07-27*/
 #if 0//PWY_FIXME
-	if(portno == PORT_ID_FHM_CELL1_DU1)
+	if(portno == PORT_ID_EAG6L_PORT1)
 		bus = 26;
-	else if(portno == PORT_ID_FHM_CELL1_DU2)
+	else if(portno == PORT_ID_EAG6L_PORT2)
 		bus = 27;
-	else if(portno == PORT_ID_FHM_CELL2_DU1)
+	else if(portno == PORT_ID_EAG6L_PORT3)
 		bus = 28;
-	else if(portno == PORT_ID_FHM_CELL2_DU2)
+	else if(portno == PORT_ID_EAG6L_PORT4)
 		bus = 29;
-	else if(portno >= PORT_ID_FHM_CELL2_RU1)
+	else if(portno >= PORT_ID_EAG6L_PORT5)
 		bus = portno - 1;
 	else
-#endif //PWY_FIXME
 		bus = portno + 1;
+#endif //PWY_FIXME
+		bus = 0;
 #else
 	bus = portno + 1;
 #endif
 	filling_sfp_data_realtime(bus, DIAG_SFP_IIC_ADDR, portno, HZ_I2C_SFP_DIAG_START, HZ_I2C_SFP_DIAG,
-			&slot_sfp_info.data[portno-IF_MIN_PORT_NUM][HZ_I2C_SFP_DIAG_START]);
+			&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START]);
 
-	raw_diag = &slot_sfp_info.data[portno-1][HZ_I2C_SFP_DIAG_START];
+	raw_diag = &slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START];
 
 	// Temperature.
 	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
