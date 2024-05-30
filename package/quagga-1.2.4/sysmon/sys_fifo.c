@@ -222,6 +222,11 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssSynceDisable,
 	gCpssSynceIfSelect,
 #endif
+#if 1/*[#25] cpss ¿ sysmon ¿ interface ¿¿ ¿¿, balkrow, 2024-05-30 */
+	gCpssPortSetRate,
+	gCpssPortESMCenable, /*further implements*/
+	gCpssPortAlarm, /* Link Down/up */
+#endif
 	gCpssPortPM,
 };
 
