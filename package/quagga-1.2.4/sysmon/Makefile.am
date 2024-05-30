@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in.
 
-AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
+AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib -I$(top_srcdir)/../include
 DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\"
 INSTALL_SDATA=@INSTALL@ -m 600
 
@@ -10,7 +10,7 @@ noinst_LIBRARIES = libsysmon.a
 sbin_PROGRAMS = sysmon
 
 libsysmon_a_SOURCES = \
-	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c svc_fsm.c
+	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c svc_fsm.c monitor_registers.c devmem.c
 
 noinst_HEADERS = \
 	sysmon.h

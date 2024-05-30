@@ -22,6 +22,7 @@
 
 #define DEBUG
 
+u32 INIT_COMPLETE_FLAG;
 int32_t hdrv_fd;
 struct thread_master *master;
 //const char *pid_file = PATH_SYSMON_PID;
@@ -80,16 +81,31 @@ int test_timer_func(struct thread *thread) {
 	return 0;
 }
 
-#if 0//PWY_FIXME
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
 int sfp_timer_func(struct thread *thread)
 {
-extern void update_sfp(void);
+	thread_add_timer (master, (int)sfp_timer_func, NULL, 10);
 
-    thread_add_timer (master, (int)sfp_timer_func, NULL, 5);
-    update_sfp();
-    return 0;
+	{
+		extern void update_sfp(void);
+		update_sfp();
+	}
+	return 0;
 }
-#endif //PWY_FIXME
+#endif
+
+#if 1/*[#4] Register updating, dustin, 2024-05-28 */
+int reg_timer_func(struct thread *thread)
+{
+	thread_add_timer (master, (int)reg_timer_func, NULL, 10);
+
+	{
+		extern void update_reg(void);
+		update_reg();
+	}
+	return 0;
+}
+#endif
 
 #if 1/*[#26] system managent FSM ¿¿, balkrow, 2024-05-20*/
 void init_svc_fsm(void) {
@@ -143,10 +159,12 @@ void sysmon_thread_init (void)
 #if 0//PWY_FIXME
 	thread_add_timer (master, test_timer_func, NULL, 1);
 #endif //PWY_FIXME
-#if 0//PWY_FIXME cuased a thread crash after 10 sec.
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
 	thread_add_timer (master, sfp_timer_func, NULL, 10);
-#endif //PWY_FIXME
-
+#endif
+#if 1/*[#4] Register updating, dustin, 2024-05-28 */
+	thread_add_timer (master, reg_timer_func, NULL, 10);
+#endif
 }
 
 
@@ -170,7 +188,7 @@ int hdriv_open(void) {
 
 	hdrv_fd = open("/dev/hdrv",O_RDWR);
 	if ( hdrv_fd < 0 ) {
-		zlog_err("hdriver open err");
+		zlog_warn("hdriver open err");
 		return -1;
 	}
 	return 0;
@@ -178,8 +196,13 @@ int hdriv_open(void) {
 
 void sysmon_init(void) {
 
+	/* clear init complete flag */
+	INIT_COMPLETE_FLAG = 0;
+
+#if 0//PWY_FIXME
 	if(hdriv_open() == -1)
 		zlog_err("sysmon init failure");
+#endif //PWY_FIXME
 
 	zlog_notice("init sysmon");
 
@@ -188,5 +211,7 @@ void sysmon_init(void) {
 	init_svc_fsm();
 #endif
 	sysmon_thread_init();
-	
+
+	/* set init complete flag */
+	INIT_COMPLETE_FLAG = 1;
 }

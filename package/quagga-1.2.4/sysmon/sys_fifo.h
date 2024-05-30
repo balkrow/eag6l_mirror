@@ -25,6 +25,10 @@ enum sysmon_cmd_fifo_type
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 	gSDKInit,
 	gHello,
+	gSynceEnable,
+	gSynceDisable,
+	gSynceIfSelect,
+	gPortPM,
 #else
 	sysmon_cmd_fifo_sdk_init,
 	sysmon_cmd_fifo_test,
@@ -58,15 +62,28 @@ enum sysmon_cmd_result_type
 	sysmon_cmd_result_fail,
 };
 
+struct port_pm_counter
+{
+	unsigned long tx_frame;
+	unsigned long tx_byte;
+	unsigned long rx_frame;
+	unsigned long rx_byte;
+	unsigned long rx_fcs;
+	unsigned long fcs_ok;
+	unsigned long fcs_nok;
+};
+
 typedef struct sysmon_cmd_fifo 
 {
 	enum sysmon_cmd_fifo_type	type;
 	unsigned int			portid;
-	int				result;
+	unsigned int			portid2;
+	long					result;
 	unsigned short			vid;
 	unsigned int			portmap;
 	unsigned int			taggedmap;
 	short				state;
+	struct port_pm_counter	pm;
 	char				buffer[1000];
 	char				noti_msg[64];
 } sysmon_fifo_msg_t;
