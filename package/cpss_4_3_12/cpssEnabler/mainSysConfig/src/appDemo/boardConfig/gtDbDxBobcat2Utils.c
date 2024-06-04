@@ -1923,6 +1923,11 @@ GT_STATUS prvAppDemoGetDefaultFecMode
     } else if ((mode == CPSS_PORT_INTERFACE_MODE_USX_20G_OXGMII_E) ||
                (mode == CPSS_PORT_INTERFACE_MODE_USX_20G_QXGMII_E) ||
                (mode == CPSS_PORT_INTERFACE_MODE_USX_20G_DXGMII_E) ||
+#if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
+	    /*force config fec */
+               ((mode == CPSS_PORT_INTERFACE_MODE_KR_E) && (speed == CPSS_PORT_SPEED_25000_E)) ||
+
+#endif
                ((mode == CPSS_PORT_INTERFACE_MODE_KR4_E) && (speed == CPSS_PORT_SPEED_100G_E)) ||
                ((mode == CPSS_PORT_INTERFACE_MODE_CR4_E) && (speed == CPSS_PORT_SPEED_100G_E)) ||
                ((mode == CPSS_PORT_INTERFACE_MODE_SR_LR4_E) && (speed == CPSS_PORT_SPEED_100G_E)))
