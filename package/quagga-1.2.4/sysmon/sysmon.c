@@ -20,7 +20,7 @@
 #include "svc_fsm.h" 
 #endif
 
-#define DEBUG
+#undef DEBUG
 
 int32_t hdrv_fd;
 struct thread_master *master;
@@ -128,7 +128,7 @@ int svc_fsm_timer(struct thread *thread) {
 	zlog_notice("FSM state=%x, evt=%x", svc_fsm.state, svc_fsm.evt);
 #endif
 
-	thread_add_timer (master, svc_fsm_timer, NULL, 1);
+	thread_add_timer_msec (master, svc_fsm_timer, NULL, 100);
 	return 0;
 }
 #endif

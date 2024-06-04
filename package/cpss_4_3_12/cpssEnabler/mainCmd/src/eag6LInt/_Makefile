@@ -4,6 +4,7 @@
 
 #List of files to include in list
 FILES := eag6lInt.c \
+		 eag6l_vlan.c \
 		 multi_thread.c
 
 

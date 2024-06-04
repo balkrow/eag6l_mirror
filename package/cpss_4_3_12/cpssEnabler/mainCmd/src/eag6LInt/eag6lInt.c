@@ -20,6 +20,12 @@
 #include "../../../../../quagga-1.2.4/sysmon/sys_fifo.h"
 #endif
 
+#if 1/*[#35] traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
+extern uint8_t EAG6LVlanInit (void);
+extern uint8_t EAG6LFecInit (void);
+extern GT_VOID appDemoTraceOn_GT_OK_Set(GT_U32);
+#endif
+
 
 int sysrdfifo;
 int syswrfifo;
@@ -52,6 +58,12 @@ uint8_t gCpssSDKInit(int args, ...)
 	sysmon_fifo_msg_t msg;
 
 	result = cpssInitSystem(38, 1, 0);
+#if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
+	/*initial tag/untag forwarding */
+	result = EAG6LVlanInit();
+	/*initial FEC mode */
+#endif
+
 #ifdef DEBUG
 	syslog(LOG_INFO, "cpssInitSystem result %x", result);
 #endif

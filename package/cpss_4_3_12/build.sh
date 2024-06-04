@@ -24,10 +24,10 @@ function _config {
 function _build {
 	#make ${MAKEOPT} TARGET=armv7 FAMILY=DX CONFIG_PRV_CPSS_MAX_PP_DEVICES_CNS=2 CONFIG_CPSS_MAX_PORTS_NUM_CNS=128 LOG_ENABLE=n CMD_LUA_CLI=n appDemo || exit -1
   if [ ${BUILD_BOARD_NAME} == "eag6l" ] ; then
-	make ${MAKEOPT} TARGET=armv7 FAMILY=DX CONFIG_PRV_CPSS_MAX_PP_DEVICES_CNS=2 CONFIG_CPSS_MAX_PORTS_NUM_CNS=128 appDemo || exit -1
+	make ${MAKEOPT} TARGET=armv7 FAMILY=DX appDemo || exit -1
 	make ${MAKEOPT} TARGET=armv7 FAMILY=DX KERNEL_FOLDER=../../build/kernel modules || exit -1
   elif [ ${BUILD_BOARD_NAME} == "ac5x_db" ] ; then
-	make ${MAKEOPT} TARGET=armv8 FAMILY=DX CONFIG_PRV_CPSS_MAX_PP_DEVICES_CNS=2 CONFIG_CPSS_MAX_PORTS_NUM_CNS=128 appDemo || exit -1
+	make ${MAKEOPT} TARGET=armv8 FAMILY=DX CONFIG_INCLUDE_UTF=y appDemo || exit -1
 	make ${MAKEOPT} TARGET=armv8 FAMILY=DX KERNEL_FOLDER=../../build/kernel modules || exit -1
   fi
 }
