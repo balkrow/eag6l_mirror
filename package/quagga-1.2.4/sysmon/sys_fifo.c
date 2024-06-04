@@ -159,6 +159,56 @@ zlog_notice("gCpssSynceIfSelect : type[%d] pri[%d] sec[%d]", msg.type, msg.porti
 	return IPC_CMD_SUCCESS;
 }
 
+#if 1/*[#44] Add a callback templates for compiling, dustin, 2024-06-04 */
+uint8_t gCpssPortSetRate(int args, ...)
+{
+    va_list argP;
+    sysmon_fifo_msg_t *msg = NULL;
+
+    va_start(argP, args);
+    msg = va_arg(argP, sysmon_fifo_msg_t *);
+    va_end(argP);
+
+    /* FIXME : call sdk api to set port rate/mode. */
+
+    /* reply the result */
+    send_to_sysmon_slave(msg);
+    return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssPortESMCenable(int args, ...)
+{
+    va_list argP;
+    sysmon_fifo_msg_t *msg = NULL;
+
+    va_start(argP, args);
+    msg = va_arg(argP, sysmon_fifo_msg_t *);
+    va_end(argP);
+
+    /* FIXME : call sdk api to en/disable per-port ESMC state. */
+
+    /* reply the result */
+    send_to_sysmon_slave(msg);
+    return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssPortAlarm(int args, ...)
+{
+    va_list argP;
+    sysmon_fifo_msg_t *msg = NULL;
+
+    va_start(argP, args);
+    msg = va_arg(argP, sysmon_fifo_msg_t *);
+    va_end(argP);
+
+    /* FIXME : call sdk api to get alarm status. */
+
+    /* reply the result */
+    send_to_sysmon_slave(msg);
+    return IPC_CMD_SUCCESS;
+}
+#endif
+
 uint8_t gCpssPortPM(int args, ...)
 {
 	va_list argP;
