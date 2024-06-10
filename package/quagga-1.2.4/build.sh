@@ -61,7 +61,9 @@ function _install {
 
   elif [ ${BUILD_BOARD_NAME} == "ac5x_db" ] ; then
 	cp -avf sysmon/.libs/sysmon ~
+	cp -avf vtysh/.libs/vtysh ~
 	${CROSS_COMPILE}strip ~/sysmon
+	${CROSS_COMPILE}strip ~/vtysh
   fi
 }
 

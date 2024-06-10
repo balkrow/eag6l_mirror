@@ -237,6 +237,20 @@ zlog_notice("gCpssPortPM : type[%d] port[%d]", msg.type, msg.portid);/*ZZPP*/
 }
 #endif
 
+#if 1/*[#43] LF¿¿¿ RF ¿¿ ¿¿ ¿¿, balkrow, 2024-06-05*/
+int8_t sysmon_llcf_set
+(
+ int8_t enable
+)
+{
+	sysmon_fifo_msg_t msg;
+	msg.type = gLLCFSet;
+	msg.portid = enable;
+
+	return send_to_sysmon_slave(msg);
+}
+#endif
+
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
 static int sysmon_master_hello_test(struct thread *thread)
 {
@@ -256,8 +270,10 @@ int synce_config_set_admin(int enable);
 int synce_config_set_if_select(int pri_port, int sec_port);
 
 zlog_notice(" sysmon_master_hello_test~!\n");/*ZZPP*/
+#if 0//test by balkrow
 	synce_config_set_admin(1);
 	synce_config_set_if_select(1, 2);
+#endif
 #endif //PWY_FIXME
     return 0;
 }
@@ -372,33 +388,16 @@ static int sysmon_master_system_command(sysmon_fifo_msg_t * msg)
 			zlog_notice("gPortPM (REPLY) : port[%d].\n", msg->portid);
 			break;
 			//TODO
+#if 1/*[#43] LF¿¿¿ RF ¿¿ ¿¿ ¿¿, balkrow, 2024-06-05*/
+		case gLLCFSet:
+			zlog_notice("gLLCFSet (REPLY) : enable[%d].\n", msg->portid);
+			break;
+#endif
 
 		default:
 			break;
 	}
 #endif
-#else
-	if(msg->type > sysmon_cmd_fifo_test && msg->type < sysmon_cmd_fifo_max) 
-	{
-		switch(msg->type)
-		{
-			case sysmon_cmd_fifo_hello_test:
-				print_console("sysmon_cmd_fifo_hello_test (REPLY) : %s\n", 
-					msg->buffer[0] ? msg->buffer : "N/A");
-				break;
-			case sysmon_cmd_fifo_sftp_get:
-				print_console("sysmon_cmd_fifo_sftp_get (REPLY) : port[%d].\n", msg->portid);
-				break;
-			case sysmon_cmd_fifo_sftp_set:
-				print_console("sysmon_cmd_fifo_sftp_set (REPLY) : port[%d].\n", msg->portid);
-				break;
-
-			//TODO
-
-			default:
-				break;
-		}
-	}
 #endif
 	return 0;
 }
@@ -444,7 +443,7 @@ void sysmon_master_fifo_init (void)
 
 	thread_add_read(master, sysmon_master_recv_fifo, NULL, syscmdrdfifo);
 
-#if 1//PWY_FIXME
+#if 0//PWY_FIXME
 	// for testing.
 	thread_add_timer(master, sysmon_master_hello_test, NULL, 10);
 #endif //PWY_FIXME

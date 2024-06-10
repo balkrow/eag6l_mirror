@@ -77,6 +77,9 @@ extern GT_BOOL multiProcessAppDemo;
 
 #define MAX_GRACEFUL_EXIT_RETRY     10
 
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+extern EVENT_NOTIFY_FUNC *notifyEventToIPC;
+#endif
 
 /* debug flag to open trace of events */
 extern GT_U32 wrapCpssTraceEvents;
@@ -5735,13 +5738,20 @@ static unsigned __TASKCONV appDemoEvHndlr
                     osGetTaskPrior(tid, &prio);
                     DBG_LOG(("cpssEventRecv: %d <dev %d, %s, extData %d> tid 0x%x prio %d\n",
                              (GT_U32)hndlrParamPtr->hndlrIndex, devNum,
-                             (GT_U32)uniEvName[uniEv], evExtData, tid, prio));
+                             (GT_U8 *)uniEvName[uniEv], evExtData, tid, prio));
 #endif
                     if (notifyEventArrivedFunc != NULL)
                     {
                         notifyEventArrivedFunc(devNum, uniEv, evExtData);
                     }
 
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+                    if (notifyEventToIPC != NULL)
+                    {
+                        notifyEventToIPC(devNum, uniEv, evExtData);
+                    }
+
+#endif
                     rc = appDemoEniEvTreat(devNum, uniEv, evExtData);
                     if (GT_OK != rc)
                     {

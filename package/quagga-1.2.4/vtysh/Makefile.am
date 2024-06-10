@@ -20,7 +20,7 @@ dist_examples_DATA = vtysh.conf.sample
 
 EXTRA_DIST = extract.pl
 
-vtysh_cmd_FILES = $(top_srcdir)/sysmon/sysmon_main.c $(top_srcdir)/sysmon/sysmon_zebra.c \
+vtysh_cmd_FILES = $(top_srcdir)/sysmon/sysmon_main.c $(top_srcdir)/sysmon/sysmon_vty.c \
 		  $(top_srcdir)/lib/keychain.c $(top_srcdir)/lib/routemap.c \
 		  $(top_srcdir)/lib/filter.c $(top_srcdir)/lib/plist.c \
 		  $(top_srcdir)/lib/distribute.c $(top_srcdir)/lib/if_rmap.c \

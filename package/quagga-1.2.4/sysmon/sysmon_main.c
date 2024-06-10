@@ -38,6 +38,9 @@
 #include "sysmon/sysmon.h"
 
 extern void sysmon_init(void);
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+void sysmon_vty_init (void);
+#endif
 
 /* ripd options. */
 static struct option longopts[] = 
@@ -289,6 +292,9 @@ main (int argc, char **argv)
   keychain_init ();
   vrf_init ();
   sysmon_zclient_init (master);
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+  sysmon_vty_init ();
+#endif
 
   /* Get configuration file. */
   vty_read_config (config_file, config_default);
