@@ -1,3 +1,6 @@
+#ifndef _SYSMON_H_
+#define _SYSMON_H_
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -130,5 +133,163 @@ extern void print_console(const char *fmt, ...);
         PORT_ID_EAG6L_PORT5,
         PORT_ID_EAG6L_PORT6,
         PORT_ID_EAG6L_PORT7,
+        PORT_ID_EAG6L_PORT8,/*for-demo-board-100G-test*/
+        PORT_ID_EAG6L_PORT9,/*for-demo-board-100G-test*/
         PORT_ID_EAG6L_MAX,
 	};
+
+	enum ePortLinkStaus
+	{
+		PORT_LINK_DOWN,
+		PORT_LINK_UP,
+		PORT_LINK_LAST
+	};
+
+	enum ePortFecMode
+	{
+		PORT_FEC_MODE_ENABLED,
+		PORT_FEC_MODE_DISABLED,
+		PORT_FEC_MODE_RS,
+		PORT_FEC_MODE_BOTH,
+		PORT_FEC_MODE_RS_544_514,
+		PORT_FEC_MODE_LAST
+	};
+
+	enum ePortIfMode
+	{
+		PORT_IF_10G_XGMII,
+		PORT_IF_10G_RXAUI,
+		PORT_IF_10G_KR,
+		PORT_IF_10G_SR_LR,
+		PORT_IF_10G_HX,
+		PORT_IF_25G_KR,
+		PORT_IF_25G_CR,
+		PORT_IF_100G_KR4,
+		PORT_IF_LAST
+	};
+
+	enum eAlarmList
+	{
+		ALM_NONE,
+		ALM_UNIT_FAIL,              /* 1 */
+		ALM_FLASH_DEFAULT_BOOT,     /* 2 */
+		ALM_OPTIC_OUT,              /* 3 */
+		ALM_LOS,                    /* 4 */
+		ALM_LOF,                    /* 5 */
+		ALM_LINK_DOWN,              /* 6 */
+		ALM_TX_FAULT,               /* 7 */
+		ALM_TEMP_FAIL,              /* 8 */
+		ALM_CPU_OVERLOAD,           /* 9 */
+		ALM_MEM_FULL,               /* 10 */
+		ALM_DISK_FULL,              /* 11 */
+		ALM_FAN1_OUT,               /* 12 */
+		ALM_FAN1_FAIL,              /* 13 */
+		ALM_FAN2_OUT,               /* 14 */
+		ALM_FAN2_FAIL,              /* 15 */
+		ALM_POWER_IN_FAIL,          /* 16 */
+		ALM_POWER_OUT_FAIL,         /* 17 */
+		ALM_POWER_ALM_FAIL,         /* 18 add   -> deleted POWER_FAIL */
+		ALM_TELEMETRY_1,            /* 19 */
+		ALM_TELEMETRY_2,            /* 20 */
+		ALM_TELEMETRY_3,            /* 21 */
+		ALM_HOLD_OVER,              /* 22 */
+		ALM_LOCAL_FAULT,            /* 23 */
+		ALM_REMOTE_FAULT,           /* 24 */
+		ALM_OPTIC_LOW_PWR,          /* 25 add optic low power */
+		ALM_DOOR_OPEN,              /* 26 */
+		ALM_IPC_FAIL1,              /* 27 */
+		ALM_IPC_FAIL2,              /* 28 */
+		ALM_IPC_FAIL3,              /* 29 */
+		ALM_IPC_FAIL4,              /* 30 */
+		ALM_IPC_FAIL5,              /* 31 */
+		ALM_IPC_FAIL6,              /* 32 */
+		ALM_L1_LOS,                 /* 33 */
+		ALM_L1_LOF,                 /* 34 */
+		ALM_L1_SDI,                 /* 35 */
+		ALM_L1_RAI,                 /* 37 */
+		ALM_OUT_HEALTH,             /* 38 */
+		ALM_MISMATCH_FW,            /* 39 */
+		ALM_PTP1_LOCK_FAIL,         /* 49 */
+		ALM_PTP2_LOCK_FAIL,         /* 50 */
+		ALM_LAST,                   /* 51 */
+	};
+
+	typedef struct __port_pm_counter__
+	{
+		u64 tx_frame;
+		u64 tx_byte;
+		u64 rx_frame;
+		u64 rx_byte;
+		u64 rx_fcs;
+		u64 fcs_ok;
+		u64 fcs_nok;
+	} port_pm_counter_t;
+
+    struct inventory
+    {
+        i8 manufact[32];
+        i8 model_num[32];
+        i8 part_num[32];
+        i8 serial_num[32];
+        i8 revision[32];
+        i8 manufact_date[32];
+        i8 repair_date[32];
+        i8 repair_code[32];
+        i8 clei_number[32];
+        i8 usi_number[32];
+    };
+
+    struct module_inventory
+    {
+        u32 wave;       /* Module Wave Length */
+        u32 dist;       /* Module Distance(km unit) */
+        u32 max_rate;   /* Max tansmit speed (Gbps) */
+        i8 serial_num[32];
+        i8 vendor[32];
+        i8 part_num[32];
+        i8 acl_partlist[32];
+        i8 date_code[8];
+    };
+
+    struct port_status
+    {
+        u8  equip;
+        u8  link;
+        u8  speed;
+        u8  ifmode;
+        u8  fec_mode;
+        u8  los;
+        u8  lof;
+        u8  esmc_loss;
+		u8  remote_fault;
+		u8  tsfp_self_lp;
+		u8  rtwdm_lp;
+		u8  tx_bias_sts;
+        u8  tx_laser_sts;   /* tx_laser_status 0:On, 1:Off */
+        u8  lpbk_sts;       /* line-test loopback status */
+        u8  sf_led;         /* Signal fail led status (ON/OFF) */
+
+        /* port alarm status */
+        u16 alm_status; /* alarm status */
+        u16 defect_status; /* defect status */
+        u16 connect_status; /* connectiong status, CONNECT_OK, CONNECT_NOK, CONNECT_ING */
+        u16 reserved;
+        
+        /* DDM information */
+        f32 rx_pwr;     /* Module Rx Power (dbm) */
+        f32 rx_min, rx_max, rx_avg;     /* 1 minute (dbm) */
+        f32 tx_pwr;     /* Module Tx Power (dbm) */
+        f32 tx_min, tx_max, tx_avg;     /* 1 minute (dbm) */
+        f32 vcc;        /* Module Voltage (voltage) */
+        f32 tx_bias;    /* Tx bias (mA) */
+        f32 temp;       /* Module Temperature(degree) */
+		f32 laser_temp;
+		f32 tec_curr;
+        
+        u32 cv;         /*CV error counter */
+        u32 fcs;        /*FCS error counter */
+        u32 pm_time;
+        u32 pm_lap_time; /**Path measurement delay time (use  1, 3 port) */
+   };
+
+#endif/*_SYSMON_H_*/

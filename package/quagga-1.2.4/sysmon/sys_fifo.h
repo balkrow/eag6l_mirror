@@ -4,6 +4,7 @@
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 #include <stdarg.h>
 #endif
+#include "sysmon.h"
 
 #define SYSMON_FIFO_READ "/tmp/.sysmonrdfifo"
 #define SYSMON_FIFO_WRITE "/tmp/.sysmonwrfifo"
@@ -22,6 +23,7 @@
 #endif
 
 typedef uint8_t (*cSysmonToCPSSFuncs) (int args, ...);
+typedef uint8_t (*cSysmonReplyFuncs) (int args, ...);
 #endif
 
 enum sysmon_cmd_fifo_type
@@ -35,7 +37,9 @@ enum sysmon_cmd_fifo_type
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	gLLCFSet,
 #endif
-	gPortPM,
+    gPortSetRate,
+    gPortESMCenable,
+    gPortAlarm,
 #endif
 };
 
@@ -45,30 +49,18 @@ enum sysmon_cmd_result_type
 	sysmon_cmd_result_fail,
 };
 
-struct port_pm_counter
-{
-	unsigned long tx_frame;
-	unsigned long tx_byte;
-	unsigned long rx_frame;
-	unsigned long rx_byte;
-	unsigned long rx_fcs;
-	unsigned long fcs_ok;
-	unsigned long fcs_nok;
-};
-
 typedef struct sysmon_cmd_fifo 
 {
-	enum sysmon_cmd_fifo_type	type;
-	unsigned int			portid;
-	unsigned int			portid2;
-	long					result;
-	unsigned short			vid;
-	unsigned int			portmap;
-	unsigned int			taggedmap;
-	short				state;
-	struct port_pm_counter	pm;
-	char				buffer[1000];
-	char				noti_msg[64];
+	enum sysmon_cmd_fifo_type   type;
+	u16                         portid;
+	u16                         portid2;
+	u32                         speed;
+	u16                         mode;
+	i32                         result;
+	i16                         state;
+	struct port_status          port_sts[PORT_ID_EAG6L_MAX];
+	port_pm_counter_t           pm[PORT_ID_EAG6L_MAX];
+	char                        noti_msg[64];
 } sysmon_fifo_msg_t;
 
 
