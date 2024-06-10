@@ -16,6 +16,10 @@
 #define IPC_INIT_SUCCESS 0
 #define IPC_INIT_FAIL 1
 #define SVC_FSM_INIT_MAX_RETRY 5
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+#define IPC_FUNC_ON 1
+#define IPC_FUNC_OFF 0
+#endif
 
 typedef uint8_t (*cSysmonToCPSSFuncs) (int args, ...);
 #endif
@@ -28,31 +32,10 @@ enum sysmon_cmd_fifo_type
 	gSynceEnable,
 	gSynceDisable,
 	gSynceIfSelect,
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+	gLLCFSet,
+#endif
 	gPortPM,
-#else
-	sysmon_cmd_fifo_sdk_init,
-	sysmon_cmd_fifo_test,
-	sysmon_cmd_fifo_hello_test,
-	sysmon_cmd_fifo_sftp_get,
-	sysmon_cmd_fifo_sftp_set,
-	sysmon_cmd_fifo_synce_enable,
-	sysmon_cmd_fifo_synce_disable,
-	sysmon_cmd_fifo_synce_get,
-	sysmon_cmd_fifo_synce_reset,
-	sysmon_cmd_fifo_synce_source_get,
-	sysmon_cmd_fifo_synce_source_set,
-	sysmon_cmd_fifo_fec_enable,
-	sysmon_cmd_fifo_fec_disable,
-	sysmon_cmd_fifo_fec_get,
-	sysmon_cmd_fifo_fec_set,
-	sysmon_cmd_fifo_port_get,
-	sysmon_cmd_fifo_port_set,
-	sysmon_cmd_fifo_vlan_create,
-	sysmon_cmd_fifo_vlan_destory,
-	sysmon_cmd_fifo_vlan_get,
-	sysmon_cmd_fifo_vlan_port_get,
-	sysmon_cmd_fifo_vlan_port_set,
-	sysmon_cmd_fifo_max,
 #endif
 };
 

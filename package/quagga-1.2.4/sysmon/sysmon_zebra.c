@@ -69,18 +69,6 @@ sysmon_interface_up (int command, struct zclient *zclient, zebra_size_t length,
 return 0;
 }
 
-#if 1
-DEFUN (show_sysmon,
-       show_sysmon_cmd,
-       "show sysmon",
-       SHOW_STR
-       "sysmon info\n")
-{
-  vty_out (vty, "show sysmon test%s", VTY_NEWLINE);
-  return CMD_SUCCESS;
-}
-#endif
-
 /* Inteface link down message processing. */
 int
 sysmon_interface_down (int command, struct zclient *zclient, zebra_size_t length,
@@ -119,5 +107,5 @@ sysmon_zclient_init (struct thread_master *master)
 
   /* Install command elements to zebra node. */ 
   //install_element (CONFIG_NODE, &router_zebra_cmd);
-  install_element (VIEW_NODE, &show_sysmon_cmd);
+  //install_element (VIEW_NODE, &show_sysmon_cmd);
 }

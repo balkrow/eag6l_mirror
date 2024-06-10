@@ -159,14 +159,13 @@ void sysmon_thread_init (void)
 #if 0//PWY_FIXME
 	thread_add_timer (master, test_timer_func, NULL, 1);
 #endif //PWY_FIXME
-#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+#if 0/*[#25] I2C related register update, dustin, 2024-05-28 */
 	thread_add_timer (master, sfp_timer_func, NULL, 10);
 #endif
-#if 1/*[#4] Register updating, dustin, 2024-05-28 */
+#if 0/*[#4] Register updating, dustin, 2024-05-28 */
 	thread_add_timer (master, reg_timer_func, NULL, 10);
 #endif
 }
-
 
 int init_rlimit(void)
 {

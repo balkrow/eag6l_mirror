@@ -4,7 +4,13 @@
 #include <cmdShell/common/cmdCommon.h>
 #include <cmdShell/FS/cmdFS.h>
 #include <gtOs/gtOsTask.h>
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+#include <gtOs/gtEnvDep.h>
+#endif
 #include <cpss/dxCh/dxChxGen/port/cpssDxChPortSyncEther.h>
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+#include <cpss/common/port/cpssPortManager.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -18,16 +24,60 @@
 #include "sys_fifo.h"
 #include "eag6l.h"
 #include "syslog.h"
-#else
-#include "../../../../../quagga-1.2.4/sysmon/sys_fifo.h"
+#endif
+
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+#include "eag6l_fsm.h"
 #endif
 
 #if 1/*[#35] traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 extern uint8_t EAG6LVlanInit (void);
 extern uint8_t EAG6LFecInit (void);
 extern GT_VOID appDemoTraceOn_GT_OK_Set(GT_U32);
+extern void initFaultFsmList (void);
 #endif
 
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+extern uint8_t eag6LPortlist [];
+extern uint8_t eag6LPortArrSize;
+extern SVC_FAULT_FSM svcPortFaultFsm[9];
+int32_t svc_fault_fsm_timer(struct multi_thread *thread);
+
+int portLfRfDetect (struct multi_thread *thread);
+uint8_t gEag6LSDKInitStatus = GT_FALSE;
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+struct multi_thread *llcf_thread = NULL;
+#endif
+
+EVENT_NOTIFY_FUNC *notifyEventToIPC = NULL;
+extern GT_STATUS cpssDxChPortManagerStatusGet
+(
+    IN  GT_U8                           devNum,
+    IN  GT_PHYSICAL_PORT_NUM            portNum,
+    OUT CPSS_PORT_MANAGER_STATUS_STC    *portStagePtr
+);
+
+extern GT_STATUS cpssDxChPortXgmiiLocalFaultGet
+(
+    IN  GT_U8       devNum,
+    IN  GT_PHYSICAL_PORT_NUM portNum,
+    OUT GT_BOOL     *isLocalFaultPtr
+);
+
+extern GT_STATUS cpssDxChPortXgmiiRemoteFaultGet
+(
+    IN  GT_U8       devNum,
+    IN  GT_PHYSICAL_PORT_NUM portNum,
+    OUT GT_BOOL     *isRemoteFaultPtr
+);
+
+extern GT_STATUS cpssDxChPortManagerEventSet
+(
+    IN  GT_U8                   devNum,
+    IN  GT_PHYSICAL_PORT_NUM    portNum,
+    IN  CPSS_PORT_MANAGER_STC   *portEventStcPtr
+);
+#endif
 
 int sysrdfifo;
 int syswrfifo;
@@ -35,7 +85,7 @@ int syswrfifo;
 struct multi_thread_master *master;
 
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
-#define DEBUG
+#undef DEBUG
 uint8_t gEag6LIPCstate = IPC_INIT_SUCCESS; 
 
 extern GT_STATUS cpssInitSystem
@@ -45,6 +95,29 @@ extern GT_STATUS cpssInitSystem
     IN  GT_U32  reloadEeprom
 );
 
+
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+GT_VOID processPortEvt
+(
+ GT_U8 devNum,
+ GT_U32 uniEv,
+ GT_U32 evExtData
+ )
+{
+	CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
+
+	if(uniEv == CPSS_PP_PORT_PM_LINK_STATUS_CHANGED_E) 
+	{
+		cpssDxChPortManagerStatusGet(devNum, evExtData, &portConfigOutParams);
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+
+		syslog(LOG_INFO,"port event : devNum=%x, uniEv=%x, evExtData=%x, portState=%s",
+			devNum, uniEv, evExtData, 
+			portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E ? "Link Up":"Link Down");
+#endif
+	}
+}
+#endif
 
 static int send_to_sysmon_master(sysmon_fifo_msg_t * msg) {
 #ifdef DEBUG
@@ -76,7 +149,10 @@ uint8_t gCpssSDKInit(int args, ...)
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 	/*initial tag/untag forwarding */
 	result = EAG6LVlanInit();
-	/*initial FEC mode */
+#endif
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+	if(!result)
+		gEag6LSDKInitStatus = GT_TRUE; 
 #endif
 
 #ifdef DEBUG
@@ -239,6 +315,36 @@ uint8_t gCpssPortPM(int args, ...)
 	return IPC_CMD_SUCCESS;
 }
 
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+uint8_t gCpssLLCFSet(int args, ...)
+{
+	va_list argP;
+	sysmon_fifo_msg_t msg;
+
+	va_start(argP, args);
+	msg.type = va_arg(argP, uint32_t);
+	msg.portid = va_arg(argP, uint32_t);
+	va_end(argP);
+	msg.result = FIFO_CMD_SUCCESS; 	
+
+	syslog(LOG_INFO, "LLCFSet enable[%d] <<<", msg.portid);
+
+	if(msg.portid == IPC_FUNC_ON)
+	{
+		llcf_thread = multi_thread_add_timer (master, svc_fault_fsm_timer, NULL, 1);
+		if(!llcf_thread)
+			msg.result = FIFO_CMD_FAIL; 	
+	}
+	else
+	{
+		multi_thread_cancel(llcf_thread);
+	}
+
+	send_to_sysmon_master(&msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 {
 	gCpssSDKInit,
@@ -247,6 +353,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 	gCpssSynceEnable,
 	gCpssSynceDisable,
 	gCpssSynceIfSelect,
+#endif
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+	gCpssLLCFSet,
 #endif
 	gCpssPortPM,
 };
@@ -277,53 +386,6 @@ void eag6l_ipc_init(void) {
 #ifdef DEBUG
 #endif
 	}
-#if 0/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
-	else
-	{
-		if((syswrfifo = open(SYSMON_FIFO_READ/*to-master*/, O_RDWR)) < 0)
-			gEag6LIPCstate = IPC_INIT_FAIL;
-	}
-#endif/*PWY_FIXME*/
-}
-#endif
-
-#if 0
-static int sysmon_slave_system_command(sysmon_fifo_msg_t * msg)
-{
-    if(msg->type > sysmon_cmd_fifo_test && msg->type < sysmon_cmd_fifo_max)
-    {
-        switch(msg->type)
-        {
-#if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
-	case sysmon_cmd_fifo_sdk_init:
-	cpssInitSystem(38, 1, 0);
-	msg->result = FIFO_CMD_SUCCESS; 	
-	send_to_sysmon_master(msg);
-#ifdef DEBUG
-	syslog(LOG_INFO, " SDK init %s\n", msg->result == FIFO_CMD_SUCCESS ? "Success" : "Fail");
-#endif
-	break;
-#endif
-	case sysmon_cmd_fifo_hello_test:
-		syslog(LOG_INFO, "sysmon_cmd_fifo_hello_test (REQ) : %s\n", msg->noti_msg);
-
-		strcpy(msg->buffer, ">>> TEST DONE <<<");
-		send_to_sysmon_master(msg);
-		break;
-	case sysmon_cmd_fifo_sftp_get:
-		syslog(LOG_INFO, "sysmon_cmd_fifo_sftp_get (REQ) :port[%d].\n", msg->portid);
-		break;
-	case sysmon_cmd_fifo_sftp_set:
-		syslog(LOG_INFO, "sysmon_cmd_fifo_sftp_se (REQ) : port[%d].\n", msg->portid);
-		break;
-
-		/*TODO*/
-
-	default:
-		break;
-	}
-    }
-	return 0;
 }
 #endif
 
@@ -351,25 +413,21 @@ int sysmon_slave_recv_fifo(struct multi_thread *thread)
 	switch(req.type) 
     {
         case gSDKInit:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-
         case gHello:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
         case gSynceEnable:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
         case gSynceDisable:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
+		gCpssToSysmonFuncs[req.type](1, req.type);
+		break;
         case gSynceIfSelect:
 			gCpssToSysmonFuncs[req.type](3, req.type, req.portid, req.portid2);
             break;
         case gPortPM:
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+	case gLLCFSet:
 			gCpssToSysmonFuncs[req.type](2, req.type, req.portid);
+#endif
             break;
-		default:
+	default:
             syslog(LOG_INFO,"%s : default? (REQ) : type[%d]", __func__, req.type);
 			gCpssToSysmonFuncs[req.type](1, req.type);
 	}
@@ -410,24 +468,125 @@ int sysmon_slave_fifo_recv_init (void )
 }
 #endif
 
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+SVC_FAULT_ST fault_st_transition
+(
+ SVC_FAULT_ST state,
+ SVC_FAULT_EVT evt
+) 
+{
+	SVC_FAULT_ST rc = SVC_FAULT_ST_INIT;
+	switch (state) {
+	case SVC_FAULT_ST_INIT:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_LFRF_CHECK;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_INIT;
+
+		break;
+	case SVC_FAULT_ST_LFRF_CHECK:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_LFRF_CHECK;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_INIT;
+		break;
+	case SVC_FAULT_ST_LF:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_LF;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_INIT;
+		break;
+	case SVC_FAULT_ST_FWD_LF:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_FWD_LF;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_CLR_LF;
+		break;
+	case SVC_FAULT_ST_RF:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_RF;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_INIT;
+		break;
+	case SVC_FAULT_ST_FWD_RF:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_FWD_RF;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_CLR_RF;
+		break;
+	case SVC_FAULT_ST_CLR_LF:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_LF;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_CLR_LF;
+		break;
+	case SVC_FAULT_ST_CLR_RF:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_RF;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_CLR_RF;
+		break;
+	case SVC_FAULT_ST_NO_LFRF:
+		if(evt == SVC_FAULT_EVT_LINK_DOWN)
+			rc = SVC_FAULT_ST_NO_LFRF;
+		else if(evt == SVC_FAULT_EVT_LINK_UP)
+			rc = SVC_FAULT_ST_INIT;
+		break;
+	default:
+		break;
+	}
+	return rc;
+}
+
+int32_t svc_fault_fsm_timer(struct multi_thread *thread)
+{
+	uint8_t i;
+	SVC_FAULT_ST state, next_state;
+	SVC_FAULT_ST evt;
+	CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
+	GT_U8 devNum = 0;
+
+	thread = thread;
+
+	if(gEag6LSDKInitStatus == GT_FALSE)
+		goto next_timer;
+
+	for(i = 0; i < eag6LPortArrSize; i++)
+	{
+
+		cpssDxChPortManagerStatusGet(devNum, eag6LPortlist[i], &portConfigOutParams);
+
+		evt = (portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E) ? 
+			SVC_FAULT_EVT_LINK_UP : SVC_FAULT_EVT_LINK_DOWN;
+
+		state = fault_st_transition(svcPortFaultFsm[i].state, evt);
+
+		next_state = svcPortFaultFsm[i].cb[state](i);
+#ifdef DEBUG
+		syslog(LOG_INFO, "port=%d, state=%d, evt=%d", eag6LPortlist[i], state, evt);
+#endif
+		svcPortFaultFsm[i].state = next_state;
+		svcPortFaultFsm[i].evt = evt;
+	}
+next_timer:	
+	multi_thread_add_timer_msec(master, svc_fault_fsm_timer, NULL, 200);
+	return 0;
+}
+
+#endif
+
 void sysmon_slave_init (void) 
 {
+
 	master = multi_thread_make_master();
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 	eag6l_ipc_init();
 #endif
 	sysmon_slave_fifo_recv_init();
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+	initFaultFsmList ();
+#endif
 }
-
-#if 0/*test-code*/
-int _echo_to_terminal (struct multi_thread *thread)
-{
-	thread = thread;
-    cmdOsPrintf("sysmon_slave_task run\n");
-	multi_thread_add_timer (master, _echo_to_terminal, NULL, 10);
-	return 0;
-}
-#endif/*test-code*/
 
 static unsigned __TASKCONV OAM_thread(void)
 {
@@ -436,12 +595,10 @@ static unsigned __TASKCONV OAM_thread(void)
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 	openlog("EAG6LIPC", LOG_PID | LOG_CONS| LOG_NDELAY | LOG_PID, LOG_USER);
 #endif
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+	notifyEventToIPC = processPortEvt;
+#endif
 	sysmon_slave_init();
-
-#if 0/*test-code*/
-	/*add timer*/
-	multi_thread_add_timer (master, _echo_to_terminal, NULL, 10);
-#endif/*test-code*/
 
 	syslog(LOG_NOTICE, "Start EAG6L IPC Thread");
 	while (multi_thread_fetch (master, &thread))
