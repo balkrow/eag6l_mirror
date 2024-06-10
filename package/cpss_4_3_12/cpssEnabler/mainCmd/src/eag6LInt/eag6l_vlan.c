@@ -51,6 +51,29 @@ extern GT_STATUS appDemoDevIdxGet
  OUT GT_U32  *devIdxPtr
 );
 
+#if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
+extern GT_STATUS cpssDxChPortMruSet
+(
+    IN  GT_U8  devNum,
+    IN  GT_PHYSICAL_PORT_NUM  portNum,
+    IN  GT_U32 mruSize
+);
+
+extern GT_STATUS cpssDxChBrgVlanMruProfileValueSet
+(
+    IN GT_U8     devNum,
+    IN GT_U32    mruIndex,
+    IN GT_U32    mruValue
+);
+
+extern GT_STATUS cpssDxChBrgVlanMruProfileIdxSet
+(
+    IN GT_U8     devNum,
+    IN GT_U16    vlanId,
+    IN GT_U32    mruIndex
+);
+#endif
+
 extern APP_DEMO_PP_CONFIG appDemoPpConfigList[APP_DEMO_PP_CONFIG_SIZE_CNS];
 
 uint8_t eag6L25GPortlist [] =
@@ -224,6 +247,24 @@ uint8_t EAG6LCpeVlanAdd
 	return rc;
 }
 #endif
+
+#if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
+uint8_t EAG6LJumboFrameEnable (void)
+{
+	uint8_t rc = 0, i;
+	GT_U8 devNum = 0x0;
+	GT_U32 mruSize = 0x2800, mruIndex = 1;
+
+	for(i = 0; i < eag6LPortArrSize; i++)
+	{
+		 rc = cpssDxChPortMruSet(devNum, eag6LPortlist[i], mruSize);
+		 rc += cpssDxChBrgVlanMruProfileValueSet(devNum, mruIndex, mruSize);
+		 rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, 1, mruIndex);
+	}
+	return rc;
+}
+#endif
+
 uint8_t EAG6LFecInit (void)
 {
 	uint8_t rc = 0, i;

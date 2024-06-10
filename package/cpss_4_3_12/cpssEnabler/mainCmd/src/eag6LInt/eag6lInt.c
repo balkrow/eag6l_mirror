@@ -37,6 +37,10 @@ extern GT_VOID appDemoTraceOn_GT_OK_Set(GT_U32);
 extern void initFaultFsmList (void);
 #endif
 
+#if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
+extern uint8_t EAG6LJumboFrameEnable (void);
+#endif
+
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 extern uint8_t eag6LPortlist [];
 extern uint8_t eag6LPortArrSize;
@@ -149,6 +153,9 @@ uint8_t gCpssSDKInit(int args, ...)
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 	/*initial tag/untag forwarding */
 	result = EAG6LVlanInit();
+#endif
+#if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
+	result = EAG6LJumboFrameEnable();
 #endif
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	if(!result)
