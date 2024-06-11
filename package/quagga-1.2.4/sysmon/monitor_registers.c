@@ -22,6 +22,39 @@ extern int synce_config_set_if_select(u32 pri_port, u32 sec_port);
 extern void pm_request_counters(void);
 extern void pm_request_clear(void);
 
+#if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+uint16_t portRateSet (uint16_t port);
+extern uint16_t sys_fpga_memory_read(uint16_t addr);
+
+RegMON regMonList [] = {
+  { COMMON_CTRL2_P1_ADDR, 0x3, 0, 0x7, sys_fpga_memory_read, portRateSet/*register callback*/}, 
+};
+uint16_t regMonArrSize = sizeof(regMonList) / sizeof(RegMON);
+
+uint16_t portRateSet (uint16_t port)
+{
+	port = port;
+	return 0;
+}
+
+void regMonitor(void)
+{
+	uint16_t i, val;
+	for(i = 0; i < regMonArrSize; i++)
+	{
+
+		val = regMonList[i].func(regMonList[i].reg); 
+		val = (val >> regMonList[i].shift) & regMonList[i].mask;
+		if(regMonList[i].val != val) 
+		{
+			/*TODO Func*/
+			regMonList[i].cb(val);
+			regMonList[i].val = val;
+		}
+	}
+}
+#endif
+
 
 unsigned long __COMMON_CTRL2_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, COMMON_CTRL2_P1_ADDR,
 		COMMON_CTRL2_P2_ADDR, COMMON_CTRL2_P3_ADDR, 
