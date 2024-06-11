@@ -40,6 +40,10 @@ enum sysmon_cmd_fifo_type
     gPortSetRate,
     gPortESMCenable,
     gPortAlarm,
+#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
+	gPortPMGet,
+	gPortPMClear,
+#endif
 #endif
 };
 

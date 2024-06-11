@@ -241,6 +241,58 @@ int8_t sysmon_llcf_set
 	return send_to_sysmon_slave(msg);
 }
 #endif
+
+#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
+uint8_t gCpssPortPMGet(int args, ...)
+{
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+	if(args != 1) {
+		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);	
+	va_end(argP);
+
+	if(send_to_sysmon_slave(msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssPortPMClear(int args, ...)
+{
+    va_list argP;
+    sysmon_fifo_msg_t *msg = NULL;
+#ifdef DEBUG
+    zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+    if(args != 1) {
+		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+        return IPC_CMD_FAIL;
+	}
+
+    va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+    va_end(argP);
+
+    if(send_to_sysmon_slave(msg) == 0) {
+        zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+        return IPC_CMD_FAIL;
+    }
+
+    return IPC_CMD_SUCCESS;
+}
+#endif
 #endif
 #endif
 
@@ -287,6 +339,10 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssPortSetRate,
 	gCpssPortESMCenable, /*further implements*/
 	gCpssPortAlarm, /* Link Down/up */
+#endif
+#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
+	gCpssPortPMGet,
+	gCpssPortPMClear,
 #endif
 };
 
@@ -370,6 +426,32 @@ void port_status_alarm(void)
 
 	/* use marvell sdk to get port link status. */
 	gSysmonToCpssFuncs[gPortAlarm](1, &msg);
+	return;
+}
+#endif
+
+#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
+void pm_request_counters(void)
+{
+	sysmon_fifo_msg_t msg;
+
+	memset(&msg, 0, sizeof msg);
+	msg.type = gPortPMGet;
+
+	/* use marvell sdk to get pm counters. */
+	gSysmonToCpssFuncs[gPortPMGet](1, &msg);
+	return;
+}
+
+void pm_request_clear(void)
+{
+	sysmon_fifo_msg_t msg;
+
+	memset(&msg, 0, sizeof msg);
+	msg.type = gPortPMClear;
+
+	/* use marvell sdk to clear pm counters. */
+	gSysmonToCpssFuncs[gPortPMClear](1, &msg);
 	return;
 }
 #endif
@@ -527,6 +609,32 @@ uint8_t gReplySynceIfSelect(int args, ...)
 	return ret;
 }
 
+#if 1/*[#43] LF��� RF �� �� ��, balkrow, 2024-06-05*/
+uint8_t gReplyLLCF(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	/* process for result. */
+	/*FIXME*/
+
+	return ret;
+}
+#endif
+
 uint8_t gReplyPortSetRate(int args, ...)
 {
 	uint8_t ret = IPC_CMD_SUCCESS;
@@ -603,6 +711,82 @@ uint8_t gReplyPortAlarm(int args, ...)
 	return ret;
 }
 
+#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
+uint8_t gReplyPortPMGet(int args, ...)
+{
+	uint8_t portno, ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	/* process for result. */
+	if(msg->result == FIFO_CMD_SUCCESS) {
+		/* accumulate the counters. marvell counters are cleared on read. */
+		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+			PM_TBL[portno].tx_frame += msg->pm[portno].tx_frame;
+			PM_TBL[portno].rx_frame += msg->pm[portno].rx_frame;
+			PM_TBL[portno].tx_byte  += msg->pm[portno].tx_byte;
+			PM_TBL[portno].rx_byte  += msg->pm[portno].rx_byte;
+			PM_TBL[portno].rx_fcs   += msg->pm[portno].rx_fcs;
+			PM_TBL[portno].fcs_ok   += msg->pm[portno].fcs_ok;
+			PM_TBL[portno].fcs_nok  += msg->pm[portno].fcs_nok;
+#ifdef DEBUG
+			syslog(LOG_INFO, ">>> gReplyPortPMGet : port[0/%d] ret[%d]", 
+				get_eag6L_dport(portno, 0), ret);
+			syslog(LOG_INFO, ">>> gReplyPortPMGet tx_frame[%lu] rx_frame[ %lu]", 
+				PM_TBL[portno].tx_frame, PM_TBL[portno].rx_frame);
+			syslog(LOG_INFO, ">>> gReplyPortPMGet tx_bytes[%lu] rx_bytes[%lu]", 
+				PM_TBL[portno].tx_byte, PM_TBL[portno].rx_byte);
+			syslog(LOG_INFO, ">>> gReplyPortPMGet rx_fcs[%lu]", PM_TBL[portno].rx_fcs);
+			syslog(LOG_INFO, ">>> gReplyPortPMGet fcs_ok[%lu] fcs_nok[%lu]", 
+				PM_TBL[portno].fcs_ok, PM_TBL[portno].fcs_nok);
+#endif
+		}
+	} else
+		syslog(LOG_INFO, "%s: Getting PM counters failed. ret[%d].", msg->result);
+
+	return ret;
+}
+
+uint8_t gReplyPortPMClear(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	/* process for result. */
+	if(msg->result == FIFO_CMD_SUCCESS) {
+		memset(PM_TBL, 0, sizeof PM_TBL);
+	} else
+		syslog(LOG_INFO, "%s: Clearing PM counters failed. ret[%d].", msg->result);
+
+	return ret;
+}
+#endif
+
 cSysmonReplyFuncs gSysmonReplyFuncs[] =
 {
 	gReplySDKInit,
@@ -610,9 +794,16 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 	gReplySynceEnable,
 	gReplySynceDisable,
 	gReplySynceIfSelect,
+#if 1/*[#43] LF��� RF �� �� ��, balkrow, 2024-06-05*/
+	gReplyLLCF,
+#endif
 	gReplyPortSetRate,
 	gReplyPortESMCEnable,
 	gReplyPortAlarm,
+#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
+	gReplyPortPMGet,
+	gReplyPortPMClear,
+#endif
 };
 
 const uint32_t funcsListLen2 = sizeof(gSysmonReplyFuncs) / sizeof(cSysmonReplyFuncs);
@@ -656,6 +847,19 @@ static int sysmon_master_system_command(sysmon_fifo_msg_t * msg)
 		case gPortAlarm:
 			zlog_notice("gPortAlarm (REPLY) : result[%d].", msg->result);
 			break;
+#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
+		case gPortPMGet:
+			zlog_notice("gPortPMGet (REPLY) : result[%d].", msg->result);
+			zlog_notice("tx_frame : %lu", msg->pm[1].tx_frame);
+			zlog_notice("rx_frame : %lu", msg->pm[1].rx_frame);
+			zlog_notice("tx_byte  : %lu", msg->pm[1].tx_byte);
+			zlog_notice("rx_byte  : %lu", msg->pm[1].rx_byte);
+			zlog_notice("rx_fcs   : %lu", msg->pm[1].rx_fcs);
+			break;
+		case gPortPMClear:
+			zlog_notice("gPortPMClear (REPLY) : result[%d].", msg->result);
+			break;
+#endif
 			//TODO
 
 		default:
