@@ -67,6 +67,38 @@ void print_console(const char *fmt, ...)
 }
 #endif
 
+#if 1/* Adding for eag6LPortlist */
+u8 eag6LPortlist[] =
+{
+	0,      /*port1-25G*/
+	8,      /*port2-25G*/
+	16,     /*port3-25G*/
+	24,     /*port4-25G*/
+	32,     /*port5-25G*/
+	40,     /*port6-25G*/
+	48,     /*port7-25G*/
+	49,     /*port8-25G*/
+	50,     /*port9-100G-offset-0*/
+	51,     /*port9-100G-offset-1*/
+	52,     /*port9-100G-offset-2*/
+	53,     /*port9-100G-offset-3*/
+};
+u8 eag6LPortArrSize = sizeof(eag6LPortlist) / sizeof(u8);
+
+u8 get_eag6L_dport(u8 lport, u8 offset)
+{
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT8))
+		return eag6LPortlist[lport - 1];
+	else if((lport == PORT_ID_EAG6L_PORT9) && (offset < 4))
+		return eag6LPortlist[lport - 1 + offset];
+	else {
+		syslog(LOG_ERR, "%s: invalid parameter lport[%d] offset[%d].",
+				__func__, lport, offset);
+		return 255;/*invalid dport*/
+	}
+}
+#endif
+
 void sigint (int sig) {
 	/* TODO. signal */
 	exit(0);
@@ -100,8 +132,8 @@ int reg_timer_func(struct thread *thread)
 	thread_add_timer (master, (int)reg_timer_func, NULL, 10);
 
 	{
-		extern void update_reg(void);
-		update_reg();
+		extern void update_bp_reg(void);
+		update_bp_reg();
 	}
 	return 0;
 }
@@ -159,10 +191,10 @@ void sysmon_thread_init (void)
 #if 0//PWY_FIXME
 	thread_add_timer (master, test_timer_func, NULL, 1);
 #endif //PWY_FIXME
-#if 0/*[#25] I2C related register update, dustin, 2024-05-28 */
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
 	thread_add_timer (master, sfp_timer_func, NULL, 10);
 #endif
-#if 0/*[#4] Register updating, dustin, 2024-05-28 */
+#if 1/*[#4] Register updating, dustin, 2024-05-28 */
 	thread_add_timer (master, reg_timer_func, NULL, 10);
 #endif
 }

@@ -11,6 +11,7 @@
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 #include <cpss/common/port/cpssPortManager.h>
 #endif
+#include <cpss/dxCh/dxChxGen/port/cpssDxChPortManager.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -88,6 +89,40 @@ int syswrfifo;
 
 struct multi_thread_master *master;
 
+uint8_t eag6LLinkStatus[PORT_ID_EAG6L_MAX];
+
+#if 1/*PWY_FIXME*/
+uint8_t eag6LPortlist2[] = 
+{
+	0,		/*port1-25G*/
+	8,		/*port2-25G*/
+	16,		/*port3-25G*/
+	24,		/*port4-25G*/
+	32,		/*port5-25G*/
+	40,		/*port6-25G*/
+	48,		/*port7-25G*/
+	49,		/*port8-25G*/
+	50,		/*port9-100G-offset-0*/
+	51,		/*port9-100G-offset-1*/
+	52,		/*port9-100G-offset-2*/
+	53,		/*port9-100G-offset-3*/
+};
+uint8_t eag6LPortArrSize2 = sizeof(eag6LPortlist2) / sizeof(uint8_t);
+
+uint8_t get_eag6L_dport(uint8_t lport, uint8_t offset)
+{
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT8))
+		return eag6LPortlist2[lport - 1];
+	else if((lport == PORT_ID_EAG6L_PORT9) && (offset < 4))
+		return eag6LPortlist2[lport - 1 + offset];
+	else {
+		syslog(LOG_ERR, "%s: invalid parameter lport[%d] offset[%d].", 
+			__func__, lport, offset);
+		return 255;/*invalid dport*/
+	}
+}
+#endif /*PWY_FIXME*/
+
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 #undef DEBUG
 uint8_t gEag6LIPCstate = IPC_INIT_SUCCESS; 
@@ -98,6 +133,18 @@ extern GT_STATUS cpssInitSystem
     IN  GT_U32  boardRevId,
     IN  GT_U32  reloadEeprom
 );
+extern GT_STATUS cpssDxChSamplePortManagerFecModeSet
+(
+	IN  GT_U8                                   devNum,
+	IN  GT_PHYSICAL_PORT_NUM                    portNum,
+	IN  CPSS_PORT_FEC_MODE_ENT                  fecMode
+);
+extern GT_STATUS cpssPortManagerLuaSerdesTypeGet
+(
+	IN  GT_SW_DEV_NUM              devNum,
+	OUT CPSS_PORT_SERDES_TYPE_ENT  *serdesType
+);
+
 
 
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
@@ -127,7 +174,7 @@ static int send_to_sysmon_master(sysmon_fifo_msg_t * msg) {
 #ifdef DEBUG
 	syslog(LOG_INFO, "Send msg %x to sysmon", msg->type);
 #endif
-#if 0/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
+#if 1/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
 	return write(syswrfifo, msg, sizeof(sysmon_fifo_msg_t));
 #else
 	if((syswrfifo = open(SYSMON_FIFO_READ/*to-master*/, O_RDWR)) < 0) {
@@ -140,14 +187,14 @@ static int send_to_sysmon_master(sysmon_fifo_msg_t * msg) {
 	close(syswrfifo);
 
 	return 0;
-#endif /*PWY_FIXME*/
+#endif
 }
 
 uint8_t gCpssSDKInit(int args, ...)
 {
 	uint8_t result;
 	va_list argP;
-	sysmon_fifo_msg_t msg;
+	sysmon_fifo_msg_t *msg = NULL;
 
 	result = cpssInitSystem(38, 1, 0);
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
@@ -166,20 +213,24 @@ uint8_t gCpssSDKInit(int args, ...)
 	syslog(LOG_INFO, "cpssInitSystem result %x", result);
 #endif
 	va_start(argP, args);
-	msg.type = va_arg(argP, uint32_t);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
 
-	msg.result = FIFO_CMD_SUCCESS; 	
-	send_to_sysmon_master(&msg);
+	msg->result = result; 	
+	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
 
 uint8_t gCpssHello(int args, ...)
 {
-	sysmon_fifo_msg_t msg;
-	msg.type = gHello;		
-	send_to_sysmon_master(&msg);
-	args = args;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gHello, msg->type);
+	msg->result = FIFO_CMD_SUCCESS;
+	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
 
@@ -187,140 +238,169 @@ uint8_t gCpssHello(int args, ...)
 uint8_t gCpssSynceEnable(int args, ...)
 {
 	uint8_t ret;
-	uint8_t portno;
-	sysmon_fifo_msg_t msg;
+	uint8_t portno, dport;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
 
-	memset(&msg, 0, sizeof msg);
-	msg.type = gSynceEnable;		
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gSynceEnable, msg->type);
 
-	syslog(LOG_INFO, "gCpssSynceEnable (REQ).");
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-			portno, 1/*overrideEnable*/, 
-			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-		if(ret != GT_OK) {
-			msg.result |= (0x1 < (portno - 1));
-			syslog(LOG_INFO, "cpssDxChPortRefClockSourceOverrideEnableSet ret[%d]", ret);
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(portno, 0);
+			ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+					dport, 1/*overrideEnable*/, 
+					CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+			if(ret != GT_OK)
+				msg->result |= (0x1 < (portno - 1));
+		} else if(portno == PORT_ID_EAG6L_PORT9) {
+			for(portno = 0; portno < 4; portno++) {
+				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
+				ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+						dport, 1/*overrideEnable*/, 
+						CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+				if(ret != GT_OK)
+					msg->result |= (0x1 < (portno - 1));
+			}
 		}
 	}
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(0/*devNum*/, 
-			CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E/*recoveryClkType*/, 
-			1/*enable*/, 0/*portNum*/, 0/*laneNum*/);
-		if(ret != GT_OK) {
-			msg.result |= (0x100 < (portno - 1));
-			syslog(LOG_INFO, "cpssDxChPortSyncEtherRecoveryClkConfigSet ret[%d]", ret);
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(portno, 0);
+			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(0/*devNum*/, 
+					CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E/*recoveryClkType*/, 
+					1/*enable*/, dport/*portNum*/, 0/*laneNum*/);
+			if(ret != GT_OK) {
+				msg->result |= (0x100 < (portno - 1));
+				syslog(LOG_INFO, "cpssDxChPortSyncEtherRecoveryClkConfigSet ret[%d]", ret);
+			}
+		} else if(portno == PORT_ID_EAG6L_PORT9) {
+			for(portno = 0; portno < 4; portno++) {
+				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
+				ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(0/*devNum*/, 
+						CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E/*recoveryClkType*/, 
+						1/*enable*/, dport/*portNum*/, 0/*laneNum*/);
+				if(ret != GT_OK)
+					msg->result |= (0x1 < (portno - 1));
+			}
 		}
 	}
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0/*devNum*/,
-			portno, 0/*laneNum*/, 
-			CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLOCK_SELECT_0_E,
-			CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
-		if(ret != GT_OK) {
-			msg.result |= (0x10000 < (portno - 1));
-			syslog(LOG_INFO, "cpssDxChPortSyncEtherRecoveryClkDividerValueSet ret[%d]", ret);
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(portno, 0);
+			ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0/*devNum*/,
+					dport, 0/*laneNum*/, 
+					CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLOCK_SELECT_0_E,
+					CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+			if(ret != GT_OK)
+				msg->result |= (0x10000 < (portno - 1));
+		} else if(portno == PORT_ID_EAG6L_PORT9) {
+			for(portno = 0; portno < 4; portno++) {
+				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
+				ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0/*devNum*/,
+						dport, 0/*laneNum*/, 
+						CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLOCK_SELECT_0_E,
+						CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+				if(ret != GT_OK)
+					msg->result |= (0x1 < (portno - 1));
+			}
 		}
 	}
 
-	sprintf(msg.buffer, ">>> gCpssSynceEnable DONE <<<");
-	syslog(LOG_INFO, ">>> gCpssSynceEnable DONE total ret[0x%x] <<<", (unsigned int)msg.result);
+	syslog(LOG_INFO, ">>> gCpssSynceEnable DONE total ret[0x%x] <<<", (unsigned int)msg->result);
 
 	/* reply the result */
-	send_to_sysmon_master(&msg);
-	args = args;
+	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
 
 uint8_t gCpssSynceDisable(int args, ...)
 {
 	uint8_t ret;
-	uint8_t portno;
-	sysmon_fifo_msg_t msg;
+	uint8_t portno, dport;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
 
-	memset(&msg, 0, sizeof msg);
-	msg.type = gSynceDisable;		
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gSynceDisable, msg->type);
 
-	syslog(LOG_INFO, "gCpssSynceDisable (REQ) : port[%d].\n", msg.portid);
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-			portno, 0/*overrideDisable*/, 
-			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-		/* FIXME : just disabling is OK?? */
-		if(ret != GT_OK)
-			msg.result |= (0x1 < (portno - 1));
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(portno, 0);
+			ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+					dport, 0/*overrideDisable*/, 
+					CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+			/* FIXME : just disabling is OK?? */
+			if(ret != GT_OK)
+				msg->result |= (0x1 < (portno - 1));
+		} else if(portno == PORT_ID_EAG6L_PORT9) {
+			for(portno = 0; portno < 4; portno++) {
+				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
+				ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+						dport, 0/*overrideDisable*/, 
+						CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+				if(ret != GT_OK)
+					msg->result |= (0x1 < (portno - 1));
+			}
+		}
 	}
 
-	sprintf(msg.buffer, ">>> gCpssSynceDisable DONE <<<");
-	syslog(LOG_INFO, ">>> gCpssSynceDisable DONE <<<");
+	syslog(LOG_INFO, ">>> gCpssSynceDisable DONE ret[%d] <<<", ret);
 
 	/* reply the result */
-	send_to_sysmon_master(&msg);
-	args = args;
+	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
 
 uint8_t gCpssSynceIfSelect(int args, ...)
 {
 	uint8_t ret;
-	uint8_t portno;
+	uint8_t portno, dport;
 	va_list argP;
-	sysmon_fifo_msg_t msg;
-
-	memset(&msg, 0, sizeof msg);
+	sysmon_fifo_msg_t *msg = NULL;
 
 	va_start(argP, args);
-	msg.type = va_arg(argP, uint32_t);
-	msg.portid = va_arg(argP, uint32_t);
-	msg.portid2 = va_arg(argP, uint32_t);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] type[%d] pri[%d] sec[%d].", 
+		__func__, gSynceIfSelect, msg->type, msg->type, msg->portid, msg->portid2);
 
-	syslog(LOG_INFO, "gCpssSynceIfSelect (REQ) : pri[%d] sec[%d].\n", msg.portid, msg.portid2);
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-			portno, 0/*overrideDisable*/, 
-			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-		/* FIXME : just disabling is OK?? */
-		if(ret != GT_OK)
-			msg.result |= (0x1 < (portno - 1));
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(portno, 0);
+			ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+					dport, 0/*overrideDisable*/, 
+					CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+			/* FIXME : just disabling is OK?? */
+			if(ret != GT_OK)
+				msg->result |= (0x1 < (portno - 1));
+		} else if(portno == PORT_ID_EAG6L_PORT9) {
+			for(portno = 0; portno < 4; portno++) {
+				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
+				ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+						dport, 0/*overrideDisable*/, 
+						CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+				if(ret != GT_OK)
+					msg->result |= (0x1 < (portno - 1));
+			}
+		}
 	}
 
-	sprintf(msg.buffer, ">>> gCpssSynceIfSelect DONE <<<");
-	syslog(LOG_INFO, ">>> gCpssSynceIfSelect DONE <<<");
+	syslog(LOG_INFO, ">>> gCpssSynceIfSelect DONE ret[%d] <<<", ret);
 
 	/* reply the result */
-	send_to_sysmon_master(&msg);
-	args = args;
+	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
 #endif
 
-uint8_t gCpssPortPM(int args, ...)
-{
-	va_list argP;
-	sysmon_fifo_msg_t msg;
 
-	memset(&msg, 0, sizeof msg);
-
-	va_start(argP, args);
-	msg.type = va_arg(argP, uint32_t);
-	msg.portid = va_arg(argP, uint32_t);
-	va_end(argP);
-
-	/*FIXME : call cpss api*/
-
-	/* copy data to msg.pm */
-
-	sprintf(msg.buffer, ">>> gCpssPortPM DONE <<<");
-	syslog(LOG_INFO, ">>> gCpssPortPM DONE port[%d] <<<", msg.portid);
-
-	/* reply the result */
-	send_to_sysmon_master(&msg);
-	args = args;
-	return IPC_CMD_SUCCESS;
-}
 
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 uint8_t gCpssLLCFSet(int args, ...)
@@ -352,6 +432,257 @@ uint8_t gCpssLLCFSet(int args, ...)
 }
 #endif
 
+#if 1/*[#40] Port config for rate/ESMC/alarm, dustin, 2024-05-30 */
+uint8_t gCpssPortSetRate(int args, ...)
+{
+    uint8_t ret = GT_OK, retry;
+	uint8_t portno, dport, ifmode;
+	uint16_t speed;
+    va_list argP;
+    sysmon_fifo_msg_t *msg = NULL;
+	CPSS_PORT_MANAGER_STC pmgr;
+	CPSS_PM_PORT_PARAMS_STC pparam;
+	CPSS_PORT_MANAGER_STATUS_STC pstage;
+	CPSS_PORT_SERDES_TYPE_ENT serdes;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] port[%d] speed[%d] mode[%d].", 
+		__func__, gPortSetRate, msg->type, msg->portid, msg->speed, msg->mode);
+
+	/* set speed/mode */
+	switch(msg->speed) {
+		case PORT_IF_10G_XGMII:
+			speed = CPSS_PORT_SPEED_10000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_XGMII_E;
+			break;
+		case PORT_IF_10G_RXAUI:
+			speed = CPSS_PORT_SPEED_10000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_RXAUI_E;
+			break;
+		case PORT_IF_10G_KR:
+			speed = CPSS_PORT_SPEED_10000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
+			break;
+		case PORT_IF_25G_KR:
+			speed = CPSS_PORT_SPEED_25000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_KR_C_E;
+			break;
+		case PORT_IF_25G_CR:
+			speed = CPSS_PORT_SPEED_25000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_CR_C_E;
+			break;
+		case PORT_IF_100G_KR4:
+			speed = CPSS_PORT_SPEED_100G_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_KR4_E;
+			break;
+		default:
+			syslog(LOG_INFO, "%s: invalid speed[%d].", __func__, msg->speed);
+			return GT_ERROR;
+	}
+
+	ret = cpssDxChPortManagerPortParamsStructInit(
+				CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E, &pparam);
+    if(ret != GT_OK) {
+		syslog(LOG_INFO, "cpssDxChPortManagerPortParamsStructInit ret[%d]", ret);
+		goto _gCpssPortSetRate_exit;
+	}
+
+	/* FIXME : call port config api. */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if(portno != msg->portid)	continue;
+
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(portno, 0);
+
+			pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
+			ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+			if(ret != GT_OK) {
+				syslog(LOG_INFO, "cpssDxChPortManagerEventSet(1) ret[%d]", ret);
+				goto _gCpssPortSetRate_exit;
+			}
+
+			ret = cpssPortManagerLuaSerdesTypeGet(0, &serdes);
+			if(ret != GT_OK) {
+				syslog(LOG_INFO, "cpssPortManagerLuaSerdesTypeGet ret[%d]", ret);
+				goto _gCpssPortSetRate_exit;
+			}
+
+			pparam.portType = CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E;
+			pparam.magic = 0x1A2BC3D4;
+			pparam.portParamsType.regPort.laneParams[0].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[0].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[0].rxParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[1].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[1].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[1].rxParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[2].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[2].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[2].rxParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[3].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[3].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[3].rxParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[4].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[4].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[4].rxParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[5].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[5].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[5].rxParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[6].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[6].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[6].rxParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[7].validLaneParamsBitMask = 0x0;
+			pparam.portParamsType.regPort.laneParams[7].txParams.type = serdes;
+			pparam.portParamsType.regPort.laneParams[7].rxParams.type = serdes;
+			pparam.portParamsType.regPort.portAttributes.validAttrsBitMask = 0x20;
+			pparam.portParamsType.regPort.portAttributes.preemptionParams.type = CPSS_PM_MAC_PREEMPTION_DISABLED_E;
+			pparam.portParamsType.regPort.portAttributes.fecMode = FEC_OFF;
+			pparam.portParamsType.regPort.speed = speed;
+			pparam.portParamsType.regPort.ifMode = ifmode;
+
+			ret = cpssDxChPortManagerPortParamsSet(0, dport, &pparam);
+			if(ret != GT_OK) {
+				syslog(LOG_INFO, "cpssDxChPortManagerPortParamsSet ret[%d]", ret);
+				goto _gCpssPortSetRate_exit;
+			}
+
+ 			if((msg->speed == PORT_IF_25G_KR) || (msg->speed == PORT_IF_25G_CR)) {
+				ret = cpssDxChSamplePortManagerFecModeSet(0, dport, CPSS_PORT_RS_FEC_MODE_ENABLED_E);
+				if(ret != GT_OK) {
+					syslog(LOG_INFO, "cpssDxChPortFecModeSet ret[%d]", ret);
+					goto _gCpssPortSetRate_exit;
+				}
+			}
+
+			ret = cpssDxChPortManagerStatusGet(0, dport, &pstage);
+			if(ret != GT_OK) {
+				syslog(LOG_INFO, "cpssDxChPortManagerStatusGet ret[%d]", ret);
+				goto _gCpssPortSetRate_exit;
+			}
+
+			pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
+			if(pstage.portUnderOperDisable || 
+				(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)) {
+				if(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)
+					pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
+				else
+					pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_ENABLE_E;
+			}
+
+			ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+			retry = 0;
+			while(ret != GT_OK) {
+				if(++retry > 3) {
+					syslog(LOG_INFO, "cpssDxChPortManagerEventSet(2) ret[%d]", ret);
+					goto _gCpssPortSetRate_exit;
+				}
+				usleep(10000);
+				ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+			}
+		}
+	}
+_gCpssPortSetRate_exit:
+	msg->result = ret;
+
+    /* reply the result */
+    send_to_sysmon_master(msg);
+    return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssPortESMCenable(int args, ...)
+{
+    uint8_t ret = GT_OK;
+    va_list argP;
+    sysmon_fifo_msg_t *msg = NULL;
+#ifdef DEBUG
+    syslog(LOG_INFO, "called %s args=%d", __func__, args);
+#endif
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] port[%d] state[%d].", 
+		__func__, gPortESMCenable, msg->type, msg->portid, msg->state);
+
+	/* FIXME : call sdk api to en/disable per-port ESMC state. */
+
+    syslog(LOG_INFO, ">>> gCpssPortESMCenable DONE ret[%d] <<<", ret);
+
+	msg->result = ret;
+
+    /* reply the result */
+    send_to_sysmon_master(msg);
+    return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssPortAlarm(int args, ...)
+{
+    uint8_t portno;
+#if 0/* just reply with link status table(updated by Marvell link scan event) */
+    uint8_t dport;
+    uint8_t ret = GT_OK;
+	GT_BOOL link, enable;
+	CPSS_PORT_MANAGER_STATUS_STC pm_sts;
+#endif
+    va_list argP;
+    sysmon_fifo_msg_t *msg = NULL;
+#ifdef DEBUG
+    syslog(LOG_INFO, "called %s args=%d", __func__, args);
+#endif
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortAlarm, msg->type);
+
+#if 1/* just reply with link status table(updated by Marvell link scan event) */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		msg->port_sts[portno].link = eag6LLinkStatus[portno];
+	}
+#else/***********************************************************/
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(portno, 0);
+			ret = cpssDxChPortLinkStatusGet(0, dport, &link);
+			if(ret != GT_OK)
+				syslog(LOG_INFO, "cpssDxChPortLinkStatusGet: port[%d] ret[%d]", 
+					portno, ret);
+			ret = cpssDxChPortManagerEnableGet(0, &enable);
+			if(ret != GT_OK)
+				syslog(LOG_INFO, "cpssDxChPortManagerEnableGet: port[%d] ret[%d]", 
+					portno, ret);
+			if(enable) {
+				ret = cpssDxChPortManagerStatusGet(0, dport, &pm_sts);
+				if(ret != GT_OK)
+					syslog(LOG_INFO, "cpssDxChPortManagerStatusGet: port[%d] ret[%d]", 
+						portno, ret);
+			}
+
+			msg->port_sts[portno].link = link;
+			if(enable) {
+				if(pm_sts.failure)
+					msg->port_sts[portno].alarm = ALM_LOCAL_FAULT;
+				if(pm_sts.remoteFaultConfig)
+					msg->port_sts[portno].alarm = ALM_REMOTE_FAULT;
+			} else 
+				msg->port_sts[portno].alarm = 0;
+		} else if(portno == PORT_ID_EAG6L_PORT9) {
+			dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, 0);
+		}
+
+    	syslog(LOG_INFO, ">>> gCpssPortAlarm  DONE port[%d] link[%d] enable[%d] alarm[%d] <<<", portno, msg->port_sts[portno].link, enable, msg->port_sts[portno].alarm);
+	}
+#endif
+
+	msg->result = IPC_CMD_SUCCESS;
+
+    /* reply the result */
+    send_to_sysmon_master(msg);
+    return IPC_CMD_SUCCESS;
+}
+#endif
+
 cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 {
 	gCpssSDKInit,
@@ -364,7 +695,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	gCpssLLCFSet,
 #endif
-	gCpssPortPM,
+	gCpssPortSetRate,
+	gCpssPortESMCenable,
+	gCpssPortAlarm,
 };
 
 const uint32_t funcsListLen = sizeof(gCpssToSysmonFuncs) / sizeof(cCPSSToSysmonFuncs);
@@ -393,6 +726,13 @@ void eag6l_ipc_init(void) {
 #ifdef DEBUG
 #endif
 	}
+#if 1/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
+	else
+	{
+		if((syswrfifo = open(SYSMON_FIFO_READ/*to-master*/, O_RDWR)) < 0)
+			gEag6LIPCstate = IPC_INIT_FAIL;
+	}
+#endif/*PWY_FIXME*/
 }
 #endif
 
@@ -417,14 +757,24 @@ int sysmon_slave_recv_fifo(struct multi_thread *thread)
 	}
   
 #if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
+#if 1/*[#??] Enhancing calling method, dustin, 2024-05-30 */
+	gCpssToSysmonFuncs[req.type](1, &req);
+#else
 	switch(req.type) 
     {
         case gSDKInit:
+			gCpssToSysmonFuncs[req.type](1, req.type);
+            break;
+
         case gHello:
+			gCpssToSysmonFuncs[req.type](1, req.type);
+            break;
         case gSynceEnable:
+			gCpssToSysmonFuncs[req.type](1, req.type);
+            break;
         case gSynceDisable:
-		gCpssToSysmonFuncs[req.type](1, req.type);
-		break;
+			gCpssToSysmonFuncs[req.type](1, req.type);
+            break;
         case gSynceIfSelect:
 			gCpssToSysmonFuncs[req.type](3, req.type, req.portid, req.portid2);
             break;
@@ -434,10 +784,20 @@ int sysmon_slave_recv_fifo(struct multi_thread *thread)
 			gCpssToSysmonFuncs[req.type](2, req.type, req.portid);
 #endif
             break;
-	default:
+        case gPortSetRate:
+			gCpssToSysmonFuncs[req.type](4, req.type, req.portid, req.speed, req.mode);
+            break;
+        case gPortESMCenable:
+			gCpssToSysmonFuncs[req.type](3, req.type, req.portid, req.state);
+            break;
+        case gPortAlarm:
+			gCpssToSysmonFuncs[req.type](1, req.type);
+            break;
+		default:
             syslog(LOG_INFO,"%s : default? (REQ) : type[%d]", __func__, req.type);
 			gCpssToSysmonFuncs[req.type](1, req.type);
 	}
+#endif
 #endif
 #else
 	/**TODO: define request type, process**/

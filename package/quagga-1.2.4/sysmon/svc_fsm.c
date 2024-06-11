@@ -22,10 +22,15 @@ uint16_t gSvcFSMretry = 0;
 #endif
 
 SVC_EVT svc_init(SVC_ST st) {
+	sysmon_fifo_msg_t msg;
+
+	memset(&msg, 0, sizeof msg);
+	msg.type = gHello;
+
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
 	if(gAppDemoIPCstate == IPC_INIT_FAIL) 
 		return SVC_EVT_IPC_COM_FAIL;
-	else if(gSysmonToCpssFuncs[gHello](1, gHello) == FIFO_CMD_SUCCESS)
+	else if(gSysmonToCpssFuncs[gHello](1, &msg) == FIFO_CMD_SUCCESS)
 		return SVC_EVT_IPC_COM_SUCCESS;
 	else
 		return SVC_EVT_IPC_COM_FAIL;
@@ -73,9 +78,13 @@ SVC_EVT svc_sdk_init(SVC_ST st) {
 	return SVC_EVT_SDK_INIT_SUCCESS;
 #else
 	SVC_EVT evt;
+	sysmon_fifo_msg_t msg;
+
+	memset(&msg, 0, sizeof msg);
+	msg.type = gSDKInit;
 
 	/* check sdk_init result*/
-	if(gSysmonToCpssFuncs[gSDKInit](1, gSDKInit) == FIFO_CMD_SUCCESS)
+	if(gSysmonToCpssFuncs[gSDKInit](1, &msg) == FIFO_CMD_SUCCESS)
 		evt = SVC_EVT_SDK_INIT_SUCCESS;
 	else	
 		evt = SVC_EVT_SDK_INIT_FAIL;

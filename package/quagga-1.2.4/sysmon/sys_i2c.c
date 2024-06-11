@@ -39,6 +39,7 @@
 #define CPLD_IIC_ADDR     0x55
 
 #define I2C_MUX                    0x70
+#define I2C_MUX2                   0x71
 
 #define SFP_INS1                   0x20
 #define SFP_INS2                   0x21
@@ -108,27 +109,87 @@ typedef struct __raw_gbic_diag_info__
 
   // A/D Values and Status Bits
   unsigned char diagnostics[10];
-  unsigned char unallocated_4[4];
+  unsigned char optional_diag[4];
   unsigned char status_control;
   unsigned char reserved;
 
   // Alarm and Warning Flag Bits
   unsigned char alarm_flags[2];
-  unsigned char unallocated_2[2];
+  unsigned char tx_input_eq_control;
+  unsigned char rx_out_emphasis_control;
   unsigned char warning_flags[2];
 
   // Extended Control/Status Memory Addresses
   unsigned char ext_status_control[2];
 
   // Vendor Specific Memory Addresses
-  unsigned char vendor_specific[8];
+  unsigned char vendor_specific[7];
+  unsigned char table_select;
 
+  // page 00-01h
   // User EEPROM
-  unsigned char user_eeprom[120];
+  unsigned char user_eeprom[120];	/*128-247*/
 
   // Vendor Control Function Addresses
-    unsigned char vendor_control[8];
+    unsigned char vendor_control[8];	/*248-255*/
 } RawGbicDiagInfo;
+
+typedef struct __raw_qsfp28_lower_page_0__
+{
+	unsigned char	identifier;	/*0*/
+	unsigned char	status[2];	/*1-2*/
+	unsigned char	intr_flag[19];	/*3-21*/
+	unsigned char	fs_dev_monitor[12];	/*22-33*/
+	unsigned char	chann_monitor[48];	/*34-81*/
+	unsigned char	reserved1[4];	/*82-85*/
+	unsigned char	control[13];	/*86-98*/
+	unsigned char	reserved2;	/*99*/
+	unsigned char	fs_dev_chan_mask[5];	/*100-104*/
+	unsigned char	vendor_specific[2];	/*105-106*/
+	unsigned char	reserved3;	/*107*/
+	unsigned char	fs_dev_property[3];	/*108-110*/
+	unsigned char	pci_express[2];	/*111-112*/
+	unsigned char	fs_dev_property2;	/*113*/
+	unsigned char	reserved4[5];	/*114-118*/
+	unsigned char	pwd_chg_entry[4];	/*119-122*/
+	unsigned char	pwd_entry[4];	/*123-126*/
+	unsigned char	page_select;	/*127*/
+} RawQsfpLowerPage0;
+
+typedef struct __raw_qsfp28_upper_page_0__
+{
+	unsigned char	identifier;	/*128*/
+	unsigned char	ext_identifier;	/*129*/
+	unsigned char	connector_type;	/*130*/
+	unsigned char	spec_compliance[8];	/*131-138*/
+	unsigned char	encoding;	/*139*/
+	unsigned char	br_nominal;	/*140*/
+	unsigned char	ext_rate_select;	/*141*/
+	unsigned char	len_smf;	/*142*/
+	unsigned char	len_om3_50um;	/*143*/
+	unsigned char	len_om2_50um;	/*144*/
+	unsigned char	len_om1_62dot5um;	/*145*/
+	unsigned char	len_etc;	/*146*/
+	unsigned char	dev_tech;	/*147*/
+	unsigned char	vendor_name[16];	/*148-163*/
+	unsigned char	ext_module;	/*164*/
+	unsigned char	vendor_oui[3];	/*165-167*/
+	unsigned char	vendor_pn[16];	/*168-183*/
+	unsigned char	vendor_rev[2];	/*184-185*/
+	unsigned char	wavelength[2];	/*186-187*/
+	unsigned char	wl_tolerance[2];	/*188-189*/
+	unsigned char	max_temp;	/*190*/
+	unsigned char	cc_base;	/*191*/
+	unsigned char	link_code;	/*192*/
+	unsigned char	options[3];	/*193-195*/
+	unsigned char	vendor_sn[16];	/*196-211*/
+	unsigned char	date_code[8];	/*212-219*/
+	unsigned char	diag_type;	/*220*/
+	unsigned char	enhanced_option;	/*221*/
+	unsigned char	br_nominal2;	/*222*/
+	unsigned char	cc_ext;	/*223*/
+	unsigned char	vendor_specific[32];	/*224-255*/
+} RawQsfp28UpperPage0;
 
 
 void cprintf (const char *format, ...)
@@ -398,6 +459,8 @@ data_addr : CPLD data address
 void i2c_set_sfp_channel_no(int bus, int portno)
 {
 	int fd, ret;
+	int mux_addr;
+	unsigned int chann_mask;
 
 	fd = i2c_dev_open(bus);
 	if(fd < 0) {
@@ -405,11 +468,29 @@ void i2c_set_sfp_channel_no(int bus, int portno)
 		return;
 	}
 
-	i2c_set_slave_addr(fd, I2C_MUX, 1);
+	if(portno >= PORT_ID_EAG6L_PORT9/*100G*/) {
+		mux_addr = I2C_MUX2;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT9);
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
 
-	ret = i2c_smbus_write_byte_data(fd, I2C_MUX, (unsigned char)(1 << (portno - 1)));
+	i2c_set_slave_addr(fd, (mux_addr == I2C_MUX) ? I2C_MUX2 : I2C_MUX, 1);
+
+	// first disable the other mux.
+	ret = i2c_smbus_write_byte_data(fd, (mux_addr == I2C_MUX) ? I2C_MUX2 : I2C_MUX, 0x0);
 	if(ret < 0)
-		zlog_notice("i2c_set_sfp_channel_no : portno[%d] ret[%d].n", portno, ret);
+		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] ret[%d].n", 
+			portno, get_eag6L_dport(portno, 0), ret);
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+	if(ret < 0)
+		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] ret[%d].n", 
+			portno, get_eag6L_dport(portno, 0), ret);
 
 	close(fd);
 	return;
@@ -466,8 +547,13 @@ int i2cget_main_len( int bus, unsigned char addr, unsigned char start_data_addr,
 		int i = 0;
 		for(ucll = 0; ucll < read_len; ucll += i)
 		{
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+			 i = i2c_smbus_read_i2c_block_data(fd,
+                        start_data_addr + ucll, 32, pBuf + ucll);
+#else
 			 i = i2c_smbus_read_i2c_block_data(fd,
                         ucll, 32, pBuf + ucll);
+#endif
 
 			 if (i <= 0) 
 			 {
@@ -524,7 +610,11 @@ int filling_sfp_data_realtime(int bus, unsigned char addr, unsigned char port, i
 	i2c_set_sfp_channel_no(bus, port);
 #endif
 
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+	rc_len = get_value_by_register_len(bus, addr, array_start, array_size, &test_char[0]);
+#else
 	rc_len = get_value_by_register_len(bus, addr, 0, array_size, &test_char[0]);
+#endif
 
 	if(rc_len != array_size)
 	{
@@ -537,6 +627,7 @@ int filling_sfp_data_realtime(int bus, unsigned char addr, unsigned char port, i
 void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 {
 	RawGbicInfo *raw;
+	RawQsfp28UpperPage0 *raw2;
 	unsigned char buf[ 256 ];
 	int len_sm_1, len_mm_1, len_mm_2;
 	unsigned short  wl;
@@ -560,46 +651,62 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 #endif
 	bus = 0;
 
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+	filling_sfp_data_realtime(bus, SFP_IIC_ADDR, portno, 
+			((portno >= PORT_ID_EAG6L_PORT9/*100G*/) ? 
+				HZ_I2C_SFP_INFO_START + HZ_I2C_SFP_INFO : 
+				HZ_I2C_SFP_INFO_START), HZ_I2C_SFP_INFO,
+			&slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START]);
+#else
 	filling_sfp_data_realtime(bus, SFP_IIC_ADDR, portno, HZ_I2C_SFP_INFO_START, HZ_I2C_SFP_INFO,
 			&slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START]);
+#endif
 
 	raw = &slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START];
-
-	len_sm_1 = 0;
-	if( raw->length_km )
-		len_sm_1 = raw->length_km*1000;
-	else
-		len_sm_1 = raw->length_100m*100;
-
-	len_mm_1 = 0;
-	if( raw->length_10m_50 )
-		len_mm_1 = raw->length_10m_50*10;
-	if( raw->length_10m_62_5 )
-		len_mm_2 = raw->length_10m_62_5*10;
-
-	memset(&buf[0], 0, sizeof(buf));
-
-	if( len_sm_1 )
-	{
-		memset(&buf[0], 0, sizeof(buf));
-		itoac(len_sm_1,buf);
-		if(len_sm_1 > 40000)
-		{
-			is_zr = 1;
-		}
-		else
-		{
-			is_zr = 0;
-		}
-	}
-
-	bzero( &buf[0], 250 );
-	memcpy( &buf[0], &raw->vendor_name[0], 16 );
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+	if(portno >= PORT_ID_EAG6L_PORT9/*100G*/)
+		raw2 = &slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START];
+#endif
 
 	module_is_hisense = 0;
 	module_is_superxon = 0;
 	module_is_gpon = 0;
 
+#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+	if(portno >= PORT_ID_EAG6L_PORT9/*100G*/) {
+		wl = (short)raw2->wavelength[0];
+		wl = wl << 8;
+		wl = wl | (short)raw2->wavelength[1];
+
+		mod_inv->wave = wl;
+		mod_inv->dist = raw2->len_smf;
+		if(mod_inv->dist == 0)
+			mod_inv->dist = raw2->len_om3_50um;/*unit-of-2m*/
+		if(mod_inv->dist == 0)
+			mod_inv->dist = raw2->len_om2_50um;/*unit-of-1m*/
+		if(mod_inv->dist == 0)
+			mod_inv->dist = raw2->len_om1_62dot5um;/*unit-of-1m*/
+		mod_inv->max_rate = raw2->br_nominal;
+		if(mod_inv->max_rate == 0xFF)
+			mod_inv->max_rate = raw2->br_nominal2;
+		memcpy( &mod_inv->date_code, &raw2->date_code[0], 8 );
+		memcpy( &mod_inv->serial_num, &raw2->vendor_sn[0], 16 );
+		memcpy( &mod_inv->vendor, &raw2->vendor_name[0], 16 );
+		memcpy( &mod_inv->part_num, &raw2->vendor_pn[0], 16 );
+	} else {
+		wl = (short)raw->wavelength[0];
+		wl = wl << 8;
+		wl = wl | (short)raw->wavelength[1];
+
+		mod_inv->wave = wl;
+		mod_inv->dist = raw->length_km;
+		mod_inv->max_rate = raw->br_nominal;
+		memcpy( &mod_inv->date_code, &raw->date_code[0], 8 );
+		memcpy( &mod_inv->serial_num, &raw->vendor_sn[0], 16 );
+		memcpy( &mod_inv->vendor, &raw->vendor_name[0], 16 );
+		memcpy( &mod_inv->part_num, &raw->vendor_pn[0], 16 );
+	}
+#else
 	wl = (short)raw->wavelength[0];
 	wl = wl << 8;
 	wl = wl | (short)raw->wavelength[1];
@@ -611,11 +718,15 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 	memcpy( &mod_inv->serial_num, &raw->vendor_sn[0], 16 );
 	memcpy( &mod_inv->vendor, &raw->vendor_name[0], 16 );
 	memcpy( &mod_inv->part_num, &raw->vendor_pn[0], 16 );
+#endif
 
-if(mod_inv->serial_num[0])	zlog_notice("INV SN [%s]", mod_inv->serial_num);/*ZZPP*/
-if(mod_inv->vendor[0])	zlog_notice("INV VENDOR [%s]", mod_inv->vendor);/*ZZPP*/
-if(mod_inv->part_num[0])	zlog_notice("INV PN [%s]", mod_inv->part_num);/*ZZPP*/
-if(mod_inv->date_code[0])	zlog_notice("INV DATE CODE [%s]", mod_inv->date_code);/*ZZPP*/
+zlog_notice("INV SN [%s]", mod_inv->serial_num);/*ZZPP*/
+zlog_notice("INV VENDOR [%s]", mod_inv->vendor);/*ZZPP*/
+zlog_notice("INV PN [%s]", mod_inv->part_num);/*ZZPP*/
+zlog_notice("INV DATE CODE [%s]", mod_inv->date_code);/*ZZPP*/
+zlog_notice("INV WAVELENGTH[%d]", mod_inv->wave);/*ZZPP*/
+zlog_notice("INV DISTANCE[%d]", mod_inv->dist);/*ZZPP*/
+zlog_notice("INV MAX RATE[%d]", mod_inv->max_rate);/*ZZPP*/
 	return;
 }
 
@@ -779,7 +890,7 @@ int get_sfp_info_diag(int portno, struct port_status * port_sts)
 	unsigned short rx_pwrad_us;
 
 	double tx_pwrad, temp_ad, vcc_ad, bias_ad;
-	double temp, vcc, bias;
+	double temp, vcc, bias, ltemp, tcurr;
 
 #if 1/*[119] don't display sfp ddm in du port, balkrow, 2022-07-27*/
 #if 0//PWY_FIXME
@@ -818,7 +929,7 @@ int get_sfp_info_diag(int portno, struct port_status * port_sts)
 	sfp_get_vcc(vcc_ad, vcc_slope, vcc_offset, &vcc);
 
 	// TX Bias
-	sfp_get_ad(raw_diag->diagnostics[5], raw_diag->diagnostics[6], &bias_ad);
+	sfp_get_ad(raw_diag->diagnostics[4], raw_diag->diagnostics[5], &bias_ad);
 	sfp_get_slope(raw_diag->ext_cal_constants[20], raw_diag->ext_cal_constants[21], &bias_slope);
 	sfp_get_offset(raw_diag->ext_cal_constants[22], raw_diag->ext_cal_constants[23], &bias_offset);
 	sfp_get_bias(bias_ad, bias_slope, bias_offset, &bias);
@@ -858,6 +969,12 @@ int get_sfp_info_diag(int portno, struct port_status * port_sts)
 			&rx_pwr0);
 	sfp_get_rx_power(rx_pwrad_us, rx_pwr0, rx_pwr1, rx_pwr2, rx_pwr3, rx_pwr4, &rx_db);
 
+	// Laser temperature
+	sfp_get_ad(raw_diag->diagnostics[10], raw_diag->diagnostics[11], &ltemp);
+
+	// TEC Current
+	sfp_get_ad(raw_diag->diagnostics[12], raw_diag->diagnostics[13], &tcurr);
+
 #if 0
 	cprintf("bias:%+14.4f ", bias);
 	cprintf("vcc:%+10.4f ", vcc);
@@ -876,6 +993,8 @@ int get_sfp_info_diag(int portno, struct port_status * port_sts)
 	port_sts->vcc = vcc;
 	port_sts->temp = temp;
 	port_sts->tx_bias = bias;
+	port_sts->laser_temp = (float)ltemp;
+	port_sts->tec_curr = (float)tcurr;
 
 	return (0);
 }
