@@ -229,16 +229,29 @@ uint8_t gCpssPortAlarm(int args, ...)
 }
 
 #if 1/*[#43] LF¢¯¢¯¢¯ RF ¢¯¢¯ ¢¯¢¯ ¢¯¢¯, balkrow, 2024-06-05*/
-int8_t sysmon_llcf_set
-(
- int8_t enable
-)
+uint8_t gCpssLLCFSet(int args, ...)
 {
-	sysmon_fifo_msg_t msg;
-	msg.type = gLLCFSet;
-	msg.portid = enable;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
 
-	return send_to_sysmon_slave(msg);
+	if(args != 1) {
+		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	if(send_to_sysmon_slave(msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
+	return IPC_CMD_SUCCESS;
 }
 #endif
 
@@ -335,6 +348,9 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssSynceDisable,
 	gCpssSynceIfSelect,
 #endif
+#if 1/*[#43] LFâ–’~\â–’~C~]â–’~K~\ RF â–’| ~Dâ–’~Kâ–’ ê¸°â–’~Jâ–’ â–’~Tâ–’~@, balkrow, 2024-06-05*/
+    gCpssLLCFSet,
+#endif
 #if 1/*[#40] Port config for rate/ESMC/alarm, dustin, 2024-05-30 */
 	gCpssPortSetRate,
 	gCpssPortESMCenable, /*further implements*/
@@ -427,6 +443,19 @@ void port_status_alarm(void)
 	/* use marvell sdk to get port link status. */
 	gSysmonToCpssFuncs[gPortAlarm](1, &msg);
 	return;
+}
+#endif
+
+#if 1/*[#43] LF¢¯¢¯¢¯ RF ¢¯¢¯ ¢¯¢¯ ¢¯¢¯, balkrow, 2024-06-05*/
+int8_t sysmon_llcf_set(int8_t enable)
+{
+	sysmon_fifo_msg_t msg;
+
+	memset(&msg, 0, sizeof msg);
+	msg.type = gLLCFSet;
+	msg.portid = enable;
+
+	return gSysmonToCpssFuncs[gLLCFSet](&msg);
 }
 #endif
 
@@ -892,7 +921,7 @@ static int sysmon_master_recv_fifo(struct thread *thread)
 
 void sysmon_master_fifo_init (void)
 {
-#if 0/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
+#if 1/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
 	/*[#34] aldrin3s chip initial ¢¯¢¯ ¢¯¢¯, balkrow, 2024-05-23*/
 	if((syscmdrdfifo = open (SYSMON_FIFO_READ, O_RDWR)) < 0)
 		gAppDemoIPCstate = IPC_INIT_FAIL;
