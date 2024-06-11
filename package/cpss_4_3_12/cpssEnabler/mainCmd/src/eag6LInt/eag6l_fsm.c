@@ -26,6 +26,9 @@
 #include "syslog.h"
 #endif
 #include "eag6l_fsm.h"
+#if 1/*[#40] IPC source 정리, balkrow, 2024-06-11 */
+#include "sysmon.h"
+#endif
 
 extern uint8_t eag6LPortArrSize;
 extern uint8_t eag6LPortlist [];
@@ -46,8 +49,11 @@ extern GT_STATUS cpssDxChPortManagerEventSet
     IN  CPSS_PORT_MANAGER_STC   *portEventStcPtr
 );
 
+#if 1/*[#40] IPC source 정리, balkrow, 2024-06-11 */
+SVC_FAULT_FSM svcPortFaultFsm[PORT_ID_EAG6L_MAX];
+#else
 SVC_FAULT_FSM svcPortFaultFsm[EAG6L_PORT_MAX];
-
+#endif
 
 SVC_FAULT_ST faultFsmInit
 (
