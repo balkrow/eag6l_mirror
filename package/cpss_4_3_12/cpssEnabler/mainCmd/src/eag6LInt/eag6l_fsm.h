@@ -28,5 +28,7 @@ typedef struct svc_fault_fsm {
 } SVC_FAULT_FSM;
 
 #define FAULT_CHECK_MAX 10
+#if 0/*[#40] IPC source 정리, balkrow, 2024-06-11 */
 #define EAG6L_PORT_MAX 9
+#endif
 #define EAG6L_WDM_PORT 50
