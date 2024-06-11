@@ -2,6 +2,20 @@
 #define _BP_REGS_H_
 
 
+#if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+typedef uint16_t (*READ_FUNC) (uint16_t);
+typedef uint16_t (*REG_CALLBACK) (uint16_t);
+
+typedef struct reg_mon_str
+{
+	uint16_t reg;
+	uint16_t mask;
+	uint16_t shift;
+	uint16_t val;
+	READ_FUNC func;
+	REG_CALLBACK cb;
+} RegMON;
+#endif
 /****************************
  * unit related registers
  ****************************/

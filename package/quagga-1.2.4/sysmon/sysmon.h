@@ -36,6 +36,9 @@
 #define SYSMON_DEFAULT_CONFIG    "sysmon.conf"
 #define SYSMON_VTY_PORT                 9998 
 
+#if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/
+extern uint16_t sys_fpga_memory_read(uint16_t addr);
+#endif
 /*
 define Memory Macro
 */
