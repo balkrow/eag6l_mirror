@@ -91,37 +91,26 @@ struct multi_thread_master *master;
 
 uint8_t eag6LLinkStatus[PORT_ID_EAG6L_MAX];
 
-#if 1/*PWY_FIXME*/
-uint8_t eag6LPortlist2[] = 
+uint8_t get_eag6L_dport(uint8_t lport)
 {
-	0,		/*port1-25G*/
-	8,		/*port2-25G*/
-	16,		/*port3-25G*/
-	24,		/*port4-25G*/
-	32,		/*port5-25G*/
-	40,		/*port6-25G*/
-	48,		/*port7-25G*/
-	49,		/*port8-25G*/
-	50,		/*port9-100G-offset-0*/
-	51,		/*port9-100G-offset-1*/
-	52,		/*port9-100G-offset-2*/
-	53,		/*port9-100G-offset-3*/
-};
-uint8_t eag6LPortArrSize2 = sizeof(eag6LPortlist2) / sizeof(uint8_t);
-
-uint8_t get_eag6L_dport(uint8_t lport, uint8_t offset)
-{
-	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT8))
-		return eag6LPortlist2[lport - 1];
-	else if((lport == PORT_ID_EAG6L_PORT9) && (offset < 4))
-		return eag6LPortlist2[lport - 1 + offset];
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT9))
+		return eag6LPortlist[lport - 1];
 	else {
-		syslog(LOG_ERR, "%s: invalid parameter lport[%d] offset[%d].", 
-			__func__, lport, offset);
+		syslog(LOG_ERR, "%s: invalid parameter lport[%d].", __func__, lport);
 		return 255;/*invalid dport*/
 	}
 }
-#endif /*PWY_FIXME*/
+
+uint8_t get_eag6L_lport(uint8_t dport)
+{
+	uint8_t ii;
+	
+	for(ii = 0; ii < eag6LPortArrSize; ii++) {
+		if(eag6LPortlist[ii] == dport)
+			return (ii + 1);
+	}
+	return 0;
+}
 
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 #undef DEBUG
@@ -156,6 +145,7 @@ GT_VOID processPortEvt
  )
 {
 	CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
+	uint8_t portno;
 
 	if(uniEv == CPSS_PP_PORT_PM_LINK_STATUS_CHANGED_E) 
 	{
@@ -166,6 +156,12 @@ GT_VOID processPortEvt
 			devNum, uniEv, evExtData, 
 			portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E ? "Link Up":"Link Down");
 #endif
+		/* update link status cache */
+		portno = get_eag6L_lport(evExtData/*dport*/);
+		if(portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E)
+			eag6LLinkStatus[portno] = 1;
+		else
+			eag6LLinkStatus[portno] = 0;
 	}
 }
 #endif
@@ -248,67 +244,29 @@ uint8_t gCpssSynceEnable(int args, ...)
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gSynceEnable, msg->type);
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
-			ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-					dport, 1/*overrideEnable*/, 
-					CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-			if(ret != GT_OK)
-				msg->result |= (0x1 < (portno - 1));
-		} else if(portno == PORT_ID_EAG6L_PORT9) {
-			for(portno = 0; portno < 4; portno++) {
-				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
-				ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-						dport, 1/*overrideEnable*/, 
-						CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-				if(ret != GT_OK)
-					msg->result |= (0x1 < (portno - 1));
-			}
-		}
-	}
+		dport = get_eag6L_dport(portno);
+		ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+			dport, 1/*overrideEnable*/, 
+			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+		if(ret != GT_OK)
+			msg->result |= (0x1 < (portno - 1));
 
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
-			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(0/*devNum*/, 
-					CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E/*recoveryClkType*/, 
-					1/*enable*/, dport/*portNum*/, 0/*laneNum*/);
-			if(ret != GT_OK) {
-				msg->result |= (0x100 < (portno - 1));
-				syslog(LOG_INFO, "cpssDxChPortSyncEtherRecoveryClkConfigSet ret[%d]", ret);
-			}
-		} else if(portno == PORT_ID_EAG6L_PORT9) {
-			for(portno = 0; portno < 4; portno++) {
-				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
-				ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(0/*devNum*/, 
-						CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E/*recoveryClkType*/, 
-						1/*enable*/, dport/*portNum*/, 0/*laneNum*/);
-				if(ret != GT_OK)
-					msg->result |= (0x1 < (portno - 1));
-			}
+		dport = get_eag6L_dport(portno);
+		ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(0/*devNum*/, 
+			CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E/*recoveryClkType*/, 
+			1/*enable*/, dport/*portNum*/, 0/*laneNum*/);
+		if(ret != GT_OK) {
+			msg->result |= (0x100 < (portno - 1));
+			syslog(LOG_INFO, "cpssDxChPortSyncEtherRecoveryClkConfigSet ret[%d]", ret);
 		}
-	}
 
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
-			ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0/*devNum*/,
-					dport, 0/*laneNum*/, 
-					CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLOCK_SELECT_0_E,
-					CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
-			if(ret != GT_OK)
-				msg->result |= (0x10000 < (portno - 1));
-		} else if(portno == PORT_ID_EAG6L_PORT9) {
-			for(portno = 0; portno < 4; portno++) {
-				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
-				ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0/*devNum*/,
-						dport, 0/*laneNum*/, 
-						CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLOCK_SELECT_0_E,
-						CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
-				if(ret != GT_OK)
-					msg->result |= (0x1 < (portno - 1));
-			}
-		}
+		dport = get_eag6L_dport(portno);
+		ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0/*devNum*/,
+			dport, 0/*laneNum*/, 
+			CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLOCK_SELECT_0_E,
+			CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+		if(ret != GT_OK)
+			msg->result |= (0x10000 < (portno - 1));
 	}
 
 	syslog(LOG_INFO, ">>> gCpssSynceEnable DONE total ret[0x%x] <<<", (unsigned int)msg->result);
@@ -331,24 +289,13 @@ uint8_t gCpssSynceDisable(int args, ...)
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gSynceDisable, msg->type);
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
-			ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-					dport, 0/*overrideDisable*/, 
-					CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-			/* FIXME : just disabling is OK?? */
-			if(ret != GT_OK)
-				msg->result |= (0x1 < (portno - 1));
-		} else if(portno == PORT_ID_EAG6L_PORT9) {
-			for(portno = 0; portno < 4; portno++) {
-				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
-				ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-						dport, 0/*overrideDisable*/, 
-						CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-				if(ret != GT_OK)
-					msg->result |= (0x1 < (portno - 1));
-			}
-		}
+		dport = get_eag6L_dport(portno);
+		ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+			dport, 0/*overrideDisable*/, 
+			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+		/* FIXME : just disabling is OK?? */
+		if(ret != GT_OK)
+			msg->result |= (0x1 < (portno - 1));
 	}
 
 	syslog(LOG_INFO, ">>> gCpssSynceDisable DONE ret[%d] <<<", ret);
@@ -372,24 +319,13 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 		__func__, gSynceIfSelect, msg->type, msg->type, msg->portid, msg->portid2);
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
-			ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-					dport, 0/*overrideDisable*/, 
-					CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-			/* FIXME : just disabling is OK?? */
-			if(ret != GT_OK)
-				msg->result |= (0x1 < (portno - 1));
-		} else if(portno == PORT_ID_EAG6L_PORT9) {
-			for(portno = 0; portno < 4; portno++) {
-				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
-				ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
-						dport, 0/*overrideDisable*/, 
-						CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-				if(ret != GT_OK)
-					msg->result |= (0x1 < (portno - 1));
-			}
-		}
+		dport = get_eag6L_dport(portno);
+		ret = cpssDxChPortRefClockSourceOverrideEnableSet(0/*devNum*/, 
+			dport, 0/*overrideDisable*/, 
+			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+		/* FIXME : just disabling is OK?? */
+		if(ret != GT_OK)
+			msg->result |= (0x1 < (portno - 1));
 	}
 
 	syslog(LOG_INFO, ">>> gCpssSynceIfSelect DONE ret[%d] <<<", ret);
@@ -493,93 +429,91 @@ uint8_t gCpssPortSetRate(int args, ...)
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		if(portno != msg->portid)	continue;
 
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
+		dport = get_eag6L_dport(portno);
 
-			pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
-			ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+		pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
+		ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssDxChPortManagerEventSet(1) ret[%d]", ret);
+			goto _gCpssPortSetRate_exit;
+		}
+
+		ret = cpssPortManagerLuaSerdesTypeGet(0, &serdes);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssPortManagerLuaSerdesTypeGet ret[%d]", ret);
+			goto _gCpssPortSetRate_exit;
+		}
+
+		pparam.portType = CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E;
+		pparam.magic = 0x1A2BC3D4;
+		pparam.portParamsType.regPort.laneParams[0].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[0].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[0].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[1].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[1].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[1].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[2].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[2].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[2].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[3].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[3].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[3].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[4].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[4].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[4].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[5].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[5].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[5].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[6].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[6].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[6].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[7].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[7].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[7].rxParams.type = serdes;
+		pparam.portParamsType.regPort.portAttributes.validAttrsBitMask = 0x20;
+		pparam.portParamsType.regPort.portAttributes.preemptionParams.type = CPSS_PM_MAC_PREEMPTION_DISABLED_E;
+		pparam.portParamsType.regPort.portAttributes.fecMode = FEC_OFF;
+		pparam.portParamsType.regPort.speed = speed;
+		pparam.portParamsType.regPort.ifMode = ifmode;
+
+		ret = cpssDxChPortManagerPortParamsSet(0, dport, &pparam);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssDxChPortManagerPortParamsSet ret[%d]", ret);
+			goto _gCpssPortSetRate_exit;
+		}
+
+		if((msg->speed == PORT_IF_25G_KR) || (msg->speed == PORT_IF_25G_CR)) {
+			ret = cpssDxChSamplePortManagerFecModeSet(0, dport, CPSS_PORT_RS_FEC_MODE_ENABLED_E);
 			if(ret != GT_OK) {
-				syslog(LOG_INFO, "cpssDxChPortManagerEventSet(1) ret[%d]", ret);
+				syslog(LOG_INFO, "cpssDxChPortFecModeSet ret[%d]", ret);
 				goto _gCpssPortSetRate_exit;
 			}
+		}
 
-			ret = cpssPortManagerLuaSerdesTypeGet(0, &serdes);
-			if(ret != GT_OK) {
-				syslog(LOG_INFO, "cpssPortManagerLuaSerdesTypeGet ret[%d]", ret);
-				goto _gCpssPortSetRate_exit;
-			}
+		ret = cpssDxChPortManagerStatusGet(0, dport, &pstage);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssDxChPortManagerStatusGet ret[%d]", ret);
+			goto _gCpssPortSetRate_exit;
+		}
 
-			pparam.portType = CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E;
-			pparam.magic = 0x1A2BC3D4;
-			pparam.portParamsType.regPort.laneParams[0].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[0].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[0].rxParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[1].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[1].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[1].rxParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[2].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[2].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[2].rxParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[3].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[3].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[3].rxParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[4].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[4].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[4].rxParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[5].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[5].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[5].rxParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[6].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[6].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[6].rxParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[7].validLaneParamsBitMask = 0x0;
-			pparam.portParamsType.regPort.laneParams[7].txParams.type = serdes;
-			pparam.portParamsType.regPort.laneParams[7].rxParams.type = serdes;
-			pparam.portParamsType.regPort.portAttributes.validAttrsBitMask = 0x20;
-			pparam.portParamsType.regPort.portAttributes.preemptionParams.type = CPSS_PM_MAC_PREEMPTION_DISABLED_E;
-			pparam.portParamsType.regPort.portAttributes.fecMode = FEC_OFF;
-			pparam.portParamsType.regPort.speed = speed;
-			pparam.portParamsType.regPort.ifMode = ifmode;
-
-			ret = cpssDxChPortManagerPortParamsSet(0, dport, &pparam);
-			if(ret != GT_OK) {
-				syslog(LOG_INFO, "cpssDxChPortManagerPortParamsSet ret[%d]", ret);
-				goto _gCpssPortSetRate_exit;
-			}
-
- 			if((msg->speed == PORT_IF_25G_KR) || (msg->speed == PORT_IF_25G_CR)) {
-				ret = cpssDxChSamplePortManagerFecModeSet(0, dport, CPSS_PORT_RS_FEC_MODE_ENABLED_E);
-				if(ret != GT_OK) {
-					syslog(LOG_INFO, "cpssDxChPortFecModeSet ret[%d]", ret);
-					goto _gCpssPortSetRate_exit;
-				}
-			}
-
-			ret = cpssDxChPortManagerStatusGet(0, dport, &pstage);
-			if(ret != GT_OK) {
-				syslog(LOG_INFO, "cpssDxChPortManagerStatusGet ret[%d]", ret);
-				goto _gCpssPortSetRate_exit;
-			}
-
-			pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
-			if(pstage.portUnderOperDisable || 
+		pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
+		if(pstage.portUnderOperDisable || 
 				(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)) {
-				if(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)
-					pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
-				else
-					pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_ENABLE_E;
-			}
+			if(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)
+				pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
+			else
+				pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_ENABLE_E;
+		}
 
-			ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
-			retry = 0;
-			while(ret != GT_OK) {
-				if(++retry > 3) {
-					syslog(LOG_INFO, "cpssDxChPortManagerEventSet(2) ret[%d]", ret);
-					goto _gCpssPortSetRate_exit;
-				}
-				usleep(10000);
-				ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+		ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+		retry = 0;
+		while(ret != GT_OK) {
+			if(++retry > 3) {
+				syslog(LOG_INFO, "cpssDxChPortManagerEventSet(2) ret[%d]", ret);
+				goto _gCpssPortSetRate_exit;
 			}
+			usleep(10000);
+			ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
 		}
 	}
 _gCpssPortSetRate_exit:
@@ -686,7 +620,7 @@ uint8_t gCpssPortAlarm(int args, ...)
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 uint8_t gCpssPortPMGet(int args, ...)
 {
-    uint8_t portno, pp, dport;
+    uint8_t portno, dport;
     uint8_t ret = GT_OK;
 	CPSS_PORT_MAC_COUNTER_SET_STC pmc;
 	CPSS_DXCH_PORT_FEC_MODE_ENT fecmode;
@@ -704,29 +638,20 @@ uint8_t gCpssPortPMGet(int args, ...)
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		memset(&pmc, 0, sizeof pmc);
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
-			ret = cpssDxChPortMacCountersOnPortGet(0, dport, &pmc);
-			if(ret != GT_OK)
-				syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
+		dport = get_eag6L_dport(portno);
+		ret = cpssDxChPortMacCountersOnPortGet(0, dport, &pmc);
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
 
-			ret = cpssDxChPortFecModeGet (0, dport, &fecmode);
-			if(ret != GT_OK)
-				syslog(LOG_INFO, "cpssDxChPortFecModeGet: port[%d] ret[%d]", portno, ret);
+		ret = cpssDxChPortFecModeGet (0, dport, &fecmode);
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChPortFecModeGet: port[%d] ret[%d]", portno, ret);
 
-			if(fecmode == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
-				memset(&rs_cnt, 0, sizeof rs_cnt);
-				ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
-				if(ret != GT_OK)
-					syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
-			}
-		} else if(portno == PORT_ID_EAG6L_PORT9/*PORT_ID_EAG6L_PORT7*/) {
-			for(pp = 0; pp < 4; pp++) {
-				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, pp);
-				ret = cpssDxChPortMacCountersOnPortGet(0, dport, &pmc);
-				if(ret != GT_OK)
-					syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
-			}
+		if(fecmode == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
+			memset(&rs_cnt, 0, sizeof rs_cnt);
+			ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
+			if(ret != GT_OK)
+				syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
 		}
 
 		/* copy data to msg->pm */
@@ -750,14 +675,14 @@ uint8_t gCpssPortPMGet(int args, ...)
 			msg->pm[portno].fcs_ok   = 0;
 			msg->pm[portno].fcs_nok  = 0;
 		}
+#ifdef DEBUG
 syslog(LOG_INFO, ">>> gCpssPortPMGet : port[%d] ret[%d]", portno, ret);
 syslog(LOG_INFO, ">>> gCpssPortPMGet tx_frame[%u/%u > %lu] rx_frame[%u/%u > %lu]", pmc.goodPktsSent.l[0], pmc.goodPktsSent.l[1], msg->pm[portno].tx_frame, pmc.goodPktsRcv.l[0], pmc.goodPktsRcv.l[1], msg->pm[portno].rx_frame);
 syslog(LOG_INFO, ">>> gCpssPortPMGet tx_bytes[%u/%u > %lu] rx_bytes[%u/%u > %lu]", pmc.goodOctetsSent.l[0], pmc.goodOctetsSent.l[1], msg->pm[portno].tx_byte, pmc.goodOctetsRcv.l[0], pmc.goodOctetsRcv.l[1], msg->pm[portno].rx_byte);
 syslog(LOG_INFO, ">>> gCpssPortPMGet rx_fcs[%lu]", msg->pm[portno].rx_fcs);
 syslog(LOG_INFO, ">>> gCpssPortPMGet fcs_ok[%u/%u > %lu] fcs_nok[%u/%u > %lu]", rs_cnt.correctedFecCodeword.l[0], rs_cnt.correctedFecCodeword.l[1], msg->pm[portno].fcs_ok, rs_cnt.uncorrectedFecCodeword.l[0], rs_cnt.uncorrectedFecCodeword.l[1], msg->pm[portno].fcs_nok);
+#endif/*DEBUG*/
 	}
-
-	syslog(LOG_INFO, ">>> gCpssPortPMGet DONE <<<");
 
 	msg->result = ret;
 
@@ -781,59 +706,29 @@ uint8_t gCpssPortPMClear(int args, ...)
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortPMClear, msg->type);
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		if(portno < PORT_ID_EAG6L_PORT9) {
-			dport = get_eag6L_dport(portno, 0);
-			/* first, check if clear-on-read enabled. */
-			ret = cpssDxChPortMacCountersClearOnReadGet(0, dport, &enable);
+		dport = get_eag6L_dport(portno);
+		/* first, check if clear-on-read enabled. */
+		ret = cpssDxChPortMacCountersClearOnReadGet(0, dport, &enable);
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadGet: port[%d] ret[%d]", portno, ret);
+
+		/* enable if clear on read is not enabled. */
+		if(! enable) {
+			ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_TRUE);
 			if(ret != GT_OK)
-				syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadGet: port[%d] ret[%d]", portno, ret);
+				syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
+		}
 
-			/* enable if clear on read is not enabled. */
-			if(! enable) {
-				ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_TRUE);
-				if(ret != GT_OK)
-					syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
-			}
+		/* read to clear counters. */
+		ret = cpssDxChPortMacCountersOnPortGet(0, dport, &pmc);
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
 
-			/* read to clear counters. */
-			ret = cpssDxChPortMacCountersOnPortGet(0, dport, &pmc);
+		/* recover if clear on read is not enabled. */
+		if(! enable) {
+			ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_FALSE);
 			if(ret != GT_OK)
-				syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
-
-			/* recover if clear on read is not enabled. */
-			if(! enable) {
-				ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_FALSE);
-				if(ret != GT_OK)
-					syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
-			}
-		} else if(portno == PORT_ID_EAG6L_PORT9/*PORT_ID_EAG6L_PORT7*/) {
-			for(portno = 0; portno < 4; portno++) {
-				dport = get_eag6L_dport(PORT_ID_EAG6L_PORT9, portno);
-
-				/* first, check if clear-on-read enabled. */
-				ret = cpssDxChPortMacCountersClearOnReadGet(0, dport, &enable);
-				if(ret != GT_OK)
-					syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadGet: port[%d] ret[%d]", portno, ret);
-
-				/* enable if clear on read is not enabled. */
-				if(! enable) {
-					ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_TRUE);
-					if(ret != GT_OK)
-						syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
-				}
-
-				/* read to clear counters. */
-				ret = cpssDxChPortMacCountersOnPortGet(0, dport, &pmc);
-				if(ret != GT_OK)
-					syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
-
-				/* recover if clear on read is not enabled. */
-				if(! enable) {
-					ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_FALSE);
-					if(ret != GT_OK)
-						syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
-				}
-			}
+				syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
 		}
 	}
 
@@ -933,7 +828,6 @@ int sysmon_slave_recv_fifo(struct multi_thread *thread)
         case gSDKInit:
 			gCpssToSysmonFuncs[req.type](1, req.type);
             break;
-
         case gHello:
 			gCpssToSysmonFuncs[req.type](1, req.type);
             break;
@@ -947,10 +841,10 @@ int sysmon_slave_recv_fifo(struct multi_thread *thread)
 			gCpssToSysmonFuncs[req.type](3, req.type, req.portid, req.portid2);
             break;
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
-	case gLLCFSet:
+		case gLLCFSet:
 			gCpssToSysmonFuncs[req.type](2, req.type, req.portid);
-#endif
             break;
+#endif
         case gPortSetRate:
 			gCpssToSysmonFuncs[req.type](4, req.type, req.portid, req.speed, req.mode);
             break;
@@ -959,14 +853,15 @@ int sysmon_slave_recv_fifo(struct multi_thread *thread)
             break;
         case gPortAlarm:
 			gCpssToSysmonFuncs[req.type](1, req.type);
+            break;
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
         case gPortPMGet:
 			gCpssToSysmonFuncs[req.type](1, req.type);
             break;
         case gPortPMClear:
 			gCpssToSysmonFuncs[req.type](1, req.type);
-#endif
             break;
+#endif
 		default:
             syslog(LOG_INFO,"%s : default? (REQ) : type[%d]", __func__, req.type);
 			gCpssToSysmonFuncs[req.type](1, req.type);
