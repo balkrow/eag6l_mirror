@@ -28,6 +28,11 @@
 #include <cpss/common/private/globalShared/prvCpssGlobalDbInterface.h>
 #include <appDemo/sysHwConfig/gtAppDemoSysConfig.h>
 #include <appDemo/boardConfig/appDemoBoardConfig.h>
+#if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
+#include <stdbool.h>
+#include "eag6l_fsm.h"
+#include <gtOs/gtEnvDep.h>
+#endif
 
 #define DEBUG
 
@@ -74,6 +79,38 @@ extern GT_STATUS cpssDxChBrgVlanMruProfileIdxSet
 );
 #endif
 
+#if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
+extern GT_STATUS cpssDxChBrgFdbPortLearnStatusSet
+(
+    IN GT_U8                    devNum,
+    IN GT_PORT_NUM              portNum,
+    IN GT_BOOL                  status,
+    IN CPSS_PORT_LOCK_CMD_ENT   cmd
+);
+
+extern GT_STATUS cpssDxChBrgVlanLearningStateSet
+(
+    IN GT_U8    devNum,
+    IN GT_U16   vlanId,
+    IN GT_BOOL  status
+);
+
+extern GT_STATUS cpssDxChBrgPrvEdgeVlanEnable
+(
+    IN GT_U8        devNum,
+    IN GT_BOOL      enable
+);
+
+extern GT_STATUS cpssDxChBrgPrvEdgeVlanPortEnable
+(
+    IN GT_U8            devNum,
+    IN GT_PORT_NUM      portNum,
+    IN GT_BOOL          enable,
+    IN GT_PORT_NUM      dstPort,
+    IN GT_HW_DEV_NUM    dstHwDev,
+    IN GT_BOOL          dstTrunk
+);
+#endif
 extern APP_DEMO_PP_CONFIG appDemoPpConfigList[APP_DEMO_PP_CONFIG_SIZE_CNS];
 
 uint8_t eag6L25GPortlist [] =
@@ -246,6 +283,43 @@ uint8_t EAG6LCpeVlanAdd
 #endif
 	return rc;
 }
+#endif
+
+#if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
+uint8_t EAG6LMacLearningnable (void)
+{
+	uint8_t rc = 0, i;
+	GT_U8 devNum = 0x0;
+	GT_BOOL status = true;
+	GT_U16 vlanId = 1;
+
+	CPSS_PORT_LOCK_CMD_ENT cmd = CPSS_LOCK_FRWRD_E;
+
+	for(i = 0; i < eag6LPortArrSize; i++)
+	{
+		rc += cpssDxChBrgFdbPortLearnStatusSet(devNum, eag6LPortlist[i], status, cmd);
+	}
+	rc += cpssDxChBrgVlanLearningStateSet(devNum, vlanId, status);
+	return rc;
+}
+
+uint8_t EAG6L25Gto100GFwdSet (void)
+{
+	uint8_t rc = 0, i;
+	GT_U8 devNum = 0x0;
+	GT_BOOL enable = true, trunk = false;
+	GT_HW_DEV_NUM dstHwDev = 16;	
+
+	rc = cpssDxChBrgPrvEdgeVlanEnable(devNum, enable); 
+	for(i = 0; i < eag6L25GPortArrSize; i++)
+	{	
+		cpssDxChBrgPrvEdgeVlanPortEnable(devNum, eag6L25GPortlist[i], enable,
+						 EAG6L_WDM_PORT, dstHwDev, trunk);
+						 
+	}
+	return rc;
+}
+
 #endif
 
 #if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
