@@ -31,6 +31,11 @@
 #include "eag6l_fsm.h"
 #endif
 
+#if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
+extern uint8_t EAG6LMacLearningnable (void);
+extern uint8_t EAG6L25Gto100GFwdSet (void);
+#endif
+
 #if 1/*[#35] traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 extern uint8_t EAG6LVlanInit (void);
 extern uint8_t EAG6LFecInit (void);
@@ -193,12 +198,16 @@ uint8_t gCpssSDKInit(int args, ...)
 	sysmon_fifo_msg_t *msg = NULL;
 
 	result = cpssInitSystem(38, 1, 0);
+#if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
+	result += EAG6LMacLearningnable();
+	result += EAG6L25Gto100GFwdSet();
+#endif
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 	/*initial tag/untag forwarding */
-	result = EAG6LVlanInit();
+	result += EAG6LVlanInit();
 #endif
 #if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
-	result = EAG6LJumboFrameEnable();
+	result += EAG6LJumboFrameEnable();
 #endif
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	if(!result)
