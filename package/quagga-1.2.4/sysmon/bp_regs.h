@@ -4,7 +4,11 @@
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
 typedef uint16_t (*READ_FUNC) (uint16_t);
+#if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
+typedef uint16_t (*REG_CALLBACK) (uint16_t/*portno*/, uint16_t/*reg-val*/);
+#else
 typedef uint16_t (*REG_CALLBACK) (uint16_t);
+#endif
 
 typedef struct reg_mon_str
 {
@@ -12,6 +16,9 @@ typedef struct reg_mon_str
 	uint16_t mask;
 	uint16_t shift;
 	uint16_t val;
+#if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
+	uint8_t  portno;/*if zero, then single register. if non-zero then per-port registers. */
+#endif
 	READ_FUNC func;
 	REG_CALLBACK cb;
 } RegMON;
