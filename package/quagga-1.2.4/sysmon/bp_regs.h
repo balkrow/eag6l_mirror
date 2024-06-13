@@ -23,15 +23,24 @@ typedef struct reg_mon_str
 	REG_CALLBACK cb;
 } RegMON;
 #endif
+
+#if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
+#define FPGA_BASE 0x60000000
+#define CPLD_BASE 0x70000000
+#endif
+
 /****************************
  * unit related registers
  ****************************/
 
-#define SW_VERSION_ADDR				0x60000000	// r/o for mcu, r/w for bp
+#define SW_VERSION_ADDR			0x60000000	// r/o for mcu, r/w for bp
 #define HW_KEEP_ALIVE_1_ADDR		0x60000014	// r/w for mcu, r/o for bp
 #define HW_KEEP_ALIVE_2_ADDR		0x60000016	// r/o for mcu, r/w for bp :
                                             //   bp must increase this value.
 #define INIT_COMPLETE_ADDR			0x60000018	// bp set 0xAA to [15:8] if init done.
+#if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
+#define INIT_COMPLETE_ADDR_MASK		0xFFF00
+#endif
 
 // bp must set 10G/25G speed for port 1~6.
 #define COMMON_CTRL2_P1_ADDR		0x60000020	// r/w for mcu, r/o for bp 
@@ -139,16 +148,19 @@ typedef struct reg_mon_str
  ****************************/
 
 #define SYNCE_GCONFIG_ADDR			0x60800160	// r/w for mcu, r/o for bp 
-#define SYNCE_IF_SELECT_ADDR		0x60800162	// r/w for mcu, r/o for bp 
+#define SYNCE_IF_SELECT_ADDR			0x60800162	// r/w for mcu, r/o for bp 
 #define SYNCE_ESMC_LQL_ADDR			0x60800166	// r/o for mcu, r/w for bp 
 #define SYNCE_ESMC_SQL_ADDR			0x60800168	// r/o for mcu, r/w for bp 
 #define SYNCE_ESMC_RQL_ADDR			0x6080016A	// r/o for mcu, r/w for bp 
 #define SYNCE_SRC_STAT_ADDR			0x6080016C	// r/o for mcu, r/w for bp 
+#if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
+#define SYNCE_SRC_STAT_ADDR_MASK		0xFFF00		// r/o for mcu, r/w for bp 
+#endif
 
-#define SYNCE_ESMC_RQL2_ADDR		0x6080016E	// r/o for mcu, r/w for bp 
-#define SYNCE_ESMC_RQL3_ADDR		0x60800170	// r/o for mcu, r/w for bp 
-#define SYNCE_ESMC_RQL4_ADDR		0x60800172	// r/o for mcu, r/w for bp 
-#define SYNCE_ESMC_RQL5_ADDR		0x60800174	// r/o for mcu, r/w for bp 
+#define SYNCE_ESMC_RQL2_ADDR			0x6080016E	// r/o for mcu, r/w for bp 
+#define SYNCE_ESMC_RQL3_ADDR			0x60800170	// r/o for mcu, r/w for bp 
+#define SYNCE_ESMC_RQL4_ADDR			0x60800172	// r/o for mcu, r/w for bp 
+#define SYNCE_ESMC_RQL5_ADDR			0x60800174	// r/o for mcu, r/w for bp 
 
 
 /****************************

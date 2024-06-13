@@ -1,16 +1,10 @@
 #include <zebra.h>
 #include "svc_fsm.h"
-/*
-SVC_FSM svc_fsm[] = 
-{
-	{SVC_ST_INIT,		SVC_EVT_INIT,	svc_dpram_check},
-	{SVC_ST_INIT,		SVC_EVT_INIT,	svc_dpram_check},
-	{SVC_ST_DPRAM_CHK,	SVC_EVT_DPRAM_ACCESS_FAIL,	svc_init_fail},
-	{SVC_ST_DPRAM_CHK,	SVC_EVT_DPRAM_ACCESS_SUCCESS,	svc_fpga_check},
-	{SVC_ST_FPGA_CHK,	SVC_EVT_FPGA_ACCESS_FAIL,	svc_init_fail},
-	{SVC_ST_FPGA_CHK,	SVC_EVT_FPGA_ACCESS_SUCCESS,	svc_cpld_check},
-};
-*/
+
+#if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
+#include "sysmon.h"
+#include "bp_regs.h"
+#endif
 
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
 #include "sys_fifo.h"
@@ -19,6 +13,10 @@ extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 uint16_t gSvcFSMretry = 0;
 #define DEBUG
 #define CLR_RETRY_CNT gSvcFSMretry = 0
+#endif
+
+#if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
+extern GLOBAL_DB gDB;
 #endif
 
 SVC_EVT svc_init(SVC_ST st) {
@@ -42,6 +40,9 @@ SVC_EVT svc_init_fail(SVC_ST st) {
 	return SVC_EVT_NONE;
 #else
 	/*write BP fail*/
+#if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
+	gDB.init_state = SYS_INIT_FAIL;  
+#endif
 	return SVC_EVT_NONE;
 #endif
 }
@@ -107,6 +108,10 @@ SVC_EVT svc_get_inven(SVC_ST st) {
 }
 
 SVC_EVT svc_init_done(SVC_ST st) {
+#if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
+	gDB.init_state = SYS_INIT_DONE;  
+	gRegUpdate(INIT_COMPLETE_ADDR, 0, INIT_COMPLETE_ADDR_MASK, SYS_INIT_DONE);
+#endif
 	return SVC_EVT_NONE;
 }
 
