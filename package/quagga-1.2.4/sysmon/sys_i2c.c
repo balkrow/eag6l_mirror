@@ -455,6 +455,28 @@ data_addr : CPLD data address
 	return status;
 }
 
+#if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
+int set_smart_tsfp_self_loopback(int port, int enable)
+{
+	return 0;
+}
+
+int set_rtwdm_loopback(int port, int enable)
+{
+	return 0;
+}
+
+int set_flex_tune_control(int port, int enable)
+{
+	return 0;
+}
+
+int set_flex_tune_reset(int port, int enable)
+{
+	return 0;
+}
+#endif
+
 #if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
 void i2c_set_sfp_channel_no(int bus, int portno)
 {

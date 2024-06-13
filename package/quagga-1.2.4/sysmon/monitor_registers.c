@@ -17,38 +17,169 @@ struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
 port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 
 
-extern int synce_config_set_admin(u32 enable);
-extern int synce_config_set_if_select(u32 pri_port, u32 sec_port);
+extern int synce_config_set_admin(int enable);
+extern int synce_config_set_if_select(int pri_port, int sec_port);
 extern void pm_request_counters(void);
 extern void pm_request_clear(void);
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+#if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
+uint16_t portRateSet (uint16_t port, uint16_t val);
+uint16_t synceEnableSet(uint16_t port, uint16_t val);
+uint16_t synceIFSelect(uint16_t port, uint16_t val);
+uint16_t pmClear(uint16_t port, uint16_t val);
+uint16_t chipReset(uint16_t port, uint16_t val);
+extern uint16_t sys_fpga_memory_read(uint16_t addr);
+extern void port_config_ESMC_enable(int port, int enable);
+extern int set_flex_tune_control(int port, int enable);
+extern int set_rtwdm_loopback(int port, int enable);
+extern int set_smart_tsfp_self_loopback(int port, int enable);
+extern int set_flex_tune_reset(int port, int enable);
+
+RegMON regMonList [] = {
+	/* common control 2 - port speed */
+  { COMMON_CTRL2_P1_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P2_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P3_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P4_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P5_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P6_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, portRateSet }, 
+	/* port configuration - esmc */
+  { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, port_config_ESMC_enable }, 
+  { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, port_config_ESMC_enable }, 
+  { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, port_config_ESMC_enable }, 
+  { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, port_config_ESMC_enable }, 
+  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, port_config_ESMC_enable }, 
+  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, port_config_ESMC_enable }, 
+  { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, port_config_ESMC_enable }, 
+	/* port configuration - flex control */
+  { PORT_1_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_2_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_3_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_4_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_5_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_6_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_7_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_flex_tune_control }, 
+	/* port configuration - rtwdm loopback */
+  { PORT_1_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_2_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_3_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_4_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_5_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_6_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_7_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_rtwdm_loopback }, 
+	/* port configuration - smart t-sfp self loopback */
+  { PORT_1_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_2_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_3_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_4_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_5_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_6_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_7_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+	/* alarm mask - flex tune reset */
+  { PORT_1_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_2_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_3_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_4_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_5_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_6_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_7_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_flex_tune_reset }, 
+	/* synce global control */
+  { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceEnableSet }, 
+	/* synce interface select */
+  { SYNCE_IF_SELECT_ADDR, 0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFSelect }, 
+	/* pm counter clear */
+  { PM_COUNT_CLEAR_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, pmClear }, 
+	/* chip reset */
+  { CHIP_RESET_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, chipReset }, 
+	/* fpga bank select */
+	/* FIXME : add entry */
+	/* dco register */
+	/* FIXME : add entry */
+};
+#else
 uint16_t portRateSet (uint16_t port);
 extern uint16_t sys_fpga_memory_read(uint16_t addr);
 
 RegMON regMonList [] = {
   { COMMON_CTRL2_P1_ADDR, 0x3, 0, 0x7, sys_fpga_memory_read, portRateSet/*register callback*/}, 
 };
+#endif
 uint16_t regMonArrSize = sizeof(regMonList) / sizeof(RegMON);
 
+#if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 uint16_t portRateSet (uint16_t port)
 {
 	port = port;
 	return 0;
 }
+#else /****************************************************/
+uint16_t portRateSet (uint16_t port, uint16_t val)
+{
+extern void port_config_speed(int port, long speed, int mode);
+
+	if(val == 0x7/*25G*/)
+		port_config_speed(port, PORT_IF_25G_KR, PORT_IF_25G_KR);
+	else
+		port_config_speed(port, PORT_IF_10G_KR, PORT_IF_10G_KR);
+	return SUCCESS;
+}
+
+uint16_t synceEnableSet(uint16_t port, uint16_t val)
+{
+	port;
+	return synce_config_set_admin(val);
+}
+
+uint16_t synceIFSelect(uint16_t port, uint16_t val)
+{
+	uint16_t pri_port, sec_port;
+
+	port;
+	pri_port = (val >> 8) & 0xFF;
+	sec_port = (val & 0xFF);
+
+	return synce_config_set_if_select(pri_port, sec_port);
+}
+
+uint16_t pmClear(uint16_t port, uint16_t val)
+{
+extern void pm_request_clear(void);
+
+	port;
+	if(val != 0xA5)
+		return SUCCESS;
+
+	pm_request_clear();
+	return SUCCESS;
+}
+
+uint16_t chipReset(uint16_t port, uint16_t val)
+{
+	port;
+
+	if(((val >> 8) & 0xFF) == 0xA5)
+		;/*FIXME : need reset function for fpga. */
+	else if((val & 0xFF) == 0xA5)
+		;/*FIXME : need reset function for bp. */
+	return SUCCESS;
+}
+#endif
 
 void regMonitor(void)
 {
 	uint16_t i, val;
 	for(i = 0; i < regMonArrSize; i++)
 	{
-
 		val = regMonList[i].func(regMonList[i].reg); 
 		val = (val >> regMonList[i].shift) & regMonList[i].mask;
 		if(regMonList[i].val != val) 
 		{
-			/*TODO Func*/
+#if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
+			regMonList[i].cb(regMonList[i].portno, val);
+#else
 			regMonList[i].cb(val);
+#endif
 			regMonList[i].val = val;
 		}
 	}
@@ -646,6 +777,7 @@ unsigned int convert_temperature_float_to_decimal(f32 val)
     return vvv;
 }
 
+#if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 void process_port_common_control_register(void)
 {
 extern void port_config_speed(int port, long speed, int mode);
@@ -670,6 +802,7 @@ extern void port_config_speed(int port, long speed, int mode);
 	}
 	return;
 }
+#endif
 
 void process_dco_registers(void)
 {
@@ -1006,6 +1139,7 @@ void process_alarm_info(void)
 	return;
 }
 
+#if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 #if 0 /* FIXME : laser control must be done by FPGA. */
 int port_config_set_laser(u32 portno, u32 enable)
 {
@@ -1040,6 +1174,7 @@ extern void port_config_ESMC_enable(int port, int enable);
 	port_config_ESMC_enable(portno, enable);
 	return 0;
 }
+#endif
 
 void update_port_sfp_information(void)
 {
@@ -1333,9 +1468,11 @@ void update_bp_reg(void)
 	temp |= 0xAA00;
 	FPGA_WRITE(INIT_COMPLETE_ADDR, temp);
 
+#if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 	/***********************************************/
 	/* check/configure common control2. */
 	process_port_common_control_register();
+#endif
 
 	/***********************************************/
 	/* check/execute if reset CR is set. */
@@ -1363,6 +1500,7 @@ void update_bp_reg(void)
 	/* update inventory. */
 	process_hw_inventory_infos();
 
+#if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 	/***********************************************/
 	/* check/configure ports. */
 	for(ii = PORT_ID_EAG6L_PORT1; ii < PORT_ID_EAG6L_MAX; ii++) {
@@ -1401,6 +1539,7 @@ void update_bp_reg(void)
 		if(bitmask & 0x4) 
 			port_config_set_esmc(ii, (temp & 0x4));
 	}
+#endif
 
 	/***********************************************/
 	/* check/configure synce enable. */
