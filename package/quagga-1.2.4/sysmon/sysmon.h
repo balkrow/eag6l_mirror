@@ -52,7 +52,46 @@ define Memory Macro
 #define CPLD_READ sys_cpld_memory_read
 #define CPLD_WRITE sys_cpld_memory_write
 
+#if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
+#define UNINITIALIZED_FD   -1
+#define RSMU_DEVICE_NAME   "dev/rsmu0"
+#define HDRV_DEVICE_NAME   "dev/hdrv"
+#define RSMU_PLL_IDX	0  
+#define RT_OK 0
+#define RT_NOK 1
+#define FREERUN 1
+#define LOCK_RECOVERY 2
+#define PLL_LOCK 4
+#define HOLD_OVER 5
 
+#define SYS_INIT_FAIL 1
+#define SYS_INIT_DONE 0xAA
+
+#define gRegUpdate(reg, shift, mask, val) \
+{ \
+	uint16_t rval = 0, wval =0; \
+	rval = FPGA_READ(reg); \
+	wval =  ((rval >> shift) & mask) | val; \
+	FPGA_WRITE(reg, wval); \
+}
+
+
+typedef struct rsmu_get_state
+{
+	uint8_t dpll;
+	uint8_t state;
+} RSMU_PLL_STATE;
+
+typedef struct globalDB
+{
+	uint8_t init_state; /*init state*/
+	uint8_t pll_state; /*pll state*/
+	uint16_t keepAlive;
+} GLOBAL_DB;
+
+#define RSMU_MAGIC   '?'
+#define RSMU_GET_STATE                      _IOR(RSMU_MAGIC, 2, struct rsmu_get_state)
+#endif
 /* 
  * type definitions
  */
@@ -140,7 +179,7 @@ extern void print_console(const char *fmt, ...);
         PORT_ID_EAG6L_PORT9,/*for-demo-board-100G-test*/
         PORT_ID_EAG6L_MAX,
 	};
-
+#if 0
 	enum ePortLinkStaus
 	{
 		PORT_LINK_DOWN,
@@ -216,7 +255,7 @@ extern void print_console(const char *fmt, ...);
 		ALM_PTP2_LOCK_FAIL,         /* 50 */
 		ALM_LAST,                   /* 51 */
 	};
-
+#endif
 	typedef struct __port_pm_counter__
 	{
 		u64 tx_frame;

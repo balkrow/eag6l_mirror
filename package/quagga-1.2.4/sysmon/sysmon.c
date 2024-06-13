@@ -21,9 +21,12 @@
 #endif
 
 #undef DEBUG
+#define ACCESS_SIM
 
+#if 0/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 u32 INIT_COMPLETE_FLAG;
 int32_t hdrv_fd;
+#endif
 struct thread_master *master;
 //const char *pid_file = PATH_SYSMON_PID;
 char* progname;
@@ -67,36 +70,10 @@ void print_console(const char *fmt, ...)
 }
 #endif
 
-#if 1/* Adding for eag6LPortlist */
-u8 eag6LPortlist[] =
-{
-	0,      /*port1-25G*/
-	8,      /*port2-25G*/
-	16,     /*port3-25G*/
-	24,     /*port4-25G*/
-	32,     /*port5-25G*/
-	40,     /*port6-25G*/
-	48,     /*port7-25G*/
-	49,     /*port8-25G*/
-	50,     /*port9-100G-offset-0*/
-	51,     /*port9-100G-offset-1*/
-	52,     /*port9-100G-offset-2*/
-	53,     /*port9-100G-offset-3*/
-};
-u8 eag6LPortArrSize = sizeof(eag6LPortlist) / sizeof(u8);
-
-u8 get_eag6L_dport(u8 lport, u8 offset)
-{
-	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT8))
-		return eag6LPortlist[lport - 1];
-	else if((lport == PORT_ID_EAG6L_PORT9) && (offset < 4))
-		return eag6LPortlist[lport - 1 + offset];
-	else {
-		syslog(LOG_ERR, "%s: invalid parameter lport[%d] offset[%d].",
-				__func__, lport, offset);
-		return 255;/*invalid dport*/
-	}
-}
+#if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
+extern int8_t rsmu_init (void);
+extern int8_t rsmu_pll_update(void);
+GLOBAL_DB gDB;
 #endif
 
 void sigint (int sig) {
@@ -155,11 +132,6 @@ void init_svc_fsm(void) {
 	svc_fsm.cb[SVC_ST_INIT_DONE] = svc_init_done;
 }
 
-/*
-SVC_EVT getSvcEvent(SVC_ST state) {
-
-}
-*/
 
 int svc_fsm_timer(struct thread *thread) {
 	SVC_ST state;
@@ -181,22 +153,48 @@ int svc_fsm_timer(struct thread *thread) {
 }
 #endif
 
+#if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
+int8_t monitor_hw_timer(struct thread *thread)
+{
+	/*PLL state*/
+	rsmu_pll_update();
+#ifdef ACCESS_SIM
+	thread_add_timer(master, monitor_hw_timer, NULL, 1);
+#else
+	thread_add_timer_msec (master, monitor_hw_timer, NULL, 100);
+#endif
+	return 0;
+}	
+
+int8_t reg_fast_intv_update(struct thread *thread)
+{
+	/*update KeepAlive reg*/
+	update_KeepAlive();
+
+	thread_add_timer_msec (master, reg_fast_intv_update, NULL, 500);
+}
+
+int8_t reg_slow_intv_update(struct thread *thread)
+{
+
+}
+#endif
+
 /* Allocate new sys structure and set default value. */
 void sysmon_thread_init (void)
 {
 #if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
 	thread_add_timer (master, svc_fsm_timer, NULL, 1);
 #endif
-	//TODO
-#if 0//PWY_FIXME
-	thread_add_timer (master, test_timer_func, NULL, 1);
-#endif //PWY_FIXME
-#if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
+#if 0/*[#25] I2C related register update, dustin, 2024-05-28 */
 	thread_add_timer (master, sfp_timer_func, NULL, 10);
 #endif
-#if 1/*[#4] Register updating, dustin, 2024-05-28 */
+#if 0/*[#4] Register updating, dustin, 2024-05-28 */
 	thread_add_timer (master, reg_timer_func, NULL, 10);
 #endif
+#if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
+	thread_add_timer (master, monitor_hw_timer, NULL, 1);
+#endif	
 }
 
 int init_rlimit(void)
@@ -215,34 +213,28 @@ int init_rlimit(void)
 	return 0;
 }
 
-int hdriv_open(void) {
-
-	hdrv_fd = open("/dev/hdrv",O_RDWR);
-	if ( hdrv_fd < 0 ) {
-		zlog_warn("hdriver open err");
-		return -1;
-	}
-	return 0;
-}
-
 void sysmon_init(void) {
 
+#if 0
 	/* clear init complete flag */
 	INIT_COMPLETE_FLAG = 0;
-
-#if 0//PWY_FIXME
-	if(hdriv_open() == -1)
-		zlog_err("sysmon init failure");
-#endif //PWY_FIXME
+#endif
+#if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
+	memset(&gDB, 0, sizeof(gDB));
+#endif
 
 	zlog_notice("init sysmon");
-
+#if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
+	monitor_hw_init();
+#endif
 #if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
 	sysmon_master_fifo_init ();
 	init_svc_fsm();
 #endif
 	sysmon_thread_init();
 
+#if 0
 	/* set init complete flag */
 	INIT_COMPLETE_FLAG = 1;
+#endif
 }
