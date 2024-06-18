@@ -34,6 +34,9 @@
 extern struct thread_master *master;
 extern struct port_status PORT_STATUS[PORT_ID_EAG6L_MAX];
 extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+extern GLOBAL_DB gDB;
+#endif
 
 
 /*define send callback function */
@@ -82,11 +85,12 @@ uint8_t gCpssHello(int args, ...)
 	return ret;
 }
 
-#if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 uint8_t gCpssSynceEnable(int args, ...)
 {
 	va_list argP;
-	sysmon_fifo_msg_t *msg = NULL;
+	uint16_t synce_enable;
+	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
@@ -95,8 +99,10 @@ uint8_t gCpssSynceEnable(int args, ...)
 		return IPC_CMD_FAIL;
 
 	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);	
+	synce_enable = va_arg(argP, uint16_t);	
 	va_end(argP);
+	
+	msg.type = (synce_enable == 1) ? gSynceEnable : gSynceDisable; 
 
 	if(send_to_sysmon_slave(msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
@@ -105,72 +111,62 @@ uint8_t gCpssSynceEnable(int args, ...)
 
 	return IPC_CMD_SUCCESS;
 }
-
-uint8_t gCpssSynceDisable(int args, ...)
-{
-	va_list argP;
-	sysmon_fifo_msg_t *msg = NULL;
-#ifdef DEBUG
-	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-	if(args != 1)
-		return IPC_CMD_FAIL;
+#if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
 
-	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);
-	va_end(argP);
-
-	if(send_to_sysmon_slave(msg) == 0) {
-		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
-		return IPC_CMD_FAIL;
-	}
-
-	return IPC_CMD_SUCCESS;
-}
-
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 uint8_t gCpssSynceIfSelect(int args, ...)
 {
 	va_list argP;
-	sysmon_fifo_msg_t *msg = NULL;
+	uint16_t pri_src, port;
+	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-	if(args != 1)
+	if(args != 2)
 		return IPC_CMD_FAIL;
 
 	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);	
+	pri_src = va_arg(argP, uint16_t);	
+	port = va_arg(argP, uint16_t);	
 	va_end(argP);
 
-	if(send_to_sysmon_slave(msg) == 0) {
+	msg.mode = pri_src;
+	msg.portid = port;
+
+	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
 
 	return IPC_CMD_SUCCESS;
 }
+#endif
 
 #if 1/*[#44] Add a callback templates for compiling, dustin, 2024-06-04 */
 uint8_t gCpssPortSetRate(int args, ...)
 {
     va_list argP;
-    sysmon_fifo_msg_t *msg = NULL;
+    sysmon_fifo_msg_t msg;
 #ifdef DEBUG
     zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-    if(args != 1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
-        return IPC_CMD_FAIL;
-	}
+    if(args != 2) {
+	    syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+	    return IPC_CMD_FAIL;
+    }
 
     va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);
+    msg.portid = va_arg(argP, uint16_t);
+    msg.speed = va_arg(argP, uint16_t);
+    msg.mode = va_arg(argP, uint16_t);
     va_end(argP);
+    msg.type = gPortSetRate;
 
-    if(send_to_sysmon_slave(msg) == 0) {
+    if(send_to_sysmon_slave(&msg) == 0) {
         zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
         return IPC_CMD_FAIL;
     }
@@ -180,25 +176,24 @@ uint8_t gCpssPortSetRate(int args, ...)
 
 uint8_t gCpssPortESMCenable(int args, ...)
 {
-    va_list argP;
-    sysmon_fifo_msg_t *msg = NULL;
+	va_list argP;
+	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
-    zlog_notice("called %s args=%d", __func__, args);
+	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-    if(args != 1) {
+	if(args != 1) {
 		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
-        return IPC_CMD_FAIL;
+		return IPC_CMD_FAIL;
 	}
 
-    va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);
-    va_end(argP);
+	va_start(argP, args);
+	va_end(argP);
 
-    if(send_to_sysmon_slave(msg) == 0) {
-        zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
-        return IPC_CMD_FAIL;
-    }
+	if(send_to_sysmon_slave(msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	return IPC_CMD_SUCCESS;
 }
@@ -232,7 +227,7 @@ uint8_t gCpssPortAlarm(int args, ...)
 uint8_t gCpssLLCFSet(int args, ...)
 {
 	va_list argP;
-	sysmon_fifo_msg_t *msg = NULL;
+	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
@@ -243,8 +238,9 @@ uint8_t gCpssLLCFSet(int args, ...)
 	}
 
 	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	msg.portid = va_arg(argP, uint16_t);
 	va_end(argP);
+	msg.type = gLLCFSet;
 
 	if(send_to_sysmon_slave(msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
@@ -283,27 +279,28 @@ uint8_t gCpssPortPMGet(int args, ...)
 
 uint8_t gCpssPortPMClear(int args, ...)
 {
-    va_list argP;
-    sysmon_fifo_msg_t *msg = NULL;
+	va_list argP;
+	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
-    zlog_notice("called %s args=%d", __func__, args);
+	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-    if(args != 1) {
+	if(args != 1) {
 		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
-        return IPC_CMD_FAIL;
+		return IPC_CMD_FAIL;
 	}
 
-    va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);
-    va_end(argP);
+	va_start(argP, args);
+	va_arg(argP, uint16_t);
+	va_end(argP);
+	msg.type = gPortPMClear;
 
-    if(send_to_sysmon_slave(msg) == 0) {
-        zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
-        return IPC_CMD_FAIL;
-    }
+	if(send_to_sysmon_slave(msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
-    return IPC_CMD_SUCCESS;
+	return IPC_CMD_SUCCESS;
 }
 #endif
 #endif
@@ -345,11 +342,13 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssHello,	
 #if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
 	gCpssSynceEnable,
+#if 0/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 	gCpssSynceDisable,
+#endif
 	gCpssSynceIfSelect,
 #endif
 #if 1/*[#43] LFâ–’~\â–’~C~]â–’~K~\ RF â–’| ~Dâ–’~Kâ–’ ê¸°â–’~Jâ–’ â–’~Tâ–’~@, balkrow, 2024-06-05*/
-    gCpssLLCFSet,
+	gCpssLLCFSet,
 #endif
 #if 1/*[#40] Port config for rate/ESMC/alarm, dustin, 2024-05-30 */
 	gCpssPortSetRate,
@@ -368,34 +367,22 @@ const uint32_t funcsListLen = sizeof(gSysmonToCpssFuncs) / sizeof(cSysmonToCPSSF
 
 
 uint8_t gAppDemoIPCstate = IPC_INIT_SUCCESS; 
-int32_t syscmdrdfifo;
-int32_t syscmdwrfifo;
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+int32_t syscmdrdfifo = UNINITIALIZED_FD;
+int32_t syscmdwrfifo = UNINITIALIZED_FD;
+#endif
 #endif
 
-#if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
-int synce_config_set_admin(int enable)
-{
-	sysmon_fifo_msg_t msg;
-
-	memset(&msg, 0, sizeof msg);
-	msg.type = (enable == 1) ? gSynceEnable : gSynceDisable;
-
-	/* use marvell sdk to set synce enable/disable. */
-	if(enable == 1)
-		gSysmonToCpssFuncs[gSynceEnable](1, &msg);
-	else
-		gSysmonToCpssFuncs[gSynceDisable](1, &msg);
-	return 0;
-}
-
-int synce_config_set_if_select(int pri_port, int sec_port)
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+int synce_if_pri_select(int8_t port, int8_t pri)
 {
 	sysmon_fifo_msg_t msg;
 
 	memset(&msg, 0, sizeof msg);
 	msg.type    = gSynceIfSelect;
-	msg.portid  = pri_port;
-	msg.portid2 = sec_port;
+
+	msg.mode = pri;
+	msg.portid  = port;
 
 	/* use marvell sdk to set synce if select. */
 	gSysmonToCpssFuncs[gSynceIfSelect](1, &msg);
@@ -403,52 +390,12 @@ int synce_config_set_if_select(int pri_port, int sec_port)
 }
 #endif
 
-#if 1/*[#40] Port config for rate/ESMC/alarm, dustin, 2024-05-30 */
-void port_config_speed(int port, long speed, int mode)
-{
-	sysmon_fifo_msg_t msg;
-
-	memset(&msg, 0, sizeof msg);
-	msg.type   = gPortSetRate;
-	msg.portid = port;
-	msg.speed  = speed;
-	msg.mode   = mode;
-
-	/* use marvell sdk to set port speed/mode. */
-	gSysmonToCpssFuncs[gPortSetRate](1, &msg);
-	return;
-}
-
-void port_config_ESMC_enable(int port, int enable)
-{
-	sysmon_fifo_msg_t msg;
-
-	memset(&msg, 0, sizeof msg);
-	msg.type   = gPortESMCenable;
-	msg.portid = port;
-	msg.state  = enable;
-
-	/* use marvell sdk to set port esmc enable. */
-	gSysmonToCpssFuncs[gPortESMCenable](1, &msg);
-	return;
-}
-
-void port_status_alarm(void)
-{
-	sysmon_fifo_msg_t msg;
-
-	memset(&msg, 0, sizeof msg);
-	msg.type = gPortAlarm;
-
-	/* use marvell sdk to get port link status. */
-	gSysmonToCpssFuncs[gPortAlarm](1, &msg);
-	return;
-}
-#endif
-
 #if 1/*[#43] LF¢¯¢¯¢¯ RF ¢¯¢¯ ¢¯¢¯ ¢¯¢¯, balkrow, 2024-06-05*/
 int8_t sysmon_llcf_set(int8_t enable)
 {
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+	return gSysmonToCpssFuncs[gLLCFSet](1, enable);
+#else
 	sysmon_fifo_msg_t msg;
 
 	memset(&msg, 0, sizeof msg);
@@ -456,6 +403,7 @@ int8_t sysmon_llcf_set(int8_t enable)
 	msg.portid = enable;
 
 	return gSysmonToCpssFuncs[gLLCFSet](&msg);
+#endif
 }
 #endif
 
@@ -471,23 +419,11 @@ void pm_request_counters(void)
 	gSysmonToCpssFuncs[gPortPMGet](1, &msg);
 	return;
 }
-
-void pm_request_clear(void)
-{
-	sysmon_fifo_msg_t msg;
-
-	memset(&msg, 0, sizeof msg);
-	msg.type = gPortPMClear;
-
-	/* use marvell sdk to clear pm counters. */
-	gSysmonToCpssFuncs[gPortPMClear](1, &msg);
-	return;
-}
 #endif
 
 int send_to_sysmon_slave(sysmon_fifo_msg_t * msg)
 {
-#if 0/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
+#if 1/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
 	/*[#34] aldrin3s chip initial ¢¯¢¯ ¢¯¢¯, balkrow, 2024-05-23*/
 
 #ifdef DEBUG
@@ -534,8 +470,14 @@ uint8_t gReplySDKInit(int args, ...)
 
 	/* process for result. */
 	if(msg->result != FIFO_CMD_SUCCESS) {
-		/*FIXME*/
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+		gDB.sdk_init_state = SDK_INIT_FAIL;
+#endif
 	}
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+	else
+		gDB.sdk_init_state = SDK_INIT_DONE;
+#endif
 
 	return ret;
 }
@@ -560,8 +502,15 @@ uint8_t gReplyHello(int args, ...)
 
 	/* process for result. */
 	if(msg->result != FIFO_CMD_SUCCESS) {
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+		gDB.comm_state = COMM_FAIL;
+#endif
 		/*FIXME*/
 	}
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+	else
+		gDB.comm_state = COMM_SUCCESS;
+#endif
 
 	return ret;
 }
@@ -843,65 +792,14 @@ static int sysmon_master_system_command(sysmon_fifo_msg_t * msg)
 	zlog_notice("%s recv msg %x from cpss", __func__, msg->type);
 #endif
 #if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
-#if 1/*FIXME*/
 	gSysmonReplyFuncs[msg->type](1, msg);
-#else
-	switch(msg->type)
-	{
-		case gSDKInit:
-			break;
-		case gHello:
-			zlog_notice("gHello (REPLY) : %s", msg->noti_msg[0] ? msg->noti_msg : "N/A");
-			break;
-		case gSynceEnable:
-			zlog_notice("gSynceEnable (REPLY) : port[%d].", msg->portid);
-			break;
-		case gSynceDisable:
-			zlog_notice("gSynceDisable (REPLY) : port[%d].", msg->portid);
-			break;
-		case gSynceIfSelect:
-			zlog_notice("gSynceIfSelect (REPLY) : port[%d].", msg->portid);
-			break;
-#if 1/*[#43] LFï¿½ï¿½ï¿½ RF ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½, balkrow, 2024-06-05*/
-		case gLLCFSet:
-			zlog_notice("gLLCFSet (REPLY) : enable[%d].\n", msg->portid);
- 			break;
-#endif
-		case gPortSetRate:
-			zlog_notice("gPortSetRate (REPLY) : result[%d].", msg->result);
-			break;
-		case gPortESMCenable:
-			zlog_notice("gPortESMCenable (REPLY) : result[%d].", msg->result);
-			break;
-		case gPortAlarm:
-			zlog_notice("gPortAlarm (REPLY) : result[%d].", msg->result);
-			break;
-#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
-		case gPortPMGet:
-			zlog_notice("gPortPMGet (REPLY) : result[%d].", msg->result);
-			zlog_notice("tx_frame : %lu", msg->pm[1].tx_frame);
-			zlog_notice("rx_frame : %lu", msg->pm[1].rx_frame);
-			zlog_notice("tx_byte  : %lu", msg->pm[1].tx_byte);
-			zlog_notice("rx_byte  : %lu", msg->pm[1].rx_byte);
-			zlog_notice("rx_fcs   : %lu", msg->pm[1].rx_fcs);
-			break;
-		case gPortPMClear:
-			zlog_notice("gPortPMClear (REPLY) : result[%d].", msg->result);
-			break;
-#endif
-			//TODO
-
-		default:
-			break;
-	}
-#endif
 #endif
 
 #endif
 	return 0;
 }
 
-static int sysmon_master_recv_fifo(struct thread *thread)
+int sysmon_master_recv_fifo(struct thread *thread)
 {
 	int len = 0;
 	sysmon_fifo_msg_t msg;
@@ -919,6 +817,7 @@ static int sysmon_master_recv_fifo(struct thread *thread)
 	return 0;
 }
 
+#if 0/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 void sysmon_master_fifo_init (void)
 {
 #if 1/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
@@ -939,13 +838,8 @@ void sysmon_master_fifo_init (void)
 	if((syscmdrdfifo = open (SYSMON_FIFO_READ, O_RDWR)) < 0)
 		return;
 #endif
-
 	thread_add_read(master, sysmon_master_recv_fifo, NULL, syscmdrdfifo);
-
-#if 0//PWY_FIXME
-	// for testing.
-	thread_add_timer(master, sysmon_master_hello_test, NULL, 10);
-#endif //PWY_FIXME
 
 	return;
 }
+#endif

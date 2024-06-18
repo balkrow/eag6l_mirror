@@ -1,5 +1,9 @@
 ::sysinit:/etc/rc
 ::restart:/etc/init.d/reboot
 ::shutdown:/etc/init.d/halt
+#[#56] register update timer 수정, balkrow, 2023-06-13
+::respawn:/usr/local/bin/appDemo -daemon
+::respawn:/usr/local/bin/sysmon -f /etc/sysmon.conf -u root -g root -d
+#[#56] end
 ::respawn:/sbin/getty -n 0 -t 3600 ttyS0
 

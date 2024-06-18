@@ -37,9 +37,9 @@ enum sysmon_cmd_fifo_type
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	gLLCFSet,
 #endif
-    gPortSetRate,
-    gPortESMCenable,
-    gPortAlarm,
+	gPortSetRate,
+	gPortESMCenable,
+	gPortAlarm,
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 	gPortPMGet,
 	gPortPMClear,

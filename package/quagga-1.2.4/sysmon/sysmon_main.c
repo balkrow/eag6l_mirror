@@ -34,8 +34,7 @@
 #include "sigevent.h"
 #include "zclient.h"
 #include "vrf.h"
-
-#include "sysmon/sysmon.h"
+#include "sysmon.h"
 
 extern void sysmon_init(void);
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/

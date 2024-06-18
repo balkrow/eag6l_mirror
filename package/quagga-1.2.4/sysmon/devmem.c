@@ -11,14 +11,22 @@ extern int32_t g_hdrv_fd;
 #define ACCESS_SIM
 #endif
 
-uint16_t sys_fpga_memory_read(uint16_t addr) {
+uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg) 
+{
 
 #ifdef ACCESS_SIM
-	return 0x1010;
+	return 0x0100;
 #else
         fpgamemory_t fpgamemory;
 
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+	if(port_reg)
+		fpgamemory.addr = PORT_BASE + addr;
+	else
+		fpgamemory.addr = addr;
+#else
         fpgamemory.addr = addr;
+#endif
 	fpgamemory.value = 0;
 
         ioctl(g_hdrv_fd, HDRIVER_IOCG_FPGA_SHOW_MEMORY, &fpgamemory);
@@ -27,14 +35,21 @@ uint16_t sys_fpga_memory_read(uint16_t addr) {
 #endif
 }
 
-uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval) {
+uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_reg) {
 #ifdef ACCESS_SIM
 	zlog_debug("[fpga]  reg=%x, writeval=%x", addr, writeval);
 	return writeval;
 #else
         fpgamemory_t fpgamemory;
 
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+	if(port_reg)
+		fpgamemory.addr = PORT_BASE + addr;
+	else
+		fpgamemory.addr = addr;
+#else /*! 56*/
         fpgamemory.addr = addr;
+#endif /*End 56 */
 	fpgamemory.value = writeval;
         ioctl(g_hdrv_fd, HDRIVER_IOCS_FPGA_WRITE_MEMORY, &fpgamemory);
 
@@ -45,7 +60,7 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval) {
 uint16_t sys_cpld_memory_read(uint16_t addr) {
 
 #ifdef ACCESS_SIM
-	return 0x1010;
+	return 0x100;
 #else
         cpldmemory_t cpldmemory;
 
@@ -76,7 +91,7 @@ uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval) {
 uint16_t sys_dpram_memory_read(uint16_t addr) {
 
 #ifdef ACCESS_SIM
-	return 0x1010;
+	return 0xaa;
 #else
         dprammemory_t dprammemory;
 

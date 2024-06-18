@@ -1,5 +1,8 @@
 #include "sysmon.h"
 #include "bp_regs.h"
+#if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+#include "sys_fifo.h"
+#endif
 
 #define DEBUG
 
@@ -30,13 +33,25 @@ extern int8_t rsmuGetPLLState(void);
 #endif
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
+#endif
+
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
+uint16_t portESMCenable (uint16_t port, uint16_t val);
 uint16_t portRateSet (uint16_t port, uint16_t val);
 uint16_t synceEnableSet(uint16_t port, uint16_t val);
+
+#if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+uint16_t synceIFPriSelect(uint16_t port, uint16_t val);
+uint16_t synceIFSecSelect(uint16_t port, uint16_t val);
+#else
 uint16_t synceIFSelect(uint16_t port, uint16_t val);
+#endif
 uint16_t pmClear(uint16_t port, uint16_t val);
 uint16_t chipReset(uint16_t port, uint16_t val);
-extern uint16_t sys_fpga_memory_read(uint16_t addr);
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+extern uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg);
+#endif
 extern void port_config_ESMC_enable(int port, int enable);
 extern int set_flex_tune_control(int port, int enable);
 extern int set_rtwdm_loopback(int port, int enable);
@@ -52,13 +67,13 @@ RegMON regMonList [] = {
   { COMMON_CTRL2_P5_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, portRateSet }, 
   { COMMON_CTRL2_P6_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, portRateSet }, 
 	/* port configuration - esmc */
-  { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, port_config_ESMC_enable }, 
-  { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, port_config_ESMC_enable }, 
-  { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, port_config_ESMC_enable }, 
-  { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, port_config_ESMC_enable }, 
-  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, port_config_ESMC_enable }, 
-  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, port_config_ESMC_enable }, 
-  { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, port_config_ESMC_enable }, 
+  { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, portESMCenable }, 
 	/* port configuration - flex control */
   { PORT_1_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_flex_tune_control }, 
   { PORT_2_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_flex_tune_control }, 
@@ -94,7 +109,12 @@ RegMON regMonList [] = {
 	/* synce global control */
   { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceEnableSet }, 
 	/* synce interface select */
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+  { SYNCE_IF_SELECT_ADDR, 0xFF, 8, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFPriSelect }, 
+  { SYNCE_IF_SELECT_ADDR, 0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFSecSelect }, 
+#else
   { SYNCE_IF_SELECT_ADDR, 0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFSelect }, 
+#endif
 	/* pm counter clear */
   { PM_COUNT_CLEAR_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, pmClear }, 
 	/* chip reset */
@@ -104,14 +124,8 @@ RegMON regMonList [] = {
 	/* dco register */
 	/* FIXME : add entry */
 };
-#else
-uint16_t portRateSet (uint16_t port);
-extern uint16_t sys_fpga_memory_read(uint16_t addr);
-
-RegMON regMonList [] = {
-  { COMMON_CTRL2_P1_ADDR, 0x3, 0, 0x7, sys_fpga_memory_read, portRateSet/*register callback*/}, 
-};
 #endif
+
 uint16_t regMonArrSize = sizeof(regMonList) / sizeof(RegMON);
 
 #if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
@@ -120,10 +134,10 @@ uint16_t portRateSet (uint16_t port)
 	port = port;
 	return 0;
 }
-#else /****************************************************/
+
 uint16_t portRateSet (uint16_t port, uint16_t val)
 {
-extern void port_config_speed(int port, long speed, int mode);
+	extern void port_config_speed(int port, long speed, int mode);
 
 	if(val == 0x7/*25G*/)
 		port_config_speed(port, PORT_IF_25G_KR, PORT_IF_25G_KR);
@@ -131,24 +145,137 @@ extern void port_config_speed(int port, long speed, int mode);
 		port_config_speed(port, PORT_IF_10G_KR, PORT_IF_10G_KR);
 	return SUCCESS;
 }
+#endif
 
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+uint16_t portESMCenable (uint16_t port, uint16_t val)
+{
+	uint16_t rc = RT_OK;
+	/*TODO: */
+	port = port;
+	val = val;
+	return rc;
+}
+
+uint16_t portRateSet (uint16_t port, uint16_t val)
+{
+	uint16_t rc = RT_OK;
+
+	if(val == 0x7/*25G*/)
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
+	else 
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
+
+	return rc;
+}
 uint16_t synceEnableSet(uint16_t port, uint16_t val)
 {
-	port;
-	return synce_config_set_admin(val);
-}
+	uint16_t rc = RT_OK;
+	port = port;
 
-uint16_t synceIFSelect(uint16_t port, uint16_t val)
+	if(val == 0xa5)
+		rc = gSysmonToCpssFuncs[gSynceEnable](1, 1);
+	else if(val == 0x5a)
+		rc = gSysmonToCpssFuncs[gSynceEnable](1, 0);
+	return rc;	
+}
+#endif
+
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 {
-	uint16_t pri_port, sec_port;
+	uint16_t rc = RT_OK;
 
-	port;
-	pri_port = (val >> 8) & 0xFF;
-	sec_port = (val & 0xFF);
+	switch(val)
+	{
+		case 11 : 
+			port = 0; 
+			break;
+		case 12 : 
+			port = 8; 
+			break;
+		case 13 : 
+			port = 16; 
+			break;
+		case 14 : 
+			port = 24; 
+			break;
+		case 21 : 
+			port = 32; 
+			break;
+		case 22 : 
+			port = 40; 
+			break;
+		case 23 : 
+			port = 50; 
+			break;
+		default :
+			port = 0xff; 
+			break;
+	}
 
-	return synce_config_set_if_select(pri_port, sec_port);
+	if(port != 0xff)
+		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
+	else
+		rc = RT_NOK;
+
+	return rc;
 }
 
+uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
+{
+	uint16_t rc = RT_OK;
+
+	switch(val)
+	{
+		case 11 : 
+			port = 0; 
+			break;
+		case 12 : 
+			port = 8; 
+			break;
+		case 13 : 
+			port = 16; 
+			break;
+		case 14 : 
+			port = 24; 
+			break;
+		case 21 : 
+			port = 32; 
+			break;
+		case 22 : 
+			port = 40; 
+			break;
+		case 23 : 
+			port = 50; 
+			break;
+		default :
+			port = 0xff; 
+			break;
+	}
+
+	if(port != 0xff)
+		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
+	else
+		rc = RT_NOK;
+
+	return rc;
+}
+#endif
+
+#if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+uint16_t pmClear(uint16_t port, uint16_t val)
+{
+	uint16_t rc = RT_OK;
+	port  = port;
+
+	if(val != 0xA5)
+		return SUCCESS;
+
+	gSysmonToCpssFuncs[gPortPMClear](1, 1);
+	return SUCCESS;
+}
+#else
 uint16_t pmClear(uint16_t port, uint16_t val)
 {
 extern void pm_request_clear(void);
@@ -160,6 +287,7 @@ extern void pm_request_clear(void);
 	pm_request_clear();
 	return SUCCESS;
 }
+#endif
 
 uint16_t chipReset(uint16_t port, uint16_t val)
 {
@@ -171,7 +299,6 @@ uint16_t chipReset(uint16_t port, uint16_t val)
 		;/*FIXME : need reset function for bp. */
 	return SUCCESS;
 }
-#endif
 
 void regMonitor(void)
 {
@@ -191,7 +318,6 @@ void regMonitor(void)
 		}
 	}
 }
-#endif
 
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 u8 eag6LPortlist[] =
@@ -1151,6 +1277,7 @@ void update_KeepAlive(void)
 }
 #endif
 
+#if 0
 void update_bp_reg(void)
 {
 	u16 ii, temp, pri_port, sec_port, bitmask;
@@ -1266,7 +1393,6 @@ void update_bp_reg(void)
 		if(bitmask & 0x4) 
 			port_config_set_esmc(ii, (temp & 0x4));
 	}
-#endif
 
 	/***********************************************/
 	/* check/configure synce enable. */
@@ -1321,6 +1447,7 @@ void update_bp_reg(void)
 		if((pri_port != PORT_ID_EAG6L_NOT_USE) && (sec_port != PORT_ID_EAG6L_NOT_USE))
 			synce_config_set_if_select(pri_port, sec_port);
 	}
+#endif
 
 	/***********************************************/
 	/* read per-port spf port status/control. */
@@ -1332,6 +1459,7 @@ void update_bp_reg(void)
 	/* process per-port performance info from sdk. */
 	process_port_pm_counters();
 }
+#endif
 
 unsigned long __COMMON_CTRL2_ADDR[PORT_ID_EAG6L_MAX] = { 
 		0x0, 

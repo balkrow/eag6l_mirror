@@ -16,9 +16,6 @@
 #include <getopt.h>
 #include "log.h" 
 #include "thread.h" 
-#if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
-#include "svc_fsm.h" 
-#endif
 
 #undef DEBUG
 #define ACCESS_SIM
@@ -41,8 +38,13 @@ extern SVC_EVT svc_cpld_check(SVC_ST st);
 extern SVC_EVT svc_sdk_init(SVC_ST st);
 extern SVC_EVT svc_get_inven(SVC_ST st);
 extern SVC_EVT svc_init_done(SVC_ST st);
+#if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
+extern SVC_EVT svc_appDemo_shutdown(SVC_ST st);
+#endif
 
+#if 0
 SVC_FSM svc_fsm;
+#endif
 void init_svc_fsm(void);
 #endif
 
@@ -76,6 +78,10 @@ extern int8_t rsmu_pll_update(void);
 GLOBAL_DB gDB;
 #endif
 
+#if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
+extern void update_sfp(void);
+#endif
+
 void sigint (int sig) {
 	/* TODO. signal */
 	exit(0);
@@ -103,9 +109,10 @@ int sfp_timer_func(struct thread *thread)
 }
 #endif
 
-#if 1/*[#4] Register updating, dustin, 2024-05-28 */
+#if 0/*[#4] Register updating, dustin, 2024-05-28 */
 int reg_timer_func(struct thread *thread)
 {
+	 
 	thread_add_timer (master, (int)reg_timer_func, NULL, 10);
 
 	{
@@ -118,18 +125,21 @@ int reg_timer_func(struct thread *thread)
 
 #if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
 void init_svc_fsm(void) {
-	svc_fsm.state = SVC_ST_INIT;
-	svc_fsm.evt = SVC_EVT_INIT;
+	gDB.svc_fsm.state = SVC_ST_INIT;
+	gDB.svc_fsm.evt = SVC_EVT_INIT;
 
 	/*TODO: must be mapping function*/	
-	svc_fsm.cb[SVC_ST_INIT] = svc_init;
-	svc_fsm.cb[SVC_ST_INIT_FAIL] = svc_init_fail;
-	svc_fsm.cb[SVC_ST_DPRAM_CHK] = svc_dpram_check;
-	svc_fsm.cb[SVC_ST_FPGA_CHK] = svc_fpga_check;
-	svc_fsm.cb[SVC_ST_CPLD_CHK] = svc_cpld_check;
-	svc_fsm.cb[SVC_ST_SDK_INIT] = svc_sdk_init;
-	svc_fsm.cb[SVC_ST_GET_INVEN] = svc_get_inven;
-	svc_fsm.cb[SVC_ST_INIT_DONE] = svc_init_done;
+	gDB.svc_fsm.cb[SVC_ST_INIT] = svc_init;
+	gDB.svc_fsm.cb[SVC_ST_INIT_FAIL] = svc_init_fail;
+#if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
+	gDB.svc_fsm.cb[SVC_ST_APPDEMO_SHUTDOWN] = svc_appDemo_shutdown;
+#endif
+	gDB.svc_fsm.cb[SVC_ST_DPRAM_CHK] = svc_dpram_check;
+	gDB.svc_fsm.cb[SVC_ST_FPGA_CHK] = svc_fpga_check;
+	gDB.svc_fsm.cb[SVC_ST_CPLD_CHK] = svc_cpld_check;
+	gDB.svc_fsm.cb[SVC_ST_SDK_INIT] = svc_sdk_init;
+	gDB.svc_fsm.cb[SVC_ST_GET_INVEN] = svc_get_inven;
+	gDB.svc_fsm.cb[SVC_ST_INIT_DONE] = svc_init_done;
 }
 
 
@@ -137,15 +147,15 @@ int svc_fsm_timer(struct thread *thread) {
 	SVC_ST state;
 	SVC_EVT event;
 
-	state = transition(svc_fsm.state, svc_fsm.evt);
+	state = transition(gDB.svc_fsm.state, gDB.svc_fsm.evt);
 
-	if(svc_fsm.cb[state] != NULL)
-		event = svc_fsm.cb[state](state);
+	if(gDB.svc_fsm.cb[state] != NULL)
+		event = gDB.svc_fsm.cb[state](state);
 
-	svc_fsm.state = state;
-	svc_fsm.evt = event;
+	gDB.svc_fsm.state = state;
+	gDB.svc_fsm.evt = event;
 #ifdef DEBUG
-	zlog_notice("FSM state=%x, evt=%x", svc_fsm.state, svc_fsm.evt);
+	zlog_notice("FSM state=%x, evt=%x", gDB.svc_fsm.state, gDB.svc_fsm.evt);
 #endif
 
 	thread_add_timer_msec (master, svc_fsm_timer, NULL, 100);
@@ -163,20 +173,48 @@ int8_t monitor_hw_timer(struct thread *thread)
 #else
 	thread_add_timer_msec (master, monitor_hw_timer, NULL, 100);
 #endif
-	return 0;
+	return RT_OK;
 }	
+#endif
 
+#if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
 int8_t reg_fast_intv_update(struct thread *thread)
 {
 	/*update KeepAlive reg*/
 	update_KeepAlive();
 
+	/* read per-port spf port status/control. */
+	update_port_sfp_information();
+
+	/* process per-port performance info from sdk. */
+	process_port_pm_counters();
+
 	thread_add_timer_msec (master, reg_fast_intv_update, NULL, 500);
+
+	return RT_OK;
 }
 
 int8_t reg_slow_intv_update(struct thread *thread)
 {
 
+	update_sfp();
+	thread_add_timer (master, reg_slow_intv_update, NULL, 1);
+	return RT_OK;
+}
+
+int8_t monMCUupdate(struct thread *thread)
+{
+	regMonitor();
+	thread_add_timer_msec (master, monMCUupdate, NULL, 100);
+	return RT_OK;
+}
+#endif
+
+#if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
+uint16_t sysmonUpdateGetSWVer(void)
+{
+	/*TODO: real data*/
+	return 0x100;
 }
 #endif
 
@@ -192,6 +230,13 @@ void sysmon_thread_init (void)
 #if 0/*[#4] Register updating, dustin, 2024-05-28 */
 	thread_add_timer (master, reg_timer_func, NULL, 10);
 #endif
+
+#if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
+	thread_add_timer (master, monMCUupdate, NULL, 1);
+	thread_add_timer (master, reg_fast_intv_update, NULL, 2);
+	thread_add_timer (master, reg_slow_intv_update, NULL, 3);
+#endif
+
 #if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 	thread_add_timer (master, monitor_hw_timer, NULL, 1);
 #endif	
@@ -228,7 +273,9 @@ void sysmon_init(void) {
 	monitor_hw_init();
 #endif
 #if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
+#if 0/*[#56] register update timer 真, balkrow, 2023-06-13 */
 	sysmon_master_fifo_init ();
+#endif
 	init_svc_fsm();
 #endif
 	sysmon_thread_init();
