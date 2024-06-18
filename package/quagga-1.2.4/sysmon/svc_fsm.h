@@ -2,6 +2,7 @@ typedef enum {
 	SVC_EVT_NONE,
 	SVC_EVT_INIT,
 	SVC_EVT_IPC_COM_SUCCESS,
+	SVC_EVT_IPC_COM_WAIT,
 	SVC_EVT_IPC_COM_FAIL,
 	SVC_EVT_PLL_LOCK,
 	SVC_EVT_PLL_UNLOCK,
@@ -18,19 +19,27 @@ typedef enum {
 	SVC_EVT_PORT_LINK_DOWN,
 	SVC_EVT_PORT_LINK_UP,
 	SVC_EVT_INIT_DONE,
-	SVC_SVC_MAX
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+	SVC_EVT_APPDEMO_SHUTDOWN,
+#endif
+	SVC_EVT_MAX
 } SVC_EVT;
 
 typedef enum {
 	SVC_ST_INIT,
 	SVC_ST_INIT_FAIL,
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+	SVC_ST_APPDEMO_SHUTDOWN,
+#endif
 	SVC_ST_DPRAM_CHK,
 	SVC_ST_FPGA_CHK,
 	SVC_ST_CPLD_CHK,
 	SVC_ST_SDK_INIT,
 	SVC_ST_GET_INVEN,
 	SVC_ST_INIT_DONE,
+	/*
 	SVC_ST_TERM,
+	*/
 	SVC_ST_MAX,
 } SVC_ST; 
 
@@ -51,7 +60,6 @@ typedef struct {
 typedef struct svc_mng_fsm {
 	SVC_ST state;
 	SVC_EVT evt;
-	//SVC_ST_CALLBACKS cb;
 	ST_CB_FUNC cb[SVC_ST_MAX];
 } SVC_FSM;
 

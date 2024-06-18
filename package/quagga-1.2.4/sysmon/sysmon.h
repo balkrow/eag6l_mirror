@@ -31,6 +31,9 @@
 #include <stddef.h>
 #include <errno.h>
 #include <assert.h>
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+#include "svc_fsm.h"
+#endif
 
 /*
 #define PATH_SYSMON_PID "/var/run/sysmon.pid"
@@ -39,14 +42,28 @@
 #define SYSMON_DEFAULT_CONFIG    "sysmon.conf"
 #define SYSMON_VTY_PORT                 9998 
 
-#if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/
-extern uint16_t sys_fpga_memory_read(uint16_t addr);
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+extern uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg);
+extern uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t val, uint8_t port_reg);
+extern uint16_t sys_dpram_memory_read(uint16_t addr);
+extern uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t val);
 #endif
 /*
 define Memory Macro
 */
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#define PORT_REG 1
+#define PORT_NOREG 0
+
+#define FPGA_READ(x) sys_fpga_memory_read(x, PORT_NOREG)
+#define FPGA_WRITE(x, y) sys_fpga_memory_write(x, y, PORT_NOREG)
+#define FPGA_PORT_READ(x) sys_fpga_memory_read(x, PORT_REG)
+#define FPGA_PORT_WRITE(x, y) sys_fpga_memory_write(x, y, PORT_REG)
+#else
 #define FPGA_READ sys_fpga_memory_read
 #define FPGA_WRITE sys_fpga_memory_write
+#endif
+
 #define DPRAM_READ sys_dpram_memory_read
 #define DPRAM_WRITE sys_dpram_memory_write
 #define CPLD_READ sys_cpld_memory_read
@@ -66,6 +83,22 @@ define Memory Macro
 
 #define SYS_INIT_FAIL 1
 #define SYS_INIT_DONE 0xAA
+
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#define SDK_INIT_FAIL 1
+#define SDK_INIT_DONE 0xAA
+#define COMM_FAIL 1
+#define COMM_SUCCESS 0xAA
+#define FSM_MAX_TRIES 10
+
+#define gPortRegUpdate(reg, shift, mask, val) \
+{ \
+	uint16_t rval = 0, wval =0; \
+	rval = FPGA_PORT_READ(reg); \
+	wval =  ((rval >> shift) & mask) | val; \
+	FPGA_PORT_WRITE(reg, wval); \
+}
+#endif
 
 #define gRegUpdate(reg, shift, mask, val) \
 { \
@@ -87,6 +120,12 @@ typedef struct globalDB
 	uint8_t init_state; /*init state*/
 	uint8_t pll_state; /*pll state*/
 	uint16_t keepAlive;
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+	uint8_t sdk_init_state; /*sdk init state*/
+	uint8_t comm_state; /*sdk init state*/
+	uint8_t fsm_retries;
+	SVC_FSM svc_fsm;
+#endif
 } GLOBAL_DB;
 
 #define RSMU_MAGIC   '?'
@@ -179,6 +218,12 @@ extern void print_console(const char *fmt, ...);
         PORT_ID_EAG6L_PORT9,/*for-demo-board-100G-test*/
         PORT_ID_EAG6L_MAX,
 	};
+
+	enum ePortIfMode
+	{
+		PORT_IF_10G_KR,
+		PORT_IF_25G_KR,
+	};
 #if 0
 	enum ePortLinkStaus
 	{
@@ -197,18 +242,6 @@ extern void print_console(const char *fmt, ...);
 		PORT_FEC_MODE_LAST
 	};
 
-	enum ePortIfMode
-	{
-		PORT_IF_10G_XGMII,
-		PORT_IF_10G_RXAUI,
-		PORT_IF_10G_KR,
-		PORT_IF_10G_SR_LR,
-		PORT_IF_10G_HX,
-		PORT_IF_25G_KR,
-		PORT_IF_25G_CR,
-		PORT_IF_100G_KR4,
-		PORT_IF_LAST
-	};
 
 	enum eAlarmList
 	{

@@ -313,7 +313,23 @@ uint8_t gCpssSynceDisable(int args, ...)
 	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+uint8_t gCpssSynceIfSelect(int args, ...)
+{
+#if 0
+	uint8_t ret;
+	uint8_t portno, dport;
+	va_list argP;
 
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+#endif
+	args = args;
+	/*TODO: */
+	return IPC_CMD_SUCCESS;
+}
+#else
 uint8_t gCpssSynceIfSelect(int args, ...)
 {
 	uint8_t ret;
@@ -343,7 +359,8 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
-#endif
+#endif /*[#56] registter update timer*/
+#endif /*Verifying*/
 
 
 
@@ -380,11 +397,11 @@ uint8_t gCpssLLCFSet(int args, ...)
 #if 1/*[#40] Port config for rate/ESMC/alarm, dustin, 2024-05-30 */
 uint8_t gCpssPortSetRate(int args, ...)
 {
-    uint8_t ret = GT_OK, retry;
+	uint8_t ret = GT_OK, retry;
 	uint8_t portno, dport, ifmode;
 	uint16_t speed;
-    va_list argP;
-    sysmon_fifo_msg_t *msg = NULL;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
 	CPSS_PORT_MANAGER_STC pmgr;
 	CPSS_PM_PORT_PARAMS_STC pparam;
 	CPSS_PORT_MANAGER_STATUS_STC pstage;
@@ -394,42 +411,53 @@ uint8_t gCpssPortSetRate(int args, ...)
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d] port[%d] speed[%d] mode[%d].", 
-		__func__, gPortSetRate, msg->type, msg->portid, msg->speed, msg->mode);
+	       __func__, gPortSetRate, msg->type, msg->portid, msg->speed, msg->mode);
 
 	/* set speed/mode */
 	switch(msg->speed) {
-		case PORT_IF_10G_XGMII:
-			speed = CPSS_PORT_SPEED_10000_E;
-			ifmode = CPSS_PORT_INTERFACE_MODE_XGMII_E;
-			break;
-		case PORT_IF_10G_RXAUI:
-			speed = CPSS_PORT_SPEED_10000_E;
-			ifmode = CPSS_PORT_INTERFACE_MODE_RXAUI_E;
-			break;
-		case PORT_IF_10G_KR:
-			speed = CPSS_PORT_SPEED_10000_E;
-			ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
-			break;
-		case PORT_IF_25G_KR:
-			speed = CPSS_PORT_SPEED_25000_E;
-			ifmode = CPSS_PORT_INTERFACE_MODE_KR_C_E;
-			break;
-		case PORT_IF_25G_CR:
-			speed = CPSS_PORT_SPEED_25000_E;
-			ifmode = CPSS_PORT_INTERFACE_MODE_CR_C_E;
-			break;
-		case PORT_IF_100G_KR4:
-			speed = CPSS_PORT_SPEED_100G_E;
-			ifmode = CPSS_PORT_INTERFACE_MODE_KR4_E;
-			break;
-		default:
-			syslog(LOG_INFO, "%s: invalid speed[%d].", __func__, msg->speed);
-			return GT_ERROR;
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+	case PORT_IF_10G_KR:
+		speed = CPSS_PORT_SPEED_10000_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
+		break;
+	case PORT_IF_25G_KR:
+		speed = CPSS_PORT_SPEED_25000_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_KR_C_E;
+		break;
+#else
+	case PORT_IF_10G_XGMII:
+		speed = CPSS_PORT_SPEED_10000_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_XGMII_E;
+		break;
+	case PORT_IF_10G_RXAUI:
+		speed = CPSS_PORT_SPEED_10000_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_RXAUI_E;
+		break;
+	case PORT_IF_10G_KR:
+		speed = CPSS_PORT_SPEED_10000_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
+		break;
+	case PORT_IF_25G_KR:
+		speed = CPSS_PORT_SPEED_25000_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_KR_C_E;
+		break;
+	case PORT_IF_25G_CR:
+		speed = CPSS_PORT_SPEED_25000_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_CR_C_E;
+		break;
+	case PORT_IF_100G_KR4:
+		speed = CPSS_PORT_SPEED_100G_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_KR4_E;
+		break;
+#endif
+	default:
+		syslog(LOG_INFO, "%s: invalid speed[%d].", __func__, msg->speed);
+		return GT_ERROR;
 	}
 
 	ret = cpssDxChPortManagerPortParamsStructInit(
-				CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E, &pparam);
-    if(ret != GT_OK) {
+						      CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E, &pparam);
+	if(ret != GT_OK) {
 		syslog(LOG_INFO, "cpssDxChPortManagerPortParamsStructInit ret[%d]", ret);
 		goto _gCpssPortSetRate_exit;
 	}
@@ -491,7 +519,11 @@ uint8_t gCpssPortSetRate(int args, ...)
 			goto _gCpssPortSetRate_exit;
 		}
 
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+		if((msg->speed == PORT_IF_25G_KR)) {
+#else
 		if((msg->speed == PORT_IF_25G_KR) || (msg->speed == PORT_IF_25G_CR)) {
+#endif
 			ret = cpssDxChSamplePortManagerFecModeSet(0, dport, CPSS_PORT_RS_FEC_MODE_ENABLED_E);
 			if(ret != GT_OK) {
 				syslog(LOG_INFO, "cpssDxChPortFecModeSet ret[%d]", ret);
@@ -507,7 +539,7 @@ uint8_t gCpssPortSetRate(int args, ...)
 
 		pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
 		if(pstage.portUnderOperDisable || 
-				(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)) {
+		   (pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)) {
 			if(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)
 				pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
 			else
@@ -528,9 +560,9 @@ uint8_t gCpssPortSetRate(int args, ...)
 _gCpssPortSetRate_exit:
 	msg->result = ret;
 
-    /* reply the result */
-    send_to_sysmon_master(msg);
-    return IPC_CMD_SUCCESS;
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
 }
 
 uint8_t gCpssPortESMCenable(int args, ...)

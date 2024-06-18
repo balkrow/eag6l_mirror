@@ -20,6 +20,9 @@
  */
 
 #include <zebra.h>
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#include <dirent.h>
+#endif
 
 #include "command.h"
 #include "prefix.h"
@@ -109,3 +112,57 @@ sysmon_zclient_init (struct thread_master *master)
   //install_element (CONFIG_NODE, &router_zebra_cmd);
   //install_element (VIEW_NODE, &show_sysmon_cmd);
 }
+
+#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+int watch_get_pidof(char *procname)
+{
+	FILE *f;
+	DIR *d;
+	char *p;
+	int len;
+	struct dirent *de;
+	char line[200];
+	char *endptr = NULL;
+	int pid;
+
+	if ((d = opendir("/proc")) == 0)
+	{
+		fprintf(stderr, "could not open /proc -- is it mounted?\n");
+		closedir(d);
+		return (0);
+	}
+
+	while((de = readdir(d)) != 0)
+	{
+		if (de->d_name[0] == 0) continue;
+		for(p = de->d_name; *p; ++p) if (!isdigit(*p)) break;
+		if (*p != 0) continue;
+		sprintf(line, "/proc/%s/status", de->d_name);
+		if ((f = fopen(line, "r")) != 0)
+		{
+			while(fgets(line, sizeof line, f) != 0)
+			{
+				len = strlen(line);
+				if (line[len-1] != '\n') continue;
+				line[len-1] = 0;
+				if (strncasecmp(line, "name:", 5) == 0)
+				{
+					for(p = line+5; isspace(*p); ++p);
+					if (strcmp(procname, p) == 0)
+					{
+						pid = strtoul(de->d_name, &endptr, 10);
+						fclose(f);
+						closedir(d);
+
+						return(pid);
+					}
+					break;
+				}
+			}
+			fclose(f);
+		}
+	}
+	closedir(d);
+	return(0);
+}
+#endif
