@@ -895,16 +895,38 @@ uint8_t gCpssPortPMGet(int args, ...)
 		}
 
 		/* copy data to msg->pm */
-		msg->pm[portno].tx_frame = ((u64)pmc.goodOctetsSent.l[1] << 32) | 
+#if 1/*[#63] Fixing rx/tx frame counter of PM counters, dustin, 2024-06-20 */
+	 /* Marvell aldrin3s does NOT support goodPktsSent/goodPktsRcv counters. */
+		msg->pm[portno].tx_byte  =  ((u64)pmc.goodOctetsSent.l[1] << 32) | 
+			                         (u64)pmc.goodOctetsSent.l[0];
+		msg->pm[portno].rx_byte  =  ((u64)pmc.goodOctetsRcv.l[1] << 32) | 
+			                         (u64)pmc.goodOctetsRcv.l[0];
+		msg->pm[portno].tx_frame =  ((u64)pmc.mcPktsSent.l[1] << 32) | 
+			                         (u64)pmc.mcPktsSent.l[0];
+		msg->pm[portno].tx_frame += ((u64)pmc.brdcPktsSent.l[1] << 32) | 
+			                         (u64)pmc.brdcPktsSent.l[0];
+		msg->pm[portno].tx_frame += ((u64)pmc.ucPktsSent.l[1] << 32) | 
+			                         (u64)pmc.ucPktsSent.l[0];
+		msg->pm[portno].rx_frame =  ((u64)pmc.mcPktsRcv.l[1] << 32) | 
+			                         (u64)pmc.mcPktsRcv.l[0];
+		msg->pm[portno].rx_frame += ((u64)pmc.brdcPktsRcv.l[1] << 32) | 
+			                         (u64)pmc.brdcPktsRcv.l[0];
+		msg->pm[portno].rx_frame += ((u64)pmc.ucPktsRcv.l[1] << 32) | 
+			                         (u64)pmc.ucPktsRcv.l[0];
+		msg->pm[portno].rx_fcs   =  ((u64)pmc.badCrc.l[1] << 32) | 
+			                         (u64)pmc.badCrc.l[0];
+#else
+		msg->pm[portno].tx_frame = ((u64)pmc.goodOctetsSent.l[1] << 32) |
 			                        (u64)pmc.goodOctetsSent.l[0];
-		msg->pm[portno].rx_frame = ((u64)pmc.goodOctetsRcv.l[1] << 32) | 
+		msg->pm[portno].rx_frame = ((u64)pmc.goodOctetsRcv.l[1] << 32) |
 			                        (u64)pmc.goodOctetsRcv.l[0];
-		msg->pm[portno].tx_byte  = ((u64)pmc.goodPktsSent.l[1] << 32) | 
+		msg->pm[portno].tx_byte  = ((u64)pmc.goodPktsSent.l[1] << 32) |
 			                        (u64)pmc.goodPktsSent.l[0];
-		msg->pm[portno].rx_byte  = ((u64)pmc.goodPktsRcv.l[1] << 32) | 
+		msg->pm[portno].rx_byte  = ((u64)pmc.goodPktsRcv.l[1] << 32) |
 			                        (u64)pmc.goodPktsRcv.l[0];
-		msg->pm[portno].rx_fcs   = ((u64)pmc.badCrc.l[1] << 32) | 
+		msg->pm[portno].rx_fcs   = ((u64)pmc.badCrc.l[1] << 32) |
 			                        (u64)pmc.badCrc.l[0];
+#endif
 
 		if(fecmode == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
 			msg->pm[portno].fcs_ok   = ((u64)rs_cnt.correctedFecCodeword.l[1] << 32) |
