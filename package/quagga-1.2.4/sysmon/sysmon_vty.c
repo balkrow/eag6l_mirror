@@ -87,6 +87,7 @@ DEFUN (llcf_conf,
 }
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 extern synce_if_pri_select(int8_t port, int8_t pri);
 DEFUN (synce_if_conf,
        synce_if_conf_cmd,
@@ -99,14 +100,19 @@ DEFUN (synce_if_conf,
   uint8_t pri = 0;
   uint8_t port = 0;
 
-  if(argv != 2)
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+  if(argc != 2)
+  {
 	vty_out (vty, "parameter error%s", VTY_NEWLINE);
+	return CMD_SUCCESS;
+  }
 
   if (strncmp (argv[0], "p", 1) == 0)
 	  pri = 1;
 
   port = atoi(argv[1]); 
-  synce_if_pri_select(port, pri);
+  gSysmonToCpssFuncs[gSynceIfSelect](2, pri, port);
+#endif
 
   return CMD_SUCCESS;
 }
@@ -129,6 +135,26 @@ DEFUN (show_sysmon_system,
 }
 #endif
 
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+extern uint16_t synceEnableSet(uint16_t port ,uint16_t val);
+DEFUN (synce_enable,
+       synce_enable_cmd,
+       "sync-e (enable|disable)",
+       "sync ethernet"
+       "primary\n"
+       "secondary\n")
+{
+  uint16_t enable = 0x5a;
+
+  if (strncmp (argv[0], "e", 1) == 0)
+	  enable = 0xa5;
+
+  synceEnableSet(0, enable);	
+	
+  return CMD_SUCCESS;
+}
+#endif
+
 void
 sysmon_vty_init (void)
 {
@@ -137,5 +163,8 @@ sysmon_vty_init (void)
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
   install_element (VIEW_NODE, &synce_if_conf_cmd);
   install_element (VIEW_NODE, &show_sysmon_system_cmd);
+#endif
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+  install_element (VIEW_NODE, &synce_enable_cmd);
 #endif
 }

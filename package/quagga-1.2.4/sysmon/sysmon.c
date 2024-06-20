@@ -231,7 +231,7 @@ void sysmon_thread_init (void)
 	thread_add_timer (master, reg_timer_func, NULL, 10);
 #endif
 
-#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+#if 0/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 	thread_add_timer (master, monMCUupdate, NULL, 1);
 	thread_add_timer (master, reg_fast_intv_update, NULL, 2);
 	thread_add_timer (master, reg_slow_intv_update, NULL, 3);

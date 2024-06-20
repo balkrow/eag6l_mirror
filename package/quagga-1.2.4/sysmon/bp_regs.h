@@ -33,10 +33,6 @@ typedef struct reg_mon_str
 #define DPRAM_BASE 0x500000
 #endif
 
-#if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
-#define PRI_SRC 1
-#define SEC_SRC 0
-#endif
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 /* Start DPRAM registers*/

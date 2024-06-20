@@ -17,6 +17,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+#include <stdbool.h>
+#endif
 #include <netinet/in.h>
 
 #include "multi_thread.h"
@@ -30,6 +33,8 @@
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 #include "eag6l_fsm.h"
 #endif
+
+#define DEBUG
 
 #if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
 extern uint8_t EAG6LMacLearningnable (void);
@@ -57,6 +62,25 @@ int portLfRfDetect (struct multi_thread *thread);
 uint8_t gEag6LSDKInitStatus = GT_FALSE;
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 struct multi_thread *llcf_thread = NULL;
+#endif
+
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+extern GT_STATUS cpssDxChPortRefClockSourceOverrideEnableSet
+(
+    IN  GT_U8                           devNum,
+    IN  GT_PHYSICAL_PORT_NUM            portNum,
+    IN  GT_BOOL                         overrideEnable,
+    IN  CPSS_PORT_REF_CLOCK_SOURCE_ENT  refClockSource
+);
+
+extern GT_STATUS cpssDxChPortSyncEtherRecoveryClkConfigSet
+(
+    IN  GT_U8   devNum,
+    IN  CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_TYPE_ENT  recoveryClkType,
+    IN  GT_BOOL enable,
+    IN  GT_PHYSICAL_PORT_NUM        portNum,
+    IN  GT_U32  laneNum
+);
 #endif
 
 EVENT_NOTIFY_FUNC *notifyEventToIPC = NULL;
@@ -93,6 +117,10 @@ int sysrdfifo;
 int syswrfifo;
 
 struct multi_thread_master *master;
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+static uint16_t gSyncePriInf = 0xff; 
+static uint16_t gSynceSecInf = 0xff; 
+#endif
 
 uint8_t eag6LLinkStatus[PORT_ID_EAG6L_MAX];
 
@@ -118,7 +146,6 @@ uint8_t get_eag6L_lport(uint8_t dport)
 }
 
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
-#undef DEBUG
 uint8_t gEag6LIPCstate = IPC_INIT_SUCCESS; 
 
 extern GT_STATUS cpssInitSystem
@@ -239,7 +266,179 @@ uint8_t gCpssHello(int args, ...)
 	return IPC_CMD_SUCCESS;
 }
 
-#if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+uint8_t gCpssSynceEnable(int args, ...)
+{
+
+	uint8_t ret = 0, i;
+	uint8_t devNum = 0;
+	va_list argP;
+	sysmon_fifo_msg_t *msg;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	for(i = 0; i < eag6LPortArrSize; i++) 	
+	{
+		ret += cpssDxChPortRefClockSourceOverrideEnableSet(devNum,
+			eag6LPortlist[i], 
+			true, 
+			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+	}
+
+#ifdef DEBUG
+	syslog(LOG_NOTICE, "%s : synce enable ret=%x", __func__, ret);
+#endif
+
+	if(!ret)
+		msg->result = FIFO_CMD_SUCCESS;
+	else
+		msg->result = FIFO_CMD_FAIL;
+
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssSynceDisable(int args, ...)
+{
+	uint8_t ret = 0, i;
+	uint8_t devNum = 0;
+	va_list argP;
+	sysmon_fifo_msg_t *msg;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	for(i = 0; i < eag6LPortArrSize; i++) 	
+	{
+		ret += cpssDxChPortRefClockSourceOverrideEnableSet(devNum,
+			eag6LPortlist[i], 
+			false, 
+			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+	}
+
+#ifdef DEBUG
+	syslog(LOG_NOTICE, "%s : synce neable ret=%x", __func__, ret);
+#endif
+
+	if(!ret)
+		msg->result = FIFO_CMD_SUCCESS;
+	else
+		msg->result = FIFO_CMD_FAIL;
+
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssSynceIfSelect(int args, ...)
+{
+	uint8_t ret = 0;
+	uint8_t devNum = 0;
+	uint32_t clock_src, portNum;
+	GT_BOOL enable = true;
+	CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_TYPE_ENT recoveryClkType;
+
+	va_list argP;
+	sysmon_fifo_msg_t *msg;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	clock_src = msg->mode;
+	portNum = msg->portid;
+	va_end(argP);
+
+
+	if(clock_src == PRI_SRC)
+	{
+		recoveryClkType = CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E;
+		/** clear prev Interface */
+		if(gSyncePriInf != 0xff && gSyncePriInf != portNum)
+		{
+			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E,
+									false,
+									gSyncePriInf,
+									gSyncePriInf == 50 ? 2 : 0);
+
+			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
+			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
+		}
+
+		if(gSynceSecInf != 0xff && gSynceSecInf == portNum)
+		{
+			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E,
+									false,
+									gSynceSecInf,
+									gSynceSecInf == 50 ? 2 : 0);
+			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
+			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
+
+		}
+	}
+	else if(clock_src == SEC_SRC)
+	{
+		recoveryClkType = CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E;
+		/** clear prev Interface */
+		if(gSynceSecInf != 0xff && gSynceSecInf != portNum)
+		{
+			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E,
+									false,
+									gSynceSecInf,
+									gSynceSecInf == 50 ? 2 : 0);
+			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
+			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
+		}
+
+		if(gSyncePriInf != 0xff && gSyncePriInf == portNum)
+		{
+			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E,
+									false,
+									gSyncePriInf,
+									gSyncePriInf == 50 ? 2 : 0);
+			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
+			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
+
+		}
+	}
+	else
+		goto fail_return;
+
+
+
+#ifdef DEBUG
+	syslog(LOG_NOTICE, "%s : clock src %x portNum %x", __func__, clock_src, portNum);
+#endif
+
+	ret += cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+					  recoveryClkType,
+					  enable,
+					  portNum,
+					  portNum == 50 ? 2 : 0);
+
+	if(!ret)
+	{
+		msg->result = FIFO_CMD_SUCCESS;
+		if(clock_src == PRI_SRC)
+			gSyncePriInf = portNum; 
+		else 
+			gSynceSecInf = portNum;
+	}
+	else
+		msg->result = FIFO_CMD_FAIL;
+
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+fail_return :
+	return IPC_CMD_FAIL;
+}
+#endif
+
+#if 0/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
 uint8_t gCpssSynceEnable(int args, ...)
 {
 	uint8_t ret;
@@ -368,28 +567,28 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 uint8_t gCpssLLCFSet(int args, ...)
 {
 	va_list argP;
-	sysmon_fifo_msg_t msg;
+	sysmon_fifo_msg_t *msg = NULL;
 
 	va_start(argP, args);
-	msg.type = va_arg(argP, uint32_t);
-	msg.portid = va_arg(argP, uint32_t);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-	msg.result = FIFO_CMD_SUCCESS; 	
+	msg->result = FIFO_CMD_SUCCESS; 	
 
-	syslog(LOG_INFO, "LLCFSet enable[%d] <<<", msg.portid);
+	syslog(LOG_INFO, "LLCFSet enable[%d] <<<", msg->portid);
 
-	if(msg.portid == IPC_FUNC_ON)
+	if(msg->portid == IPC_FUNC_ON)
 	{
 		llcf_thread = multi_thread_add_timer (master, svc_fault_fsm_timer, NULL, 1);
 		if(!llcf_thread)
-			msg.result = FIFO_CMD_FAIL; 	
+			msg->result = FIFO_CMD_FAIL; 	
 	}
 	else
 	{
-		multi_thread_cancel(llcf_thread);
+		if(llcf_thread)
+			multi_thread_cancel(llcf_thread);
 	}
 
-	send_to_sysmon_master(&msg);
+	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
 #endif
@@ -792,6 +991,7 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 	gCpssSynceDisable,
 	gCpssSynceIfSelect,
 #endif
+
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	gCpssLLCFSet,
 #endif
@@ -859,60 +1059,10 @@ int sysmon_slave_recv_fifo(struct multi_thread *thread)
 		syslog(LOG_ERR, "%s : Receive msg %x error", __func__, req.type);
 		goto next_time;
 	}
+#endif
   
-#if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
-#if 1/*[#??] Enhancing calling method, dustin, 2024-05-30 */
 	gCpssToSysmonFuncs[req.type](1, &req);
-#else
-	switch(req.type) 
-    {
-        case gSDKInit:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-        case gHello:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-        case gSynceEnable:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-        case gSynceDisable:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-        case gSynceIfSelect:
-			gCpssToSysmonFuncs[req.type](3, req.type, req.portid, req.portid2);
-            break;
-#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
-		case gLLCFSet:
-			gCpssToSysmonFuncs[req.type](2, req.type, req.portid);
-            break;
-#endif
-        case gPortSetRate:
-			gCpssToSysmonFuncs[req.type](4, req.type, req.portid, req.speed, req.mode);
-            break;
-        case gPortESMCenable:
-			gCpssToSysmonFuncs[req.type](3, req.type, req.portid, req.state);
-            break;
-        case gPortAlarm:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-#if 1/*[#32] PM related register update, dustin, 2024-05-28 */
-        case gPortPMGet:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-        case gPortPMClear:
-			gCpssToSysmonFuncs[req.type](1, req.type);
-            break;
-#endif
-		default:
-            syslog(LOG_INFO,"%s : default? (REQ) : type[%d]", __func__, req.type);
-			gCpssToSysmonFuncs[req.type](1, req.type);
-	}
-#endif
-#endif
-#else
-	/**TODO: define request type, process**/
-	sysmon_slave_system_command(&req);
-#endif
+
 next_time:
 	multi_thread_add_read (master, sysmon_slave_recv_fifo, NULL, MULTI_THREAD_FD (thread));
 	return 0;

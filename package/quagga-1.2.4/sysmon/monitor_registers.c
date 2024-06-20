@@ -39,7 +39,9 @@ extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 uint16_t portESMCenable (uint16_t port, uint16_t val);
 uint16_t portRateSet (uint16_t port, uint16_t val);
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
 uint16_t synceEnableSet(uint16_t port, uint16_t val);
+#endif
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
 uint16_t synceIFPriSelect(uint16_t port, uint16_t val);
@@ -168,17 +170,20 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 
 	return rc;
 }
+
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
 uint16_t synceEnableSet(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 	port = port;
-
 	if(val == 0xa5)
 		rc = gSysmonToCpssFuncs[gSynceEnable](1, 1);
 	else if(val == 0x5a)
-		rc = gSysmonToCpssFuncs[gSynceEnable](1, 0);
+		rc = gSysmonToCpssFuncs[gSynceDisable](1, 0);
 	return rc;	
 }
+#endif
+
 #endif
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
