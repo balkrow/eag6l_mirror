@@ -106,7 +106,7 @@ uint8_t gCpssSynceEnable(int args, ...)
 	
 	msg.type = gSynceEnable; 
 
-	if(send_to_sysmon_slave(msg) == 0) {
+	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
@@ -127,6 +127,7 @@ uint8_t gCpssSynceDisable(int args, ...)
 	if(args != 1)
 		return IPC_CMD_FAIL;
 
+	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
 	va_arg(argP, uint32_t);	
 	va_end(argP);
@@ -382,12 +383,9 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssHello,	
 #if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
 	gCpssSynceEnable,
-#if 1/* callback number/sequence must be same as enum sysmon_cmd_fifo_type. */
-	gCpssSynceEnable, 
 #if 1/*[#56] register update timer ��, balkrow, 2023-06-13 */
 	gCpssSynceDisable,
 #endif /*End 56*/
-#endif /*End callback */
 	gCpssSynceIfSelect,
 #endif /*End 24*/
 #if 1/*[#43] LF▒~\▒~C~]▒~K~\ RF ▒| ~D▒~K▒ 기▒~J▒ ▒~T▒~@, balkrow, 2024-06-05*/
@@ -418,6 +416,10 @@ int32_t syscmdwrfifo = UNINITIALIZED_FD;
 #if 1/*[#56] register update timer ��, balkrow, 2023-06-13 */
 int synce_if_pri_select(int8_t port, int8_t pri)
 {
+#if 1/* use variable args scheme */
+	/* use marvell sdk to set synce if select. */
+	gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
+#else
 	sysmon_fifo_msg_t msg;
 
 	memset(&msg, 0, sizeof msg);
@@ -428,6 +430,7 @@ int synce_if_pri_select(int8_t port, int8_t pri)
 
 	/* use marvell sdk to set synce if select. */
 	gSysmonToCpssFuncs[gSynceIfSelect](1, &msg);
+#endif
 	return 0;
 }
 #endif
