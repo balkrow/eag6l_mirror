@@ -91,7 +91,6 @@ uint8_t gCpssHello(int args, ...)
 uint8_t gCpssSynceEnable(int args, ...)
 {
 	va_list argP;
-	uint16_t synce_enable;
 	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
@@ -102,10 +101,37 @@ uint8_t gCpssSynceEnable(int args, ...)
 
 	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
-	synce_enable = va_arg(argP, uint16_t);	
+	va_arg(argP, uint32_t);	
 	va_end(argP);
 	
-	msg.type = (synce_enable == 1) ? gSynceEnable : gSynceDisable; 
+	msg.type = gSynceEnable; 
+
+	if(send_to_sysmon_slave(msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
+uint8_t gCpssSynceDisable(int args, ...)
+{
+	va_list argP;
+	sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+	if(args != 1)
+		return IPC_CMD_FAIL;
+
+	va_start(argP, args);
+	va_arg(argP, uint32_t);	
+	va_end(argP);
+	
+	msg.type = gSynceDisable; 
 
 	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
@@ -122,7 +148,7 @@ uint8_t gCpssSynceEnable(int args, ...)
 uint8_t gCpssSynceIfSelect(int args, ...)
 {
 	va_list argP;
-	uint16_t pri_src, port;
+	uint32_t pri_src, port;
 	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
@@ -133,11 +159,13 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 
 	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
-	pri_src = va_arg(argP, uint16_t);	
-	port = va_arg(argP, uint16_t);	
+	pri_src = va_arg(argP, uint32_t);	
+	port = va_arg(argP, uint32_t);	
 	va_end(argP);
 
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
 	msg.type = gSynceIfSelect;
+#endif
 	msg.mode = pri_src;
 	msg.portid = port;
 
@@ -236,6 +264,7 @@ uint8_t gCpssLLCFSet(int args, ...)
 {
 	va_list argP;
 	sysmon_fifo_msg_t msg;
+	memset(&msg, 0, sizeof(sysmon_fifo_msg_t));
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
@@ -247,7 +276,7 @@ uint8_t gCpssLLCFSet(int args, ...)
 
 	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
-	msg.portid = va_arg(argP, uint16_t);
+	msg.portid = va_arg(argP, int32_t);
 	va_end(argP);
 	msg.type = gLLCFSet;
 
@@ -355,12 +384,12 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssSynceEnable,
 #if 1/* callback number/sequence must be same as enum sysmon_cmd_fifo_type. */
 	gCpssSynceEnable, 
-#if 0/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 	gCpssSynceDisable,
-#endif
-#endif
+#endif /*End 56*/
+#endif /*End callback */
 	gCpssSynceIfSelect,
-#endif
+#endif /*End 24*/
 #if 1/*[#43] LFâ–’~\â–’~C~]â–’~K~\ RF â–’| ~Dâ–’~Kâ–’ ê¸°â–’~Jâ–’ â–’~Tâ–’~@, balkrow, 2024-06-05*/
 	gCpssLLCFSet,
 #endif
@@ -404,7 +433,7 @@ int synce_if_pri_select(int8_t port, int8_t pri)
 #endif
 
 #if 1/*[#43] LF¢¯¢¯¢¯ RF ¢¯¢¯ ¢¯¢¯ ¢¯¢¯, balkrow, 2024-06-05*/
-int8_t sysmon_llcf_set(int8_t enable)
+int8_t sysmon_llcf_set(int32_t enable)
 {
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 	return gSysmonToCpssFuncs[gLLCFSet](1, (uint16_t)enable);
@@ -648,7 +677,9 @@ uint8_t gReplyPortSetRate(int args, ...)
 
 	/* process for result. */
 	if(msg->result != FIFO_CMD_SUCCESS) {
-		zlog_notice("%s: Setting port speed/mode failed. ret[%d].", msg->result);
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
+		zlog_notice("Setting port speed/mode failed. ret[%d].", msg->result);
+#endif
 	}
 
 	PORT_STATUS[msg->portid].speed  = msg->speed;
@@ -750,7 +781,9 @@ uint8_t gReplyPortPMGet(int args, ...)
 #endif
 		}
 	} else
-		zlog_notice("%s: Getting PM counters failed. ret[%d].", msg->result);
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
+		zlog_notice("Getting PM counters failed. ret[%d].", msg->result);
+#endif
 
 	return ret;
 }
@@ -777,7 +810,9 @@ uint8_t gReplyPortPMClear(int args, ...)
 	if(msg->result == FIFO_CMD_SUCCESS) {
 		memset(PM_TBL, 0, sizeof PM_TBL);
 	} else
-		zlog_notice("%s: Clearing PM counters failed. ret[%d].", msg->result);
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
+		zlog_notice("Clearing PM counters failed. ret[%d].", msg->result);
+#endif
 
 	return ret;
 }
@@ -809,12 +844,18 @@ static int sysmon_master_system_command(sysmon_fifo_msg_t * msg)
 #ifdef DEBUG
 	zlog_notice("%s recv msg %x from cpss", __func__, msg->type);
 #endif
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
+	if(msg->type > funcsListLen2 || msg->type < 0) 
+		return RT_NOK;
+#endif
 #if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
 	gSysmonReplyFuncs[msg->type](1, msg);
 #endif
 
 #endif
-	return 0;
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
+	return RT_OK;
+#endif
 }
 
 int sysmon_master_recv_fifo(struct thread *thread)

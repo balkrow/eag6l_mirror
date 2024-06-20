@@ -84,6 +84,11 @@ define Memory Macro
 #define SYS_INIT_FAIL 1
 #define SYS_INIT_DONE 0xAA
 
+#if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
+#define PRI_SRC 1
+#define SEC_SRC 0
+#endif
+
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 #define SDK_INIT_FAIL 1
 #define SDK_INIT_DONE 0xAA

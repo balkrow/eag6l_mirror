@@ -132,6 +132,10 @@ Report bugs to %s\n", progname, ZEBRA_BUG_ADDRESS);
   exit (status);
 }
 
+#if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
+void sysmon_clean (void);
+#endif
+
 /* SIGHUP handler. */
 static void 
 sighup (void)
