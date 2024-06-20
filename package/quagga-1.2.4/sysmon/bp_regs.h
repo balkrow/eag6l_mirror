@@ -1,6 +1,23 @@
 #ifndef _BP_REGS_H_
 #define _BP_REGS_H_
 
+#if 1/*[#39] Adding Smart T-SFP related functions, dustin, 2024-06-12 */
+typedef enum {
+    SFP_ID_UNKNOWN = 0,
+    SFP_ID_SMART_DUPLEX_TSFP = 4,
+    SFP_ID_CU_SFP = 5,
+    SFP_ID_SMART_BIDI_TSFP_COT = 6,
+    SFP_ID_SMART_BIDI_TSFP_RT = 7,
+    SFP_ID_VCSEL_BIDI = 8,
+    SFP_ID_6WL = 9,
+    SFP_ID_HSFP_HIGH = 10/*0xA*/,
+    SFP_ID_HSFP_LOW = 11/*0xB*/,
+    SFP_ID_CWDM = 12/*0xC*/,
+    SFP_ID_DWDM = 13/*0xD*/,
+    SFP_ID_VCSEL = 14/*0xE*/,
+    SFP_ID_DWDM_TUNABLE = 15/*0xF*/,
+} ePrivateSfpId;
+#endif
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
 typedef uint16_t (*READ_FUNC) (uint16_t);

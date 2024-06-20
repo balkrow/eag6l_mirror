@@ -32,7 +32,7 @@
 #endif
 
 extern struct thread_master *master;
-extern struct port_status PORT_STATUS[PORT_ID_EAG6L_MAX];
+extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
 extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
 extern GLOBAL_DB gDB;
@@ -54,9 +54,10 @@ uint8_t gCpssSDKInit(int args, ...)
 		return IPC_CMD_FAIL;
 
 	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);	
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-	
+
+	msg->type = gSDKInit;
 	if(send_to_sysmon_slave(msg) == 0)
 		ret = IPC_CMD_FAIL;
 
@@ -76,9 +77,10 @@ uint8_t gCpssHello(int args, ...)
 		return IPC_CMD_FAIL;
 
 	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);	
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-	
+
+	msg->type = gHello;
 	if(send_to_sysmon_slave(msg) == 0)
 		ret = IPC_CMD_FAIL;
 
@@ -98,13 +100,14 @@ uint8_t gCpssSynceEnable(int args, ...)
 	if(args != 1)
 		return IPC_CMD_FAIL;
 
+	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
 	synce_enable = va_arg(argP, uint16_t);	
 	va_end(argP);
 	
 	msg.type = (synce_enable == 1) ? gSynceEnable : gSynceDisable; 
 
-	if(send_to_sysmon_slave(msg) == 0) {
+	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
@@ -128,11 +131,13 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	if(args != 2)
 		return IPC_CMD_FAIL;
 
+	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
 	pri_src = va_arg(argP, uint16_t);	
 	port = va_arg(argP, uint16_t);	
 	va_end(argP);
 
+	msg.type = gSynceIfSelect;
 	msg.mode = pri_src;
 	msg.portid = port;
 
@@ -145,7 +150,6 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 }
 #endif
 
-#if 1/*[#44] Add a callback templates for compiling, dustin, 2024-06-04 */
 uint8_t gCpssPortSetRate(int args, ...)
 {
     va_list argP;
@@ -154,11 +158,12 @@ uint8_t gCpssPortSetRate(int args, ...)
     zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-    if(args != 2) {
-	    syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+    if(args != 3) {
+	    zlog_notice("%s: invalid args[%d].", __func__, args);
 	    return IPC_CMD_FAIL;
     }
 
+	memset(&msg, 0, sizeof msg);
     va_start(argP, args);
     msg.portid = va_arg(argP, uint16_t);
     msg.speed = va_arg(argP, uint16_t);
@@ -183,14 +188,16 @@ uint8_t gCpssPortESMCenable(int args, ...)
 #endif
 
 	if(args != 1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
+	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
 	va_end(argP);
 
-	if(send_to_sysmon_slave(msg) == 0) {
+	msg.type = gPortESMCenable;
+	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
@@ -201,21 +208,22 @@ uint8_t gCpssPortESMCenable(int args, ...)
 uint8_t gCpssPortAlarm(int args, ...)
 {
     va_list argP;
-    sysmon_fifo_msg_t *msg = NULL;
+    sysmon_fifo_msg_t msg;
 #ifdef DEBUG
     zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-    if(args != 1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+    if(args != 0) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
         return IPC_CMD_FAIL;
 	}
 
+	memset(&msg, 0, sizeof msg);
     va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);
     va_end(argP);
 
-    if(send_to_sysmon_slave(msg) == 0) {
+	msg.type = gPortAlarm;
+    if(send_to_sysmon_slave(&msg) == 0) {
         zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
         return IPC_CMD_FAIL;
     }
@@ -233,16 +241,17 @@ uint8_t gCpssLLCFSet(int args, ...)
 #endif
 
 	if(args != 1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
+	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
 	msg.portid = va_arg(argP, uint16_t);
 	va_end(argP);
 	msg.type = gLLCFSet;
 
-	if(send_to_sysmon_slave(msg) == 0) {
+	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
@@ -255,21 +264,22 @@ uint8_t gCpssLLCFSet(int args, ...)
 uint8_t gCpssPortPMGet(int args, ...)
 {
 	va_list argP;
-	sysmon_fifo_msg_t *msg = NULL;
+	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-	if(args != 1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+	if(args != 0) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
+	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);	
 	va_end(argP);
 
-	if(send_to_sysmon_slave(msg) == 0) {
+	msg.type = gPortPMGet;
+	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
@@ -286,16 +296,17 @@ uint8_t gCpssPortPMClear(int args, ...)
 #endif
 
 	if(args != 1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
+	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
 	va_arg(argP, uint16_t);
 	va_end(argP);
 	msg.type = gPortPMClear;
 
-	if(send_to_sysmon_slave(msg) == 0) {
+	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
@@ -342,8 +353,11 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssHello,	
 #if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
 	gCpssSynceEnable,
+#if 1/* callback number/sequence must be same as enum sysmon_cmd_fifo_type. */
+	gCpssSynceEnable, 
 #if 0/*[#56] register update timer 真, balkrow, 2023-06-13 */
 	gCpssSynceDisable,
+#endif
 #endif
 	gCpssSynceIfSelect,
 #endif
@@ -371,7 +385,6 @@ uint8_t gAppDemoIPCstate = IPC_INIT_SUCCESS;
 int32_t syscmdrdfifo = UNINITIALIZED_FD;
 int32_t syscmdwrfifo = UNINITIALIZED_FD;
 #endif
-#endif
 
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
 int synce_if_pri_select(int8_t port, int8_t pri)
@@ -394,7 +407,7 @@ int synce_if_pri_select(int8_t port, int8_t pri)
 int8_t sysmon_llcf_set(int8_t enable)
 {
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
-	return gSysmonToCpssFuncs[gLLCFSet](1, enable);
+	return gSysmonToCpssFuncs[gLLCFSet](1, (uint16_t)enable);
 #else
 	sysmon_fifo_msg_t msg;
 
@@ -410,13 +423,15 @@ int8_t sysmon_llcf_set(int8_t enable)
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 void pm_request_counters(void)
 {
-	sysmon_fifo_msg_t msg;
-
-	memset(&msg, 0, sizeof msg);
-	msg.type = gPortPMGet;
-
 	/* use marvell sdk to get pm counters. */
-	gSysmonToCpssFuncs[gPortPMGet](1, &msg);
+	gSysmonToCpssFuncs[gPortPMGet](0);
+	return;
+}
+
+void pm_request_clear(void)
+{
+	/* use marvell sdk to clear pm counters. */
+	gSysmonToCpssFuncs[gPortPMClear](1, 1);
 	return;
 }
 #endif
@@ -460,7 +475,7 @@ uint8_t gReplySDKInit(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -492,7 +507,7 @@ uint8_t gReplyHello(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -525,7 +540,7 @@ uint8_t gReplySynceEnable(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -549,7 +564,7 @@ uint8_t gReplySynceDisable(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -573,7 +588,7 @@ uint8_t gReplySynceIfSelect(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -598,7 +613,7 @@ uint8_t gReplyLLCF(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -623,7 +638,7 @@ uint8_t gReplyPortSetRate(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -633,8 +648,11 @@ uint8_t gReplyPortSetRate(int args, ...)
 
 	/* process for result. */
 	if(msg->result != FIFO_CMD_SUCCESS) {
-		syslog(LOG_INFO, "%s: Setting port speed/mode failed. ret[%d].", msg->result);
+		zlog_notice("%s: Setting port speed/mode failed. ret[%d].", msg->result);
 	}
+
+	PORT_STATUS[msg->portid].speed  = msg->speed;
+	PORT_STATUS[msg->portid].ifmode = msg->mode;
 
 	return ret;
 }
@@ -649,7 +667,7 @@ uint8_t gReplyPortESMCEnable(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -658,7 +676,7 @@ uint8_t gReplyPortESMCEnable(int args, ...)
 	va_end(argP);
 
 	/* process for result. */
-	/*FIXME*/
+	PORT_STATUS[msg->portid].cfg_esmc_enable = msg->state;
 
 	return ret;
 }
@@ -673,7 +691,7 @@ uint8_t gReplyPortAlarm(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -700,7 +718,7 @@ uint8_t gReplyPortPMGet(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -720,19 +738,19 @@ uint8_t gReplyPortPMGet(int args, ...)
 			PM_TBL[portno].fcs_ok   += msg->pm[portno].fcs_ok;
 			PM_TBL[portno].fcs_nok  += msg->pm[portno].fcs_nok;
 #ifdef DEBUG
-			syslog(LOG_INFO, ">>> gReplyPortPMGet : port[0/%d] ret[%d]", 
+			zlog_notice(">>> gReplyPortPMGet : port[0/%d] ret[%d]", 
 				get_eag6L_dport(portno, 0), ret);
-			syslog(LOG_INFO, ">>> gReplyPortPMGet tx_frame[%lu] rx_frame[ %lu]", 
+			zlog_notice(">>> gReplyPortPMGet tx_frame[%lu] rx_frame[ %lu]", 
 				PM_TBL[portno].tx_frame, PM_TBL[portno].rx_frame);
-			syslog(LOG_INFO, ">>> gReplyPortPMGet tx_bytes[%lu] rx_bytes[%lu]", 
+			zlog_notice(">>> gReplyPortPMGet tx_bytes[%lu] rx_bytes[%lu]", 
 				PM_TBL[portno].tx_byte, PM_TBL[portno].rx_byte);
-			syslog(LOG_INFO, ">>> gReplyPortPMGet rx_fcs[%lu]", PM_TBL[portno].rx_fcs);
-			syslog(LOG_INFO, ">>> gReplyPortPMGet fcs_ok[%lu] fcs_nok[%lu]", 
+			zlog_notice(">>> gReplyPortPMGet rx_fcs[%lu]", PM_TBL[portno].rx_fcs);
+			zlog_notice(">>> gReplyPortPMGet fcs_ok[%lu] fcs_nok[%lu]", 
 				PM_TBL[portno].fcs_ok, PM_TBL[portno].fcs_nok);
 #endif
 		}
 	} else
-		syslog(LOG_INFO, "%s: Getting PM counters failed. ret[%d].", msg->result);
+		zlog_notice("%s: Getting PM counters failed. ret[%d].", msg->result);
 
 	return ret;
 }
@@ -747,7 +765,7 @@ uint8_t gReplyPortPMClear(int args, ...)
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
 	if(args !=  1) {
-		syslog(LOG_INFO, "%s: invalid args[%d].", __func__, args);
+		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
@@ -759,7 +777,7 @@ uint8_t gReplyPortPMClear(int args, ...)
 	if(msg->result == FIFO_CMD_SUCCESS) {
 		memset(PM_TBL, 0, sizeof PM_TBL);
 	} else
-		syslog(LOG_INFO, "%s: Clearing PM counters failed. ret[%d].", msg->result);
+		zlog_notice("%s: Clearing PM counters failed. ret[%d].", msg->result);
 
 	return ret;
 }

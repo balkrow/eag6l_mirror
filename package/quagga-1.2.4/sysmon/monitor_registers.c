@@ -17,7 +17,7 @@ u16 SYNCE_IF_SELECT_CACHE;
 u32 MCU_KEEP_ALIVE_CACHE;
 
 
-struct port_status PORT_STATUS[PORT_ID_EAG6L_MAX];
+port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
 struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
 port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 
@@ -49,6 +49,8 @@ uint16_t synceIFSelect(uint16_t port, uint16_t val);
 #endif
 uint16_t pmClear(uint16_t port, uint16_t val);
 uint16_t chipReset(uint16_t port, uint16_t val);
+uint16_t boardStatus(uint16_t port, uint16_t val);
+void update_port_sfp_inventory(void);
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 extern uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg);
 #endif
@@ -119,6 +121,9 @@ RegMON regMonList [] = {
   { PM_COUNT_CLEAR_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, pmClear }, 
 	/* chip reset */
   { CHIP_RESET_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, chipReset }, 
+	/* board status - sfp cr */
+	/* FIXME : fix entry */
+  { BD_SFP_CR_ADDR,  0x7F, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, boardStatus },
 	/* fpga bank select */
 	/* FIXME : add entry */
 	/* dco register */
@@ -289,6 +294,12 @@ extern void pm_request_clear(void);
 }
 #endif
 
+uint16_t portAlarm(void)
+{
+	gSysmonToCpssFuncs[gPortAlarm](0);
+	return SUCCESS;
+}
+
 uint16_t chipReset(uint16_t port, uint16_t val)
 {
 	port;
@@ -298,6 +309,65 @@ uint16_t chipReset(uint16_t port, uint16_t val)
 	else if((val & 0xFF) == 0xA5)
 		;/*FIXME : need reset function for bp. */
 	return SUCCESS;
+}
+
+uint16_t boardStatus(uint16_t port, uint16_t val)
+{
+extern int check_sfp_is_present(int portno);
+extern ePrivateSfpId get_private_sfp_identifier(int portno);
+extern int set_smart_tsfp_self_loopback(int portno, int enable);
+extern int set_flex_tune_control(int portno, int enable);
+	uint16_t type, data;
+
+	if(val != 0/*1-mean-not-installed*/) {
+		/* clear spf inventory */
+		memset(&(INV_TBL[port]), 0, sizeof(struct module_inventory));
+
+		/* clear pm counter? */
+		memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
+
+		PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
+		PORT_STATUS[port].equip = 0;/*not-installed*/
+		return SUCCESS;
+	} else {/*0-mean-installed*/
+		/* check if i2c can access 0x50 address */
+		if(check_sfp_is_present(port) < 0/*not-found*/) {
+			zlog_notice("%s: not found sfp on port[%d].", __func__, port);
+			PORT_STATUS[port].equip = 0;/*not-installed*/
+			return ERR_NOT_FOUND;
+		}
+
+		/* get private sfp identifier */
+		type = get_private_sfp_identifier(port);
+		if(type != SFP_ID_UNKNOWN) {
+			/* get wavelength register 2 */
+			data = FPGA_READ(__PORT_WL2_ADDR[port]);
+
+			/* update wavelength register 2 */
+			data &= ~0x0F00;
+			data |= (type << 8);
+			FPGA_PORT_WRITE(__PORT_WL2_ADDR[port], data);
+		}
+
+		PORT_STATUS[port].sfp_type = type;
+		PORT_STATUS[port].equip = 1;/*installed*/
+
+		/* set flex tune if configured */
+		if(PORT_STATUS[port].cfg_flex_tune)
+			set_flex_tune_control(port, 1/*enable*/);
+
+		/* set smart t-sfp self loopback if configured. */
+		if(PORT_STATUS[port].cfg_smart_tsfp_selfloopback)
+			set_smart_tsfp_self_loopback(port, 1/*enable*/);
+
+		/* set rtwdm loopback if configured. */
+		if(PORT_STATUS[port].cfg_rtwdm_loopback)
+			set_smart_tsfp_self_loopback(port, 1/*enable*/);
+
+		update_port_sfp_inventory();
+
+		return SUCCESS;
+	}
 }
 
 void regMonitor(void)
@@ -532,6 +602,13 @@ void update_port_rx_power(int portno)
 
 void update_sfp(void)
 {
+#if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+extern int update_flex_tune_status(int portno);
+extern int get_smart_tsfp_self_loopback(int portno, int * enable);
+extern int get_rtwdm_loopback(int portno, int * enable);
+
+	int enable;
+#endif
 	int portno;
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
@@ -541,6 +618,17 @@ zlog_notice(" update_sfp PORT[%d(0/%d)]", portno, get_eag6L_dport(portno, 0));/*
 		get_sfp_info_diag(portno, &(PORT_STATUS[portno]));
 		update_port_rx_power(portno);
 		hw_update_port_inventory(portno, &(INV_TBL[portno]));
+
+#if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+		/* update flex tune status */
+		update_flex_tune_status(portno);
+
+		/* update smart tsfp self loopback */
+		get_smart_tsfp_self_loopback(portno, &enable);
+
+		/* update rtwdm loopback */
+		get_rtwdm_loopback(portno, &enable);
+#endif
 	}
 	return;
 }
@@ -657,15 +745,15 @@ void process_hw_inventory_infos(void)
 	char buff[32];
 
 	/* update manufacture. */
-	val[0] = inv.manufact[0] | inv.manufact[1];
+	val[0] = inv.manufact[0] | (inv.manufact[1] << 8);
 	FPGA_WRITE(INV_HW_MANU_1_ADDR, val[0]);
-	val[1] = inv.manufact[2] | inv.manufact[3];
+	val[1] = inv.manufact[2] | (inv.manufact[3] << 8);
 	FPGA_WRITE(INV_HW_MANU_2_ADDR, val[1]);
-	val[2] = inv.manufact[4] | inv.manufact[5];
+	val[2] = inv.manufact[4] | (inv.manufact[5] << 8);
 	FPGA_WRITE(INV_HW_MANU_3_ADDR, val[2]);
-	val[3] = inv.manufact[6] | inv.manufact[7];
+	val[3] = inv.manufact[6] | (inv.manufact[7] << 8);
 	FPGA_WRITE(INV_HW_MANU_4_ADDR, val[3]);
-	val[4] = inv.manufact[8] | inv.manufact[9];
+	val[4] = inv.manufact[8] | (inv.manufact[9] << 8);
 	FPGA_WRITE(INV_HW_MANU_5_ADDR, val[4]);
 
 #ifdef DEBUG
@@ -690,15 +778,15 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w model name */
-    val[0] = inv.model_num[0] | inv.model_num[1];
+    val[0] = inv.model_num[0] | (inv.model_num[1] >> 8);
     FPGA_WRITE(INV_HW_MODEL_1_ADDR, val[0]);
-    val[1] = inv.model_num[2] | inv.model_num[3];
+    val[1] = inv.model_num[2] | (inv.model_num[3] >> 8);
     FPGA_WRITE(INV_HW_MODEL_2_ADDR, val[1]);
-    val[2] = inv.model_num[4] | inv.model_num[5];
+    val[2] = inv.model_num[4] | (inv.model_num[5] >> 8);
     FPGA_WRITE(INV_HW_MODEL_3_ADDR, val[2]);
-    val[3] = inv.model_num[6] | inv.model_num[7];
+    val[3] = inv.model_num[6] | (inv.model_num[7] >> 8);
     FPGA_WRITE(INV_HW_MODEL_4_ADDR, val[3]);
-    val[4] = inv.model_num[8] | inv.model_num[9];
+    val[4] = inv.model_num[8] | (inv.model_num[9] >> 8);
     FPGA_WRITE(INV_HW_MODEL_5_ADDR, val[4]);
 
 #ifdef DEBUG
@@ -723,21 +811,21 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w part number */
-    val[0] = inv.part_num[0] | inv.part_num[1];
+    val[0] = inv.part_num[0] | (inv.part_num[1] >> 8);
     FPGA_WRITE(INV_HW_PN_1_ADDR, val[0]);
-    val[1] = inv.part_num[2] | inv.part_num[3];
+    val[1] = inv.part_num[2] | (inv.part_num[3] >> 8);
     FPGA_WRITE(INV_HW_PN_2_ADDR, val[1]);
-    val[2] = inv.part_num[4] | inv.part_num[5];
+    val[2] = inv.part_num[4] | (inv.part_num[5] >> 8);
     FPGA_WRITE(INV_HW_PN_3_ADDR, val[2]);
-    val[3] = inv.part_num[6] | inv.part_num[7];
+    val[3] = inv.part_num[6] | (inv.part_num[7] >> 8);
     FPGA_WRITE(INV_HW_PN_4_ADDR, val[3]);
-    val[4] = inv.part_num[8] | inv.part_num[9];
+    val[4] = inv.part_num[8] | (inv.part_num[9] >> 8);
     FPGA_WRITE(INV_HW_PN_5_ADDR, val[4]);
-    val[5] = inv.part_num[10] | inv.part_num[11];
+    val[5] = inv.part_num[10] | (inv.part_num[11] >> 8);
     FPGA_WRITE(INV_HW_PN_6_ADDR, val[4]);
-    val[6] = inv.part_num[12] | inv.part_num[13];
+    val[6] = inv.part_num[12] | (inv.part_num[13] >> 8);
     FPGA_WRITE(INV_HW_PN_7_ADDR, val[4]);
-    val[7] = inv.part_num[14] | inv.part_num[15];
+    val[7] = inv.part_num[14] | (inv.part_num[15] >> 8);
     FPGA_WRITE(INV_HW_PN_8_ADDR, val[4]);
 
 #ifdef DEBUG
@@ -771,9 +859,9 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w serial number */
-    val[0] = inv.serial_num[0] | inv.serial_num[1];
+    val[0] = inv.serial_num[0] | (inv.serial_num[1] >> 8);
     FPGA_WRITE(INV_HW_SN_1_ADDR, val[0]);
-    val[1] = inv.serial_num[2] | inv.serial_num[3];
+    val[1] = inv.serial_num[2] | (inv.serial_num[3] >> 8);
     FPGA_WRITE(INV_HW_SN_2_ADDR, val[1]);
 
 #ifdef DEBUG
@@ -789,9 +877,9 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w revision */
-    val[0] = inv.revision[0] | inv.revision[1];
+    val[0] = inv.revision[0] | (inv.revision[1] << 8);
     FPGA_WRITE(INV_HW_REV_1_ADDR, val[0]);
-    val[1] = inv.revision[2] | inv.revision[3];
+    val[1] = inv.revision[2] | (inv.revision[3] << 8);
     FPGA_WRITE(INV_HW_REV_2_ADDR, val[1]);
 
 #ifdef DEBUG
@@ -807,17 +895,17 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w manufacture date */
-    val[0] = inv.manufact_date[0] | inv.manufact_date[1];
+    val[0] = inv.manufact_date[0] | (inv.manufact_date[1] >> 8);
     FPGA_WRITE(INV_HW_MDATE_1_ADDR, val[0]);
-    val[1] = inv.manufact_date[2] | inv.manufact_date[3];
+    val[1] = inv.manufact_date[2] | (inv.manufact_date[3] >> 8);
     FPGA_WRITE(INV_HW_MDATE_2_ADDR, val[1]);
-    val[2] = inv.manufact_date[4] | inv.manufact_date[5];
+    val[2] = inv.manufact_date[4] | (inv.manufact_date[5] >> 8);
     FPGA_WRITE(INV_HW_MDATE_3_ADDR, val[2]);
-    val[3] = inv.manufact_date[6] | inv.manufact_date[7];
+    val[3] = inv.manufact_date[6] | (inv.manufact_date[7] >> 8);
     FPGA_WRITE(INV_HW_MDATE_4_ADDR, val[3]);
-    val[4] = inv.manufact_date[8] | inv.manufact_date[9];
+    val[4] = inv.manufact_date[8] | (inv.manufact_date[9] >> 8);
     FPGA_WRITE(INV_HW_MDATE_5_ADDR, val[4]);
-    val[5] = inv.manufact_date[10] | inv.manufact_date[11];
+    val[5] = inv.manufact_date[10] | (inv.manufact_date[11] >> 8);
     FPGA_WRITE(INV_HW_MDATE_6_ADDR, val[4]);
 
 #ifdef DEBUG
@@ -845,15 +933,15 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w repair date */
-    val[0] = inv.repair_date[0] | inv.repair_date[1];
+    val[0] = inv.repair_date[0] | (inv.repair_date[1] >> 8);
     FPGA_WRITE(INV_HW_RDATE_1_ADDR, val[0]);
-    val[1] = inv.repair_date[2] | inv.repair_date[3];
+    val[1] = inv.repair_date[2] | (inv.repair_date[3] >> 8);
     FPGA_WRITE(INV_HW_RDATE_2_ADDR, val[1]);
-    val[2] = inv.repair_date[4] | inv.repair_date[5];
+    val[2] = inv.repair_date[4] | (inv.repair_date[5] >> 8);
     FPGA_WRITE(INV_HW_RDATE_3_ADDR, val[2]);
-    val[3] = inv.repair_date[6] | inv.repair_date[7];
+    val[3] = inv.repair_date[6] | (inv.repair_date[7] >> 8);
     FPGA_WRITE(INV_HW_RDATE_4_ADDR, val[3]);
-    val[4] = inv.repair_date[8] | inv.repair_date[9];
+    val[4] = inv.repair_date[8] | (inv.repair_date[9] >> 8);
     FPGA_WRITE(INV_HW_RDATE_5_ADDR, val[4]);
 
 #ifdef DEBUG
@@ -878,9 +966,9 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w repair code */
-    val[0] = inv.repair_code[0] | inv.repair_code[1];
+    val[0] = inv.repair_code[0] | (inv.repair_code[1] >> 8);
     FPGA_WRITE(INV_HW_RCODE_1_ADDR, val[0]);
-    val[1] = inv.repair_code[2] | inv.repair_code[3];
+    val[1] = inv.repair_code[2] | (inv.repair_code[3] >> 8);
     FPGA_WRITE(INV_HW_RCODE_2_ADDR, val[1]);
 
 #ifdef DEBUG
@@ -896,6 +984,99 @@ void process_hw_inventory_infos(void)
 #endif
 
 	return;
+}
+
+void update_port_sfp_inventory(void)
+{
+	int portno;
+	unsigned int val;
+
+	/* update vendor name */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		val = (INV_TBL[portno].vendor[1] << 8) | INV_TBL[portno].vendor[0];
+		FPGA_PORT_WRITE(__PORT_VENDOR1_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[3] << 8) | INV_TBL[portno].vendor[2];
+		FPGA_PORT_WRITE(__PORT_VENDOR2_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[5] << 8) | INV_TBL[portno].vendor[4];
+		FPGA_PORT_WRITE(__PORT_VENDOR3_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[7] << 8) | INV_TBL[portno].vendor[6];
+		FPGA_PORT_WRITE(__PORT_VENDOR4_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[9] << 8) | INV_TBL[portno].vendor[8];
+		FPGA_PORT_WRITE(__PORT_VENDOR5_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[11] << 8) | INV_TBL[portno].vendor[10];
+		FPGA_PORT_WRITE(__PORT_VENDOR6_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[13] << 8) | INV_TBL[portno].vendor[12];
+		FPGA_PORT_WRITE(__PORT_VENDOR7_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[15] << 8) | INV_TBL[portno].vendor[14];
+		FPGA_PORT_WRITE(__PORT_VENDOR8_ADDR[portno], val);
+	}
+
+	/* update part number */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		val = (INV_TBL[portno].part_num[1] << 8) | INV_TBL[portno].part_num[0];
+		FPGA_PORT_WRITE(__PORT_PN1_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[3] << 8) | INV_TBL[portno].part_num[2];
+		FPGA_PORT_WRITE(__PORT_PN2_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[5] << 8) | INV_TBL[portno].part_num[4];
+		FPGA_PORT_WRITE(__PORT_PN3_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[7] << 8) | INV_TBL[portno].part_num[6];
+		FPGA_PORT_WRITE(__PORT_PN4_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[9] << 8) | INV_TBL[portno].part_num[8];
+		FPGA_PORT_WRITE(__PORT_PN5_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[11] << 8) | INV_TBL[portno].part_num[10];
+		FPGA_PORT_WRITE(__PORT_PN6_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[13] << 8) | INV_TBL[portno].part_num[12];
+		FPGA_PORT_WRITE(__PORT_PN7_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[15] << 8) | INV_TBL[portno].part_num[14];
+		FPGA_PORT_WRITE(__PORT_PN8_ADDR[portno], val);
+	}
+
+	/* update serial number */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		val = (INV_TBL[portno].serial_num[1] << 8) | INV_TBL[portno].serial_num[0];
+		FPGA_PORT_WRITE(__PORT_SN1_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[3] << 8) | INV_TBL[portno].serial_num[2];
+		FPGA_PORT_WRITE(__PORT_SN2_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[5] << 8) | INV_TBL[portno].serial_num[4];
+		FPGA_PORT_WRITE(__PORT_SN3_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[7] << 8) | INV_TBL[portno].serial_num[6];
+		FPGA_PORT_WRITE(__PORT_SN4_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[9] << 8) | INV_TBL[portno].serial_num[8];
+		FPGA_PORT_WRITE(__PORT_SN5_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[11] << 8) | INV_TBL[portno].serial_num[10];
+		FPGA_PORT_WRITE(__PORT_SN6_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[13] << 8) | INV_TBL[portno].serial_num[12];
+		FPGA_PORT_WRITE(__PORT_SN7_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[15] << 8) | INV_TBL[portno].serial_num[14];
+		FPGA_PORT_WRITE(__PORT_SN8_ADDR[portno], val);
+	}
+
+	/* update rate */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if(portno < PORT_ID_EAG6L_PORT7)
+			val = INV_TBL[portno].max_rate;
+		else
+			val = INV_TBL[portno].max_rate * 10;/*convert 1G unit to 100M unit. */
+		FPGA_PORT_WRITE(__PORT_RATE_ADDR[portno], val);
+	}
+
+	/* update distance */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].dist);
+	}
+
+	/* update wavelength1 */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].wave);
+	}
+
+	/* update wavelength2 */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		/*FIXME : refer to Hangle document for encoding sfp idenification codes. */
+		val = INV_TBL[portno].wave;
+		gPortRegUpdate(__PORT_WL1_ADDR[portno], 0, 0x0FF, val);
+		gPortRegUpdate(__PORT_WL1_ADDR[portno], 8, 0xF00, PORT_STATUS[portno].sfp_type);
+	}
 }
 
 void process_alarm_info(void)
@@ -959,60 +1140,21 @@ void process_alarm_info(void)
 		/* read alarm mask register and mask off the result */
 		masking = FPGA_READ(__PORT_ALM_MASK_ADDR[portno]);
 
-		/* check if flex tune reset is on */
-		if(masking & 0x8000) {
-			/* FIXME : reset flex tune */
-		}
+		/* update flex tune status */
+		update_flex_tune_status(portno);
 
 		/* remove unnecessary bits */
 		masking &= 0x10F;
 
 		/* update alarm */
-		FPGA_WRITE(__PORT_ALM_ADDR[portno], val);
+		gRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
 
 		/* update alarm flag */
-		FPGA_WRITE(__PORT_ALM_FLAG_ADDR[portno], val & masking);
+		gRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, val & masking);
 	}
 
 	return;
 }
-
-#if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
-#if 0 /* FIXME : laser control must be done by FPGA. */
-int port_config_set_laser(u32 portno, u32 enable)
-{
-	/* use i2c to set sfp tx power on/off. */
-	return 0;
-}
-#endif
-
-int port_config_set_smart_tsfp_loop(u32 portno, u32 enable)
-{
-	/* use i2c to set smart tsfp loop control. */
-	return 0;
-}
-
-int port_config_set_rtwdm_loop(u32 portno, u32 enable)
-{
-	/* use i2c to set rt wdm  loop control. */
-	return 0;
-}
-
-int port_config_set_flex_tune(u32 portno, u32 enable)
-{
-	/* use i2c to set flex tune. */
-	return 0;
-}
-
-int port_config_set_esmc(u32 portno, u32 enable)
-{
-extern void port_config_ESMC_enable(int port, int enable);
-
-	/* use marvell sdk to set esmc enable/disable. */
-	port_config_ESMC_enable(portno, enable);
-	return 0;
-}
-#endif
 
 void update_port_sfp_information(void)
 {
@@ -1021,143 +1163,47 @@ void update_port_sfp_information(void)
 
 	/* update tx power */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		FPGA_WRITE(__PORT_TX_PWR_ADDR[portno], 
+		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/));
 	}
 
 	/* update rx power */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		FPGA_WRITE(__PORT_RX_PWR_ADDR[portno], 
+		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/));
 	}
 
-	/* update wavelength1 */
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		FPGA_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].wave);
-	}
-
-	/* update wavelength2 */
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		/*FIXME : refer to Hangle document for encoding sfp idenification codes. */
-		val = INV_TBL[portno].wave;
-		FPGA_WRITE(__PORT_WL1_ADDR[portno], val);
-	}
-
-	/* update distance */
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		FPGA_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].dist);
-	}
-
-	/* update smart t-sfp status */
-	/*FIXME*/
-
 	/* update alarm */
-	/*FIXME*/
 	process_alarm_info();
-
-	/* update channel number read */
-	/*FIXME*/
-
-	/* update channel number set */
-	/*FIXME*/
-
-	/* update vendor name */
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		val = (INV_TBL[portno].vendor[0] << 8) | INV_TBL[portno].vendor[1];
-		FPGA_WRITE(__PORT_VENDOR1_ADDR[portno], val);
-		val = (INV_TBL[portno].vendor[2] << 8) | INV_TBL[portno].vendor[3];
-		FPGA_WRITE(__PORT_VENDOR2_ADDR[portno], val);
-		val = (INV_TBL[portno].vendor[4] << 8) | INV_TBL[portno].vendor[5];
-		FPGA_WRITE(__PORT_VENDOR3_ADDR[portno], val);
-		val = (INV_TBL[portno].vendor[6] << 8) | INV_TBL[portno].vendor[7];
-		FPGA_WRITE(__PORT_VENDOR4_ADDR[portno], val);
-		val = (INV_TBL[portno].vendor[8] << 8) | INV_TBL[portno].vendor[9];
-		FPGA_WRITE(__PORT_VENDOR5_ADDR[portno], val);
-		val = (INV_TBL[portno].vendor[10] << 8) | INV_TBL[portno].vendor[11];
-		FPGA_WRITE(__PORT_VENDOR6_ADDR[portno], val);
-		val = (INV_TBL[portno].vendor[12] << 8) | INV_TBL[portno].vendor[13];
-		FPGA_WRITE(__PORT_VENDOR7_ADDR[portno], val);
-		val = (INV_TBL[portno].vendor[14] << 8) | INV_TBL[portno].vendor[15];
-		FPGA_WRITE(__PORT_VENDOR8_ADDR[portno], val);
-	}
-
-	/* update part number */
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		val = (INV_TBL[portno].part_num[0] << 8) | INV_TBL[portno].part_num[1];
-		FPGA_WRITE(__PORT_PN1_ADDR[portno], val);
-		val = (INV_TBL[portno].part_num[2] << 8) | INV_TBL[portno].part_num[3];
-		FPGA_WRITE(__PORT_PN2_ADDR[portno], val);
-		val = (INV_TBL[portno].part_num[4] << 8) | INV_TBL[portno].part_num[5];
-		FPGA_WRITE(__PORT_PN3_ADDR[portno], val);
-		val = (INV_TBL[portno].part_num[6] << 8) | INV_TBL[portno].part_num[7];
-		FPGA_WRITE(__PORT_PN4_ADDR[portno], val);
-		val = (INV_TBL[portno].part_num[8] << 8) | INV_TBL[portno].part_num[9];
-		FPGA_WRITE(__PORT_PN5_ADDR[portno], val);
-		val = (INV_TBL[portno].part_num[10] << 8) | INV_TBL[portno].part_num[11];
-		FPGA_WRITE(__PORT_PN6_ADDR[portno], val);
-		val = (INV_TBL[portno].part_num[12] << 8) | INV_TBL[portno].part_num[13];
-		FPGA_WRITE(__PORT_PN7_ADDR[portno], val);
-		val = (INV_TBL[portno].part_num[14] << 8) | INV_TBL[portno].part_num[15];
-		FPGA_WRITE(__PORT_PN8_ADDR[portno], val);
-	}
-
-	/* update serial number */
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		val = (INV_TBL[portno].serial_num[0] << 8) | INV_TBL[portno].serial_num[1];
-		FPGA_WRITE(__PORT_SN1_ADDR[portno], val);
-		val = (INV_TBL[portno].serial_num[2] << 8) | INV_TBL[portno].serial_num[3];
-		FPGA_WRITE(__PORT_SN2_ADDR[portno], val);
-		val = (INV_TBL[portno].serial_num[4] << 8) | INV_TBL[portno].serial_num[5];
-		FPGA_WRITE(__PORT_SN3_ADDR[portno], val);
-		val = (INV_TBL[portno].serial_num[6] << 8) | INV_TBL[portno].serial_num[7];
-		FPGA_WRITE(__PORT_SN4_ADDR[portno], val);
-		val = (INV_TBL[portno].serial_num[8] << 8) | INV_TBL[portno].serial_num[9];
-		FPGA_WRITE(__PORT_SN5_ADDR[portno], val);
-		val = (INV_TBL[portno].serial_num[10] << 8) | INV_TBL[portno].serial_num[11];
-		FPGA_WRITE(__PORT_SN6_ADDR[portno], val);
-		val = (INV_TBL[portno].serial_num[12] << 8) | INV_TBL[portno].serial_num[13];
-		FPGA_WRITE(__PORT_SN7_ADDR[portno], val);
-		val = (INV_TBL[portno].serial_num[14] << 8) | INV_TBL[portno].serial_num[15];
-		FPGA_WRITE(__PORT_SN8_ADDR[portno], val);
-	}
 
 	/* update temperature */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
-		FPGA_WRITE(__PORT_TEMP_ADDR[portno], val);
-	}
-
-	/* update rate */
-	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		if(portno < PORT_ID_EAG6L_PORT7)
-			val = INV_TBL[portno].max_rate;
-		else
-			val = INV_TBL[portno].max_rate * 10;/*convert 1G unit to 100M unit. */
-		FPGA_WRITE(__PORT_RATE_ADDR[portno], val);
+		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
 	}
 
 	/* update voltage */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/);
-		FPGA_WRITE(__PORT_VOLT_ADDR[portno], val);
+		FPGA_PORT_WRITE(__PORT_VOLT_ADDR[portno], val);
 	}
 
 	/* update tx bias */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tx_bias);
-		FPGA_WRITE(__PORT_TX_BIAS_ADDR[portno], val);
+		FPGA_PORT_WRITE(__PORT_TX_BIAS_ADDR[portno], val);
 	}
 
 	/* update laser temperature */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
-		FPGA_WRITE(__PORT_TEMP_ADDR[portno], val);
+		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
 	}
 
 	/* update TEC current */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tec_curr);
-		FPGA_WRITE(__PORT_TCURR_ADDR[portno], val);
+		FPGA_PORT_WRITE(__PORT_TCURR_ADDR[portno], val);
 	}
 
 	return;
@@ -1168,6 +1214,7 @@ void process_port_pm_counters(void)
 	u16 portno;
 	u16 val;
 
+#if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 	/* check/execute clear register */
 	val = FPGA_READ(PM_COUNT_CLEAR_ADDR);
 	if(val == 0xA5/*clear*/) {
@@ -1178,89 +1225,90 @@ void process_port_pm_counters(void)
 	}
 	//FIXME : read-clear ?
 	FPGA_WRITE(PM_COUNT_CLEAR_ADDR, 0x0);
+#endif
 
     /* update pm tx byte */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
         val = (PM_TBL[portno].tx_byte >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_BYTE1_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE1_ADDR[portno], val);
         val = (PM_TBL[portno].tx_byte >> 32) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_BYTE2_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE2_ADDR[portno], val);
         val = (PM_TBL[portno].tx_byte >> 16) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_BYTE3_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE3_ADDR[portno], val);
         val = (PM_TBL[portno].tx_byte >>  0) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_BYTE4_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE4_ADDR[portno], val);
     }
 
     /* update pm rx byte */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
         val = (PM_TBL[portno].rx_byte >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_BYTE1_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE1_ADDR[portno], val);
         val = (PM_TBL[portno].rx_byte >> 32) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_BYTE2_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE2_ADDR[portno], val);
         val = (PM_TBL[portno].rx_byte >> 16) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_BYTE3_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE3_ADDR[portno], val);
         val = (PM_TBL[portno].rx_byte >>  0) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_BYTE4_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE4_ADDR[portno], val);
     }
 
     /* update pm tx frame */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
         val = (PM_TBL[portno].tx_frame >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_FRAME1_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME1_ADDR[portno], val);
         val = (PM_TBL[portno].tx_frame >> 32) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_FRAME2_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME2_ADDR[portno], val);
         val = (PM_TBL[portno].tx_frame >> 16) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_FRAME3_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME3_ADDR[portno], val);
         val = (PM_TBL[portno].tx_frame >>  0) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_TX_FRAME4_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME4_ADDR[portno], val);
     }
 
     /* update pm rx frame */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
         val = (PM_TBL[portno].rx_frame >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_FRAME1_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME1_ADDR[portno], val);
         val = (PM_TBL[portno].rx_frame >> 32) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_FRAME2_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME2_ADDR[portno], val);
         val = (PM_TBL[portno].rx_frame >> 16) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_FRAME3_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME3_ADDR[portno], val);
         val = (PM_TBL[portno].rx_frame >>  0) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_RX_FRAME4_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME4_ADDR[portno], val);
     }
 
     /* update pm fcs */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
         val = (PM_TBL[portno].rx_fcs >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS1_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS1_ADDR[portno], val);
         val = (PM_TBL[portno].rx_fcs >> 32) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS2_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS2_ADDR[portno], val);
         val = (PM_TBL[portno].rx_fcs >> 16) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS3_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS3_ADDR[portno], val);
         val = (PM_TBL[portno].rx_fcs >>  0) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS4_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS4_ADDR[portno], val);
     }
 
     /* update pm fcs corrected error */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
         val = (PM_TBL[portno].fcs_ok >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_OK1_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK1_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_ok >> 32) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_OK2_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK2_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_ok >> 16) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_OK3_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK3_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_ok >>  0) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_OK4_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK4_ADDR[portno], val);
     }
 
     /* update pm fcs uncorrected error */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_NOK1_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK1_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_NOK2_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK2_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_NOK3_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK3_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
-        FPGA_WRITE(__PORT_PM_FCS_NOK4_ADDR[portno], val);
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK4_ADDR[portno], val);
     }
 
 	return;

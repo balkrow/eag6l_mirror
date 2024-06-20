@@ -62,7 +62,7 @@ typedef struct sysmon_cmd_fifo
 	u16                         mode;
 	i32                         result;
 	i16                         state;
-	struct port_status          port_sts[PORT_ID_EAG6L_MAX];
+	port_status_t               port_sts[PORT_ID_EAG6L_MAX];
 	port_pm_counter_t           pm[PORT_ID_EAG6L_MAX];
 	char                        noti_msg[64];
 } sysmon_fifo_msg_t;
