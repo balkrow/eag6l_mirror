@@ -28,6 +28,10 @@ struct thread_master *master;
 //const char *pid_file = PATH_SYSMON_PID;
 char* progname;
 
+#if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+int i2c_in_use_flag;
+#endif
+
 #if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
 extern  SVC_ST transition(SVC_ST state, SVC_EVT event);
 extern SVC_EVT svc_init(SVC_ST st);
@@ -96,6 +100,7 @@ int test_timer_func(struct thread *thread) {
 	return 0;
 }
 
+#if 0/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
 #if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
 int sfp_timer_func(struct thread *thread)
 {
@@ -121,6 +126,7 @@ int reg_timer_func(struct thread *thread)
 	}
 	return 0;
 }
+#endif
 #endif
 
 #if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
@@ -166,8 +172,14 @@ int svc_fsm_timer(struct thread *thread) {
 #if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 int8_t monitor_hw_timer(struct thread *thread)
 {
+	if(gDB.init_state != SYS_INIT_DONE) {
+		goto __SKIP_1__;
+	}
+
 	/*PLL state*/
 	rsmu_pll_update();
+
+__SKIP_1__:
 #ifdef ACCESS_SIM
 	thread_add_timer(master, monitor_hw_timer, NULL, 1);
 #else
@@ -180,8 +192,16 @@ int8_t monitor_hw_timer(struct thread *thread)
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
 int8_t reg_fast_intv_update(struct thread *thread)
 {
+extern void pm_request_counters(void);
+
 	/*update KeepAlive reg*/
 	update_KeepAlive();
+
+	if(gDB.init_state != SYS_INIT_DONE) {
+		goto __SKIP_2__;
+	}
+
+	pm_request_counters();
 
 	/* read per-port spf port status/control. */
 	update_port_sfp_information();
@@ -189,6 +209,7 @@ int8_t reg_fast_intv_update(struct thread *thread)
 	/* process per-port performance info from sdk. */
 	process_port_pm_counters();
 
+__SKIP_2__:
 	thread_add_timer_msec (master, reg_fast_intv_update, NULL, 500);
 
 	return RT_OK;
@@ -196,15 +217,36 @@ int8_t reg_fast_intv_update(struct thread *thread)
 
 int8_t reg_slow_intv_update(struct thread *thread)
 {
+#if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+extern void update_bp_reg(void);
+extern void update_sfp(void);
+extern uint16_t portAlarm(void);
 
+	if(gDB.init_state != SYS_INIT_DONE) {
+		goto __SKIP_3__;
+	}
+
+	if(! i2c_in_use_flag)
+#endif
 	update_sfp();
+
+	/* get port alarm (link) */
+	portAlarm();
+
+__SKIP_3__:
 	thread_add_timer (master, reg_slow_intv_update, NULL, 1);
 	return RT_OK;
 }
 
 int8_t monMCUupdate(struct thread *thread)
 {
+	if(gDB.init_state != SYS_INIT_DONE) {
+		goto __SKIP_4__;
+	}
+
 	regMonitor();
+
+__SKIP_4__:
 	thread_add_timer_msec (master, monMCUupdate, NULL, 100);
 	return RT_OK;
 }

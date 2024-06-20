@@ -95,7 +95,7 @@ define Memory Macro
 { \
 	uint16_t rval = 0, wval =0; \
 	rval = FPGA_PORT_READ(reg); \
-	wval =  ((rval >> shift) & mask) | val; \
+	wval = (rval & ~mask) | ((val << shift) & mask); \
 	FPGA_PORT_WRITE(reg, wval); \
 }
 #endif
@@ -104,7 +104,7 @@ define Memory Macro
 { \
 	uint16_t rval = 0, wval =0; \
 	rval = FPGA_READ(reg); \
-	wval =  ((rval >> shift) & mask) | val; \
+	wval = (rval & ~mask) | ((val << shift) & mask); \
 	FPGA_WRITE(reg, wval); \
 }
 
@@ -326,7 +326,7 @@ extern void print_console(const char *fmt, ...);
         i8 date_code[8];
     };
 
-    struct port_status
+typedef struct port_status
     {
         u8  equip;
         u8  link;
@@ -343,6 +343,14 @@ extern void print_console(const char *fmt, ...);
         u8  tx_laser_sts;   /* tx_laser_status 0:On, 1:Off */
         u8  lpbk_sts;       /* line-test loopback status */
         u8  sf_led;         /* Signal fail led status (ON/OFF) */
+#if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+		u8  sfp_type;
+		u8  cfg_esmc_enable;
+		u8  cfg_flex_tune;
+		u8  flex_tune_status;
+		u8  cfg_smart_tsfp_selfloopback;
+		u8  cfg_rtwdm_loopback;
+#endif
 
         /* port alarm status */
         u16 alm_status; /* alarm status */
@@ -365,6 +373,6 @@ extern void print_console(const char *fmt, ...);
         u32 fcs;        /*FCS error counter */
         u32 pm_time;
         u32 pm_lap_time; /**Path measurement delay time (use  1, 3 port) */
-   };
+   } port_status_t;
 
 #endif/*_SYSMON_H_*/

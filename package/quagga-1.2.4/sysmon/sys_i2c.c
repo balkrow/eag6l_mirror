@@ -49,6 +49,10 @@ int module_is_superxon;
 int module_is_gpon;
 #endif /* FIXME, martin, 2022.05.11 [END] */
 
+#if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
+#endif
+
 typedef struct __raw_gbic_info__
 {
     /// BASE ID FIELDS
@@ -190,6 +194,9 @@ typedef struct __raw_qsfp28_upper_page_0__
 	unsigned char	cc_ext;	/*223*/
 	unsigned char	vendor_specific[32];	/*224-255*/
 } RawQsfp28UpperPage0;
+
+/* function declaration */
+void i2c_set_sfp_channel_no(int bus, int portno);
 
 
 void cprintf (const char *format, ...)
@@ -456,25 +463,457 @@ data_addr : CPLD data address
 }
 
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
-int set_smart_tsfp_self_loopback(int port, int enable)
+#if 1/*[#39] Adding Smart T-SFP related functions, dustin, 2024-06-12 */
+int check_sfp_is_present(int portno)
 {
-	return 0;
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	/* try to read 0x50 */
+	if(i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 0x0) < 0) {
+		return ERR_NOT_FOUND;
+	} else
+		return SUCCESS;
 }
 
-int set_rtwdm_loopback(int port, int enable)
+int i2cset_main(int bus, unsigned char addr, unsigned char data_addr, unsigned char data)
 {
-	return 0;
+	int fd, status;
+
+	fd = i2c_dev_open(bus);
+	if(fd < 0) {
+		HX_I2C_DBG_U("[%s:%s:%d] fd:%d\n",__FILE__,__FUNCTION__,__LINE__,fd);
+		return -1;
+	}
+	i2c_set_slave_addr(fd, addr, 1);
+
+	status = i2c_smbus_write_byte_data(fd, data_addr, data);
+
+	close(fd);
+
+	if (status < 0) {
+		zlog_notice("%s: writing bus[%x] addr[%x] data_addr[%x] data[%d] failed. ret[%d].", 
+			__func__, bus, addr, data_addr, data, status);
+	}
+	return status;
 }
 
-int set_flex_tune_control(int port, int enable)
+int set_smart_tsfp_self_loopback(int portno, int enable)
 {
-	return 0;
+	unsigned char val;
+
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	/* select page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x2/*page-2*/) < 0) {
+		zlog_notice("%s: Writing port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/) < 0) {
+		zlog_notice("%s: Reading port[%d] smart t-sfp self loopback failed.", __func__, portno);
+		return -1;
+	}
+
+	/* update bit 1 for smart t-sfp loopback */
+	if(enable)
+		val |= 0x2;
+	else
+		val &= ~0x2;
+
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/, val) < 0) {
+		zlog_notice("%s: Writing port[%d] smart t-sfp self loopback failed.", __func__, portno);
+
+		/* recover page */
+		if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+			zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+			return -1;
+		}
+
+		return -1;
+	}
+
+	/* recover page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+		zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	PORT_STATUS[portno].cfg_smart_tsfp_selfloopback = enable;
+	return SUCCESS;
 }
 
-int set_flex_tune_reset(int port, int enable)
+int get_smart_tsfp_self_loopback(int portno, int * enable)
 {
-	return 0;
+	unsigned char val;
+
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	/* select page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x2/*page-2*/) < 0) {
+		zlog_notice("%s: Writing port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/) < 0) {
+		zlog_notice("%s: Reading port[%d] smart t-sfp self loopback failed.", __func__, portno);
+
+		/* recover page */
+		if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+			zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+			return -1;
+		}
+		return -1;
+	}
+
+	/* get bit 1 for smart t-sfp loopback */
+	if(enable)
+		*enable = (val & 0x2) ? 1 : 0;
+	PORT_STATUS[portno].tsfp_self_lp = enable;
+
+	/* recover page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+		zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	return SUCCESS;
 }
+
+int set_rtwdm_loopback(int portno, int enable)
+{
+	unsigned char val;
+
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	/* select page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x2/*page-2*/) < 0) {
+		zlog_notice("%s: Writing port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/) < 0) {
+		zlog_notice("%s: Reading port[%d] rtWDM loopback failed.", __func__, portno);
+		return -1;
+	}
+
+	/* update bit 0 for rtwdm loopback */
+	if(enable)
+		val |= 0x1;
+	else
+		val &= ~0x1;
+
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/, val) < 0) {
+		zlog_notice("%s: Writing port[%d] rtWDM loopback failed.", __func__, portno);
+
+		/* recover page */
+		if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+			zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+			return -1;
+		}
+
+		return -1;
+	}
+
+	/* recover page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+		zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	PORT_STATUS[portno].cfg_rtwdm_loopback = enable;
+	return SUCCESS;
+}
+
+int get_rtwdm_loopback(int portno, int * enable)
+{
+	unsigned char val;
+
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	/* select page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x2/*page-2*/) < 0) {
+		zlog_notice("%s: Writing port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/) < 0) {
+		zlog_notice("%s: Reading port[%d] rtWDM loopback failed.", __func__, portno);
+
+		/* recover page */
+		if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+			zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+			return -1;
+		}
+		return -1;
+	}
+
+	/* update bit 0 for rtwdm loopback */
+	if(enable)
+		*enable = (val & 0x1) ? 1 : 0;
+	PORT_STATUS[portno].rtwdm_lp = enable;
+
+	/* recover page */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+		zlog_notice("%s: Recovering port[%d] page select failed.", __func__, portno);
+		return -1;
+	}
+
+	return SUCCESS;
+}
+
+int set_flex_tune_control(int portno, int enable)
+{
+	unsigned char val;
+
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 254/*0xFE*/) < 0) {
+		zlog_notice("%s: Reading port[%d] flex tune control failed.", __func__, portno);
+		return -1;
+	}
+
+	/* update bit 1 for flex tune on/off */
+	if(enable)
+		val |= 0x2;
+	else
+		val &= ~0x2;
+
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 254/*0xFE*/, val) < 0) {
+		zlog_notice("%s: Writing port[%d] flex tune control failed.", __func__, portno);
+		return -1;
+	}
+
+	PORT_STATUS[portno].cfg_flex_tune = enable;
+
+	/* update flex tune status */
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 253/*0xFD*/) < 0) {
+		zlog_notice("%s: Reading port[%d] flex tune status failed.", __func__, portno);
+		return -1;
+	}
+
+	PORT_STATUS[portno].flex_tune_status = (val & 0x1/*bit-0*/) ? 1 : 0;
+	return SUCCESS;
+}
+
+int set_flex_tune_reset(int portno, int enable)
+{
+	unsigned char val;
+
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	/* read for update. */
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 253/*0xFD*/) < 0) {
+		zlog_notice("%s: Reading port[%d] flex tune reset failed.", __func__, portno);
+		return -1;
+	}
+
+	/* update bit 4 for flex tune reset, no disable action. */
+	if(enable)
+		val |= 0x10;
+
+	/* write updated value. */
+	if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 253/*0xFD*/, val) < 0) {
+		zlog_notice("%s: Writing port[%d] flex tune reset failed.", __func__, portno);
+		return -1;
+	}
+
+	/* read again for reset action. */
+	if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 253/*0xFD*/) < 0) {
+		zlog_notice("%s: Reading port[%d] flex tune reset failed.", __func__, portno);
+		return -1;
+	}
+
+	usleep(5000);/* wait for 5ms */
+
+	/* clear bit if reading is set */
+	if(val & 0x10) {
+		val &= ~0x10;/*clear*/
+		if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 253/*0xFD*/, val) < 0) {
+			zlog_notice("%s: Writing port[%d] flex tune reset failed.", __func__, portno);
+			return -1;
+		}
+	}
+
+	return SUCCESS;
+}
+
+int update_flex_tune_status(int portno)
+{
+    unsigned char val;
+	unsigned int data;
+
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
+	/* clear if not configured. */
+	if(! PORT_STATUS[portno].cfg_flex_tune) {
+		gRegUpdate(__PORT_STSFP_STAT_ADDR[portno], 0, 0xFFFF, 0x0/*default*/);
+		return SUCCESS;
+	}
+
+    /* set mux to change sfp channel */
+    i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+    /* read for update. */
+    if(val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 253/*0xFD*/) < 0) {
+        zlog_notice("%s: Reading port[%d] flex tune reset failed.", __func__, portno);
+        return -1;
+    }
+
+	/* update smart t-sfp status */
+	data = FPGA_READ(__PORT_STSFP_STAT_ADDR[portno]);
+	if(PORT_STATUS[portno].sfp_type == SFP_ID_UNKNOWN/*rtWDM?*/) {
+		gRegUpdate(__PORT_STSFP_STAT_ADDR[portno], 8, 0xFF00, (val & 0x1) ? 0xA5 : 0x5A);
+	}
+	else {
+		gRegUpdate(__PORT_STSFP_STAT_ADDR[portno], 0, 0x00FF, (val & 0x1) ? 0xA5 : 0x5A);
+	}
+	return SUCCESS;
+}
+
+ePrivateSfpId get_private_sfp_identifier(int portno)
+{
+	unsigned char val1, val2, val3, val4, val5, tunable_flag;
+	unsigned int intval, mod;
+
+	/* set mux to change sfp channel */
+	i2c_set_sfp_channel_no(0/*bus*/, portno);
+
+	/* get tunable flag */
+	if(tunable_flag = i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 0x65) < 0) {
+		zlog_notice("%s: Reading port[%d] tunable flag failed.", __func__, portno);
+		return SFP_ID_UNKNOWN;
+	}
+
+	if(tunable_flag) { /* tunable type */
+		/* get 1st value */
+		if(val1 = i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 124/*0x7C*/) < 0) {
+			zlog_notice("%s: Reading port[%d] 1st value failed.", __func__, portno);
+			return SFP_ID_UNKNOWN;
+		}
+
+		val2 = 0;
+
+		if(portno < PORT_ID_EAG6L_PORT9) {
+			/* select page for 2nd value */
+			if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x20/*page-20h*/) < 0) {
+				zlog_notice("%s: Writing port[%d] page select failed.", __func__, portno);
+				return SFP_ID_UNKNOWN;
+			}
+
+			/* get 2nd value */
+			if(val2 = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 252/*0xFC*/) < 0) {
+				zlog_notice("%s: Reading port[%d] 2nd value failed.", __func__, portno);
+				return SFP_ID_UNKNOWN;
+			}
+
+			/* recover page to default */
+			if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0/*page-0*/) < 0) {
+				zlog_notice("%s: Resetting port[%d] page select failed.", __func__, portno);
+				return SFP_ID_UNKNOWN;
+			}
+		}
+
+		if((val1 == 0xCA) || (val2 == 0xCA))
+			return SFP_ID_SMART_BIDI_TSFP_COT;
+		else if((val1 == 0xCB) || (val2 == 0xCB))
+			return SFP_ID_SMART_BIDI_TSFP_RT;
+		else if((val1 == 0xCC) || (val2 == 0xCC))
+			return SFP_ID_SMART_DUPLEX_TSFP;
+		else 
+			return SFP_ID_DWDM_TUNABLE;
+	} else { /* non-tunable type */
+		/* get 1st value */
+		if(val1 = i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 2) < 0) {
+			zlog_notice("%s: Reading port[%d] 1st value failed.", __func__, portno);
+			return SFP_ID_UNKNOWN;
+		}
+
+		if(val1 == 0x22)
+			return SFP_ID_CU_SFP;
+		else {
+			/* get 2nd value */
+			if(val2 = i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 0x62) < 0) {
+				zlog_notice("%s: Reading port[%d] 2nd value failed.", __func__, portno);
+				return SFP_ID_UNKNOWN;
+			}
+
+			switch(val2) {
+				case 'V' :	return SFP_ID_VCSEL_BIDI;
+				case 'L' :  return SFP_ID_HSFP_LOW;
+				case 'H' :  return SFP_ID_HSFP_HIGH;
+				case '1' :
+				case '2' :
+				case '3' :
+				case '4' :
+				case '5' :
+				case '6' :  return SFP_ID_6WL;
+				default  :  /* pass-through-to-below */;
+			}
+
+			/* get 3rd value */
+			if(val3 = i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 0x3C) < 0) {
+				zlog_notice("%s: Reading port[%d] 3rd value failed.", __func__, portno);
+				return SFP_ID_UNKNOWN;
+			}
+
+			/* get 4th value */
+			if(val4 = i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 0x3D) < 0) {
+				zlog_notice("%s: Reading port[%d] 4th value failed.", __func__, portno);
+				return SFP_ID_UNKNOWN;
+			}
+
+			intval = (val3 << 8) | val4;
+			if(intval == 850)
+				return SFP_ID_VCSEL;
+
+			/* get 5th value */
+			if(val5 = i2cget_main(0/*bus*/, SFP_IIC_ADDR/*0x50*/, 0x3E) < 0) {
+				zlog_notice("%s: Reading port[%d] 5th value failed.", __func__, portno);
+				return SFP_ID_UNKNOWN;
+			}
+
+			mod = intval % 10;
+			if((mod < 2) && ((val5 == 0) || (val5 > 0x63)))
+				return SFP_ID_CWDM;
+			else
+				return SFP_ID_DWDM;
+		}
+	}
+}
+#endif
 #endif
 
 #if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
@@ -742,6 +1181,7 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 	memcpy( &mod_inv->part_num, &raw->vendor_pn[0], 16 );
 #endif
 
+#ifdef DEBUG
 zlog_notice("INV SN [%s]", mod_inv->serial_num);/*ZZPP*/
 zlog_notice("INV VENDOR [%s]", mod_inv->vendor);/*ZZPP*/
 zlog_notice("INV PN [%s]", mod_inv->part_num);/*ZZPP*/
@@ -749,6 +1189,7 @@ zlog_notice("INV DATE CODE [%s]", mod_inv->date_code);/*ZZPP*/
 zlog_notice("INV WAVELENGTH[%d]", mod_inv->wave);/*ZZPP*/
 zlog_notice("INV DISTANCE[%d]", mod_inv->dist);/*ZZPP*/
 zlog_notice("INV MAX RATE[%d]", mod_inv->max_rate);/*ZZPP*/
+#endif
 	return;
 }
 
@@ -901,7 +1342,7 @@ int sfp_get_bias(double bias_ad, double bias_slope, double bias_offset, double *
   return 0;
 }
 
-int get_sfp_info_diag(int portno, struct port_status * port_sts)
+int get_sfp_info_diag(int portno, port_status_t * port_sts)
 {
 	int	bus;
 	RawGbicDiagInfo *raw_diag = NULL;
@@ -914,25 +1355,10 @@ int get_sfp_info_diag(int portno, struct port_status * port_sts)
 	double tx_pwrad, temp_ad, vcc_ad, bias_ad;
 	double temp, vcc, bias, ltemp, tcurr;
 
-#if 1/*[119] don't display sfp ddm in du port, balkrow, 2022-07-27*/
-#if 0//PWY_FIXME
-	if(portno == PORT_ID_EAG6L_PORT1)
-		bus = 26;
-	else if(portno == PORT_ID_EAG6L_PORT2)
-		bus = 27;
-	else if(portno == PORT_ID_EAG6L_PORT3)
-		bus = 28;
-	else if(portno == PORT_ID_EAG6L_PORT4)
-		bus = 29;
-	else if(portno >= PORT_ID_EAG6L_PORT5)
-		bus = portno - 1;
-	else
-		bus = portno + 1;
-#endif //PWY_FIXME
-		bus = 0;
-#else
-	bus = portno + 1;
-#endif
+	/* do nothing for 100G port. */
+	if(portno >= PORT_ID_EAG6L_PORT9)
+		return SUCCESS;
+
 	filling_sfp_data_realtime(bus, DIAG_SFP_IIC_ADDR, portno, HZ_I2C_SFP_DIAG_START, HZ_I2C_SFP_DIAG,
 			&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START]);
 
