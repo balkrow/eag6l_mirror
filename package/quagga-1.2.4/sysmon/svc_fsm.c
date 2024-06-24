@@ -132,7 +132,13 @@ SVC_EVT svc_init_fail(SVC_ST st) {
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 	if(gDB.init_state != SYS_INIT_FAIL)
 	{
-		/*No write Bp Init done*/
+		/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
+		 *
+		 * WRITE INIT COMPLETE (0x18)
+		 * WRITE CPU FAIL (0x12)
+		 * */
+		gRegUpdate(INIT_COMPLETE_ADDR, 0, INIT_COMPLETE_ADDR_MASK, 0);
+		gRegUpdate(CPU_FAIL_ADDR, 8, CPU_FAIL_MASK, 1);
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 		gDB.init_state = SYS_INIT_FAIL;  
 #endif
@@ -201,20 +207,45 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 #else /*! FSM_SIM*/
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 	SVC_EVT rc = SVC_EVT_FPGA_ACCESS_FAIL;
+#if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+	uint8_t i;
+#endif
 	uint16_t swVer = sysmonUpdateGetSWVer();
 
-	/*write SW version reg*/
+	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
+	 *
+	 * WRITE UNIT VERSION(0xE)
+	 * */
 	FPGA_WRITE(SW_VERSION_ADDR, swVer);
 
 	/*read SW version reg*/
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
 
-	/*write unit defined 1 reg*/
+	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
+	 *
+	 * WRITE UNIT DEFINED 1(0xA)
+	 * */
 	FPGA_WRITE(SW_VERSION_ADDR, 0x1);
 
-	/*write unit defined 2 reg*/
+	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
+	 *
+	 * WRITE UNIT DEFINED 2(0xC)
+	 * */
 	FPGA_WRITE(SW_VERSION_ADDR, 0x164);
+	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
+	 *
+	 * WRITE COMMAND CONTROL REG2(SIG SEL, Rate SEL)(0x20)
+	 * */
+#if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+	for(i = 0; i < PORT_ID_EAG6L_PORT6; i++) 
+	{
+		gRegUpdate(COMMON_CTRL2_P1_ADDR + (i*2), COMMON_CTRL2_SIG_SHIFT, 
+			   COMMON_CTRL2_SIG_MASK, 0x1); /*GGE*/
+		gRegUpdate(COMMON_CTRL2_P1_ADDR + (i*2), COMMON_CTRL2_RATE_SHIFT, 
+			   COMMON_CTRL2_RATE_MASK, 0x7);/*25G*/
+	}
+#endif
 
 	return rc; 
 #else /*! 56*/
@@ -277,6 +308,10 @@ SVC_EVT svc_init_done(SVC_ST st) {
 	if(gDB.init_state != SYS_INIT_DONE)
 	{
 		gDB.init_state = SYS_INIT_DONE;  
+		/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
+		 *
+		 * WRITE INIT COMPLETE (0x18)
+		 * */
 		gRegUpdate(INIT_COMPLETE_ADDR, 0, INIT_COMPLETE_ADDR_MASK, SYS_INIT_DONE);
 	}
 	else

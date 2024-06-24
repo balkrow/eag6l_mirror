@@ -26,6 +26,11 @@
 #include "sys_fifo.h"
 
 #include <dirent.h>
+#if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+#include "bp_regs.h"
+extern RegMON regMonList [];
+extern uint16_t getIdxFromRegMonList (uint16_t reg);
+#endif
 
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
 #define DEBUG
@@ -181,29 +186,31 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 
 uint8_t gCpssPortSetRate(int args, ...)
 {
-    va_list argP;
-    sysmon_fifo_msg_t msg;
+	va_list argP;
+	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
-    zlog_notice("called %s args=%d", __func__, args);
+	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-    if(args != 3) {
-	    zlog_notice("%s: invalid args[%d].", __func__, args);
-	    return IPC_CMD_FAIL;
-    }
+	if(args != 3) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
 
 	memset(&msg, 0, sizeof msg);
-    va_start(argP, args);
-    msg.portid = va_arg(argP, uint16_t);
-    msg.speed = va_arg(argP, uint16_t);
-    msg.mode = va_arg(argP, uint16_t);
-    va_end(argP);
-    msg.type = gPortSetRate;
+	va_start(argP, args);
+#if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+	msg.portid = va_arg(argP, uint32_t);
+	msg.speed = va_arg(argP, uint32_t);
+	msg.mode = va_arg(argP, uint32_t);
+#endif
+	va_end(argP);
+	msg.type = gPortSetRate;
 
-    if(send_to_sysmon_slave(&msg) == 0) {
-        zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
-        return IPC_CMD_FAIL;
-    }
+	if(send_to_sysmon_slave(&msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	return IPC_CMD_SUCCESS;
 }
@@ -332,7 +339,9 @@ uint8_t gCpssPortPMClear(int args, ...)
 
 	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
-	va_arg(argP, uint16_t);
+#if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+	va_arg(argP, uint32_t);
+#endif
 	va_end(argP);
 	msg.type = gPortPMClear;
 
@@ -581,7 +590,20 @@ uint8_t gReplySynceEnable(int args, ...)
 	va_end(argP);
 
 	/* process for result. */
-	/*FIXME*/
+#if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+	if(msg->result == FIFO_CMD_SUCCESS)
+	{
+		uint16_t idx;
+		idx = getIdxFromRegMonList(SYNCE_GCONFIG_ADDR);
+		if(idx != 0xff && regMonList[idx].rb_thread)
+		{
+			thread_cancel(regMonList[idx].rb_thread);
+			regMonList[idx].rb_thread = NULL;
+		}
+	}
+
+	zlog_notice("%s  result=%x", __func__, msg->result);
+#endif
 
 	return ret;
 }
@@ -605,7 +627,20 @@ uint8_t gReplySynceDisable(int args, ...)
 	va_end(argP);
 
 	/* process for result. */
-	/*FIXME*/
+#if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+	if(msg->result == FIFO_CMD_SUCCESS)
+	{
+		uint16_t idx;
+		idx = getIdxFromRegMonList(SYNCE_GCONFIG_ADDR);
+		if(idx != 0xff && regMonList[idx].rb_thread)
+		{
+			thread_cancel(regMonList[idx].rb_thread);
+			regMonList[idx].rb_thread = NULL;
+		}
+	}
+
+	zlog_notice("%s  result=%x", __func__, msg->result);
+#endif
 
 	return ret;
 }

@@ -425,6 +425,17 @@ DEFUN (synce_enable,
        "primary\n"
        "secondary\n")
 {
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
+  uint16_t enable = 0x5a;
+  extern uint16_t fpga_sim_val;
+
+  if (strncmp (argv[0], "e", 1) == 0)
+	  enable = 0xa5;
+
+  fpga_sim_val = enable;
+
+  return CMD_SUCCESS;
+#else
   uint16_t enable = 0x5a;
 
   if (strncmp (argv[0], "e", 1) == 0)
@@ -433,6 +444,7 @@ DEFUN (synce_enable,
   synceEnableSet(0, enable);	
 	
   return CMD_SUCCESS;
+#endif
 }
 #endif
 

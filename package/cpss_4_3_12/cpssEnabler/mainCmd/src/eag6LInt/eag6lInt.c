@@ -320,7 +320,7 @@ uint8_t gCpssSynceDisable(int args, ...)
 	}
 
 #ifdef DEBUG
-	syslog(LOG_NOTICE, "%s : synce neable ret=%x", __func__, ret);
+	syslog(LOG_NOTICE, "%s : synce disable ret=%x", __func__, ret);
 #endif
 
 	if(!ret)

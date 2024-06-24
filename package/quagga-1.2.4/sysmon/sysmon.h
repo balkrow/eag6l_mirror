@@ -76,6 +76,9 @@ define Memory Macro
 #define RSMU_PLL_IDX	0  
 #define RT_OK 0
 #define RT_NOK 1
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
+#define UNKNOWN 0
+#endif
 #define FREERUN 1
 #define LOCK_RECOVERY 2
 #define PLL_LOCK 4

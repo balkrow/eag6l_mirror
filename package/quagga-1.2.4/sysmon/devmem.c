@@ -11,11 +11,17 @@ extern int32_t g_hdrv_fd;
 #define ACCESS_SIM
 #endif
 
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
+uint16_t fpga_sim_val = 0x100;
+#endif
+
 uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg) 
 {
 
 #ifdef ACCESS_SIM
-	return 0x0100;
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
+	return fpga_sim_val;
+#endif
 #else
         fpgamemory_t fpgamemory;
 
