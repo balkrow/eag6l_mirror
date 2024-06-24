@@ -114,7 +114,11 @@ RegMON regMonList [] = {
   { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceEnableSet }, 
 	/* synce interface select */
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+  { SYNCE_IF_SELECT_ADDR, 0xFF00, 8, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFPriSelect }, 
+#else
   { SYNCE_IF_SELECT_ADDR, 0xFF, 8, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFPriSelect }, 
+#endif
   { SYNCE_IF_SELECT_ADDR, 0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFSecSelect }, 
 #else
   { SYNCE_IF_SELECT_ADDR, 0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFSelect }, 
@@ -170,7 +174,7 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 
 	if(val == 0x7/*25G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
-	else 
+	else if(val == 0x6/*10G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
 
 	return rc;
@@ -311,8 +315,11 @@ uint16_t chipReset(uint16_t port, uint16_t val)
 
 	if(((val >> 8) & 0xFF) == 0xA5)
 		;/*FIXME : need reset function for fpga. */
-	else if((val & 0xFF) == 0xA5)
-		;/*FIXME : need reset function for bp. */
+	else if((val & 0xFF) == 0xA5) {
+		zlog_notice("[SYSMON] reboot EAG6L BP system...");
+		sleep(1);
+		system("reboot -f");
+	}
 	return SUCCESS;
 }
 
@@ -380,8 +387,13 @@ void regMonitor(void)
 	uint16_t i, val;
 	for(i = 0; i < regMonArrSize; i++)
 	{
-		val = regMonList[i].func(regMonList[i].reg); 
+#if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+		val = regMonList[i].func(regMonList[i].reg, regMonList[i].portno ? PORT_REG : PORT_NOREG); 
+		val = (val & regMonList[i].mask) >> regMonList[i].shift;
+#else
+		val = regMonList[i].func(regMonList[i].reg);
 		val = (val >> regMonList[i].shift) & regMonList[i].mask;
+#endif
 		if(regMonList[i].val != val) 
 		{
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
