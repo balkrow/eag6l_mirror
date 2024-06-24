@@ -1,3 +1,6 @@
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#include "thread.h"
+#endif
 #include "sysmon.h"
 #include "bp_regs.h"
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
@@ -62,75 +65,79 @@ extern int set_rtwdm_loopback(int port, int enable);
 extern int set_smart_tsfp_self_loopback(int port, int enable);
 extern int set_flex_tune_reset(int port, int enable);
 
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+extern struct thread_master *master;
+
 RegMON regMonList [] = {
 	/* common control 2 - port speed */
-  { COMMON_CTRL2_P1_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P2_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P3_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P4_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P5_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P6_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, portRateSet }, 
-	/* port configuration - esmc */
-  { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, portESMCenable }, 
+  { COMMON_CTRL2_P1_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P2_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P3_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P4_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P5_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P6_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+	/* port configuration - esmc */                        
+  { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
 	/* port configuration - flex control */
-  { PORT_1_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_flex_tune_control }, 
-  { PORT_2_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_flex_tune_control }, 
-  { PORT_3_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_flex_tune_control }, 
-  { PORT_4_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_flex_tune_control }, 
-  { PORT_5_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_flex_tune_control }, 
-  { PORT_6_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_flex_tune_control }, 
-  { PORT_7_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_1_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_2_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_3_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_4_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_5_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_6_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_7_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
 	/* port configuration - rtwdm loopback */
-  { PORT_1_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_rtwdm_loopback }, 
-  { PORT_2_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_rtwdm_loopback }, 
-  { PORT_3_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_rtwdm_loopback }, 
-  { PORT_4_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_rtwdm_loopback }, 
-  { PORT_5_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_rtwdm_loopback }, 
-  { PORT_6_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_rtwdm_loopback }, 
-  { PORT_7_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_1_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_2_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_3_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_4_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_5_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_6_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_7_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
 	/* port configuration - smart t-sfp self loopback */
-  { PORT_1_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
-  { PORT_2_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
-  { PORT_3_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
-  { PORT_4_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
-  { PORT_5_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
-  { PORT_6_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
-  { PORT_7_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_1_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_2_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_3_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_4_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_5_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_6_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_7_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
 	/* alarm mask - flex tune reset */
-  { PORT_1_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, sys_fpga_memory_read, set_flex_tune_reset }, 
-  { PORT_2_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, sys_fpga_memory_read, set_flex_tune_reset }, 
-  { PORT_3_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT3, sys_fpga_memory_read, set_flex_tune_reset }, 
-  { PORT_4_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, sys_fpga_memory_read, set_flex_tune_reset }, 
-  { PORT_5_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, sys_fpga_memory_read, set_flex_tune_reset }, 
-  { PORT_6_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, sys_fpga_memory_read, set_flex_tune_reset }, 
-  { PORT_7_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_1_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_2_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_3_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_4_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_5_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_6_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_7_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
 	/* synce global control */
-  { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceEnableSet }, 
+  { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceEnableSet }, 
 	/* synce interface select */
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
-  { SYNCE_IF_SELECT_ADDR, 0xFF, 8, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFPriSelect }, 
-  { SYNCE_IF_SELECT_ADDR, 0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFSecSelect }, 
+  { SYNCE_IF_SELECT_ADDR, 0xFF, 8, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceIFPriSelect }, 
+  { SYNCE_IF_SELECT_ADDR, 0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceIFSecSelect }, 
 #else
-  { SYNCE_IF_SELECT_ADDR, 0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, synceIFSelect }, 
+  { SYNCE_IF_SELECT_ADDR, 0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceIFSelect }, 
 #endif
 	/* pm counter clear */
-  { PM_COUNT_CLEAR_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, pmClear }, 
+  { PM_COUNT_CLEAR_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, pmClear }, 
 	/* chip reset */
-  { CHIP_RESET_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, chipReset }, 
+  { CHIP_RESET_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, chipReset }, 
 	/* board status - sfp cr */
 	/* FIXME : fix entry */
-  { BD_SFP_CR_ADDR,  0x7F, 0, 0x0, PORT_ID_EAG6L_NOT_USE, sys_fpga_memory_read, boardStatus },
+  { BD_SFP_CR_ADDR,  0x7F, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, boardStatus },
 	/* fpga bank select */
 	/* FIXME : add entry */
 	/* dco register */
 	/* FIXME : add entry */
 };
+#endif /*End 62*/
 #endif
 
 uint16_t regMonArrSize = sizeof(regMonList) / sizeof(RegMON);
@@ -151,6 +158,19 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 	else
 		port_config_speed(port, PORT_IF_10G_KR, PORT_IF_10G_KR);
 	return SUCCESS;
+}
+#endif
+
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+uint16_t getIdxFromRegMonList (uint16_t reg)
+{
+	uint16_t i, ret = 0xff;
+	for(i = 0; i < regMonArrSize; i++)
+	{
+		if(regMonList[i].reg == reg)
+			return i;
+	}
+	return ret;
 }
 #endif
 
@@ -375,6 +395,27 @@ extern int set_flex_tune_control(int portno, int enable);
 	}
 }
 
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+int8_t rollback_reg(struct thread *thread)
+{
+	uint16_t *idx = NULL, reg;	
+	idx = (uint16_t *)THREAD_ARG(thread); 
+
+	if(idx)
+	{
+		regMonList[*idx].val = regMonList[*idx].rollback_val;
+
+		gRegUpdate(regMonList[*idx].reg, 
+			   regMonList[*idx].shift, 
+			   regMonList[*idx].mask, 
+			   regMonList[*idx].val);
+		zlog_notice("%s rollback reg %x,val %x", __func__, regMonList[*idx].reg, regMonList[*idx].val);
+		
+	}
+	return RT_OK;
+}
+#endif
+
 void regMonitor(void)
 {
 	uint16_t i, val;
@@ -388,6 +429,10 @@ void regMonitor(void)
 			regMonList[i].cb(regMonList[i].portno, val);
 #else
 			regMonList[i].cb(val);
+#endif
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+			regMonList[i].rollback_val = regMonList[i].val;
+			regMonList[i].rb_thread = thread_add_timer(master, rollback_reg, (void *)&i, 2);
 #endif
 			regMonList[i].val = val;
 		}
@@ -430,29 +475,37 @@ u8 get_eag6L_dport(u8 lport, u8 offset)
 int8_t rsmu_pll_update(void)
 {
 	uint16_t wr_val = 0;
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
+	uint8_t val; 
+#endif
 
-	gDB.pll_state =	rsmuGetPLLState();
+	val = rsmuGetPLLState();
 
-	switch(gDB.pll_state) 
+	if(val != gDB.pll_state)
 	{
-	case FREERUN :
-		wr_val = 0x11;
-		break;
-	case HOLD_OVER :
-		wr_val = 0x12;
-		break;
-	case PLL_LOCK :
-		wr_val = 0x13;
-		break;
-	default :
-		break;
+
+		switch(val) 
+		{
+		case FREERUN :
+			wr_val = 0x11;
+			break;
+		case HOLD_OVER :
+			wr_val = 0x12;
+			break;
+		case PLL_LOCK :
+			wr_val = 0x13;
+			break;
+		default :
+			val = UNKNOWN; 
+			break;
+		}
+		gDB.pll_state = val;
+
+		zlog_notice("change pll state %x -> %x", gDB.pll_state, val);
+		if(wr_val)
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, SYNCE_SRC_STAT_ADDR_MASK, wr_val)
 	}
 
-#ifdef DEBUG
-	zlog_notice("wr_val=%x", wr_val);
-#endif
-	if(wr_val)
-		gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, SYNCE_SRC_STAT_ADDR_MASK, wr_val)
 
 	return RT_OK;
 }
@@ -1325,7 +1378,10 @@ void update_KeepAlive(void)
 
 	if(gDB.keepAlive == 0xff)
 		gDB.keepAlive = 1;
-
+	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
+	 *
+	 * WRITE KEEP ALIVE(0x16)
+	 * */
 	FPGA_WRITE(HW_KEEP_ALIVE_1_ADDR,  gDB.keepAlive++);
 }
 #endif

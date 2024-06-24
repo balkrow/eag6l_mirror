@@ -14,6 +14,9 @@
 #include "log.h" 
 #include "thread.h" 
 #include "sys/ioctl.h" 
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#include "bp_regs.h" 
+#endif
 
 #undef DEBUG
 #define ACCESS_SIM
@@ -79,4 +82,15 @@ int8_t monitor_hw_init(void)
 	int8_t rc = 0;
 	rc = rsmu_init();
 	rc += hdriv_init();
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+	if(rc)
+	{
+		/**
+		 * WRITE CPU FAIL (0x12)
+		 * */
+		gRegUpdate(CPU_FAIL_ADDR, 8, CPU_FAIL_MASK, 1);
+	}
+
+	return rc;
+#endif
 }

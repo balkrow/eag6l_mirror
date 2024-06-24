@@ -36,6 +36,10 @@ typedef struct reg_mon_str
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 	uint8_t  portno;/*if zero, then single register. if non-zero then per-port registers. */
 #endif
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+	uint16_t rollback_val;
+	struct thread *rb_thread;
+#endif
 	READ_FUNC func;
 	REG_CALLBACK cb;
 } RegMON;
@@ -63,15 +67,25 @@ typedef struct reg_mon_str
  ****************************/
 
 #define SW_VERSION_ADDR			0x00	// r/o for mcu, r/w for bp
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#define CPU_FAIL_ADDR			0x12	
+#define CPU_FAIL_MASK			0x100
+#endif
 #define HW_KEEP_ALIVE_1_ADDR		0x14	// r/w for mcu, r/o for bp
 #define HW_KEEP_ALIVE_2_ADDR		0x16	// r/o for mcu, r/w for bp :
                                             //   bp must increase this value.
 #define INIT_COMPLETE_ADDR		0x18	// bp set 0xAA to [15:8] if init done.
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
-#define INIT_COMPLETE_ADDR_MASK		0xFFF00
+#define INIT_COMPLETE_ADDR_MASK		0xFF00
 #endif
 
 // bp must set 10G/25G speed for port 1~6.
+#if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#define COMMON_CTRL2_SIG_MASK		0x30
+#define COMMON_CTRL2_SIG_SHIFT		0x4
+#define COMMON_CTRL2_RATE_MASK		0x7
+#define COMMON_CTRL2_RATE_SHIFT		0x0
+#endif
 #define COMMON_CTRL2_P1_ADDR		0x20	// r/w for mcu, r/o for bp 
 #define COMMON_CTRL2_P2_ADDR		0x22	// r/w for mcu, r/o for bp 
 #define COMMON_CTRL2_P3_ADDR		0x24	// r/w for mcu, r/o for bp 
@@ -179,13 +193,16 @@ typedef struct reg_mon_str
  ****************************/
 
 #define SYNCE_GCONFIG_ADDR			0x160	// r/w for mcu, r/o for bp 
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#define SYNCE_GCONFIG_MASK			0xff	// r/w for mcu, r/o for bp 
+#endif
 #define SYNCE_IF_SELECT_ADDR			0x162	// r/w for mcu, r/o for bp 
 #define SYNCE_ESMC_LQL_ADDR			0x166	// r/o for mcu, r/w for bp 
 #define SYNCE_ESMC_SQL_ADDR			0x168	// r/o for mcu, r/w for bp 
 #define SYNCE_ESMC_RQL_ADDR			0x16A	// r/o for mcu, r/w for bp 
 #define SYNCE_SRC_STAT_ADDR			0x16C	// r/o for mcu, r/w for bp 
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
-#define SYNCE_SRC_STAT_ADDR_MASK		0xFFF00		// r/o for mcu, r/w for bp 
+#define SYNCE_SRC_STAT_ADDR_MASK		0xFF	// r/o for mcu, r/w for bp 
 #endif
 
 #define SYNCE_ESMC_RQL2_ADDR			0x16E	// r/o for mcu, r/w for bp 

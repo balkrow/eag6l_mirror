@@ -35,6 +35,9 @@
 #include "zclient.h"
 #include "vrf.h"
 #include "sysmon.h"
+#if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#include "bp_regs.h"
+#endif
 
 extern void sysmon_init(void);
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
@@ -313,6 +316,12 @@ main (int argc, char **argv)
   if (daemon_mode && daemon (0, 0) < 0)
     {
       zlog_err("SYSMON daemon failed: %s", strerror(errno));
+#if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+	/**
+	 * WRITE CPU FAIL (0x12)
+	 */
+	gRegUpdate(CPU_FAIL_ADDR, 8, CPU_FAIL_MASK, 1);
+#endif
       exit (1);
     }
 
