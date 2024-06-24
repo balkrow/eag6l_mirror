@@ -448,6 +448,150 @@ DEFUN (synce_enable,
 }
 #endif
 
+#if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+DEFUN (get_register,
+       get_register_cmd,
+       "get-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select )",
+       "get register\n"
+       "Synce Global enable\n"
+       "Synce IF select\n"
+       "PM counter clear\n"
+       "Chip reset\n"
+       "BD SFP CR\n"
+       "FPGA Bank Select\n")
+{
+	uint16_t addr, val;
+
+	if(! strncmp(argv[0], "synce-if-select", strlen("synce-if-select")))
+		addr = SYNCE_IF_SELECT_ADDR;
+	else if(! strncmp(argv[0], "pm-clear", strlen("pm-clear")))
+		addr = PM_COUNT_CLEAR_ADDR;
+	else if(! strncmp(argv[0], "chip-reset", strlen("chip-reset")))
+		addr = CHIP_RESET_ADDR;
+	else if(! strncmp(argv[0], "bd-sfp-cr", strlen("bd-sfp-cr")))
+		addr = BD_SFP_CR_ADDR;
+	else if(! strncmp(argv[0], "fw-bank-select", strlen("fw-bank-select")))
+		addr = FW_BANK_SELECT_ADDR;
+	else {
+		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
+		return CMD_ERR_NO_MATCH;
+	}
+
+	val = FPGA_READ(addr);
+
+	vty_out(vty, "Read addr[%08x] = 0x%x%s", addr, val, VTY_NEWLINE);
+	return CMD_SUCCESS;
+}
+
+DEFUN (get_register2,
+       get_register2_cmd,
+       "get-register ( common-control2 | port-config | alarm-mask ) <1-9>",
+       "get register\n"
+       "Port Common Control2\n"
+       "Target port\n"
+       "Port Config\n"
+       "Target port\n"
+       "Port Alarm Mask\n"
+       "Target port\n")
+{
+	int portno;
+	uint16_t addr, val;
+
+	portno = atoi(argv[1]);
+
+	if(! strncmp(argv[0], "common-control2", strlen("common-control2")))
+		addr = __COMMON_CTRL2_ADDR[portno];
+	else if(! strncmp(argv[0], "port-config", strlen("port-config")))
+		addr = __PORT_CONFIG_ADDR[portno];
+	else if(! strncmp(argv[0], "alarm-mask", strlen("alarm-mask")))
+		addr = __PORT_ALM_MASK_ADDR[portno];
+	else {
+		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
+		return CMD_ERR_NO_MATCH;
+	}
+
+	val = FPGA_PORT_READ(addr);
+	vty_out(vty, "Read addr[%08x] = 0x%x%s", addr, val, VTY_NEWLINE);
+	return CMD_SUCCESS;
+}
+
+DEFUN (set_register,
+       set_register_cmd,
+       "set-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select ) <0-65535>",
+       "Set register\n"
+       "Synce Global enable\n"
+       "Synce IF select\n"
+       "PM counter clear\n"
+       "Chip reset\n"
+       "BD SFP CR\n"
+       "FPGA Bank Select\n"
+       "Vlaue to write <0x0000 - 0xFFFF>\n")
+{
+	uint16_t addr;
+	uint32_t val;
+
+	if(! strncmp(argv[0], "synce-if-select", strlen("synce-if-select")))
+		addr = SYNCE_IF_SELECT_ADDR;
+	else if(! strncmp(argv[0], "pm-clear", strlen("pm-clear")))
+		addr = PM_COUNT_CLEAR_ADDR;
+	else if(! strncmp(argv[0], "chip-reset", strlen("chip-reset")))
+		addr = CHIP_RESET_ADDR;
+	else if(! strncmp(argv[0], "bd-sfp-cr", strlen("bd-sfp-cr")))
+		addr = BD_SFP_CR_ADDR;
+	else if(! strncmp(argv[0], "fw-bank-select", strlen("fw-bank-select")))
+		addr = FW_BANK_SELECT_ADDR;
+#if 0//PWY_FIXME
+	else {
+		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
+		return CMD_ERR_NO_MATCH;
+	}
+#endif //PWY_FIXME
+
+	if(sscanf(argv[1], "%u", &val) != 1) {
+		vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+		return CMD_ERR_AMBIGUOUS;
+	}
+	FPGA_WRITE(addr, (uint16_t)val);
+	return CMD_SUCCESS;
+}
+
+DEFUN (set_register2,
+       set_register2_cmd,
+       "set-register ( common-control2 | port-config | alarm-mask ) <1-9> <0-65535>",
+       "Set register\n"
+       "Port Common Control2\n"
+       "Port Config\n"
+       "Port Alarm Mask\n"
+       "Target port\n"
+       "Vlaue to write <0x0000 - 0xFFFF>\n")
+{
+	int portno;
+	uint16_t addr;
+	uint32_t val;
+
+	portno = atoi(argv[1]);
+
+	if(! strncmp(argv[0], "common-control2", strlen("common-control2")))
+		addr = __COMMON_CTRL2_ADDR[portno];
+	else if(! strncmp(argv[0], "port-config", strlen("port-config")))
+		addr = __PORT_CONFIG_ADDR[portno];
+	else if(! strncmp(argv[0], "alarm-mask", strlen("alarm-mask")))
+		addr = __PORT_ALM_MASK_ADDR[portno];
+	else {
+		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
+		return CMD_ERR_NO_MATCH;
+	}
+
+	if(sscanf(argv[2], "%u", &val) != 1) {
+		vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+		return CMD_ERR_AMBIGUOUS;
+	}
+
+	FPGA_PORT_WRITE(addr, (uint16_t)val);
+	return CMD_SUCCESS;
+}
+#endif
+
 void
 sysmon_vty_init (void)
 {
@@ -469,6 +613,12 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &set_port_rtwdm_loopback_cmd);
   install_element (ENABLE_NODE, &no_set_port_rtwdm_loopback_cmd);
   install_element (ENABLE_NODE, &set_port_speed_cmd);
+#endif
+#if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+  install_element (VIEW_NODE, &get_register_cmd);
+  install_element (VIEW_NODE, &get_register2_cmd);
+  install_element (ENABLE_NODE, &set_register_cmd);
+  install_element (ENABLE_NODE, &set_register2_cmd);
 #endif
 
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */

@@ -20,7 +20,11 @@ typedef enum {
 #endif
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
+#if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+typedef uint16_t (*READ_FUNC) (uint16_t, uint16_t);
+#else
 typedef uint16_t (*READ_FUNC) (uint16_t);
+#endif
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 typedef uint16_t (*REG_CALLBACK) (uint16_t/*portno*/, uint16_t/*reg-val*/);
 #else
@@ -99,7 +103,12 @@ typedef struct reg_mon_str
  * Reset/CR related registers
  ****************************/
 
+#if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+/* Fixing wrong address */
+#define CHIP_RESET_ADDR			0x40	// r/w for both mcu/bp.
+#else
 #define CHIP_RESET_ADDR			0x20	// r/w for both mcu/bp.
+#endif
 
 
 /****************************
@@ -959,6 +968,15 @@ typedef struct reg_mon_str
 #define PWM_NOT_USED        (-99.9f)
 #define DEF_PWM_MIN         (-53.0f)
 #define DEF_PWM_MAX         (20.0f)
+
+
+#if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+/*
+ * FPGA Bank Select
+ */
+
+#define FW_BANK_SELECT_ADDR		0xF00000
+#endif
 
 
 extern unsigned long __COMMON_CTRL2_ADDR[PORT_ID_EAG6L_MAX];
