@@ -312,7 +312,7 @@ uint16_t chipReset(uint16_t port, uint16_t val)
 	if(((val >> 8) & 0xFF) == 0xA5)
 		;/*FIXME : need reset function for fpga. */
 	else if((val & 0xFF) == 0xA5)
-		;/*FIXME : need reset function for bp. */
+		system("reboot -f");
 	return SUCCESS;
 }
 
