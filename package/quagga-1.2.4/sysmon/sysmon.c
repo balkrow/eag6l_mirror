@@ -12,13 +12,16 @@
 */
 #include "zebra.h"
 #include "sysmon.h" 
+#include "bp_regs.h" 
 #include "sys_fifo.h" 
 #include <getopt.h>
 #include "log.h" 
 #include "thread.h" 
 
+#if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+#define ACCESS_SIM	/* moved to sysmon.h */
+#endif
 #undef DEBUG
-#define ACCESS_SIM
 
 #if 0/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 u32 INIT_COMPLETE_FLAG;
@@ -229,6 +232,29 @@ extern uint16_t portAlarm(void);
 	if(! i2c_in_use_flag)
 #endif
 	update_sfp();
+
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	/* for initial operation */
+#ifdef ACCESS_SIM
+	if(! i2c_in_use_flag)
+	{
+extern ePrivateSfpId get_private_sfp_identifier(int portno);
+extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
+extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
+		static one_time_flag = 0;
+		int portno, type;
+
+		if(! one_time_flag) {
+			for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+				type = get_private_sfp_identifier(portno);
+				PORT_STATUS[portno].sfp_type = type;
+				read_port_inventory(portno, &(INV_TBL[portno]));
+			}
+			one_time_flag = 1;
+		}
+	}
+#endif
+#endif
 
 	/* get port alarm (link) */
 	portAlarm();
