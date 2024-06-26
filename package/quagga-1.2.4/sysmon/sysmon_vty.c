@@ -160,7 +160,38 @@ static void print_port_info(struct vty *vty, int portno)
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
-	vty_out(vty, "[%s] link[%s] speed[%s] sfp[%s] vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s] flex[%d]\n", 
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%s] sfp[%s] vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s] tunable[%d] chno[0x%x] wavelength[%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d]\n", 
+		portno, 
+		(ps->equip ? "O" : "x"),
+		(ps->link ? "Up" : "Dn"), 
+		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),
+		((ps->sfp_type == SFP_ID_SMART_DUPLEX_TSFP) ? "Smart Duplex T-SFP" : 
+			(ps->sfp_type == SFP_ID_CU_SFP) ? "CuSFP" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) ? "Smart BiDi TSFP(COT)" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_RT) ? "Smart BiDi TSFP(RT)" :
+			(ps->sfp_type == SFP_ID_VCSEL_BIDI) ? "VCSEL BIDI" :
+			(ps->sfp_type == SFP_ID_6WL) ? "6WL" :
+			(ps->sfp_type == SFP_ID_HSFP_HIGH) ? "HSFP (HIGH)" :
+			(ps->sfp_type == SFP_ID_HSFP_LOW) ? "HSFP (LOW)" :
+			(ps->sfp_type == SFP_ID_CWDM) ? "CWDM" :
+			(ps->sfp_type == SFP_ID_DWDM) ? "DWDM" :
+			(ps->sfp_type == SFP_ID_VCSEL) ? "VCSEL" :
+			(ps->sfp_type == SFP_ID_DWDM_TUNABLE) ? "DWDN Tunable" : "Unknown"),
+		mod_inv->vendor, 
+		mod_inv->part_num, 
+		mod_inv->serial_num, 
+		mod_inv->wave, 
+		mod_inv->dist, 
+		mod_inv->date_code,
+		ps->tunable_sfp,
+		ps->tunable_chno,
+		ps->tunable_wavelength,
+		ps->cfg_flex_tune, ps->flex_tune_status,
+		ps->cfg_smart_tsfp_selfloopback, ps->tsfp_self_lp,
+		ps->cfg_rtwdm_loopback, ps->rtwdm_lp);
+#else
+	vty_out(vty, "[%d] link[%s] speed[%s] sfp[%s] vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s] flex[%d]\n", 
 		portno, 
 		(ps->link ? "Up" : "Dn"), 
 		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),
@@ -183,6 +214,7 @@ static void print_port_info(struct vty *vty, int portno)
 		mod_inv->dist, 
 		mod_inv->date_code,
 		ps->cfg_flex_tune);
+#endif
 	return;
 }
 
@@ -191,6 +223,12 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 	port_status_t * ps = NULL;
 
 	ps = &(PORT_STATUS[portno]);
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	if(! ps->link) {
+		vty_out(vty, "[%d] no link\n", portno);
+		return;
+	}
+#endif
 
 	vty_out(vty, "[%d] vcc[%+5.2f] temp[%+4.1f] tx_bias[%+5.2f] laser[%+5.2f] tec_curr[%+5.2f] tx_pwr[%+5.2f] rx_pwr[%+5.2f]\n",
 		portno,
@@ -451,14 +489,16 @@ DEFUN (synce_enable,
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
 DEFUN (get_register,
        get_register_cmd,
-       "get-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select )",
+       "get-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select | keep-alive2 | init-complete )",
        "get register\n"
        "Synce Global enable\n"
        "Synce IF select\n"
        "PM counter clear\n"
        "Chip reset\n"
        "BD SFP CR\n"
-       "FPGA Bank Select\n")
+       "FPGA Bank Select\n"
+       "Keep-alive-2\n"
+       "INIT Complete\n")
 {
 	uint16_t addr, val;
 
@@ -472,6 +512,10 @@ DEFUN (get_register,
 		addr = BD_SFP_CR_ADDR;
 	else if(! strncmp(argv[0], "fw-bank-select", strlen("fw-bank-select")))
 		addr = FW_BANK_SELECT_ADDR;
+	else if(! strncmp(argv[0], "keep-alive2", strlen("keep-alive2")))
+		addr = HW_KEEP_ALIVE_2_ADDR;
+	else if(! strncmp(argv[0], "init-complete", strlen("init-complete")))
+		addr = INIT_COMPLETE_ADDR;
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
 		return CMD_ERR_NO_MATCH;
@@ -485,13 +529,15 @@ DEFUN (get_register,
 
 DEFUN (get_register2,
        get_register2_cmd,
-       "get-register ( common-control2 | port-config | alarm-mask ) <1-9>",
+       "get-register ( common-control2 | port-config | alarm-mask | set-channel-no | get-channel-no ) <1-9>",
        "get register\n"
        "Port Common Control2\n"
        "Target port\n"
        "Port Config\n"
        "Target port\n"
        "Port Alarm Mask\n"
+       "Set channel no for tunable sfp\n"
+       "Get channel no for tunable sfp\n"
        "Target port\n")
 {
 	int portno;
@@ -505,6 +551,10 @@ DEFUN (get_register2,
 		addr = __PORT_CONFIG_ADDR[portno];
 	else if(! strncmp(argv[0], "alarm-mask", strlen("alarm-mask")))
 		addr = __PORT_ALM_MASK_ADDR[portno];
+	else if(! strncmp(argv[0], "set-channel-no", strlen("set-channel-no")))
+		addr = __PORT_SET_CH_NUM_ADDR[portno];
+	else if(! strncmp(argv[0], "get-channel-no", strlen("get-channel-no")))
+		addr = __PORT_GET_CH_NUM_ADDR[portno];
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
 		return CMD_ERR_NO_MATCH;
@@ -517,7 +567,7 @@ DEFUN (get_register2,
 
 DEFUN (set_register,
        set_register_cmd,
-       "set-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select ) <0-65535>",
+       "set-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select | keep-alive2 | init-complete ) <0-65535>",
        "Set register\n"
        "Synce Global enable\n"
        "Synce IF select\n"
@@ -525,6 +575,8 @@ DEFUN (set_register,
        "Chip reset\n"
        "BD SFP CR\n"
        "FPGA Bank Select\n"
+       "Keep-alive-2\n"
+       "INIT Complete\n"
        "Vlaue to write <0x0000 - 0xFFFF>\n")
 {
 	uint16_t addr;
@@ -540,12 +592,14 @@ DEFUN (set_register,
 		addr = BD_SFP_CR_ADDR;
 	else if(! strncmp(argv[0], "fw-bank-select", strlen("fw-bank-select")))
 		addr = FW_BANK_SELECT_ADDR;
-#if 0//PWY_FIXME
+	else if(! strncmp(argv[0], "keep-alive2", strlen("keep-alive2")))
+		addr = HW_KEEP_ALIVE_2_ADDR;
+	else if(! strncmp(argv[0], "init-complete", strlen("init-complete")))
+		addr = INIT_COMPLETE_ADDR;
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
 		return CMD_ERR_NO_MATCH;
 	}
-#endif //PWY_FIXME
 
 	if(sscanf(argv[1], "%u", &val) != 1) {
 		vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
@@ -557,11 +611,13 @@ DEFUN (set_register,
 
 DEFUN (set_register2,
        set_register2_cmd,
-       "set-register ( common-control2 | port-config | alarm-mask ) <1-9> <0-65535>",
+       "set-register ( common-control2 | port-config | alarm-mask | set-channel-no | get-channel-no ) <1-9> <0-65535>",
        "Set register\n"
        "Port Common Control2\n"
        "Port Config\n"
        "Port Alarm Mask\n"
+       "Set channel No for tunable sfp\n"
+       "Get channel No for tunable sfp\n"
        "Target port\n"
        "Vlaue to write <0x0000 - 0xFFFF>\n")
 {
@@ -577,6 +633,10 @@ DEFUN (set_register2,
 		addr = __PORT_CONFIG_ADDR[portno];
 	else if(! strncmp(argv[0], "alarm-mask", strlen("alarm-mask")))
 		addr = __PORT_ALM_MASK_ADDR[portno];
+	else if(! strncmp(argv[0], "set-channel-no", strlen("set-channel-no")))
+		addr = __PORT_SET_CH_NUM_ADDR[portno];
+	else if(! strncmp(argv[0], "get-channel-no", strlen("get-channel-no")))
+		addr = __PORT_GET_CH_NUM_ADDR[portno];
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
 		return CMD_ERR_NO_MATCH;

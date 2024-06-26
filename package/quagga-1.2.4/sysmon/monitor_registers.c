@@ -55,6 +55,10 @@ uint16_t synceIFSelect(uint16_t port, uint16_t val);
 uint16_t pmClear(uint16_t port, uint16_t val);
 uint16_t chipReset(uint16_t port, uint16_t val);
 uint16_t boardStatus(uint16_t port, uint16_t val);
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+uint16_t bankSelect1(uint16_t port, uint16_t val);
+uint16_t bankSelect2(uint16_t port, uint16_t val);
+#endif
 void update_port_sfp_inventory(void);
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 extern uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg);
@@ -64,6 +68,10 @@ extern int set_flex_tune_control(int port, int enable);
 extern int set_rtwdm_loopback(int port, int enable);
 extern int set_smart_tsfp_self_loopback(int port, int enable);
 extern int set_flex_tune_reset(int port, int enable);
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+int set_tunable_sfp_channel_no(int portno, int chno);
+#endif
+
 
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 extern struct thread_master *master;
@@ -116,6 +124,16 @@ RegMON regMonList [] = {
   { PORT_5_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
   { PORT_6_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
   { PORT_7_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	/* channel number set */
+	/* FIXME : there are no channel table for 100G */
+  { PORT_1_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_2_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_3_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_4_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_5_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_6_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+#endif
 	/* synce global control */
   { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceEnableSet }, 
 	/* synce interface select */
@@ -137,7 +155,10 @@ RegMON regMonList [] = {
 	/* FIXME : fix entry */
   { BD_SFP_CR_ADDR,  0x7F, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, boardStatus },
 	/* fpga bank select */
-	/* FIXME : add entry */
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+  { FW_BANK_SELECT_ADDR,  0x30, 8, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, bankSelect1 },
+  { FW_BANK_SELECT_ADDR,  0x03, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, bankSelect2 },
+#endif
 	/* dco register */
 	/* FIXME : add entry */
 };
@@ -191,6 +212,13 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 uint16_t portRateSet (uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
+
+#if 0//PWY_FIXME
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	if(! PORT_STATUS[port].equip)/*not-installed*/
+		return RT_NOK;
+#endif
+#endif //PWY_FIXME
 
 	if(val == 0x7/*25G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
@@ -351,6 +379,63 @@ extern int set_smart_tsfp_self_loopback(int portno, int enable);
 extern int set_flex_tune_control(int portno, int enable);
 	uint16_t type, data;
 
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	for(port = PORT_ID_EAG6L_PORT1; port < PORT_ID_EAG6L_MAX; port++) {
+		if((val & (1 << (port - 1))) != 0/*1-mean-not-installed*/) {
+			/* clear spf inventory */
+			memset(&(INV_TBL[port]), 0, sizeof(struct module_inventory));
+
+			/* clear pm counter? */
+			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
+
+			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
+			PORT_STATUS[port].equip = 0;/*not-installed*/
+		} else {/*0-mean-installed*/
+			/* check if i2c can access 0x50 address */
+			if(check_sfp_is_present(port) < 0/*not-found*/) {
+				zlog_notice("%s: not found sfp on port[%d].", __func__, port);
+				PORT_STATUS[port].equip = 0;/*not-installed*/
+				continue;
+			}
+
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+			read_port_inventory(port, &(INV_TBL[port]));
+#endif
+
+			/* get private sfp identifier */
+			type = get_private_sfp_identifier(port);
+			if(type != SFP_ID_UNKNOWN) {
+				/* get wavelength register 2 */
+				data = FPGA_READ(__PORT_WL2_ADDR[port]);
+
+				/* update wavelength register 2 */
+				data &= ~0x0F00;
+				data |= (type << 8);
+				FPGA_PORT_WRITE(__PORT_WL2_ADDR[port], data);
+				gPortRegUpdate(__PORT_WL2_ADDR[port], 8, 0xF00, type);
+			}
+
+			PORT_STATUS[port].sfp_type = type;
+			PORT_STATUS[port].equip = 1;/*installed*/
+
+			/* set flex tune if configured */
+			if(PORT_STATUS[port].cfg_flex_tune)
+				set_flex_tune_control(port, 1/*enable*/);
+
+			/* set smart t-sfp self loopback if configured. */
+			if(PORT_STATUS[port].cfg_smart_tsfp_selfloopback)
+				set_smart_tsfp_self_loopback(port, 1/*enable*/);
+
+			/* set rtwdm loopback if configured. */
+			if(PORT_STATUS[port].cfg_rtwdm_loopback)
+				set_rtwdm_loopback(port, 1/*enable*/);
+
+			update_port_sfp_inventory();
+
+		}
+	}
+	return SUCCESS;
+#else
 	if(val != 0/*1-mean-not-installed*/) {
 		/* clear spf inventory */
 		memset(&(INV_TBL[port]), 0, sizeof(struct module_inventory));
@@ -379,6 +464,7 @@ extern int set_flex_tune_control(int portno, int enable);
 			data &= ~0x0F00;
 			data |= (type << 8);
 			FPGA_PORT_WRITE(__PORT_WL2_ADDR[port], data);
+			gPortRegUpdate(__PORT_WL2_ADDR[port], 8, 0xF00, type);
 		}
 
 		PORT_STATUS[port].sfp_type = type;
@@ -394,13 +480,40 @@ extern int set_flex_tune_control(int portno, int enable);
 
 		/* set rtwdm loopback if configured. */
 		if(PORT_STATUS[port].cfg_rtwdm_loopback)
-			set_smart_tsfp_self_loopback(port, 1/*enable*/);
+			set_rtwdm_loopback(port, 1/*enable*/);
 
 		update_port_sfp_inventory();
 
 		return SUCCESS;
 	}
+#endif
 }
+
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+uint16_t bankSelect1(uint16_t port, uint16_t val)
+{
+	uint16_t wbank;
+
+	port = 0;/*meaningless*/
+	wbank = (val >> 8) & 0x3;
+
+	/*FIXME : change working bank */
+
+	return SUCCESS;
+}
+
+uint16_t bankSelect2(uint16_t port, uint16_t val)
+{
+	uint16_t rbank;
+
+	port = 0;/*meaningless*/
+	rbank = val & 0x3;
+
+	/*FIXME : restart bank */
+
+	return SUCCESS;
+}
+#endif
 
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 int8_t rollback_reg(struct thread *thread)
@@ -475,7 +588,7 @@ u8 get_eag6L_dport(u8 lport, u8 offset)
 {
 	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT8))
 		return eag6LPortlist[lport - 1];
-	else if((lport == PORT_ID_EAG6L_PORT9) && (offset < 4))
+	else if((lport == (PORT_ID_EAG6L_MAX - 1)) && (offset < 4))
 		return eag6LPortlist[lport - 1 + offset];
 	else {
 		zlog_err(LOG_ERR, "%s: invalid parameter lport[%d] offset[%d].",
@@ -523,14 +636,14 @@ int8_t rsmu_pll_update(void)
 }
 #endif
 
-long hw_update_port_inventory(int portno, struct module_inventory * mod_inv)
+void read_port_inventory(int portno, struct module_inventory * mod_inv)
 {
 #if 0//PWY_FIXME
     if('\0' == mod_inv->serial_num[0] || mod_inv->dist == 0xFFFF)
 #endif
         get_sfp_info(portno, mod_inv);
 
-    return SUCCESS;
+    return;
 }
 
 unsigned long get_port_sfp_cr(unsigned long portId)
@@ -673,7 +786,9 @@ void update_port_rx_power(int portno)
 void update_sfp(void)
 {
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+#if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 extern int update_flex_tune_status(int portno);
+#endif
 extern int get_smart_tsfp_self_loopback(int portno, int * enable);
 extern int get_rtwdm_loopback(int portno, int * enable);
 
@@ -684,12 +799,33 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		/* skip if port has not installed sfp. */
 		/* FIXME */
-zlog_notice(" update_sfp PORT[%d(0/%d)]", portno, get_eag6L_dport(portno, 0));/*ZZPP*/
+#ifdef DEBUG
+		zlog_notice(" update_sfp PORT[%d(0/%d)]", portno, get_eag6L_dport(portno, 0));
+#endif
 		get_sfp_info_diag(portno, &(PORT_STATUS[portno]));
 		update_port_rx_power(portno);
-		hw_update_port_inventory(portno, &(INV_TBL[portno]));
+#if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+		/* NOTE : move to boardStatus() for one time action. */
+		read_port_inventory(portno, &(INV_TBL[portno]));
+#endif
 
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+		/* get only if tunable sfp */
+		if(PORT_STATUS[portno].tunable_sfp) {
+			/* get flex tune status */
+			get_flex_tune_status(portno);
+
+			/* get smart tsfp self loopback */
+			get_smart_tsfp_self_loopback(portno, &enable);
+
+			/* get rtwdm loopback */
+			get_rtwdm_loopback(portno, &enable);
+
+			/* get wavelength for channel no. */
+			get_tunable_sfp_channel_no(portno);
+		}
+#else
 		/* update flex tune status */
 		update_flex_tune_status(portno);
 
@@ -698,6 +834,7 @@ zlog_notice(" update_sfp PORT[%d(0/%d)]", portno, get_eag6L_dport(portno, 0));/*
 
 		/* update rtwdm loopback */
 		get_rtwdm_loopback(portno, &enable);
+#endif
 #endif
 	}
 	return;
@@ -1132,9 +1269,11 @@ void update_port_sfp_inventory(void)
 
 	/* update distance */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-		FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].dist);
+		FPGA_PORT_WRITE(__PORT_DIST_ADDR[portno], INV_TBL[portno].dist);
 	}
 
+#if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	/* it's not inventory, moved to other position */
 	/* update wavelength1 */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].wave);
@@ -1144,9 +1283,10 @@ void update_port_sfp_inventory(void)
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		/*FIXME : refer to Hangle document for encoding sfp idenification codes. */
 		val = INV_TBL[portno].wave;
-		gPortRegUpdate(__PORT_WL1_ADDR[portno], 0, 0x0FF, val);
-		gPortRegUpdate(__PORT_WL1_ADDR[portno], 8, 0xF00, PORT_STATUS[portno].sfp_type);
+		gPortRegUpdate(__PORT_WL2_ADDR[portno], 0, 0x0FF, val);
+		gPortRegUpdate(__PORT_WL2_ADDR[portno], 8, 0xF00, PORT_STATUS[portno].sfp_type);
 	}
+#endif
 }
 
 void process_alarm_info(void)
@@ -1210,17 +1350,19 @@ void process_alarm_info(void)
 		/* read alarm mask register and mask off the result */
 		masking = FPGA_READ(__PORT_ALM_MASK_ADDR[portno]);
 
+#if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 		/* update flex tune status */
 		update_flex_tune_status(portno);
+#endif
 
 		/* remove unnecessary bits */
 		masking &= 0x10F;
 
 		/* update alarm */
-		gRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
+		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
 
 		/* update alarm flag */
-		gRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, val & masking);
+		gPortRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, val & masking);
 	}
 
 	return;
@@ -1228,9 +1370,62 @@ void process_alarm_info(void)
 
 void update_port_sfp_information(void)
 {
+extern int update_flex_tune_status(int portno);
 	int portno;
 	unsigned int val;
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	double fval;
 
+	/* update alarm */
+	process_alarm_info();
+
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		/* update tx power */
+		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
+			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/));
+		/* update rx power */
+		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
+			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/));
+		/* update temperature */
+		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
+		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
+		/* update voltage */
+		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/);
+		FPGA_PORT_WRITE(__PORT_VOLT_ADDR[portno], val);
+		/* update tx bias */
+		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tx_bias);
+		FPGA_PORT_WRITE(__PORT_TX_BIAS_ADDR[portno], val);
+		/* update laser temperature */
+		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
+		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
+		/* update TEC current */
+		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tec_curr);
+		FPGA_PORT_WRITE(__PORT_TCURR_ADDR[portno], val);
+
+		if(PORT_STATUS[portno].tunable_sfp) {
+			/* update wavelength1/2 */
+			fval = PORT_STATUS[portno].tunable_wavelength;
+			fval = ceil(fval * 100) / 100;/* ceiling example : 1558.347 --> 1558.35 */
+			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], (int)fval);
+
+			fval = (fval - (int)fval) * 100;/* extract value below decimal point */
+			gPortRegUpdate(__PORT_WL2_ADDR[portno], 0, 0x0FF, (int)fval);
+			gPortRegUpdate(__PORT_WL2_ADDR[portno], 8, 0xF00, PORT_STATUS[portno].sfp_type);
+
+			/* update sfp channel no. */
+			update_sfp_channel_no(portno);
+
+			/* update flex tune status */
+			update_flex_tune_status(portno);
+		} else {
+			/* update wavelength1/2 */
+			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].wave);
+
+			gPortRegUpdate(__PORT_WL2_ADDR[portno], 0, 0x0FF, 0x0/*default*/);
+			gPortRegUpdate(__PORT_WL2_ADDR[portno], 8, 0xF00, PORT_STATUS[portno].sfp_type);
+		}
+	}
+#else
 	/* update tx power */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
@@ -1275,6 +1470,7 @@ void update_port_sfp_information(void)
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tec_curr);
 		FPGA_PORT_WRITE(__PORT_TCURR_ADDR[portno], val);
 	}
+#endif
 
 	return;
 }
@@ -1394,7 +1590,11 @@ void update_KeepAlive(void)
 	 *
 	 * WRITE KEEP ALIVE(0x16)
 	 * */
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	FPGA_WRITE(HW_KEEP_ALIVE_2_ADDR,  gDB.keepAlive++);
+#else
 	FPGA_WRITE(HW_KEEP_ALIVE_1_ADDR,  gDB.keepAlive++);
+#endif
 }
 #endif
 

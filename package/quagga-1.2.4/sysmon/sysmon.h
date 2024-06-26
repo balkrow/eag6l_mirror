@@ -35,6 +35,8 @@
 #include "svc_fsm.h"
 #endif
 
+#define ACCESS_SIM	/* define if simulation for access on demo system */
+
 /*
 #define PATH_SYSMON_PID "/var/run/sysmon.pid"
 */
@@ -222,8 +224,10 @@ extern void print_console(const char *fmt, ...);
         PORT_ID_EAG6L_PORT5,
         PORT_ID_EAG6L_PORT6,
         PORT_ID_EAG6L_PORT7,
+#ifdef ACCESS_SIM
         PORT_ID_EAG6L_PORT8,/*for-demo-board-100G-test*/
         PORT_ID_EAG6L_PORT9,/*for-demo-board-100G-test*/
+#endif
         PORT_ID_EAG6L_MAX,
 	};
 
@@ -360,6 +364,11 @@ typedef struct port_status
 		u8  flex_tune_status;
 		u8  cfg_smart_tsfp_selfloopback;
 		u8  cfg_rtwdm_loopback;
+#endif
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+		u8  tunable_sfp;
+		u8  tunable_chno;
+		f32 tunable_wavelength;
 #endif
 
         /* port alarm status */
