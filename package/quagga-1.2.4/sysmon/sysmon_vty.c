@@ -160,7 +160,7 @@ static void print_port_info(struct vty *vty, int portno)
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
-	vty_out(vty, "[%s] link[%s] speed[%s] sfp[%s] vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s] flex[%d]\n", 
+	vty_out(vty, "[%d] link[%s] speed[%s] sfp[%s] vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s] flex[%d]\n", 
 		portno, 
 		(ps->link ? "Up" : "Dn"), 
 		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),

@@ -123,7 +123,7 @@ static uint16_t gSynceSecInf = 0xff;
 #endif
 
 uint8_t eag6LLinkStatus[PORT_ID_EAG6L_MAX];
-#if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
+f 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
 #endif
 
