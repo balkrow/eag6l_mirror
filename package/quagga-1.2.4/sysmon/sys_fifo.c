@@ -806,17 +806,6 @@ uint8_t gReplyPortPMGet(int args, ...)
 			PM_TBL[portno].rx_fcs   += msg->pm[portno].rx_fcs;
 			PM_TBL[portno].fcs_ok   += msg->pm[portno].fcs_ok;
 			PM_TBL[portno].fcs_nok  += msg->pm[portno].fcs_nok;
-#ifdef DEBUG
-			zlog_notice(">>> gReplyPortPMGet : port[0/%d] ret[%d]", 
-				get_eag6L_dport(portno, 0), ret);
-			zlog_notice(">>> gReplyPortPMGet tx_frame[%lu] rx_frame[ %lu]", 
-				PM_TBL[portno].tx_frame, PM_TBL[portno].rx_frame);
-			zlog_notice(">>> gReplyPortPMGet tx_bytes[%lu] rx_bytes[%lu]", 
-				PM_TBL[portno].tx_byte, PM_TBL[portno].rx_byte);
-			zlog_notice(">>> gReplyPortPMGet rx_fcs[%lu]", PM_TBL[portno].rx_fcs);
-			zlog_notice(">>> gReplyPortPMGet fcs_ok[%lu] fcs_nok[%lu]", 
-				PM_TBL[portno].fcs_ok, PM_TBL[portno].fcs_nok);
-#endif
 		}
 	} else
 #if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */

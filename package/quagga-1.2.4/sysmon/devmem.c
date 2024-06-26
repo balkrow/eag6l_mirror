@@ -11,7 +11,6 @@
 extern int32_t g_hdrv_fd;
 
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
-#define ACCESS_SIM
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
 static uint16_t __CACHE_SYNCE_GCONFIG = 0x0;
 static uint16_t __CACHE_SYNCE_IF_SELECT = 0x0;
@@ -21,9 +20,15 @@ static uint16_t __CACHE_SFP_CR = 0x0;
 static uint16_t __CACHE_BD_SFP_CR = 0x0;
 static uint16_t __CACHE_FW_BANK_SELECT = 0x0;
 static uint16_t __CACHE_SW_VERSION = 0x0;
-static uint16_t __CACHE_COMMON_CTRL2[PORT_ID_EAG6L_MAX] = { 0x0, };
+static uint16_t __CACHE_COMMON_CTRL2[PORT_ID_EAG6L_MAX] = { 0x17, };
 static uint16_t __CACHE_PORT_CONF[PORT_ID_EAG6L_MAX] = { 0x0, };
 static uint16_t __CACHE_PORT_ALM_MASK[PORT_ID_EAG6L_MAX] = { 0x0, };
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+static uint16_t __CACHE_SET_CH_NUM[PORT_ID_EAG6L_MAX] = { 0x0, };
+static uint16_t __CACHE_GET_CH_NUM[PORT_ID_EAG6L_MAX] = { 0x0, };
+static uint16_t __CACHE_HW_KEEP_ALIVE_2 = 0x0;
+static uint16_t __CACHE_INIT_COMPLETE = 0x0;
+#endif
 #endif
 #endif
 
@@ -53,6 +58,12 @@ uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg)
 			return __CACHE_FW_BANK_SELECT;
 		case SW_VERSION_ADDR:
 			return __CACHE_SW_VERSION;
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+		case HW_KEEP_ALIVE_2_ADDR:
+			return __CACHE_HW_KEEP_ALIVE_2;
+		case INIT_COMPLETE_ADDR:
+			return __CACHE_INIT_COMPLETE;
+#endif
 		default:/*pass-through*/
 			break;
 	}
@@ -65,6 +76,12 @@ uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg)
 			return __CACHE_PORT_CONF[portno];
 		else if(addr == __PORT_ALM_MASK_ADDR[portno])
 			return __CACHE_PORT_ALM_MASK[portno];
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+		else if(addr == __PORT_SET_CH_NUM_ADDR[portno])
+			return __CACHE_SET_CH_NUM[portno];
+		else if(addr == __PORT_GET_CH_NUM_ADDR[portno])
+			return __CACHE_GET_CH_NUM[portno];
+#endif
 	}
 	return 0xFFFF;
 #else
@@ -93,7 +110,7 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 #ifdef ACCESS_SIM
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
 	int portno;
-	zlog_debug("[fpga]  reg=%x, writeval=%x", addr, writeval);
+	zlog_debug("[fpga]  reg=%x, writeval=%x port_reg=%d", addr, writeval, port_reg);
 
 	/* match single registers */
 	if(! port_reg) {
@@ -112,6 +129,12 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 				return (__CACHE_FW_BANK_SELECT = writeval);
 			case SW_VERSION_ADDR:
 				return (__CACHE_SW_VERSION = writeval);
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+			case HW_KEEP_ALIVE_2_ADDR:
+				return (__CACHE_HW_KEEP_ALIVE_2 = writeval);
+			case INIT_COMPLETE_ADDR:
+				return (__CACHE_INIT_COMPLETE = writeval);
+#endif
 			default:/*pass-through*/
 				break;
 		}
@@ -125,6 +148,12 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 				return (__CACHE_PORT_CONF[portno] = writeval);
 			else if(addr == __PORT_ALM_MASK_ADDR[portno])
 				return (__CACHE_PORT_ALM_MASK[portno] = writeval);
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+			else if(addr == __PORT_SET_CH_NUM_ADDR[portno])
+				return (__CACHE_SET_CH_NUM[portno] = writeval);
+			else if(addr == __PORT_GET_CH_NUM_ADDR[portno])
+				return (__CACHE_GET_CH_NUM[portno] = writeval);
+#endif
 			else
 				return 0xFFFF;
 		}
