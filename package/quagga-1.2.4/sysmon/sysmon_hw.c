@@ -19,7 +19,9 @@
 #endif
 
 #undef DEBUG
-#define ACCESS_SIM
+#if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+#define ACCESS_SIM	/* moved to sysmon.h */
+#endif
 
 int32_t g_rsmu_fd = UNINITIALIZED_FD;
 int32_t g_hdrv_fd = UNINITIALIZED_FD;
