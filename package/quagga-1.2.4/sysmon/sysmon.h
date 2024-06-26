@@ -331,7 +331,9 @@ extern void print_console(const char *fmt, ...);
         i8 vendor[32];
         i8 part_num[32];
         i8 acl_partlist[32];
-        i8 date_code[8];
+#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-25 */
+        i8 date_code[10];
+#endif
     };
 
 typedef struct port_status
