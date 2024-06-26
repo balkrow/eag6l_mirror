@@ -771,6 +771,9 @@ uint8_t gReplyPortAlarm(int args, ...)
 	/* process for result. */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		PORT_STATUS[portno].link = msg->port_sts[portno].link;
+#if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
+		PORT_STATUS[portno].speed = msg->port_sts[portno].speed;
+#endif
 	}
 
 	return ret;

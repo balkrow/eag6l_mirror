@@ -70,12 +70,12 @@ extern struct thread_master *master;
 
 RegMON regMonList [] = {
 	/* common control 2 - port speed */
-  { COMMON_CTRL2_P1_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P2_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P3_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P4_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P5_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portRateSet }, 
-  { COMMON_CTRL2_P6_ADDR, 0x3, 0, 0x7, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P1_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P2_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P3_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P4_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P5_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P6_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portRateSet }, 
 	/* port configuration - esmc */                        
   { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
