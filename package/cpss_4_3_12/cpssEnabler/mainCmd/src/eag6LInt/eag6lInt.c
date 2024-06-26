@@ -123,6 +123,9 @@ static uint16_t gSynceSecInf = 0xff;
 #endif
 
 uint8_t eag6LLinkStatus[PORT_ID_EAG6L_MAX];
+f 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
+uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
+#endif
 
 uint8_t get_eag6L_dport(uint8_t lport)
 {
@@ -144,6 +147,34 @@ uint8_t get_eag6L_lport(uint8_t dport)
 	}
 	return 0;
 }
+
+#if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
+uint8_t get_port_speed(uint8_t lport, uint8_t * speed)
+{
+	uint8_t dport;
+	uint8_t ret = GT_OK;
+	CPSS_PM_PORT_PARAMS_STC pparam;
+
+	dport = get_eag6L_dport(lport);
+	memset(&pparam, 0, sizeof pparam);
+	ret = cpssDxChPortManagerPortParamsGet(0, dport, &pparam);
+	if(ret != GT_OK) {
+		syslog(LOG_INFO, "%s: has failed[%d]", __func__, ret);
+		return -1;
+	}
+
+	if(pparam.portParamsType.regPort.speed == CPSS_PORT_SPEED_25000_E)
+		*speed = PORT_IF_25G_KR;
+	else if(pparam.portParamsType.regPort.speed == CPSS_PORT_SPEED_10000_E)
+		*speed = PORT_IF_10G_KR;
+	else {
+		syslog(LOG_INFO, "%s: invalid speed ? [%d].", 
+			__func__, pparam.portParamsType.regPort.speed);
+		return -1;
+	}
+	return 0;
+}
+#endif /*PWY_FIXME*/
 
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 uint8_t gEag6LIPCstate = IPC_INIT_SUCCESS; 
@@ -719,10 +750,11 @@ uint8_t gCpssPortSetRate(int args, ...)
 		}
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
-		if((msg->speed == PORT_IF_25G_KR)) {
+		if((msg->speed == PORT_IF_25G_KR))
 #else
-		if((msg->speed == PORT_IF_25G_KR) || (msg->speed == PORT_IF_25G_CR)) {
+		if((msg->speed == PORT_IF_25G_KR) || (msg->speed == PORT_IF_25G_CR))
 #endif
+		{
 			ret = cpssDxChSamplePortManagerFecModeSet(0, dport, CPSS_PORT_RS_FEC_MODE_ENABLED_E);
 			if(ret != GT_OK) {
 				syslog(LOG_INFO, "cpssDxChPortFecModeSet ret[%d]", ret);
@@ -756,6 +788,11 @@ uint8_t gCpssPortSetRate(int args, ...)
 			ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
 		}
 	}
+
+#if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
+	/* get current speed */
+	get_port_speed(msg->portid, &eag6LSpeedStatus[msg->portid]);
+#endif
 _gCpssPortSetRate_exit:
 	msg->result = ret;
 
@@ -799,6 +836,10 @@ uint8_t gCpssPortAlarm(int args, ...)
 	GT_BOOL link, enable;
 	CPSS_PORT_MANAGER_STATUS_STC pm_sts;
 #endif
+#if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
+	static uint8_t __speed_check__ = 0;
+	uint8_t speed;
+#endif
     va_list argP;
     sysmon_fifo_msg_t *msg = NULL;
 #ifdef DEBUG
@@ -813,6 +854,16 @@ uint8_t gCpssPortAlarm(int args, ...)
 #if 1/* just reply with link status table(updated by Marvell link scan event) */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		msg->port_sts[portno].link = eag6LLinkStatus[portno];
+#if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
+		if(__speed_check__++ < PORT_ID_EAG6L_MAX) {
+			if(get_port_speed(portno, &speed) == 0) {
+				eag6LSpeedStatus[portno] = speed;
+				msg->port_sts[portno].speed = speed;
+			}
+		} else {
+			msg->port_sts[portno].speed = eag6LSpeedStatus[portno];
+		}
+#endif
 	}
 #else/***********************************************************/
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
