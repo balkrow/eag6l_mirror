@@ -121,8 +121,11 @@ uint8_t eag6L25GPortlist [] =
 	24,
 	32,
 	40,
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+#warning "----- MVDEMO board ------------"
 	48,
 	49,
+#endif
 };
 uint8_t eag6L25GPortArrSize = sizeof(eag6L25GPortlist) / sizeof(uint8_t);
 
@@ -134,8 +137,11 @@ uint8_t eag6LPortlist [] =
 	24,
 	32,
 	40,
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+#warning "----- MVDEMO board ------------"
 	48,
 	49,
+#endif
 	50
 };
 uint8_t eag6LPortArrSize = sizeof(eag6LPortlist) / sizeof(uint8_t);

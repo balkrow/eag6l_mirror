@@ -223,10 +223,12 @@ extern void print_console(const char *fmt, ...);
         PORT_ID_EAG6L_PORT4,
         PORT_ID_EAG6L_PORT5,
         PORT_ID_EAG6L_PORT6,
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
         PORT_ID_EAG6L_PORT7,
-#ifdef ACCESS_SIM
-        PORT_ID_EAG6L_PORT8,/*for-demo-board-100G-test*/
-        PORT_ID_EAG6L_PORT9,/*for-demo-board-100G-test*/
+        PORT_ID_EAG6L_PORT8,
+        PORT_ID_EAG6L_PORT9,/*100G*/
+#else
+        PORT_ID_EAG6L_PORT7,/*100G*/
 #endif
         PORT_ID_EAG6L_MAX,
 	};

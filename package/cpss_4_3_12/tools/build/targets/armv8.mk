@@ -31,5 +31,5 @@ GCC_VER=$(shell ${CC}  -dumpversion | cut -d. -f1)
 
 export CPU_FAMILY := CPU_ARM
 export LSP_KERNEL_TYPE := Image# for backward compatibility
-
-CFLAGS += -DCPU_ARM
+#add by balkrow
+CFLAGS += -DCPU_ARM -DMVDEMO

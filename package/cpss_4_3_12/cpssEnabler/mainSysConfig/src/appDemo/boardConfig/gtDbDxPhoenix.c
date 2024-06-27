@@ -388,7 +388,10 @@ static PortInitList_STC phoenix_16G_6x25g_portInitlist[] =
 static PortInitList_STC phoenix_12x25g_portInitlist[] =
 {    /* ports in 25G */
     { PORT_LIST_TYPE_LIST,  {0,8,16,24,32,40, APP_INV_PORT_CNS }, CPSS_PORT_SPEED_25000_E,  CPSS_PORT_INTERFACE_MODE_KR_E}
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+#warning "-----MV DEMOBOARD ----------"
    ,{ PORT_LIST_TYPE_LIST,  {48,49,           APP_INV_PORT_CNS }, CPSS_PORT_SPEED_25000_E,  CPSS_PORT_INTERFACE_MODE_KR_E}
+#endif
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
    ,{ PORT_LIST_TYPE_LIST,  {50,     APP_INV_PORT_CNS }, CPSS_PORT_SPEED_100G_E,  CPSS_PORT_INTERFACE_MODE_KR4_E}
 #else
