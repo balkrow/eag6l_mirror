@@ -584,9 +584,29 @@ u8 eag6LPortlist[] =
 };
 u8 eag6LPortArrSize = sizeof(eag6LPortlist) / sizeof(u8);
 
+#if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+u8 get_eag6L_dport(u8 lport)
+{
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT9))
+#else
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT7))
+#endif
+		return eag6LPortlist[lport - 1];
+	else {
+		zlog_err(LOG_ERR, "%s: invalid parameter lport[%d] offset[%d].",
+				__func__, lport);
+		return 255;/*invalid dport*/
+	}
+}
+#else
 u8 get_eag6L_dport(u8 lport, u8 offset)
 {
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
 	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT8))
+#else
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT6))
+#endif
 		return eag6LPortlist[lport - 1];
 	else if((lport == (PORT_ID_EAG6L_MAX - 1)) && (offset < 4))
 		return eag6LPortlist[lport - 1 + offset];
@@ -596,6 +616,7 @@ u8 get_eag6L_dport(u8 lport, u8 offset)
 		return 255;/*invalid dport*/
 	}
 }
+#endif
 
 int8_t rsmu_pll_update(void)
 {
@@ -676,8 +697,13 @@ unsigned long get_port_sfp_reg(unsigned int addr, unsigned long type, unsigned l
     hw_val = FPGA_READ(addr);
 	sts = (hw_val & type) ? 1 : 0;
 		
+#if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+    zlog_notice("get_port_sfp_reg : port=%d(0/%d) addr=%x type=%x, sts=%x", 
+		portId, get_eag6L_dport(portId), addr, type, sts);
+#else
     zlog_notice("get_port_sfp_reg : port=%d(0/%d) addr=%x type=%x, sts=%x", 
 		portId, get_eag6L_dport(portId, 0), addr, type, sts);
+#endif
     return sts;
 }
 
@@ -774,11 +800,19 @@ void update_port_rx_power(int portno)
     calc_pm_1min(&PORT_STATUS[portno].tx_avg, &PORT_STATUS[portno].tx_min, &PORT_STATUS[portno].tx_max, port_pwr_1min[p_idx][1]);
 
 #ifdef DEBUG
+#if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+	zlog_notice(" PORT[%d(0/%d)] %d cwhan_check %4.2f [%4.2f-%4.2f-%4.2f] [%4.2f-%4.2f-%4.2f] \n",
+		portno, get_eag6L_dport(portno), nidx, PORT_STATUS[portno].tx_pwr,
+		PORT_STATUS[portno].tx_avg, PORT_STATUS[portno].tx_min, PORT_STATUS[portno].tx_max,
+		port_pwr_1min[p_idx][1][nidx], port_pwr_1min[p_idx][1][nidx +1],
+		port_pwr_1min[p_idx][1][nidx +2]);
+#else
 	zlog_notice(" PORT[%d(0/%d)] %d cwhan_check %4.2f [%4.2f-%4.2f-%4.2f] [%4.2f-%4.2f-%4.2f] \n",
 		portno, get_eag6L_dport(portno, 0), nidx, PORT_STATUS[portno].tx_pwr,
 		PORT_STATUS[portno].tx_avg, PORT_STATUS[portno].tx_min, PORT_STATUS[portno].tx_max,
 		port_pwr_1min[p_idx][1][nidx], port_pwr_1min[p_idx][1][nidx +1],
 		port_pwr_1min[p_idx][1][nidx +2]);
+#endif
 #endif
 	return;
 }
@@ -799,9 +833,6 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		/* skip if port has not installed sfp. */
 		/* FIXME */
-#ifdef DEBUG
-		zlog_notice(" update_sfp PORT[%d(0/%d)]", portno, get_eag6L_dport(portno, 0));
-#endif
 		get_sfp_info_diag(portno, &(PORT_STATUS[portno]));
 		update_port_rx_power(portno);
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */

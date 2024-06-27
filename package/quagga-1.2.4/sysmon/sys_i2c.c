@@ -946,7 +946,7 @@ int get_tunable_sfp_channel_no(int portno)
 		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
 			if(! WAVELENGTH_25G_TBL[ii])
 				continue;
-			tval = WAVELENGTH_25G_TBL[ii] / 10000;
+			tval = WAVELENGTH_25G_TBL[ii] / 5000;
 			if(((WAVELENGTH_25G_TBL[ii] - tval) <= wval) && 
 			   (wval <= (WAVELENGTH_25G_TBL[ii] + tval)))
 				break;
@@ -955,7 +955,7 @@ int get_tunable_sfp_channel_no(int portno)
 		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
 			if(! COT_WAVELENGTH_10G_TBL[ii])
 				continue;
-			tval = COT_WAVELENGTH_10G_TBL[ii] / 10000;
+			tval = COT_WAVELENGTH_10G_TBL[ii] / 5000;
 			if(((COT_WAVELENGTH_10G_TBL[ii] - tval) <= wval) && 
 			   (wval <= (COT_WAVELENGTH_10G_TBL[ii] + tval)))
 				break;
@@ -964,7 +964,7 @@ int get_tunable_sfp_channel_no(int portno)
 		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
 			if(! RT_WAVELENGTH_10G_TBL[ii])
 				continue;
-			tval = RT_WAVELENGTH_10G_TBL[ii] / 10000;
+			tval = RT_WAVELENGTH_10G_TBL[ii] / 5000;
 			if(((RT_WAVELENGTH_10G_TBL[ii] - tval) <= wval) && 
 			   (wval <= (RT_WAVELENGTH_10G_TBL[ii] + tval)))
 				break;
@@ -1210,8 +1210,13 @@ void i2c_set_sfp_channel_no(int bus, int portno)
 
 	fd = i2c_dev_open(bus);
 	if(fd < 0) {
+#if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] device open failed. reason[%s]", 
+			portno, get_eag6L_dport(portno), strerror(errno));
+#else
 		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] device open failed. reason[%s]", 
 			portno, get_eag6L_dport(portno, 0), strerror(errno));
+#endif
 		return;
 	}
 
@@ -1227,17 +1232,29 @@ void i2c_set_sfp_channel_no(int bus, int portno)
 
 	// first disable the other mux.
 	ret = i2c_smbus_write_byte_data(fd, (mux_addr == I2C_MUX) ? I2C_MUX2 : I2C_MUX, 0x0);
+#if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+	if(ret < 0)
+		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] ret[%d].", 
+			portno, get_eag6L_dport(portno), ret);
+#else
 	if(ret < 0)
 		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] ret[%d].", 
 			portno, get_eag6L_dport(portno, 0), ret);
+#endif
 
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	// now set target mux.
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+	if(ret < 0)
+		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] ret[%d].", 
+			portno, get_eag6L_dport(portno), ret);
+#else
 	if(ret < 0)
 		zlog_notice("i2c_set_sfp_channel_no : portno[%d(0/%d)] ret[%d].", 
 			portno, get_eag6L_dport(portno, 0), ret);
+#endif
 
 	close(fd);
 	return;
