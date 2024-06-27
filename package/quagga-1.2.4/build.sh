@@ -24,6 +24,7 @@ function _config {
    AR=${CROSS_COMPILE}ar \
    LD=${CROSS_COMPILE}ld \
    RANLIB=${CROSS_COMPILE}ranlib \
+   CFLAGS="-DMVDEMO -g -O2" \
 	./configure											\
 		--prefix=$QUAGGA/install \
 		--host=arm-linux \
@@ -36,7 +37,7 @@ function _config {
 }
 
 function _build {
-	make ${MAKEOPT} || exit -1
+	make ${MAKEOPT} V=1 || exit -1
 }
 
 function _install {
@@ -62,8 +63,8 @@ function _install {
   elif [ ${BUILD_BOARD_NAME} == "ac5x_db" ] ; then
 	cp -avf sysmon/.libs/sysmon ~
 	cp -avf vtysh/.libs/vtysh ~
-	${CROSS_COMPILE}strip ~/sysmon
-	${CROSS_COMPILE}strip ~/vtysh
+	#${CROSS_COMPILE}strip ~/sysmon
+	#${CROSS_COMPILE}strip ~/vtysh
   fi
 }
 

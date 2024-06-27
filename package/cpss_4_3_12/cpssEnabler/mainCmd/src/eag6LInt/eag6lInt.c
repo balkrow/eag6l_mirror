@@ -992,13 +992,19 @@ uint8_t gCpssPortPMGet(int args, ...)
 			msg->pm[portno].fcs_nok  = 0;
 		}
 #ifdef DEBUG
-#if 1/*[#67] build err 수정, balkrow, 2024-06-27*/
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+syslog(LOG_INFO, ">>> gCpssPortPMGet : port[%d] ret[%d]", portno, ret);
+syslog(LOG_INFO, ">>> gCpssPortPMGet tx_frame[%u/%u > %lu] rx_frame[%u/%u > %lu]", pmc.goodPktsSent.l[0], pmc.goodPktsSent.l[1], msg->pm[portno].tx_frame, pmc.goodPktsRcv.l[0], pmc.goodPktsRcv.l[1], msg->pm[portno].rx_frame);
+syslog(LOG_INFO, ">>> gCpssPortPMGet tx_bytes[%u/%u > %lu] rx_bytes[%u/%u > %lu]", pmc.goodOctetsSent.l[0], pmc.goodOctetsSent.l[1], msg->pm[portno].tx_byte, pmc.goodOctetsRcv.l[0], pmc.goodOctetsRcv.l[1], msg->pm[portno].rx_byte);
+syslog(LOG_INFO, ">>> gCpssPortPMGet rx_fcs[%lu]", msg->pm[portno].rx_fcs);
+syslog(LOG_INFO, ">>> gCpssPortPMGet fcs_ok[%u/%u > %lu] fcs_nok[%u/%u > %lu]", rs_cnt.correctedFecCodeword.l[0], rs_cnt.correctedFecCodeword.l[1], msg->pm[portno].fcs_ok, rs_cnt.uncorrectedFecCodeword.l[0], rs_cnt.uncorrectedFecCodeword.l[1], msg->pm[portno].fcs_nok);
+#else /*! armv8*/
 syslog(LOG_INFO, ">>> gCpssPortPMGet : port[%d] ret[%d]", portno, ret);
 syslog(LOG_INFO, ">>> gCpssPortPMGet tx_frame[%u/%u > %llu] rx_frame[%u/%u > %llu]", pmc.goodPktsSent.l[0], pmc.goodPktsSent.l[1], msg->pm[portno].tx_frame, pmc.goodPktsRcv.l[0], pmc.goodPktsRcv.l[1], msg->pm[portno].rx_frame);
 syslog(LOG_INFO, ">>> gCpssPortPMGet tx_bytes[%u/%u > %llu] rx_bytes[%u/%u > %llu]", pmc.goodOctetsSent.l[0], pmc.goodOctetsSent.l[1], msg->pm[portno].tx_byte, pmc.goodOctetsRcv.l[0], pmc.goodOctetsRcv.l[1], msg->pm[portno].rx_byte);
 syslog(LOG_INFO, ">>> gCpssPortPMGet rx_fcs[%llu]", msg->pm[portno].rx_fcs);
 syslog(LOG_INFO, ">>> gCpssPortPMGet fcs_ok[%u/%u > %llu] fcs_nok[%u/%u > %llu]", rs_cnt.correctedFecCodeword.l[0], rs_cnt.correctedFecCodeword.l[1], msg->pm[portno].fcs_ok, rs_cnt.uncorrectedFecCodeword.l[0], rs_cnt.uncorrectedFecCodeword.l[1], msg->pm[portno].fcs_nok);
-#endif
+#endif /*End*/
 #endif/*DEBUG*/
 	}
 
