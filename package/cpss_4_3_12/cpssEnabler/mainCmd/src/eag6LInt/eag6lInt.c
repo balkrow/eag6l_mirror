@@ -132,7 +132,7 @@ uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
 
 uint8_t get_eag6L_dport(uint8_t lport)
 {
-	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT9))
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= (PORT_ID_EAG6L_MAX - 1)))
 		return eag6LPortlist[lport - 1];
 	else {
 		syslog(LOG_ERR, "%s: invalid parameter lport[%d].", __func__, lport);

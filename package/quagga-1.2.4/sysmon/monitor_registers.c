@@ -586,7 +586,11 @@ u8 eag6LPortArrSize = sizeof(eag6LPortlist) / sizeof(u8);
 
 u8 get_eag6L_dport(u8 lport, u8 offset)
 {
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
 	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT8))
+#else
+	if((lport >= PORT_ID_EAG6L_PORT1) && (lport <= PORT_ID_EAG6L_PORT6))
+#endif
 		return eag6LPortlist[lport - 1];
 	else if((lport == (PORT_ID_EAG6L_MAX - 1)) && (offset < 4))
 		return eag6LPortlist[lport - 1 + offset];
