@@ -110,7 +110,9 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 #ifdef ACCESS_SIM
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
 	int portno;
+#ifdef DEBUG
 	zlog_debug("[fpga]  reg=%x, writeval=%x port_reg=%d", addr, writeval, port_reg);
+#endif
 
 	/* match single registers */
 	if(! port_reg) {

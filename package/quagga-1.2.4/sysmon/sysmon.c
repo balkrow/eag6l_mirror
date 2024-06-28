@@ -327,6 +327,9 @@ int init_rlimit(void)
 }
 
 void sysmon_init(void) {
+#if 1/* [#69] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+extern int8_t monitor_hw_init(void);
+#endif
 
 #if 0
 	/* clear init complete flag */

@@ -148,10 +148,124 @@ extern void port_config_speed(int port, int speed, int mode);
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
 extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+extern struct module_inventory RTWDM_INV_TBL[PORT_ID_EAG6L_MAX];
+#endif
 extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 extern int i2c_in_use_flag;
 
 
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+static void print_port_info(struct vty *vty, int portno)
+{
+	port_status_t * ps = NULL;
+	struct module_inventory * mod_inv = NULL;	
+
+	ps = &(PORT_STATUS[portno]);
+	mod_inv = &(INV_TBL[portno]);
+
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
+		portno, 
+		(ps->equip ? "O" : "x"),
+		(ps->link ? "Up" : "Dn"), 
+		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),
+		ps->tunable_sfp,
+		ps->tunable_chno,
+		ps->tunable_wavelength,
+		ps->cfg_flex_tune, ps->flex_tune_status,
+		ps->cfg_smart_tsfp_selfloopback, ps->tsfp_self_lp,
+		ps->cfg_rtwdm_loopback, ps->rtwdm_lp,
+		((ps->sfp_type == SFP_ID_SMART_DUPLEX_TSFP) ? "Smart Duplex T-SFP" : 
+			(ps->sfp_type == SFP_ID_CU_SFP) ? "CuSFP" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) ? "Smart BiDi TSFP(COT)" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_RT) ? "Smart BiDi TSFP(RT)" :
+			(ps->sfp_type == SFP_ID_VCSEL_BIDI) ? "VCSEL BIDI" :
+			(ps->sfp_type == SFP_ID_6WL) ? "6WL" :
+			(ps->sfp_type == SFP_ID_HSFP_HIGH) ? "HSFP (HIGH)" :
+			(ps->sfp_type == SFP_ID_HSFP_LOW) ? "HSFP (LOW)" :
+			(ps->sfp_type == SFP_ID_CWDM) ? "CWDM" :
+			(ps->sfp_type == SFP_ID_DWDM) ? "DWDM" :
+			(ps->sfp_type == SFP_ID_VCSEL) ? "VCSEL" :
+			(ps->sfp_type == SFP_ID_DWDM_TUNABLE) ? "DWDN Tunable" : "Unknown"));
+	return;
+}
+
+static void print_sfp_inventory_info(struct vty *vty, int portno)
+{
+	port_status_t * ps = NULL;
+	struct module_inventory * mod_inv = NULL;	
+	struct module_inventory * mod_inv2 = NULL;	
+
+	ps = &(PORT_STATUS[portno]);
+	mod_inv = &(INV_TBL[portno]);
+	mod_inv2 = &(RTWDM_INV_TBL[portno]);
+
+	vty_out(vty, "[%d] sfp[%s]\n"
+		"    vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s]\n"
+		"    vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s]\n",
+		portno,
+		((ps->sfp_type == SFP_ID_SMART_DUPLEX_TSFP) ? "Smart Duplex T-SFP" : 
+			(ps->sfp_type == SFP_ID_CU_SFP) ? "CuSFP" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) ? "Smart BiDi TSFP(COT)" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_RT) ? "Smart BiDi TSFP(RT)" :
+			(ps->sfp_type == SFP_ID_VCSEL_BIDI) ? "VCSEL BIDI" :
+			(ps->sfp_type == SFP_ID_6WL) ? "6WL" :
+			(ps->sfp_type == SFP_ID_HSFP_HIGH) ? "HSFP (HIGH)" :
+			(ps->sfp_type == SFP_ID_HSFP_LOW) ? "HSFP (LOW)" :
+			(ps->sfp_type == SFP_ID_CWDM) ? "CWDM" :
+			(ps->sfp_type == SFP_ID_DWDM) ? "DWDM" :
+			(ps->sfp_type == SFP_ID_VCSEL) ? "VCSEL" :
+			(ps->sfp_type == SFP_ID_DWDM_TUNABLE) ? "DWDN Tunable" : "Unknown"),
+		mod_inv->vendor, 
+		mod_inv->part_num, 
+		mod_inv->serial_num, 
+		mod_inv->wave, 
+		mod_inv->dist, 
+		mod_inv->date_code,
+		mod_inv2->vendor, 
+		mod_inv2->part_num, 
+		mod_inv2->serial_num, 
+		mod_inv2->wave, 
+		mod_inv2->dist, 
+		mod_inv2->date_code);
+	return;
+}
+
+static void print_sfp_ddm(struct vty *vty, int portno)
+{
+	port_status_t * ps = NULL;
+
+	ps = &(PORT_STATUS[portno]);
+#if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+	if(! ps->link) {
+		vty_out(vty, "[%d] no link\n", portno);
+		return;
+	}
+#endif
+
+	vty_out(vty, "[%d] vcc[%5.2f] temp[%4.1f] tx_bias[%5.2f] laser[%5.2f] tec_curr[%5.2f] tx_pwr[%5.2f] rx_pwr[%5.2f]\n",
+		portno,
+		ps->vcc,
+		ps->temp,
+		ps->tx_bias,
+		ps->laser_temp,
+		ps->tec_curr,
+		ps->tx_pwr,
+		ps->rx_pwr);
+	if((ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) || 
+	   (ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_RT)) {
+		vty_out(vty, "    vcc[%5.2f] temp[%4.1f] tx_bias[%5.2f] laser[%5.2f] tec_curr[%5.2f] tx_pwr[%5.2f] rx_pwr[%5.2f]\n",
+			ps->rtwdm_ddm_info.vcc,
+			ps->rtwdm_ddm_info.temp,
+			ps->rtwdm_ddm_info.tx_bias,
+			ps->rtwdm_ddm_info.laser_temp,
+			ps->rtwdm_ddm_info.tec_curr,
+			ps->rtwdm_ddm_info.tx_pwr,
+			ps->rtwdm_ddm_info.rx_pwr);
+	}
+	return;
+}
+#else
 static void print_port_info(struct vty *vty, int portno)
 {
 	port_status_t * ps = NULL;
@@ -241,6 +355,7 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 		ps->rx_pwr);
 	return;
 }
+#endif
 
 static void print_port_pm_counters(struct vty *vty, int portno)
 {
@@ -280,6 +395,29 @@ DEFUN (show_port,
 	}
 	return CMD_SUCCESS;
 }
+
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+DEFUN (show_spf_inv, 
+	   show_spf_inv_cmd,
+       "show sfp-inventory (all | <1-9>)",
+	   SHOW_STR
+	   "SFP inventory\n"
+	   "All ports\n"
+       "Specified port\n")
+{
+	int portno;
+
+	if(! strncmp(argv[0], "all", strlen("all"))) {
+		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+			print_sfp_inventory_info(vty, portno);
+		}
+	} else {
+		portno = atoi(argv[0]);
+		print_sfp_inventory_info(vty, portno);
+	}
+	return CMD_SUCCESS;
+}
+#endif
 
 DEFUN (show_ddm,
        show_ddm_cmd,
@@ -663,6 +801,9 @@ sysmon_vty_init (void)
 #endif
 #if 1/*[#55] Adding vty shell test CLIs, dustin, 2024-06-20 */
   install_element (VIEW_NODE, &show_port_cmd);
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+  install_element (VIEW_NODE, &show_spf_inv_cmd);
+#endif
   install_element (VIEW_NODE, &show_ddm_cmd);
   install_element (VIEW_NODE, &show_port_pm_cmd);
   install_element (ENABLE_NODE, &set_pm_clear_cmd);
