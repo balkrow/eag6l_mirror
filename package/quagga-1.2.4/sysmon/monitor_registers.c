@@ -1,6 +1,8 @@
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#include <math.h>
 #include "thread.h"
 #endif
+#include "log.h"
 #include "sysmon.h"
 #include "bp_regs.h"
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
@@ -22,6 +24,9 @@ u32 MCU_KEEP_ALIVE_CACHE;
 
 port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
 struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+struct module_inventory RTWDM_INV_TBL[PORT_ID_EAG6L_MAX];
+#endif
 port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 
 
@@ -64,12 +69,24 @@ void update_port_sfp_inventory(void);
 extern uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg);
 #endif
 extern void port_config_ESMC_enable(int port, int enable);
-extern int set_flex_tune_control(int port, int enable);
-extern int set_rtwdm_loopback(int port, int enable);
-extern int set_smart_tsfp_self_loopback(int port, int enable);
-extern int set_flex_tune_reset(int port, int enable);
+extern uint16_t set_flex_tune_control(uint16_t port, uint16_t enable);
+extern uint16_t set_rtwdm_loopback(uint16_t port, uint16_t enable);
+extern uint16_t set_smart_tsfp_self_loopback(uint16_t port, uint16_t enable);
+extern uint16_t set_flex_tune_reset(uint16_t port, uint16_t enable);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
-int set_tunable_sfp_channel_no(int portno, int chno);
+uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno);
+#endif
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+void read_port_inventory(int portno, struct module_inventory * mod_inv);
+void read_port_rtwdm_inventory(int portno, struct module_inventory * mod_inv);
+
+extern void get_sfp_info(int portno, struct module_inventory * mod_inv);
+extern int get_sfp_info_diag(int portno, port_status_t * port_sts);
+extern void get_sfp_rtwdm_info(int portno, struct module_inventory * mod_inv);
+extern void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts);
+extern int update_sfp_channel_no(int portno);
+extern int get_tunable_sfp_channel_no(int portno);
+extern int get_flex_tune_status(int portno);
 #endif
 
 
@@ -375,8 +392,6 @@ uint16_t boardStatus(uint16_t port, uint16_t val)
 {
 extern int check_sfp_is_present(int portno);
 extern ePrivateSfpId get_private_sfp_identifier(int portno);
-extern int set_smart_tsfp_self_loopback(int portno, int enable);
-extern int set_flex_tune_control(int portno, int enable);
 	uint16_t type, data;
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
@@ -384,6 +399,9 @@ extern int set_flex_tune_control(int portno, int enable);
 		if((val & (1 << (port - 1))) != 0/*1-mean-not-installed*/) {
 			/* clear spf inventory */
 			memset(&(INV_TBL[port]), 0, sizeof(struct module_inventory));
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+			memset(&(RTWDM_INV_TBL[port]), 0, sizeof(struct module_inventory));
+#endif
 
 			/* clear pm counter? */
 			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
@@ -418,6 +436,26 @@ extern int set_flex_tune_control(int portno, int enable);
 			PORT_STATUS[port].sfp_type = type;
 			PORT_STATUS[port].equip = 1;/*installed*/
 
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+			if(PORT_STATUS[port].tunable_sfp) {
+				if((PORT_STATUS[port].sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) ||
+				   (PORT_STATUS[port].sfp_type == SFP_ID_SMART_BIDI_TSFP_RT)) {
+					read_port_rtwdm_inventory(port, &(RTWDM_INV_TBL[port]));
+				}
+
+				/* set flex tune if configured */
+				if(PORT_STATUS[port].cfg_flex_tune)
+					set_flex_tune_control(port, 1/*enable*/);
+
+				/* set smart t-sfp self loopback if configured. */
+				if(PORT_STATUS[port].cfg_smart_tsfp_selfloopback)
+					set_smart_tsfp_self_loopback(port, 1/*enable*/);
+
+				/* set rtwdm loopback if configured. */
+				if(PORT_STATUS[port].cfg_rtwdm_loopback)
+					set_rtwdm_loopback(port, 1/*enable*/);
+			}
+#else
 			/* set flex tune if configured */
 			if(PORT_STATUS[port].cfg_flex_tune)
 				set_flex_tune_control(port, 1/*enable*/);
@@ -429,9 +467,9 @@ extern int set_flex_tune_control(int portno, int enable);
 			/* set rtwdm loopback if configured. */
 			if(PORT_STATUS[port].cfg_rtwdm_loopback)
 				set_rtwdm_loopback(port, 1/*enable*/);
+#endif
 
 			update_port_sfp_inventory();
-
 		}
 	}
 	return SUCCESS;
@@ -516,7 +554,7 @@ uint16_t bankSelect2(uint16_t port, uint16_t val)
 #endif
 
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
-int8_t rollback_reg(struct thread *thread)
+int rollback_reg(struct thread *thread)
 {
 	uint16_t *idx = NULL, reg;	
 	idx = (uint16_t *)THREAD_ARG(thread); 
@@ -529,7 +567,7 @@ int8_t rollback_reg(struct thread *thread)
 			   regMonList[*idx].shift, 
 			   regMonList[*idx].mask, 
 			   regMonList[*idx].val);
-		zlog_notice("%s rollback reg %x,val %x", __func__, regMonList[*idx].reg, regMonList[*idx].val);
+		zlog_err("%s rollback reg %x,val %x", __func__, regMonList[*idx].reg, regMonList[*idx].val);
 		
 	}
 	return RT_OK;
@@ -594,8 +632,7 @@ u8 get_eag6L_dport(u8 lport)
 #endif
 		return eag6LPortlist[lport - 1];
 	else {
-		zlog_err(LOG_ERR, "%s: invalid parameter lport[%d] offset[%d].",
-				__func__, lport);
+		zlog_notice("%s: invalid parameter lport[%d] offset[%d].", __func__, lport);
 		return 255;/*invalid dport*/
 	}
 }
@@ -666,6 +703,18 @@ void read_port_inventory(int portno, struct module_inventory * mod_inv)
 
     return;
 }
+
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+void read_port_rtwdm_inventory(int portno, struct module_inventory * mod_inv)
+{
+#if 0//PWY_FIXME
+    if('\0' == mod_inv->serial_num[0] || mod_inv->dist == 0xFFFF)
+#endif
+		get_sfp_rtwdm_info(portno, mod_inv);
+
+    return;
+}
+#endif
 
 unsigned long get_port_sfp_cr(unsigned long portId)
 {
@@ -801,7 +850,7 @@ void update_port_rx_power(int portno)
 
 #ifdef DEBUG
 #if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
-	zlog_notice(" PORT[%d(0/%d)] %d cwhan_check %4.2f [%4.2f-%4.2f-%4.2f] [%4.2f-%4.2f-%4.2f] \n",
+	zlog_notice(" PORT[%d(0/%d)] %d cwhan_check %4.2f [%4.2f-%4.2f-%4.2f] [%4.2f-%4.2f-%4.2f]",
 		portno, get_eag6L_dport(portno), nidx, PORT_STATUS[portno].tx_pwr,
 		PORT_STATUS[portno].tx_avg, PORT_STATUS[portno].tx_min, PORT_STATUS[portno].tx_max,
 		port_pwr_1min[p_idx][1][nidx], port_pwr_1min[p_idx][1][nidx +1],
@@ -816,6 +865,63 @@ void update_port_rx_power(int portno)
 #endif
 	return;
 }
+
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+void update_port_rtwdm_rx_power(int portno)
+{
+    u32 idx, p_idx, nidx;
+
+	if((portno >= (PORT_ID_EAG6L_MAX - 1)) || (! PORT_STATUS[portno].tunable_sfp))
+		return;
+
+    p_idx = (portno - 1) % (PORT_ID_EAG6L_MAX - 1);
+    port_pwr_index[p_idx]++;
+    port_pwr_index[p_idx] %= 60;
+    nidx = port_pwr_index[p_idx];
+
+    if(!is_init_port_pwr[p_idx])
+    {
+        for(idx = 0; idx < 60; idx++)
+        {
+            port_pwr_1min[p_idx][0][idx] = PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr;
+            port_pwr_1min[p_idx][1][idx] = PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr;
+        }
+        PORT_STATUS[portno].rtwdm_ddm_info.rx_min = PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr;
+        PORT_STATUS[portno].rtwdm_ddm_info.rx_max = PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr;
+        PORT_STATUS[portno].rtwdm_ddm_info.rx_avg = PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr;
+
+        PORT_STATUS[portno].rtwdm_ddm_info.tx_min = PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr;
+        PORT_STATUS[portno].rtwdm_ddm_info.tx_max = PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr;
+        PORT_STATUS[portno].rtwdm_ddm_info.tx_avg = PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr;
+
+        is_init_port_pwr[p_idx] = 1;
+        port_pwr_index[p_idx] = 0;
+
+        port_pwr_1min[p_idx][0][0] = PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr;
+        port_pwr_1min[p_idx][1][0] = PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr;
+
+        return ;
+    }
+
+    port_pwr_1min[p_idx][0][nidx] = PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr;
+    port_pwr_1min[p_idx][1][nidx] = PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr;
+
+    calc_pm_1min(&PORT_STATUS[portno].rtwdm_ddm_info.rx_avg, &PORT_STATUS[portno].rtwdm_ddm_info.rx_min, &PORT_STATUS[portno].rtwdm_ddm_info.rx_max, port_pwr_1min[p_idx][0]);
+    calc_pm_1min(&PORT_STATUS[portno].rtwdm_ddm_info.tx_avg, &PORT_STATUS[portno].rtwdm_ddm_info.tx_min, &PORT_STATUS[portno].rtwdm_ddm_info.tx_max, port_pwr_1min[p_idx][1]);
+
+#ifdef DEBUG
+	zlog_notice(" PORT[%d(0/%d)] %d rtwdm_cwhan_check %4.2f [%4.2f-%4.2f-%4.2f] [%4.2f-%4.2f-%4.2f]",
+		portno, get_eag6L_dport(portno), nidx, 
+		PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr,
+		PORT_STATUS[portno].rtwdm_ddm_info.tx_avg, 
+		PORT_STATUS[portno].rtwdm_ddm_info.tx_min, 
+		PORT_STATUS[portno].rtwdm_ddm_info.tx_max,
+		port_pwr_1min[p_idx][1][nidx], port_pwr_1min[p_idx][1][nidx +1],
+		port_pwr_1min[p_idx][1][nidx +2]);
+#endif
+	return;
+}
+#endif
 
 void update_sfp(void)
 {
@@ -844,6 +950,11 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 		/* get only if tunable sfp */
 		if(PORT_STATUS[portno].tunable_sfp) {
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+			get_sfp_rtwdm_info_diag(portno, &PORT_STATUS[portno]);
+			update_port_rtwdm_rx_power(portno);
+#endif
+
 			/* get flex tune status */
 			get_flex_tune_status(portno);
 
@@ -1303,6 +1414,102 @@ void update_port_sfp_inventory(void)
 		FPGA_PORT_WRITE(__PORT_DIST_ADDR[portno], INV_TBL[portno].dist);
 	}
 
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+	/* update vendor name */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if((PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_COT) && 
+		   (PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_RT))
+			continue;
+
+		val = (INV_TBL[portno].vendor[1] << 8) | INV_TBL[portno].vendor[0];
+		FPGA_PORT_WRITE(__PORT_VENDOR1_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[3] << 8) | INV_TBL[portno].vendor[2];
+		FPGA_PORT_WRITE(__PORT_VENDOR2_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[5] << 8) | INV_TBL[portno].vendor[4];
+		FPGA_PORT_WRITE(__PORT_VENDOR3_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[7] << 8) | INV_TBL[portno].vendor[6];
+		FPGA_PORT_WRITE(__PORT_VENDOR4_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[9] << 8) | INV_TBL[portno].vendor[8];
+		FPGA_PORT_WRITE(__PORT_VENDOR5_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[11] << 8) | INV_TBL[portno].vendor[10];
+		FPGA_PORT_WRITE(__PORT_VENDOR6_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[13] << 8) | INV_TBL[portno].vendor[12];
+		FPGA_PORT_WRITE(__PORT_VENDOR7_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].vendor[15] << 8) | INV_TBL[portno].vendor[14];
+		FPGA_PORT_WRITE(__PORT_VENDOR8_RTWDM_ADDR[portno], val);
+	}
+
+	/* update part number */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if((PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_COT) && 
+		   (PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_RT))
+			continue;
+
+		val = (INV_TBL[portno].part_num[1] << 8) | INV_TBL[portno].part_num[0];
+		FPGA_PORT_WRITE(__PORT_PN1_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[3] << 8) | INV_TBL[portno].part_num[2];
+		FPGA_PORT_WRITE(__PORT_PN2_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[5] << 8) | INV_TBL[portno].part_num[4];
+		FPGA_PORT_WRITE(__PORT_PN3_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[7] << 8) | INV_TBL[portno].part_num[6];
+		FPGA_PORT_WRITE(__PORT_PN4_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[9] << 8) | INV_TBL[portno].part_num[8];
+		FPGA_PORT_WRITE(__PORT_PN5_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[11] << 8) | INV_TBL[portno].part_num[10];
+		FPGA_PORT_WRITE(__PORT_PN6_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[13] << 8) | INV_TBL[portno].part_num[12];
+		FPGA_PORT_WRITE(__PORT_PN7_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].part_num[15] << 8) | INV_TBL[portno].part_num[14];
+		FPGA_PORT_WRITE(__PORT_PN8_RTWDM_ADDR[portno], val);
+	}
+
+	/* update serial number */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if((PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_COT) && 
+		   (PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_RT))
+			continue;
+
+		val = (INV_TBL[portno].serial_num[1] << 8) | INV_TBL[portno].serial_num[0];
+		FPGA_PORT_WRITE(__PORT_SN1_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[3] << 8) | INV_TBL[portno].serial_num[2];
+		FPGA_PORT_WRITE(__PORT_SN2_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[5] << 8) | INV_TBL[portno].serial_num[4];
+		FPGA_PORT_WRITE(__PORT_SN3_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[7] << 8) | INV_TBL[portno].serial_num[6];
+		FPGA_PORT_WRITE(__PORT_SN4_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[9] << 8) | INV_TBL[portno].serial_num[8];
+		FPGA_PORT_WRITE(__PORT_SN5_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[11] << 8) | INV_TBL[portno].serial_num[10];
+		FPGA_PORT_WRITE(__PORT_SN6_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[13] << 8) | INV_TBL[portno].serial_num[12];
+		FPGA_PORT_WRITE(__PORT_SN7_RTWDM_ADDR[portno], val);
+		val = (INV_TBL[portno].serial_num[15] << 8) | INV_TBL[portno].serial_num[14];
+		FPGA_PORT_WRITE(__PORT_SN8_RTWDM_ADDR[portno], val);
+	}
+
+	/* update rate */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if((PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_COT) && 
+		   (PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_RT))
+			continue;
+
+		if(portno < PORT_ID_EAG6L_PORT7)
+			val = INV_TBL[portno].max_rate;
+		else
+			val = INV_TBL[portno].max_rate * 10;/*convert 1G unit to 100M unit. */
+		FPGA_PORT_WRITE(__PORT_RATE_RTWDM_ADDR[portno], val);
+	}
+
+	/* update distance */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if((PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_COT) && 
+		   (PORT_STATUS[portno].sfp_type != SFP_ID_SMART_BIDI_TSFP_RT))
+			continue;
+
+		FPGA_PORT_WRITE(__PORT_DIST_RTWDM_ADDR[portno], INV_TBL[portno].dist);
+	}
+#endif
+
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* it's not inventory, moved to other position */
 	/* update wavelength1 */
@@ -1434,6 +1641,33 @@ extern int update_flex_tune_status(int portno);
 		FPGA_PORT_WRITE(__PORT_TCURR_ADDR[portno], val);
 
 		if(PORT_STATUS[portno].tunable_sfp) {
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+			if((PORT_STATUS[portno].sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) ||
+			   (PORT_STATUS[portno].sfp_type == SFP_ID_SMART_BIDI_TSFP_RT)) {
+				/* update tx power */
+				FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
+						convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/));
+				/* update rx power */
+				FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[portno], 
+						convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/));
+				/* update temperature */
+				val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
+				FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], val);
+				/* update voltage */
+				val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/);
+				FPGA_PORT_WRITE(__PORT_VOLT_RTWDM_ADDR[portno], val);
+				/* update tx bias */
+				val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tx_bias);
+				FPGA_PORT_WRITE(__PORT_TX_BIAS_RTWDM_ADDR[portno], val);
+				/* update laser temperature */
+				val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
+				FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], val);
+				/* update TEC current */
+				val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tec_curr);
+				FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[portno], val);
+			}
+#endif
+
 			/* update wavelength1/2 */
 			fval = PORT_STATUS[portno].tunable_wavelength;
 			fval = ceil(fval * 100) / 100;/* ceiling example : 1558.347 --> 1558.35 */
@@ -2176,4 +2410,145 @@ unsigned long __PORT_USI13_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, PORT1_USI13_ADDR,
 		PORT4_USI13_ADDR, PORT5_USI13_ADDR,
 		PORT6_USI13_ADDR, PORT7_USI13_ADDR };
 
-
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+unsigned long __PORT_TX_PWR_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, PORT_1_TX_PWR_RTWDM_ADDR,
+		PORT_2_TX_PWR_RTWDM_ADDR, PORT_3_TX_PWR_RTWDM_ADDR, 
+		PORT_4_TX_PWR_RTWDM_ADDR, PORT_5_TX_PWR_RTWDM_ADDR,
+		PORT_6_TX_PWR_RTWDM_ADDR, PORT_7_TX_PWR_RTWDM_ADDR };
+unsigned long __PORT_RX_PWR_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, PORT_1_TX_PWR_RTWDM_ADDR,
+		PORT_2_TX_PWR_RTWDM_ADDR, PORT_3_TX_PWR_RTWDM_ADDR, 
+		PORT_4_TX_PWR_RTWDM_ADDR, PORT_5_TX_PWR_RTWDM_ADDR,
+		PORT_6_TX_PWR_RTWDM_ADDR, PORT_7_TX_PWR_RTWDM_ADDR };
+unsigned long __PORT_WL1_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, PORT_1_WL1_ADDR,
+		PORT_2_WL1_RTWDM_ADDR, PORT_3_WL1_RTWDM_ADDR, 
+		PORT_4_WL1_RTWDM_ADDR, PORT_5_WL1_RTWDM_ADDR,
+		PORT_6_WL1_RTWDM_ADDR, PORT_7_TX_PWR_RTWDM_ADDR };
+unsigned long __PORT_WL2_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, PORT_1_WL2_RTWDM_ADDR,
+		PORT_2_WL2_RTWDM_ADDR, PORT_3_WL2_RTWDM_ADDR, 
+		PORT_4_WL2_RTWDM_ADDR, PORT_5_WL2_RTWDM_ADDR,
+		PORT_6_WL2_RTWDM_ADDR, PORT_7_WL2_RTWDM_ADDR };
+unsigned long __PORT_DIST_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, PORT_1_DIST_RTWDM_ADDR,
+		PORT_2_DIST_RTWDM_ADDR, PORT_3_DIST_RTWDM_ADDR, 
+		PORT_4_DIST_RTWDM_ADDR, PORT_5_DIST_RTWDM_ADDR,
+		PORT_6_DIST_RTWDM_ADDR, PORT_7_WL2_RTWDM_ADDR };
+unsigned long __PORT_VENDOR1_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR1_RTWDM_ADDR,
+		SFP_P2_VENDOR1_RTWDM_ADDR, SFP_P3_VENDOR1_RTWDM_ADDR, 
+		SFP_P4_VENDOR1_RTWDM_ADDR, SFP_P5_VENDOR1_RTWDM_ADDR,
+		SFP_P6_VENDOR1_RTWDM_ADDR, SFP_P7_VENDOR1_RTWDM_ADDR };
+unsigned long __PORT_VENDOR2_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR2_RTWDM_ADDR,
+		SFP_P2_VENDOR2_RTWDM_ADDR, SFP_P3_VENDOR2_RTWDM_ADDR, 
+		SFP_P4_VENDOR2_RTWDM_ADDR, SFP_P5_VENDOR2_RTWDM_ADDR,
+		SFP_P6_VENDOR2_RTWDM_ADDR, SFP_P7_VENDOR2_RTWDM_ADDR };
+unsigned long __PORT_VENDOR3_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR3_RTWDM_ADDR,
+		SFP_P2_VENDOR3_RTWDM_ADDR, SFP_P3_VENDOR3_RTWDM_ADDR, 
+		SFP_P4_VENDOR3_RTWDM_ADDR, SFP_P5_VENDOR3_RTWDM_ADDR,
+		SFP_P6_VENDOR3_RTWDM_ADDR, SFP_P7_VENDOR3_RTWDM_ADDR };
+unsigned long __PORT_VENDOR4_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR4_RTWDM_ADDR,
+		SFP_P2_VENDOR4_RTWDM_ADDR, SFP_P3_VENDOR4_RTWDM_ADDR, 
+		SFP_P4_VENDOR4_RTWDM_ADDR, SFP_P5_VENDOR4_RTWDM_ADDR,
+		SFP_P6_VENDOR4_RTWDM_ADDR, SFP_P7_VENDOR4_RTWDM_ADDR };
+unsigned long __PORT_VENDOR5_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR5_RTWDM_ADDR,
+		SFP_P2_VENDOR5_RTWDM_ADDR, SFP_P3_VENDOR5_RTWDM_ADDR, 
+		SFP_P4_VENDOR5_RTWDM_ADDR, SFP_P5_VENDOR5_RTWDM_ADDR,
+		SFP_P6_VENDOR5_RTWDM_ADDR, SFP_P7_VENDOR5_RTWDM_ADDR };
+unsigned long __PORT_VENDOR6_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR6_RTWDM_ADDR,
+		SFP_P2_VENDOR6_RTWDM_ADDR, SFP_P3_VENDOR6_RTWDM_ADDR, 
+		SFP_P4_VENDOR6_RTWDM_ADDR, SFP_P5_VENDOR6_RTWDM_ADDR,
+		SFP_P6_VENDOR6_RTWDM_ADDR, SFP_P7_VENDOR6_RTWDM_ADDR };
+unsigned long __PORT_VENDOR7_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR7_RTWDM_ADDR,
+		SFP_P2_VENDOR7_RTWDM_ADDR, SFP_P3_VENDOR7_RTWDM_ADDR, 
+		SFP_P4_VENDOR7_RTWDM_ADDR, SFP_P5_VENDOR7_RTWDM_ADDR,
+		SFP_P6_VENDOR7_RTWDM_ADDR, SFP_P7_VENDOR7_RTWDM_ADDR };
+unsigned long __PORT_VENDOR8_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VENDOR8_RTWDM_ADDR,
+		SFP_P2_VENDOR8_RTWDM_ADDR, SFP_P3_VENDOR8_RTWDM_ADDR, 
+		SFP_P4_VENDOR8_RTWDM_ADDR, SFP_P5_VENDOR8_RTWDM_ADDR,
+		SFP_P6_VENDOR8_RTWDM_ADDR, SFP_P7_VENDOR8_RTWDM_ADDR };
+unsigned long __PORT_PN1_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN1_RTWDM_ADDR,
+		SFP_P2_PN1_RTWDM_ADDR, SFP_P3_PN1_RTWDM_ADDR, 
+		SFP_P4_PN1_RTWDM_ADDR, SFP_P5_PN1_RTWDM_ADDR,
+		SFP_P6_PN1_RTWDM_ADDR, SFP_P7_PN1_RTWDM_ADDR };
+unsigned long __PORT_PN2_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN2_RTWDM_ADDR,
+		SFP_P2_PN2_RTWDM_ADDR, SFP_P3_PN2_RTWDM_ADDR, 
+		SFP_P4_PN2_RTWDM_ADDR, SFP_P5_PN2_RTWDM_ADDR,
+		SFP_P6_PN2_RTWDM_ADDR, SFP_P7_PN2_RTWDM_ADDR };
+unsigned long __PORT_PN3_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN3_RTWDM_ADDR,
+		SFP_P2_PN3_RTWDM_ADDR, SFP_P3_PN3_RTWDM_ADDR, 
+		SFP_P4_PN3_RTWDM_ADDR, SFP_P5_PN3_RTWDM_ADDR,
+		SFP_P6_PN3_RTWDM_ADDR, SFP_P7_PN3_RTWDM_ADDR };
+unsigned long __PORT_PN4_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN4_RTWDM_ADDR,
+		SFP_P2_PN4_RTWDM_ADDR, SFP_P3_PN4_RTWDM_ADDR, 
+		SFP_P4_PN4_RTWDM_ADDR, SFP_P5_PN4_RTWDM_ADDR,
+		SFP_P6_PN4_RTWDM_ADDR, SFP_P7_PN4_RTWDM_ADDR };
+unsigned long __PORT_PN5_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN5_RTWDM_ADDR,
+		SFP_P2_PN5_RTWDM_ADDR, SFP_P3_PN5_RTWDM_ADDR, 
+		SFP_P4_PN5_RTWDM_ADDR, SFP_P5_PN5_RTWDM_ADDR,
+		SFP_P6_PN5_RTWDM_ADDR, SFP_P7_PN5_RTWDM_ADDR };
+unsigned long __PORT_PN6_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN6_RTWDM_ADDR,
+		SFP_P2_PN6_RTWDM_ADDR, SFP_P3_PN6_RTWDM_ADDR, 
+		SFP_P4_PN6_RTWDM_ADDR, SFP_P5_PN6_RTWDM_ADDR,
+		SFP_P6_PN6_RTWDM_ADDR, SFP_P7_PN6_RTWDM_ADDR };
+unsigned long __PORT_PN7_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN7_RTWDM_ADDR,
+		SFP_P2_PN7_RTWDM_ADDR, SFP_P3_PN7_RTWDM_ADDR, 
+		SFP_P4_PN7_RTWDM_ADDR, SFP_P5_PN7_RTWDM_ADDR,
+		SFP_P6_PN7_RTWDM_ADDR, SFP_P7_PN7_RTWDM_ADDR };
+unsigned long __PORT_PN8_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_PN8_RTWDM_ADDR,
+		SFP_P2_PN8_RTWDM_ADDR, SFP_P3_PN8_RTWDM_ADDR, 
+		SFP_P4_PN8_RTWDM_ADDR, SFP_P5_PN8_RTWDM_ADDR,
+		SFP_P6_PN8_RTWDM_ADDR, SFP_P7_PN8_RTWDM_ADDR };
+unsigned long __PORT_SN1_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN1_RTWDM_ADDR,
+		SFP_P2_SN1_RTWDM_ADDR, SFP_P3_SN1_RTWDM_ADDR, 
+		SFP_P4_SN1_RTWDM_ADDR, SFP_P5_SN1_RTWDM_ADDR,
+		SFP_P6_SN1_RTWDM_ADDR, SFP_P7_SN1_RTWDM_ADDR };
+unsigned long __PORT_SN2_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN2_RTWDM_ADDR,
+		SFP_P2_SN2_RTWDM_ADDR, SFP_P3_SN2_RTWDM_ADDR, 
+		SFP_P4_SN2_RTWDM_ADDR, SFP_P5_SN2_RTWDM_ADDR,
+		SFP_P6_SN2_RTWDM_ADDR, SFP_P7_SN2_RTWDM_ADDR };
+unsigned long __PORT_SN3_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN3_RTWDM_ADDR,
+		SFP_P2_SN3_RTWDM_ADDR, SFP_P3_SN3_RTWDM_ADDR, 
+		SFP_P4_SN3_RTWDM_ADDR, SFP_P5_SN3_RTWDM_ADDR,
+		SFP_P6_SN3_RTWDM_ADDR, SFP_P7_SN3_RTWDM_ADDR };
+unsigned long __PORT_SN4_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN4_RTWDM_ADDR,
+		SFP_P2_SN4_RTWDM_ADDR, SFP_P3_SN4_RTWDM_ADDR, 
+		SFP_P4_SN4_RTWDM_ADDR, SFP_P5_SN4_RTWDM_ADDR,
+		SFP_P6_SN4_RTWDM_ADDR, SFP_P7_SN4_RTWDM_ADDR };
+unsigned long __PORT_SN5_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN5_RTWDM_ADDR,
+		SFP_P2_SN5_RTWDM_ADDR, SFP_P3_SN5_RTWDM_ADDR, 
+		SFP_P4_SN5_RTWDM_ADDR, SFP_P5_SN5_RTWDM_ADDR,
+		SFP_P6_SN5_RTWDM_ADDR, SFP_P7_SN5_RTWDM_ADDR };
+unsigned long __PORT_SN6_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN6_RTWDM_ADDR,
+		SFP_P2_SN6_RTWDM_ADDR, SFP_P3_SN6_RTWDM_ADDR, 
+		SFP_P4_SN6_RTWDM_ADDR, SFP_P5_SN6_RTWDM_ADDR,
+		SFP_P6_SN6_RTWDM_ADDR, SFP_P7_SN6_RTWDM_ADDR };
+unsigned long __PORT_SN7_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN7_RTWDM_ADDR,
+		SFP_P2_SN7_RTWDM_ADDR, SFP_P3_SN7_RTWDM_ADDR, 
+		SFP_P4_SN7_RTWDM_ADDR, SFP_P5_SN7_RTWDM_ADDR,
+		SFP_P6_SN7_RTWDM_ADDR, SFP_P7_SN7_RTWDM_ADDR };
+unsigned long __PORT_SN8_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_SN8_RTWDM_ADDR,
+		SFP_P2_SN8_RTWDM_ADDR, SFP_P3_SN8_RTWDM_ADDR, 
+		SFP_P4_SN8_RTWDM_ADDR, SFP_P5_SN8_RTWDM_ADDR,
+		SFP_P6_SN8_RTWDM_ADDR, SFP_P7_SN8_RTWDM_ADDR };
+unsigned long __PORT_TEMP_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_TEMP_RTWDM_ADDR,
+		SFP_P2_TEMP_RTWDM_ADDR, SFP_P3_TEMP_RTWDM_ADDR, 
+		SFP_P4_TEMP_RTWDM_ADDR, SFP_P5_TEMP_RTWDM_ADDR,
+		SFP_P6_TEMP_RTWDM_ADDR, SFP_P7_TEMP_RTWDM_ADDR };
+unsigned long __PORT_RATE_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_RATE_RTWDM_ADDR,
+		SFP_P2_RATE_RTWDM_ADDR, SFP_P3_RATE_RTWDM_ADDR, 
+		SFP_P4_RATE_RTWDM_ADDR, SFP_P5_RATE_RTWDM_ADDR,
+		SFP_P6_RATE_RTWDM_ADDR, SFP_P7_RATE_RTWDM_ADDR };
+unsigned long __PORT_VOLT_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_VOLT_RTWDM_ADDR,
+		SFP_P2_VOLT_RTWDM_ADDR, SFP_P3_VOLT_RTWDM_ADDR, 
+		SFP_P4_VOLT_RTWDM_ADDR, SFP_P5_VOLT_RTWDM_ADDR,
+		SFP_P6_VOLT_RTWDM_ADDR, SFP_P7_VOLT_RTWDM_ADDR };
+unsigned long __PORT_TX_BIAS_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_TX_BIAS_RTWDM_ADDR,
+		SFP_P2_TX_BIAS_RTWDM_ADDR, SFP_P3_TX_BIAS_RTWDM_ADDR, 
+		SFP_P4_TX_BIAS_RTWDM_ADDR, SFP_P5_TX_BIAS_RTWDM_ADDR,
+		SFP_P6_TX_BIAS_RTWDM_ADDR, SFP_P7_TX_BIAS_RTWDM_ADDR };
+unsigned long __PORT_LTEMP_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_LTEMP_RTWDM_ADDR,
+		SFP_P2_LTEMP_RTWDM_ADDR, SFP_P3_LTEMP_RTWDM_ADDR, 
+		SFP_P4_LTEMP_RTWDM_ADDR, SFP_P5_LTEMP_RTWDM_ADDR,
+		SFP_P6_LTEMP_RTWDM_ADDR, SFP_P7_LTEMP_RTWDM_ADDR };
+unsigned long __PORT_TCURR_RTWDM_ADDR[PORT_ID_EAG6L_MAX] = { 0x0, SFP_P1_TCURR_RTWDM_ADDR,
+		SFP_P2_TCURR_RTWDM_ADDR, SFP_P3_TCURR_RTWDM_ADDR, 
+		SFP_P4_TCURR_RTWDM_ADDR, SFP_P5_TCURR_RTWDM_ADDR,
+		SFP_P6_TCURR_RTWDM_ADDR, SFP_P7_TCURR_RTWDM_ADDR };
+#endif

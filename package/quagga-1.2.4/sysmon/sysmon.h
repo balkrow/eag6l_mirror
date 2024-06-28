@@ -105,7 +105,7 @@ define Memory Macro
 { \
 	uint16_t rval = 0, wval =0; \
 	rval = FPGA_PORT_READ(reg); \
-	wval = (rval & ~mask) | ((val << shift) & mask); \
+	wval = (uint16_t)(rval & ~mask) | (uint16_t)((val << shift) & mask); \
 	FPGA_PORT_WRITE(reg, wval); \
 }
 #endif
@@ -114,7 +114,7 @@ define Memory Macro
 { \
 	uint16_t rval = 0, wval =0; \
 	rval = FPGA_READ(reg); \
-	wval = (rval & ~mask) | ((val << shift) & mask); \
+	wval = (uint16_t)(rval & ~mask) | (uint16_t)((val << shift) & mask); \
 	FPGA_WRITE(reg, wval); \
 }
 
@@ -342,6 +342,27 @@ extern void print_console(const char *fmt, ...);
 #endif
     };
 
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+typedef struct _ddm_info_
+	{
+        /* rtWDM DDM information */
+        f32 rx_pwr;     /* Module Rx Power (dbm) */
+        f32 rx_min, rx_max, rx_avg;     /* 1 minute (dbm) */
+        f32 tx_pwr;     /* Module Tx Power (dbm) */
+        f32 tx_min, tx_max, tx_avg;     /* 1 minute (dbm) */
+        f32 vcc;        /* Module Voltage (voltage) */
+        f32 tx_bias;    /* Tx bias (mA) */
+        f32 temp;       /* Module Temperature(degree) */
+		f32 laser_temp;
+		f32 tec_curr;
+        
+        u32 cv;         /*CV error counter */
+        u32 fcs;        /*FCS error counter */
+        u32 pm_time;
+        u32 pm_lap_time; /**Path measurement delay time (use  1, 3 port) */
+	} ddm_info_t;
+#endif
+
 typedef struct port_status
     {
         u8  equip;
@@ -394,6 +415,10 @@ typedef struct port_status
         u32 fcs;        /*FCS error counter */
         u32 pm_time;
         u32 pm_lap_time; /**Path measurement delay time (use  1, 3 port) */
+
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+		ddm_info_t rtwdm_ddm_info;
+#endif
    } port_status_t;
 
 #endif/*_SYSMON_H_*/

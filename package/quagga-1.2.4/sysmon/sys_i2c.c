@@ -14,6 +14,7 @@
 #include <linux/i2c-dev.h>
 #include <math.h>
 
+#include "log.h"
 #include "sysmon.h"
 #include "bp_regs.h"
 #include "sys_i2c.h"
@@ -51,6 +52,9 @@ int module_is_gpon;
 
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
 extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
+#endif
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+extern u8 get_eag6L_dport(u8 lport);
 #endif
 
 typedef struct __raw_gbic_info__
@@ -112,8 +116,8 @@ typedef struct __raw_gbic_diag_info__
   unsigned char cc_dmi;
 
   // A/D Values and Status Bits
-  unsigned char diagnostics[10];
-  unsigned char optional_diag[4];
+  unsigned char diagnostics[10];        // byte 96~105 : temp, vcc, tx bias, tx/rx power
+  unsigned char optional_diag[4];       // byte 106~109 : laser temp, tec curr
   unsigned char status_control;
   unsigned char reserved;
 
@@ -225,6 +229,9 @@ typedef struct _slot_sfp_info_t           /* Maybe used to get SFP information i
 	uint    port_stat;   /* port insertion status */
 	uint    read_stat;   /* SFP port read status 1 = ok, 0 = not ok P8-P1 */
 	uchar   data         [IF_MAX_PORT_NUM][HZ_I2C_SFP_INFO + HZ_I2C_SFP_DIAG]; /* SFP information + DDM field */
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+	uchar   rtwdm_data   [IF_MAX_PORT_NUM][HZ_I2C_SFP_INFO + HZ_I2C_SFP_DIAG];
+#endif
 } slot_sfp_info_t;
 
 static struct _slot_sfp_info_t slot_sfp_info;
@@ -362,6 +369,32 @@ char * itoac( unsigned int d , char *buf )
     return buf;
 #endif
 }
+
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+/* trim : remove heading/tailing spaces */
+void trim(char* str)
+{
+	int start = 0, end = strlen(str) - 1;
+
+	// locate firt space.
+	while (isspace(str[start])) {
+		start++;
+	}
+
+	// locate last spece.
+	while (end > start && isspace(str[end])) {
+		end--;
+	}
+
+	// trim space.
+	for (int i = start; i <= end; i++) {
+		str[i - start] = str[i];
+	}
+
+	// null termination.
+	str[end - start + 1] = '\0';
+}
+#endif
 
 int ioctl_or_perror_and_die(int fd, unsigned request, void *argp, const char *fmt,...)
 {
@@ -541,7 +574,7 @@ int i2cset_main(int bus, unsigned char addr, unsigned char data_addr, unsigned c
 	return status;
 }
 
-int set_smart_tsfp_self_loopback(int portno, int enable)
+uint16_t set_smart_tsfp_self_loopback(uint16_t portno, uint16_t enable)
 {
 	unsigned char val;
 
@@ -560,7 +593,7 @@ int set_smart_tsfp_self_loopback(int portno, int enable)
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* wait for updating selected page */
-	usleep(10000);
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
 #endif
 
 	if((val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/)) < 0) {
@@ -615,7 +648,7 @@ int get_smart_tsfp_self_loopback(int portno, int * enable)
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* wait for updating selected page */
-	usleep(10000);
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
 #endif
 
 	if((val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/)) < 0) {
@@ -643,7 +676,7 @@ int get_smart_tsfp_self_loopback(int portno, int * enable)
 	return SUCCESS;
 }
 
-int set_rtwdm_loopback(int portno, int enable)
+uint16_t set_rtwdm_loopback(uint16_t portno, uint16_t enable)
 {
 	unsigned char val;
 
@@ -662,7 +695,7 @@ int set_rtwdm_loopback(int portno, int enable)
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* wait for updating selected page */
-	usleep(10000);
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
 #endif
 
 	if((val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/)) < 0) {
@@ -717,7 +750,7 @@ int get_rtwdm_loopback(int portno, int * enable)
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* wait for updating selected page */
-	usleep(10000);
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
 #endif
 
 	if((val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 129/*0x81*/)) < 0) {
@@ -745,7 +778,7 @@ int get_rtwdm_loopback(int portno, int * enable)
 	return SUCCESS;
 }
 
-int set_flex_tune_control(int portno, int enable)
+uint16_t set_flex_tune_control(uint16_t portno, uint16_t enable)
 {
 	unsigned char val;
 
@@ -784,7 +817,7 @@ int set_flex_tune_control(int portno, int enable)
 	return SUCCESS;
 }
 
-int set_flex_tune_reset(int portno, int enable)
+uint16_t set_flex_tune_reset(uint16_t portno, uint16_t enable)
 {
 	unsigned char val;
 
@@ -817,7 +850,7 @@ int set_flex_tune_reset(int portno, int enable)
 		return -1;
 	}
 
-	usleep(5000);/* wait for 5ms */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);/* wait for 5ms */
 
 	/* clear bit if reading is set */
 	if(val & 0x10) {
@@ -911,7 +944,7 @@ int get_tunable_sfp_channel_no(int portno)
 	}
 
 	/* wait for updating selected page */
-	usleep(10000);
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
 
 	/* read wavelength msb. */
 	if((val = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 146/*0x92*/)) < 0) {
@@ -942,16 +975,7 @@ int get_tunable_sfp_channel_no(int portno)
 	}
 
 	/* scan wavelength for channel no */
-	if(PORT_STATUS[portno].speed == PORT_IF_25G_KR) {
-		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
-			if(! WAVELENGTH_25G_TBL[ii])
-				continue;
-			tval = WAVELENGTH_25G_TBL[ii] / 5000;
-			if(((WAVELENGTH_25G_TBL[ii] - tval) <= wval) && 
-			   (wval <= (WAVELENGTH_25G_TBL[ii] + tval)))
-				break;
-		}
-	} else if(PORT_STATUS[portno].sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) {
+	if(PORT_STATUS[portno].sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) {
 		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
 			if(! COT_WAVELENGTH_10G_TBL[ii])
 				continue;
@@ -967,6 +991,15 @@ int get_tunable_sfp_channel_no(int portno)
 			tval = RT_WAVELENGTH_10G_TBL[ii] / 5000;
 			if(((RT_WAVELENGTH_10G_TBL[ii] - tval) <= wval) && 
 			   (wval <= (RT_WAVELENGTH_10G_TBL[ii] + tval)))
+				break;
+		}
+	} else if(PORT_STATUS[portno].speed == PORT_IF_25G_KR) {
+		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
+			if(! WAVELENGTH_25G_TBL[ii])
+				continue;
+			tval = WAVELENGTH_25G_TBL[ii] / 5000;
+			if(((WAVELENGTH_25G_TBL[ii] - tval) <= wval) && 
+			   (wval <= (WAVELENGTH_25G_TBL[ii] + tval)))
 				break;
 		}
 	} else {
@@ -999,7 +1032,7 @@ int update_sfp_channel_no(int portno)
 	return SUCCESS;
 }
 
-int set_tunable_sfp_channel_no(int portno, int chno)
+uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 {
 	unsigned int data, ii;
 	double wval;
@@ -1114,7 +1147,7 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 			}
 
 			/* wait for updating selected page */
-			usleep(10000);
+			usleep(HZ_I2C_SLAVE_SLEEP_UM);
 
 			/* get 2nd value */
 			if((val2 = i2cget_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 252/*0xFC*/)) < 0) {
@@ -1430,10 +1463,10 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 			&slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START]);
 #endif
 
-	raw = &slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START];
+	raw = (RawGbicInfo *)&slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START];
 #if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
 	if(portno >= (PORT_ID_EAG6L_MAX - 1)/*100G*/)
-		raw2 = &slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START];
+		raw2 = (RawQsfp28UpperPage0 *)&slot_sfp_info.data[portno][HZ_I2C_SFP_INFO_START];
 #endif
 
 	module_is_hisense = 0;
@@ -1474,6 +1507,14 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 		memcpy( &mod_inv->vendor, &raw->vendor_name[0], 16 );
 		memcpy( &mod_inv->part_num, &raw->vendor_pn[0], 16 );
 	}
+
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+	/* remove heading/tailing spaces */
+	trim(mod_inv->vendor);
+	trim(mod_inv->part_num);
+	trim(mod_inv->serial_num);
+	trim(mod_inv->date_code);
+#endif
 #else
 	wl = (short)raw->wavelength[0];
 	wl = wl << 8;
@@ -1487,18 +1528,151 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 	memcpy( &mod_inv->vendor, &raw->vendor_name[0], 16 );
 	memcpy( &mod_inv->part_num, &raw->vendor_pn[0], 16 );
 #endif
-
-#ifdef DEBUG
-zlog_notice("INV SN [%s]", mod_inv->serial_num);/*ZZPP*/
-zlog_notice("INV VENDOR [%s]", mod_inv->vendor);/*ZZPP*/
-zlog_notice("INV PN [%s]", mod_inv->part_num);/*ZZPP*/
-zlog_notice("INV DATE CODE [%s]", mod_inv->date_code);/*ZZPP*/
-zlog_notice("INV WAVELENGTH[%d]", mod_inv->wave);/*ZZPP*/
-zlog_notice("INV DISTANCE[%d]", mod_inv->dist);/*ZZPP*/
-zlog_notice("INV MAX RATE[%d]", mod_inv->max_rate);/*ZZPP*/
-#endif
 	return;
 }
+
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+void  get_sfp_rtwdm_info(int portno, struct module_inventory * mod_inv)
+{
+	RawGbicInfo *raw;
+	unsigned short  wl;
+	unsigned char ucll, addr, start_data_addr, read_len;
+	unsigned char *pBuf = NULL;
+	unsigned int chann_mask;
+	unsigned long funcs;
+	int	fd, mux_addr, ret, succ_len, bus = 0;
+
+	// check if tunable sfp and not a 100G port.
+	if((portno >= (PORT_ID_EAG6L_MAX - 1)) || (! PORT_STATUS[portno].tunable_sfp))
+		return;
+
+	fd = i2c_dev_open(bus);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. portno[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	if(portno >= (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		mux_addr = I2C_MUX2;
+		chann_mask = 1 << (portno - (PORT_ID_EAG6L_MAX - 1));
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
+
+	i2c_set_slave_addr(fd, (mux_addr == I2C_MUX) ? I2C_MUX2 : I2C_MUX, 1);
+
+	// first disable the other mux.
+	ret = i2c_smbus_write_byte_data(fd, (mux_addr == I2C_MUX) ? I2C_MUX2 : I2C_MUX, 0x0);
+	if(ret < 0) {
+		zlog_notice("%s : portno[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : portno[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	 /* select page */
+    if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x20/*page-20h*/) < 0) {
+        zlog_notice("%s: Writing port[%d(0/%d)] page 20 select failed.", 
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+    }
+
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	addr = DIAG_SFP_IIC_ADDR;
+	start_data_addr = HZ_I2C_SFP_DIAG_START;
+	read_len = HZ_I2C_SFP_INFO;
+	pBuf = &slot_sfp_info.rtwdm_data[portno][HZ_I2C_SFP_INFO_START];
+
+	/* check adapter functionality */
+	if (ioctl(fd, I2C_FUNCS, &funcs) < 0) {
+		zlog_notice("%s : adapter functionality get ioctl failed. "
+			"bus[%x] addr[%x] data_addr[%x] reason[%s]",
+			__func__, bus, addr, start_data_addr, strerror(errno));
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, addr, 1);
+	succ_len = 0;
+
+	if (funcs & I2C_FUNC_SMBUS_READ_I2C_BLOCK)
+	{
+		int i = 0;
+		for(ucll = 0; ucll < read_len; ucll += i)
+		{
+			i = i2c_smbus_read_i2c_block_data(fd,
+					start_data_addr + ucll, 32, pBuf + ucll);
+			if (i <= 0)
+			{
+				ucll = i;
+				break;
+			}
+			else
+				succ_len+=i;
+		}
+	}
+	else
+	{
+
+		for(ucll = 0; ucll < read_len; ucll++) {
+			ret = i2c_smbus_read_byte_data(fd, (start_data_addr+ucll));
+
+			if(ret >= 0) {
+				succ_len++;
+				pBuf[ucll] = (unsigned char)(ret & 0xff);
+			}
+		}
+	}
+
+     /* recover select page */
+    if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+        zlog_notice("%s: Recovering port[%d(0/%d)] page select failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __exit__;
+    }
+
+	if(succ_len != HZ_I2C_SFP_INFO)
+	{
+        zlog_notice("%s: Reading port[%d(0/%d)] length failed.", 
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	raw = (RawGbicInfo *)&slot_sfp_info.rtwdm_data[portno][HZ_I2C_SFP_INFO_START];
+
+	wl = (short)raw->wavelength[0];
+	wl = wl << 8;
+	wl = wl | (short)raw->wavelength[1];
+
+	mod_inv->wave = wl;
+	mod_inv->dist = raw->length_km;
+	mod_inv->max_rate = raw->br_nominal;
+	memcpy( &mod_inv->date_code, &raw->date_code[0], 8 );
+	memcpy( &mod_inv->serial_num, &raw->vendor_sn[0], 16 );
+	memcpy( &mod_inv->vendor, &raw->vendor_name[0], 16 );
+	memcpy( &mod_inv->part_num, &raw->vendor_pn[0], 16 );
+
+	trim(mod_inv->vendor);
+	trim(mod_inv->part_num);
+	trim(mod_inv->serial_num);
+	trim(mod_inv->date_code);
+
+__exit__:
+	close(fd);
+	return;
+}
+#endif
 
 int sfp_get_ad_us(uint8_t msb, uint8_t lsb, unsigned short *ad)
 {
@@ -1674,7 +1848,7 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 			&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START]);
 #endif
 
-	raw_diag = &slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START];
+	raw_diag = (RawGbicDiagInfo *)&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START];
 
 	// Temperature.
 	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
@@ -1750,12 +1924,213 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 
 	port_sts->rx_pwr = (float)rx_db;
 	port_sts->tx_pwr = (float)tx_db;
-	port_sts->vcc = vcc;
-	port_sts->temp = temp;
-	port_sts->tx_bias = bias;
+	port_sts->vcc = (float)vcc;
+	port_sts->temp = (float)temp;
+	port_sts->tx_bias = (float)bias;
 	port_sts->laser_temp = (float)ltemp;
 	port_sts->tec_curr = (float)tcurr;
 
 	return (0);
 }
 
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
+{
+	RawGbicDiagInfo *raw_diag0 = NULL;
+	RawGbicDiagInfo *raw_diag = NULL;
+	double tx_db, rx_db;
+	double tx_pwr_slope, tx_pwr_offset, temp_slope, temp_offset;
+	double vcc_slope, vcc_offset, bias_slope, bias_offset;
+	double tx_pwrad, temp_ad, vcc_ad, bias_ad;
+	double temp, vcc, bias, ltemp, tcurr;
+	float rx_pwr0, rx_pwr1, rx_pwr2, rx_pwr3, rx_pwr4;
+	unsigned short rx_pwrad_us;
+	unsigned char ucll, addr, start_data_addr, read_len;
+	unsigned char *pBuf = NULL;
+	unsigned int chann_mask;
+	unsigned long funcs;
+	int fd, mux_addr, ret, succ_len, bus = 0;
+
+	// check if tunable sfp and not a 100G port.
+	if((portno >= (PORT_ID_EAG6L_MAX - 1)) || (! PORT_STATUS[portno].tunable_sfp))
+		return;
+
+    fd = i2c_dev_open(bus);
+    if(fd < 0) {
+        zlog_notice("%s : device open failed. portno[%d(0/%d)] reason[%s]",
+            __func__, portno, get_eag6L_dport(portno), strerror(errno));
+        goto __exit__;
+    }
+
+    if(portno >= (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+        mux_addr = I2C_MUX2;
+        chann_mask = 1 << (portno - (PORT_ID_EAG6L_MAX - 1));
+    } else {
+        mux_addr = I2C_MUX;
+        chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+    }
+
+    i2c_set_slave_addr(fd, (mux_addr == I2C_MUX) ? I2C_MUX2 : I2C_MUX, 1);
+
+    // first disable the other mux.
+    ret = i2c_smbus_write_byte_data(fd, (mux_addr == I2C_MUX) ? I2C_MUX2 : I2C_MUX, 0x0);
+    if(ret < 0) {
+        zlog_notice("%s : portno[%d(0/%d)] ret[%d].",
+            __func__, portno, get_eag6L_dport(portno), ret);
+        goto __exit__;
+    }
+
+    i2c_set_slave_addr(fd, mux_addr, 1);
+
+    // now set target mux.
+    ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+    if(ret < 0) {
+        zlog_notice("%s : portno[%d(0/%d)] ret[%d].",
+            __func__, portno, get_eag6L_dport(portno), ret);
+        goto __exit__;
+    }
+
+     /* select page */
+    if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x22/*page-22h*/) < 0) {
+        zlog_notice("%s: Writing port[%d(0/%d)] page 2 select failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __exit__;
+    }
+
+    usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+    addr = DIAG_SFP_IIC_ADDR;
+    start_data_addr = HZ_I2C_SFP_DIAG_START;
+    read_len = HZ_I2C_SFP_DIAG;
+    pBuf = &slot_sfp_info.rtwdm_data[portno][HZ_I2C_SFP_DIAG_START];
+
+    /* check adapter functionality */
+    if (ioctl(fd, I2C_FUNCS, &funcs) < 0) {
+        zlog_notice("%s : adapter functionality get ioctl failed. "
+            "bus[%x] addr[%x] data_addr[%x] reason[%s]",
+            __func__, bus, addr, start_data_addr, strerror(errno));
+        goto __exit__;
+    }
+
+    i2c_set_slave_addr(fd, addr, 1);
+    succ_len = 0;
+
+    if (funcs & I2C_FUNC_SMBUS_READ_I2C_BLOCK)
+    {
+        int i = 0;
+        for(ucll = 0; ucll < read_len; ucll += i)
+        {
+            i = i2c_smbus_read_i2c_block_data(fd,
+                    start_data_addr + ucll, 32, pBuf + ucll);
+            if (i <= 0)
+            {
+                ucll = i;
+                break;
+            }
+            else
+                succ_len+=i;
+        }
+    }
+    else
+    {
+
+        for(ucll = 0; ucll < read_len; ucll++) {
+            ret = i2c_smbus_read_byte_data(fd, (start_data_addr+ucll));
+
+            if(ret >= 0) {
+                succ_len++;
+                pBuf[ucll] = (unsigned char)(ret & 0xff);
+            }
+        }
+    }
+
+     /* recover select page */
+    if(i2cset_main(0/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x0/*page-0*/) < 0) {
+        zlog_notice("%s: Recovering port[%d(0/%d)] page select failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __exit__;
+    }
+
+    if(succ_len != HZ_I2C_SFP_INFO)
+    {
+        zlog_notice("%s: Reading port[%d(0/%d)] length failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __exit__;
+    }
+
+	/* NOTE : rtWDM's ext_cal_constants are all zero, so need to use local values. */
+	raw_diag0 = (RawGbicDiagInfo *)&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START];
+	raw_diag  = (RawGbicDiagInfo *)&slot_sfp_info.rtwdm_data[portno][HZ_I2C_SFP_DIAG_START];
+
+	// Temperature.
+	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
+	sfp_get_slope(raw_diag0->ext_cal_constants[28], raw_diag0->ext_cal_constants[29], &temp_slope);
+	sfp_get_offset(raw_diag0->ext_cal_constants[30], raw_diag0->ext_cal_constants[31], &temp_offset);
+	sfp_get_temp(temp_ad, temp_slope, temp_offset, &temp);
+
+	// VCC
+	sfp_get_ad(raw_diag->diagnostics[2], raw_diag->diagnostics[3], &vcc_ad);
+	sfp_get_slope(raw_diag0->ext_cal_constants[32], raw_diag0->ext_cal_constants[33], &vcc_slope);
+	sfp_get_offset(raw_diag0->ext_cal_constants[34], raw_diag0->ext_cal_constants[35], &vcc_offset);
+	sfp_get_vcc(vcc_ad, vcc_slope, vcc_offset, &vcc);
+
+	// TX Bias
+	sfp_get_ad(raw_diag->diagnostics[4], raw_diag->diagnostics[5], &bias_ad);
+	sfp_get_slope(raw_diag0->ext_cal_constants[20], raw_diag0->ext_cal_constants[21], &bias_slope);
+	sfp_get_offset(raw_diag0->ext_cal_constants[22], raw_diag0->ext_cal_constants[23], &bias_offset);
+	sfp_get_bias(bias_ad, bias_slope, bias_offset, &bias);
+
+	// Tx Power
+	sfp_get_ad(raw_diag->diagnostics[6], raw_diag->diagnostics[7], &tx_pwrad);
+	sfp_get_slope(raw_diag0->ext_cal_constants[24], raw_diag0->ext_cal_constants[25], &tx_pwr_slope);
+	sfp_get_offset(raw_diag0->ext_cal_constants[26], raw_diag0->ext_cal_constants[27], &tx_pwr_offset);
+	sfp_get_tx_power(tx_pwrad, tx_pwr_slope, tx_pwr_offset, &tx_db);
+
+	// RX Power
+	sfp_get_ad_us(raw_diag->diagnostics[8], raw_diag->diagnostics[9], &rx_pwrad_us);
+	sfp_get_float(raw_diag0->ext_cal_constants[0],
+			raw_diag0->ext_cal_constants[1],
+			raw_diag0->ext_cal_constants[2],
+			raw_diag0->ext_cal_constants[3],
+			&rx_pwr4);
+	sfp_get_float(raw_diag0->ext_cal_constants[4],
+			raw_diag0->ext_cal_constants[5],
+			raw_diag0->ext_cal_constants[6],
+			raw_diag0->ext_cal_constants[7],
+			&rx_pwr3);
+	sfp_get_float(raw_diag0->ext_cal_constants[8],
+			raw_diag0->ext_cal_constants[9],
+			raw_diag0->ext_cal_constants[10],
+			raw_diag0->ext_cal_constants[11],
+			&rx_pwr2);
+	sfp_get_float(raw_diag0->ext_cal_constants[12],
+			raw_diag0->ext_cal_constants[13],
+			raw_diag0->ext_cal_constants[14],
+			raw_diag0->ext_cal_constants[15],
+			&rx_pwr1);
+	sfp_get_float(raw_diag0->ext_cal_constants[16],
+			raw_diag0->ext_cal_constants[17],
+			raw_diag0->ext_cal_constants[18],
+			raw_diag0->ext_cal_constants[19],
+			&rx_pwr0);
+	sfp_get_rx_power(rx_pwrad_us, rx_pwr0, rx_pwr1, rx_pwr2, rx_pwr3, rx_pwr4, &rx_db);
+
+	// Laser temperature
+	sfp_get_ad(raw_diag->optional_diag[0], raw_diag->optional_diag[1], &ltemp);
+
+	// TEC Current
+	sfp_get_ad(raw_diag->optional_diag[2], raw_diag->optional_diag[3], &tcurr);
+
+	port_sts->rtwdm_ddm_info.rx_pwr = (float)rx_db;
+	port_sts->rtwdm_ddm_info.tx_pwr = (float)tx_db;
+	port_sts->rtwdm_ddm_info.vcc = (float)vcc;
+	port_sts->rtwdm_ddm_info.temp = (float)temp;
+	port_sts->rtwdm_ddm_info.tx_bias = (float)bias;
+	port_sts->rtwdm_ddm_info.laser_temp = (float)ltemp;
+	port_sts->rtwdm_ddm_info.tec_curr = (float)tcurr;
+
+__exit__:
+	close(fd);
+	return;
+}
+#endif
