@@ -392,6 +392,10 @@ typedef struct port_status
 		u8  tunable_sfp;
 		u8  tunable_chno;
 		f32 tunable_wavelength;
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+		f32 tunable_rtwdm_wavelength;
+		u8  tunable_rtwdm_sfp_type;
+#endif
 #endif
 
         /* port alarm status */

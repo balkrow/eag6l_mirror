@@ -58,6 +58,9 @@ typedef struct reg_mon_str
 #define DPRAM_BASE 0x500000
 #endif
 
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+#define NULL_REG_ADDR	0xFFFF
+#endif
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 /* Start DPRAM registers*/
@@ -270,7 +273,6 @@ typedef struct reg_mon_str
 #define PORT_4_TX_PWR_RTWDM_ADDR		0x180	// r/o for mcu, r/w for bp 
 #define PORT_5_TX_PWR_RTWDM_ADDR		0x1A0	// r/o for mcu, r/w for bp 
 #define PORT_6_TX_PWR_RTWDM_ADDR		0x1C0	// r/o for mcu, r/w for bp 
-#define PORT_7_TX_PWR_RTWDM_ADDR		0x1E0	// r/o for mcu, r/w for bp 
 
 #define PORT_1_RX_PWR_RTWDM_ADDR		0x122	// r/o for mcu, r/w for bp 
 #define PORT_2_RX_PWR_RTWDM_ADDR		0x142	// r/o for mcu, r/w for bp 
@@ -278,7 +280,6 @@ typedef struct reg_mon_str
 #define PORT_4_RX_PWR_RTWDM_ADDR		0x182	// r/o for mcu, r/w for bp 
 #define PORT_5_RX_PWR_RTWDM_ADDR		0x1A2	// r/o for mcu, r/w for bp 
 #define PORT_6_RX_PWR_RTWDM_ADDR		0x1C2	// r/o for mcu, r/w for bp 
-#define PORT_7_RX_PWR_RTWDM_ADDR		0x1E2	// r/o for mcu, r/w for bp 
 
 #define PORT_1_WL1_RTWDM_ADDR			0x124	// r/o for mcu, r/w for bp 
 #define PORT_2_WL1_RTWDM_ADDR			0x144	// r/o for mcu, r/w for bp 
@@ -286,7 +287,6 @@ typedef struct reg_mon_str
 #define PORT_4_WL1_RTWDM_ADDR			0x184	// r/o for mcu, r/w for bp 
 #define PORT_5_WL1_RTWDM_ADDR			0x1A4	// r/o for mcu, r/w for bp 
 #define PORT_6_WL1_RTWDM_ADDR			0x1C4	// r/o for mcu, r/w for bp 
-#define PORT_7_WL1_RTWDM_ADDR			0x1E4	// r/o for mcu, r/w for bp 
 
 #define PORT_1_WL2_RTWDM_ADDR			0x126	// r/o for mcu, r/w for bp 
 #define PORT_2_WL2_RTWDM_ADDR			0x146	// r/o for mcu, r/w for bp 
@@ -294,7 +294,6 @@ typedef struct reg_mon_str
 #define PORT_4_WL2_RTWDM_ADDR			0x186	// r/o for mcu, r/w for bp 
 #define PORT_5_WL2_RTWDM_ADDR			0x1A6	// r/o for mcu, r/w for bp 
 #define PORT_6_WL2_RTWDM_ADDR			0x1C6	// r/o for mcu, r/w for bp 
-#define PORT_7_WL2_RTWDM_ADDR			0x1E6	// r/o for mcu, r/w for bp 
 
 #define PORT_1_DIST_RTWDM_ADDR			0x12C	// r/o for mcu, r/w for bp 
 #define PORT_2_DIST_RTWDM_ADDR			0x14C	// r/o for mcu, r/w for bp 
@@ -302,7 +301,6 @@ typedef struct reg_mon_str
 #define PORT_4_DIST_RTWDM_ADDR			0x18C	// r/o for mcu, r/w for bp 
 #define PORT_5_DIST_RTWDM_ADDR			0x1AC	// r/o for mcu, r/w for bp 
 #define PORT_6_DIST_RTWDM_ADDR			0x1CC	// r/o for mcu, r/w for bp 
-#define PORT_7_DIST_RTWDM_ADDR			0x1EC	// r/o for mcu, r/w for bp 
 #endif/*[#72]*/
 
 #define PORT_1_STSFP_STAT_ADDR		0x2E	// r/o for mcu, r/w for bp 
@@ -605,7 +603,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR1_RTWDM_ADDR	0x6C0	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR1_RTWDM_ADDR	0x700	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR1_RTWDM_ADDR	0x740	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR1_RTWDM_ADDR	0x780	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VENDOR2_RTWDM_ADDR	0x602	// r/o for mcu, r/w for bp 
 #define SFP_P2_VENDOR2_RTWDM_ADDR	0x642	// r/o for mcu, r/w for bp 
@@ -613,7 +610,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR2_RTWDM_ADDR	0x6C2	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR2_RTWDM_ADDR	0x702	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR2_RTWDM_ADDR	0x742	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR2_RTWDM_ADDR	0x782	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VENDOR3_RTWDM_ADDR	0x604	// r/o for mcu, r/w for bp 
 #define SFP_P2_VENDOR3_RTWDM_ADDR	0x644	// r/o for mcu, r/w for bp 
@@ -621,7 +617,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR3_RTWDM_ADDR	0x6C4	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR3_RTWDM_ADDR	0x704	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR3_RTWDM_ADDR	0x744	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR3_RTWDM_ADDR	0x784	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VENDOR4_RTWDM_ADDR	0x606	// r/o for mcu, r/w for bp 
 #define SFP_P2_VENDOR4_RTWDM_ADDR	0x646	// r/o for mcu, r/w for bp 
@@ -629,7 +624,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR4_RTWDM_ADDR	0x6C6	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR4_RTWDM_ADDR	0x706	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR4_RTWDM_ADDR	0x746	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR4_RTWDM_ADDR	0x786	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VENDOR5_RTWDM_ADDR	0x608	// r/o for mcu, r/w for bp 
 #define SFP_P2_VENDOR5_RTWDM_ADDR	0x648	// r/o for mcu, r/w for bp 
@@ -637,7 +631,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR5_RTWDM_ADDR	0x6C8	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR5_RTWDM_ADDR	0x708	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR5_RTWDM_ADDR	0x748	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR5_RTWDM_ADDR	0x788	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VENDOR6_RTWDM_ADDR	0x60A	// r/o for mcu, r/w for bp 
 #define SFP_P2_VENDOR6_RTWDM_ADDR	0x64A	// r/o for mcu, r/w for bp 
@@ -645,7 +638,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR6_RTWDM_ADDR	0x6CA	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR6_RTWDM_ADDR	0x70A	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR6_RTWDM_ADDR	0x74A	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR6_RTWDM_ADDR	0x78A	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VENDOR7_RTWDM_ADDR	0x60C	// r/o for mcu, r/w for bp 
 #define SFP_P2_VENDOR7_RTWDM_ADDR	0x64C	// r/o for mcu, r/w for bp 
@@ -653,7 +645,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR7_RTWDM_ADDR	0x6CC	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR7_RTWDM_ADDR	0x70C	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR7_RTWDM_ADDR	0x74C	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR7_RTWDM_ADDR	0x78C	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VENDOR8_RTWDM_ADDR	0x60E	// r/o for mcu, r/w for bp 
 #define SFP_P2_VENDOR8_RTWDM_ADDR	0x64E	// r/o for mcu, r/w for bp 
@@ -661,7 +652,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VENDOR8_RTWDM_ADDR	0x6CE	// r/o for mcu, r/w for bp 
 #define SFP_P5_VENDOR8_RTWDM_ADDR	0x70E	// r/o for mcu, r/w for bp 
 #define SFP_P6_VENDOR8_RTWDM_ADDR	0x74E	// r/o for mcu, r/w for bp 
-#define SFP_P7_VENDOR8_RTWDM_ADDR	0x78E	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN1_RTWDM_ADDR		0x610	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN1_RTWDM_ADDR		0x650	// r/o for mcu, r/w for bp 
@@ -669,7 +659,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN1_RTWDM_ADDR		0x6D0	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN1_RTWDM_ADDR		0x710	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN1_RTWDM_ADDR		0x750	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN1_RTWDM_ADDR		0x790	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN2_RTWDM_ADDR		0x612	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN2_RTWDM_ADDR		0x652	// r/o for mcu, r/w for bp 
@@ -677,7 +666,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN2_RTWDM_ADDR		0x6D2	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN2_RTWDM_ADDR		0x712	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN2_RTWDM_ADDR		0x752	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN2_RTWDM_ADDR		0x792	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN3_RTWDM_ADDR		0x614	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN3_RTWDM_ADDR		0x654	// r/o for mcu, r/w for bp 
@@ -685,7 +673,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN3_RTWDM_ADDR		0x6D4	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN3_RTWDM_ADDR		0x714	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN3_RTWDM_ADDR		0x754	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN3_RTWDM_ADDR		0x794	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN4_RTWDM_ADDR		0x616	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN4_RTWDM_ADDR		0x656	// r/o for mcu, r/w for bp 
@@ -693,7 +680,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN4_RTWDM_ADDR		0x6D6	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN4_RTWDM_ADDR		0x716	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN4_RTWDM_ADDR		0x756	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN4_RTWDM_ADDR		0x796	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN5_RTWDM_ADDR		0x618	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN5_RTWDM_ADDR		0x658	// r/o for mcu, r/w for bp 
@@ -701,7 +687,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN5_RTWDM_ADDR		0x6D8	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN5_RTWDM_ADDR		0x718	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN5_RTWDM_ADDR		0x758	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN5_RTWDM_ADDR		0x798	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN6_RTWDM_ADDR		0x61A	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN6_RTWDM_ADDR		0x65A	// r/o for mcu, r/w for bp 
@@ -709,7 +694,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN6_RTWDM_ADDR		0x6DA	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN6_RTWDM_ADDR		0x71A	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN6_RTWDM_ADDR		0x75A	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN6_RTWDM_ADDR		0x79A	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN7_RTWDM_ADDR		0x61C	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN7_RTWDM_ADDR		0x65C	// r/o for mcu, r/w for bp 
@@ -717,7 +701,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN7_RTWDM_ADDR		0x6DC	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN7_RTWDM_ADDR		0x71C	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN7_RTWDM_ADDR		0x75C	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN7_RTWDM_ADDR		0x79C	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_PN8_RTWDM_ADDR		0x61E	// r/o for mcu, r/w for bp 
 #define SFP_P2_PN8_RTWDM_ADDR		0x65E	// r/o for mcu, r/w for bp 
@@ -725,7 +708,6 @@ typedef struct reg_mon_str
 #define SFP_P4_PN8_RTWDM_ADDR		0x6DE	// r/o for mcu, r/w for bp 
 #define SFP_P5_PN8_RTWDM_ADDR		0x71E	// r/o for mcu, r/w for bp 
 #define SFP_P6_PN8_RTWDM_ADDR		0x75E	// r/o for mcu, r/w for bp 
-#define SFP_P7_PN8_RTWDM_ADDR		0x79E	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN1_RTWDM_ADDR		0x620	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN1_RTWDM_ADDR		0x660	// r/o for mcu, r/w for bp 
@@ -733,7 +715,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN1_RTWDM_ADDR		0x6E0	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN1_RTWDM_ADDR		0x720	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN1_RTWDM_ADDR		0x760	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN1_RTWDM_ADDR		0x7A0	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN2_RTWDM_ADDR		0x622	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN2_RTWDM_ADDR		0x662	// r/o for mcu, r/w for bp 
@@ -741,7 +722,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN2_RTWDM_ADDR		0x6E2	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN2_RTWDM_ADDR		0x722	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN2_RTWDM_ADDR		0x762	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN2_RTWDM_ADDR		0x7A2	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN3_RTWDM_ADDR		0x624	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN3_RTWDM_ADDR		0x664	// r/o for mcu, r/w for bp 
@@ -749,7 +729,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN3_RTWDM_ADDR		0x6E4	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN3_RTWDM_ADDR		0x724	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN3_RTWDM_ADDR		0x764	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN3_RTWDM_ADDR		0x7A4	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN4_RTWDM_ADDR		0x626	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN4_RTWDM_ADDR		0x666	// r/o for mcu, r/w for bp 
@@ -757,7 +736,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN4_RTWDM_ADDR		0x6E6	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN4_RTWDM_ADDR		0x726	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN4_RTWDM_ADDR		0x766	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN4_RTWDM_ADDR		0x7A6	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN5_RTWDM_ADDR		0x628	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN5_RTWDM_ADDR		0x668	// r/o for mcu, r/w for bp 
@@ -765,7 +743,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN5_RTWDM_ADDR		0x6E8	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN5_RTWDM_ADDR		0x728	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN5_RTWDM_ADDR		0x768	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN5_RTWDM_ADDR		0x7A8	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN6_RTWDM_ADDR		0x62A	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN6_RTWDM_ADDR		0x66A	// r/o for mcu, r/w for bp 
@@ -773,7 +750,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN6_RTWDM_ADDR		0x6EA	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN6_RTWDM_ADDR		0x72A	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN6_RTWDM_ADDR		0x76A	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN6_RTWDM_ADDR		0x7AA	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN7_RTWDM_ADDR		0x62C	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN7_RTWDM_ADDR		0x66C	// r/o for mcu, r/w for bp 
@@ -781,7 +757,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN7_RTWDM_ADDR		0x6EC	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN7_RTWDM_ADDR		0x72C	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN7_RTWDM_ADDR		0x76C	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN7_RTWDM_ADDR		0x7AC	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_SN8_RTWDM_ADDR		0x62E	// r/o for mcu, r/w for bp 
 #define SFP_P2_SN8_RTWDM_ADDR		0x66E	// r/o for mcu, r/w for bp 
@@ -789,7 +764,6 @@ typedef struct reg_mon_str
 #define SFP_P4_SN8_RTWDM_ADDR		0x6EE	// r/o for mcu, r/w for bp 
 #define SFP_P5_SN8_RTWDM_ADDR		0x72E	// r/o for mcu, r/w for bp 
 #define SFP_P6_SN8_RTWDM_ADDR		0x76E	// r/o for mcu, r/w for bp 
-#define SFP_P7_SN8_RTWDM_ADDR		0x7AE	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_TEMP_RTWDM_ADDR		0x630	// r/o for mcu, r/w for bp 
 #define SFP_P2_TEMP_RTWDM_ADDR		0x670	// r/o for mcu, r/w for bp 
@@ -797,7 +771,6 @@ typedef struct reg_mon_str
 #define SFP_P4_TEMP_RTWDM_ADDR		0x6F0	// r/o for mcu, r/w for bp 
 #define SFP_P5_TEMP_RTWDM_ADDR		0x730	// r/o for mcu, r/w for bp 
 #define SFP_P6_TEMP_RTWDM_ADDR		0x770	// r/o for mcu, r/w for bp 
-#define SFP_P7_TEMP_RTWDM_ADDR		0x7B0	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_RATE_RTWDM_ADDR		0x632	// r/o for mcu, r/w for bp 
 #define SFP_P2_RATE_RTWDM_ADDR		0x672	// r/o for mcu, r/w for bp 
@@ -805,7 +778,6 @@ typedef struct reg_mon_str
 #define SFP_P4_RATE_RTWDM_ADDR		0x6F2	// r/o for mcu, r/w for bp 
 #define SFP_P5_RATE_RTWDM_ADDR		0x732	// r/o for mcu, r/w for bp 
 #define SFP_P6_RATE_RTWDM_ADDR		0x772	// r/o for mcu, r/w for bp 
-#define SFP_P7_RATE_RTWDM_ADDR		0x7B2	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_VOLT_RTWDM_ADDR		0x634	// r/o for mcu, r/w for bp 
 #define SFP_P2_VOLT_RTWDM_ADDR		0x674	// r/o for mcu, r/w for bp 
@@ -813,7 +785,6 @@ typedef struct reg_mon_str
 #define SFP_P4_VOLT_RTWDM_ADDR		0x6F4	// r/o for mcu, r/w for bp 
 #define SFP_P5_VOLT_RTWDM_ADDR		0x734	// r/o for mcu, r/w for bp 
 #define SFP_P6_VOLT_RTWDM_ADDR		0x774	// r/o for mcu, r/w for bp 
-#define SFP_P7_VOLT_RTWDM_ADDR		0x7B4	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_TX_BIAS_RTWDM_ADDR	0x636	// r/o for mcu, r/w for bp 
 #define SFP_P2_TX_BIAS_RTWDM_ADDR	0x676	// r/o for mcu, r/w for bp 
@@ -821,7 +792,6 @@ typedef struct reg_mon_str
 #define SFP_P4_TX_BIAS_RTWDM_ADDR	0x6F6	// r/o for mcu, r/w for bp 
 #define SFP_P5_TX_BIAS_RTWDM_ADDR	0x736	// r/o for mcu, r/w for bp 
 #define SFP_P6_TX_BIAS_RTWDM_ADDR	0x776	// r/o for mcu, r/w for bp 
-#define SFP_P7_TX_BIAS_RTWDM_ADDR	0x7B6	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_LTEMP_RTWDM_ADDR		0x638	// r/o for mcu, r/w for bp 
 #define SFP_P2_LTEMP_RTWDM_ADDR		0x678	// r/o for mcu, r/w for bp 
@@ -829,7 +799,6 @@ typedef struct reg_mon_str
 #define SFP_P4_LTEMP_RTWDM_ADDR		0x6F8	// r/o for mcu, r/w for bp 
 #define SFP_P5_LTEMP_RTWDM_ADDR		0x738	// r/o for mcu, r/w for bp 
 #define SFP_P6_LTEMP_RTWDM_ADDR		0x778	// r/o for mcu, r/w for bp 
-#define SFP_P7_LTEMP_RTWDM_ADDR		0x7B8	// r/o for mcu, r/w for bp 
 
 #define SFP_P1_TCURR_RTWDM_ADDR		0x63A	// r/o for mcu, r/w for bp 
 #define SFP_P2_TCURR_RTWDM_ADDR		0x67A	// r/o for mcu, r/w for bp 
@@ -837,7 +806,6 @@ typedef struct reg_mon_str
 #define SFP_P4_TCURR_RTWDM_ADDR		0x6FA	// r/o for mcu, r/w for bp 
 #define SFP_P5_TCURR_RTWDM_ADDR		0x73A	// r/o for mcu, r/w for bp 
 #define SFP_P6_TCURR_RTWDM_ADDR		0x77A	// r/o for mcu, r/w for bp 
-#define SFP_P7_TCURR_RTWDM_ADDR		0x7BA	// r/o for mcu, r/w for bp 
 #endif
 
 /****************************

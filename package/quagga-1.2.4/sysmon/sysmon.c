@@ -233,6 +233,8 @@ extern uint16_t portAlarm(void);
 #endif
 	update_sfp();
 
+#if 0/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+	/* removing unnecessary codes */
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* for initial operation */
 #ifdef ACCESS_SIM
@@ -255,6 +257,7 @@ extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
 	}
 #endif
 #endif
+#endif/*[#72]*/
 
 	/* get port alarm (link) */
 	portAlarm();
