@@ -164,14 +164,14 @@ static void print_port_info(struct vty *vty, int portno)
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
-	vty_out(vty, "[%d] equip[%s] link[%s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
 		portno, 
 		(ps->equip ? "O" : "x"),
 		(ps->link ? "Up" : "Dn"), 
 		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),
 		ps->tunable_sfp,
-		ps->tunable_chno,
-		ps->tunable_wavelength,
+		ps->tunable_chno, 
+		ps->tunable_wavelength, ps->tunable_rtwdm_wavelength,
 		ps->cfg_flex_tune, ps->flex_tune_status,
 		ps->cfg_smart_tsfp_selfloopback, ps->tsfp_self_lp,
 		ps->cfg_rtwdm_loopback, ps->rtwdm_lp,
@@ -201,7 +201,6 @@ static void print_sfp_inventory_info(struct vty *vty, int portno)
 	mod_inv2 = &(RTWDM_INV_TBL[portno]);
 
 	vty_out(vty, "[%d] sfp[%s]\n"
-		"    vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s]\n"
 		"    vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s]\n",
 		portno,
 		((ps->sfp_type == SFP_ID_SMART_DUPLEX_TSFP) ? "Smart Duplex T-SFP" : 
@@ -221,13 +220,17 @@ static void print_sfp_inventory_info(struct vty *vty, int portno)
 		mod_inv->serial_num, 
 		mod_inv->wave, 
 		mod_inv->dist, 
-		mod_inv->date_code,
-		mod_inv2->vendor, 
-		mod_inv2->part_num, 
-		mod_inv2->serial_num, 
-		mod_inv2->wave, 
-		mod_inv2->dist, 
-		mod_inv2->date_code);
+		mod_inv->date_code);
+	if(ps->tunable_sfp) {
+		vty_out(vty, 
+			"    vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s]\n",
+			mod_inv2->vendor, 
+			mod_inv2->part_num, 
+			mod_inv2->serial_num, 
+			mod_inv2->wave, 
+			mod_inv2->dist, 
+			mod_inv2->date_code);
+	}
 	return;
 }
 
@@ -237,8 +240,8 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 
 	ps = &(PORT_STATUS[portno]);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
-	if(! ps->link) {
-		vty_out(vty, "[%d] no link\n", portno);
+	if(! ps->equip) {
+		vty_out(vty, "[%d] no sfp\n", portno);
 		return;
 	}
 #endif
@@ -252,8 +255,7 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 		ps->tec_curr,
 		ps->tx_pwr,
 		ps->rx_pwr);
-	if((ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) || 
-	   (ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_RT)) {
+	if(ps->tunable_sfp) {
 		vty_out(vty, "    vcc[%5.2f] temp[%4.1f] tx_bias[%5.2f] laser[%5.2f] tec_curr[%5.2f] tx_pwr[%5.2f] rx_pwr[%5.2f]\n",
 			ps->rtwdm_ddm_info.vcc,
 			ps->rtwdm_ddm_info.temp,
@@ -338,8 +340,8 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 
 	ps = &(PORT_STATUS[portno]);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
-	if(! ps->link) {
-		vty_out(vty, "[%d] no link\n", portno);
+	if(! ps->equip) {
+		vty_out(vty, "[%d] no sfp\n", portno);
 		return;
 	}
 #endif
@@ -642,6 +644,8 @@ DEFUN (get_register,
 
 	if(! strncmp(argv[0], "synce-if-select", strlen("synce-if-select")))
 		addr = SYNCE_IF_SELECT_ADDR;
+	else if(! strncmp(argv[0], "synce-gconfig", strlen("synce-gconfig")))
+		addr = SYNCE_GCONFIG_ADDR;
 	else if(! strncmp(argv[0], "pm-clear", strlen("pm-clear")))
 		addr = PM_COUNT_CLEAR_ADDR;
 	else if(! strncmp(argv[0], "chip-reset", strlen("chip-reset")))
@@ -722,6 +726,8 @@ DEFUN (set_register,
 
 	if(! strncmp(argv[0], "synce-if-select", strlen("synce-if-select")))
 		addr = SYNCE_IF_SELECT_ADDR;
+	else if(! strncmp(argv[0], "synce-gconfig", strlen("synce-gconfig")))
+		addr = SYNCE_GCONFIG_ADDR;
 	else if(! strncmp(argv[0], "pm-clear", strlen("pm-clear")))
 		addr = PM_COUNT_CLEAR_ADDR;
 	else if(! strncmp(argv[0], "chip-reset", strlen("chip-reset")))

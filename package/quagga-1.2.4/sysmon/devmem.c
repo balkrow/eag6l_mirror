@@ -141,25 +141,22 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 				break;
 		}
 	}
-	else {
 	/* scan/match per-port registers */
-		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
-			if(addr == __COMMON_CTRL2_ADDR[portno])
-				return (__CACHE_COMMON_CTRL2[portno] = writeval);
-			else if(addr == __PORT_CONFIG_ADDR[portno])
-				return (__CACHE_PORT_CONF[portno] = writeval);
-			else if(addr == __PORT_ALM_MASK_ADDR[portno])
-				return (__CACHE_PORT_ALM_MASK[portno] = writeval);
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if(addr == __COMMON_CTRL2_ADDR[portno])
+			return (__CACHE_COMMON_CTRL2[portno] = writeval);
+		else if(addr == __PORT_CONFIG_ADDR[portno])
+			return (__CACHE_PORT_CONF[portno] = writeval);
+		else if(addr == __PORT_ALM_MASK_ADDR[portno])
+			return (__CACHE_PORT_ALM_MASK[portno] = writeval);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
-			else if(addr == __PORT_SET_CH_NUM_ADDR[portno])
-				return (__CACHE_SET_CH_NUM[portno] = writeval);
-			else if(addr == __PORT_GET_CH_NUM_ADDR[portno])
-				return (__CACHE_GET_CH_NUM[portno] = writeval);
+		else if(addr == __PORT_SET_CH_NUM_ADDR[portno])
+			return (__CACHE_SET_CH_NUM[portno] = writeval);
+		else if(addr == __PORT_GET_CH_NUM_ADDR[portno])
+			return (__CACHE_GET_CH_NUM[portno] = writeval);
 #endif
-			else
-				return 0xFFFF;
-		}
 	}
+	return 0xFFFF;
 #else
 	zlog_debug("[fpga]  reg=%x, writeval=%x", addr, writeval);
 	return writeval;
