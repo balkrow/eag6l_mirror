@@ -15,6 +15,12 @@
 #include <getopt.h>
 #include "log.h" 
 #include "thread.h" 
+#if 0  /*[#12] kieun07. 2024.04.30 */
+#include "rdl_fsm.h"
+
+extern RDL_FSM rdl_fsm_list[SV_TRANS_MAX];
+extern RDL_INFO_LIST rdl_info_list;
+#endif /* [#12] */
 
 #define DEBUG
 
@@ -59,6 +65,133 @@ int test_timer_func(struct thread *thread) {
 	return 0;
 }
 
+#if 0  /*[#12] kieun07. 2024.04.30 */
+SV_EVT get_rdl_evt(SV_ST state)
+{
+	SV_EVT evt;
+	
+	switch(state)	
+	{
+		case	RDL_ST_INIT:
+			hw_val = FPGA_READ();
+			if()
+				evt = MCU_RDL_START;
+			break;
+
+		case	RDL_ST_START:
+			hw_val = FPGA_READ();
+			if()
+				evt = MCU_RDL_WRITING_P1;
+			break;
+
+		case	RDL_WRITING_P1:
+			hw_val = FPGA_READ();
+			if()
+				evt = MCU_RDL_WRITING_DONE_P1;
+			else if()
+				evt =MCU_RDL_WRIGTING_ERROR;
+			break;
+
+		case	RDL_READING_P1:
+//check reading P1 fail file
+			hw_val = FPGA_READ();
+			if()
+				evt = MCU_RDL_WRITING_P2;
+			else if()
+				evt = RDL_READING_ERROR;
+			break;
+
+		case	RDL_WRITING_P2:
+			hw_val = FPGA_READ(_);
+			if()
+				evt = MCU_RDL_WRITING_DONE_P2;
+			else if()
+				evt = MCU_RDL_WRIGTING_ERROR;
+			break;
+
+		case	RDL_READING_P2:
+//check reading P2 fail file
+			hw_val = FPGA_READ();
+			if()
+				evt = RDL_READING_DONE_P2;
+			else if()
+				evt = RDL_READING_ERROR;
+			break;
+
+		case	RDL_WRITING_TOTAL:
+			hw_val = FPGA_READ();
+			if()
+				evt = RDL_WRITING_DONE_TOTAL;
+			else if()
+				evt = RDL_WRITING_NOT_DONE;
+			else if()
+				evt = RDL_WRITING_ERROR_TOTAL;
+			break;
+
+		case	RDL_READING_TOTAL:
+//check reading TOTAL fail file
+			hw_val = FPGA_READ();
+			if()
+				evt = RDL_READING_DONE_TOTAL;
+			else if()
+				evt = RDL_READING_ERROR_TOTAL;
+			break;
+
+		case	RDL_IMG_ACTIVE_DONE:
+			hw_val = FPGA_READ();
+			if()
+				evt = RDL_IMG_ACTIVE_SUCCESS;
+			else if()
+				evt = RDL_IMG_ACTIVE_FAIL;
+			break;
+		case	RDL_IMG_RUNNING_CHECK:
+			hw_val = FPGA_READ();
+			if()
+				evt= RDL_IMG_RUNNING_SUCCESS;
+			else if()
+				evt = RDL_IMG_RUNNING_FAIL;
+			break;
+	}
+	return evt;
+}
+
+SV_ST update_rdl_fsm()
+{
+	SV_ST st = sv_info_list.st;
+	SV_EVT evt;
+	uint8_t offset;
+	uint8_t n, ret = 0;
+	
+	if(st == RDL_ST_TERM)
+		st = RDL_ST_INIT;
+
+	while (st != RDL_ST_TERM)
+	{
+		evt = get_rdl_evt(st);
+		
+		for(n = 0; n < RDL_TRANS_MAX; n++)
+		{
+			if(rdl_fsm_list.state == st && rdl_fsm_list.evt == evt)
+			{
+				st = rdl_fsm_list.func();
+				break;
+			}
+		}
+		if(st == rdl_info_list.st)
+			break;
+	}
+next_turn :
+	return st;
+
+}
+int rdl_fsm_func(struct thread *thread)
+{
+	update_rdl_fsm();
+
+	thread_add_timer_msec (master, (int)rdl_fsm_func, NULL, 100);
+	return 0;
+}
+#endif /* [#12] */
 
 /* Allocate new sys structure and set default value. */
 void
@@ -66,6 +199,9 @@ sysmon_thread_init (void)
 {
 	//TODO
 	thread_add_timer (master, test_timer_func, NULL, 1);
+#if 1  /*[#12] kieun07. 2024.04.30 */
+	thread_add_timer (master, rdl_fsm_func, NULL, 1);
+#endif /* [#12] */
 }
 
 
