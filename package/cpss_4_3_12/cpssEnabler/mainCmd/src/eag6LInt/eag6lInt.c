@@ -129,6 +129,10 @@ uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
 f 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
 #endif
+#if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+CPSS_DXCH_PORT_FEC_MODE_ENT FEC_MODE[PORT_ID_EAG6L_MAX];
+uint8_t SPEED[PORT_ID_EAG6L_MAX];
+#endif
 
 uint8_t get_eag6L_dport(uint8_t lport)
 {
@@ -158,6 +162,11 @@ uint8_t get_port_speed(uint8_t lport, uint8_t * speed)
 	uint8_t ret = GT_OK;
 	CPSS_PM_PORT_PARAMS_STC pparam;
 
+#if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+	/* not for 100G port */
+	if(lport >= (PORT_ID_EAG6L_MAX - 1))
+		return 0;
+#endif
 	dport = get_eag6L_dport(lport);
 	memset(&pparam, 0, sizeof pparam);
 	ret = cpssDxChPortManagerPortParamsGet(0, dport, &pparam);
@@ -175,6 +184,9 @@ uint8_t get_port_speed(uint8_t lport, uint8_t * speed)
 			__func__, pparam.portParamsType.regPort.speed);
 		return -1;
 	}
+#if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+	SPEED[lport] = *speed;
+#endif
 	return 0;
 }
 #endif /*PWY_FIXME*/
@@ -763,7 +775,18 @@ uint8_t gCpssPortSetRate(int args, ...)
 				syslog(LOG_INFO, "cpssDxChPortFecModeSet ret[%d]", ret);
 				goto _gCpssPortSetRate_exit;
 			}
+#if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+			/* save fec mode & speed */
+			FEC_MODE[portno] = CPSS_PORT_RS_FEC_MODE_ENABLED_E;
+			SPEED[portno] = msg->speed;
+#endif
 		}
+#if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+		else {
+			FEC_MODE[portno] = CPSS_PORT_FEC_MODE_DISABLED_E;
+			SPEED[portno] = msg->speed;
+		}
+#endif
 
 		ret = cpssDxChPortManagerStatusGet(0, dport, &pstage);
 		if(ret != GT_OK) {
@@ -931,15 +954,29 @@ uint8_t gCpssPortPMGet(int args, ...)
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortPMGet, msg->type);
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+		/* only for link up ports. */
+		if(! eag6LLinkStatus[portno])	continue;
+#endif
 		memset(&pmc, 0, sizeof pmc);
 		dport = get_eag6L_dport(portno);
 		ret = cpssDxChPortMacCountersOnPortGet(0, dport, &pmc);
 		if(ret != GT_OK)
 			syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
 
+#if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+		fecmode = FEC_MODE[portno];
+		if(fecmode != CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
+			ret = cpssDxChPortFecModeGet (0, dport, &fecmode);
+			if(ret != GT_OK)
+				syslog(LOG_INFO, "cpssDxChPortFecModeGet: port[%d] ret[%d]", portno, ret);
+		}
+		FEC_MODE[portno] = fecmode;
+#else
 		ret = cpssDxChPortFecModeGet (0, dport, &fecmode);
 		if(ret != GT_OK)
 			syslog(LOG_INFO, "cpssDxChPortFecModeGet: port[%d] ret[%d]", portno, ret);
+#endif
 
 		if(fecmode == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
 			memset(&rs_cnt, 0, sizeof rs_cnt);
