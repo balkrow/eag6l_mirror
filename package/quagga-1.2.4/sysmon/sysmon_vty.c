@@ -135,6 +135,7 @@ DEFUN (show_sysmon_system,
 		gSvcFsmEvtStr[gDB.svc_fsm.evt], VTY_NEWLINE);
 	vty_out(vty, "Init FSM state %x (%x)%s", gDB.svc_fsm.state,
 		gDB.svc_fsm.evt, VTY_NEWLINE);
+	vty_out(vty, "PLL state %x%s", gDB.pll_state, VTY_NEWLINE);
 	return CMD_SUCCESS;
 }
 #endif
@@ -600,10 +601,10 @@ DEFUN (synce_enable,
        synce_enable_cmd,
        "sync-e (enable|disable)",
        "sync ethernet"
-       "primary\n"
-       "secondary\n")
+       "Enable\n"
+       "Disable\n")
 {
-#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
+#if 0 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
   uint16_t enable = 0x5a;
   extern uint16_t fpga_sim_val;
 

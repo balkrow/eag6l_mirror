@@ -59,7 +59,7 @@ obj-$(CONFIG_PCI_ENDPOINT_TEST)	+= pci_endpoint_test.o
 obj-$(CONFIG_CAVIUM_TDM)	+= cavium-tdm.o
 obj-$(CONFIG_MARVELL_OTX_BPHY_CTR)	+= otx_bphy_ctr.o
 #[#28] PLL chip (Renesas 8A34043) linux driver 작업
-rsmu-objs			:= rsmu_cdev.o rsmu_cm.o rsmu_sabre.o
+rsmu-objs			:= rsmu_cdev.o rsmu_cm.o rsmu_sabre.o rsmu_pll_init.o
 obj-$(CONFIG_RSMU)		+= rsmu.o
 
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o

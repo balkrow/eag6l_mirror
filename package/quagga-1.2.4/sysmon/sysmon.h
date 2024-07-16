@@ -35,7 +35,9 @@
 #include "svc_fsm.h"
 #endif
 
-#define ACCESS_SIM	/* define if simulation for access on demo system */
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+#undef ACCESS_SIM	/* define if simulation for access on demo system */
+#endif
 
 /*
 #define PATH_SYSMON_PID "/var/run/sysmon.pid"
@@ -75,7 +77,9 @@ define Memory Macro
 #define UNINITIALIZED_FD   -1
 #define RSMU_DEVICE_NAME   "dev/rsmu0"
 #define HDRV_DEVICE_NAME   "dev/hdrv"
-#define RSMU_PLL_IDX	0  
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-15*/
+#define RSMU_PLL_IDX	4  
+#endif
 #define RT_OK 0
 #define RT_NOK 1
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
@@ -118,12 +122,13 @@ define Memory Macro
 	FPGA_WRITE(reg, wval); \
 }
 
-
-typedef struct rsmu_get_state
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+typedef struct rsmu_get_sts
 {
 	uint8_t dpll;
 	uint8_t state;
 } RSMU_PLL_STATE;
+#endif
 
 typedef struct globalDB
 {

@@ -803,6 +803,7 @@
 			model = "eTSEC";
 			ranges;
 			dma-coherent;
+			status = "disabled";
 
 			queue-group@2d50000  {
 				#address-cells = <2>;
@@ -832,6 +833,7 @@
 			model = "eTSEC";
 			ranges;
 			dma-coherent;
+			status = "disabled";
 
 			queue-group@2d90000  {
 				#address-cells = <2>;
@@ -944,6 +946,7 @@
 			fsl,pcie-scfg = <&scfg 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+			dma-coherent;
 			device_type = "pci";
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
@@ -956,7 +959,15 @@
 					<0000 0 0 2 &gic GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 3 &gic GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 4 &gic GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
+
+			num-lanes = <1>;
+			clocks = <&cnm_clock>;
+		};
+
+		cnm_clock: cnm_clock@0 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <328000000>;
 		};
 
 		pcie2: pcie@3500000 {
@@ -1074,6 +1085,12 @@
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x20000000>;
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 			big-endian;
+		};
+
+		prestera {
+			compatible = "marvell,armada-ac5-switch";
+			interrupts = <GIC_SPI 0x23 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
 		};
 	};
 };

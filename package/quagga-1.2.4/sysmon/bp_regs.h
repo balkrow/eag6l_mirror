@@ -1358,6 +1358,10 @@ extern unsigned long __PORT_USI10_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_USI11_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_USI12_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_USI13_ADDR[PORT_ID_EAG6L_MAX];
-
-
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+typedef struct pll_reg_str {
+	uint16_t reg;
+	uint16_t val;
+} PLL_REG;
+#endif
 #endif//_BP_REGS_H_

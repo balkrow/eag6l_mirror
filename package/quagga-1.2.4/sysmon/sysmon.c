@@ -175,18 +175,17 @@ int svc_fsm_timer(struct thread *thread) {
 #if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 int8_t monitor_hw_timer(struct thread *thread)
 {
+#if 0/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-16*/
 	if(gDB.init_state != SYS_INIT_DONE) {
 		goto __SKIP_1__;
 	}
+#endif
 
 	/*PLL state*/
 	rsmu_pll_update();
 
-__SKIP_1__:
-#ifdef ACCESS_SIM
-	thread_add_timer(master, monitor_hw_timer, NULL, 1);
-#else
-	thread_add_timer_msec (master, monitor_hw_timer, NULL, 100);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-16*/
+	thread_add_timer_msec (master, monitor_hw_timer, NULL, 300);
 #endif
 	return RT_OK;
 }	

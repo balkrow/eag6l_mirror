@@ -34,18 +34,23 @@
 	status = "okay";
 };
 
+/*
+
 &enet1 {
 	phy-mode = "rgmii-id";
 	phy-handle = <&rgmii_phy2>;
-	status = "okay";
+	status = "disabled";
 };
+*/
 
 /* RGMII delays added via PCB traces */
+/*
 &enet2 {
 	phy-mode = "rgmii-id";
 	phy-handle = <&rgmii_phy3>;
-	status = "okay";
+	status = "disabled";
 };
+*/
 
 &i2c0 {
 	status = "okay";
