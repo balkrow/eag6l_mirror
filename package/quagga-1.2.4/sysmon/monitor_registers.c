@@ -267,25 +267,25 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 
 	switch(val)
 	{
-		case 11 : 
+		case 0x11 : 
 			port = 0; 
 			break;
-		case 12 : 
+		case 0x12 : 
 			port = 8; 
 			break;
-		case 13 : 
+		case 0x13 : 
 			port = 16; 
 			break;
-		case 14 : 
+		case 0x14 : 
 			port = 24; 
 			break;
-		case 21 : 
+		case 0x21 : 
 			port = 32; 
 			break;
-		case 22 : 
+		case 0x22 : 
 			port = 40; 
 			break;
-		case 23 : 
+		case 0x23 : 
 			port = 50; 
 			break;
 		default :
@@ -307,25 +307,25 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 
 	switch(val)
 	{
-		case 11 : 
+		case 0x11 : 
 			port = 0; 
 			break;
-		case 12 : 
+		case 0x12 : 
 			port = 8; 
 			break;
-		case 13 : 
+		case 0x13 : 
 			port = 16; 
 			break;
-		case 14 : 
+		case 0x14 : 
 			port = 24; 
 			break;
-		case 21 : 
+		case 0x21 : 
 			port = 32; 
 			break;
-		case 22 : 
+		case 0x22 : 
 			port = 40; 
 			break;
-		case 23 : 
+		case 0x23 : 
 			port = 50; 
 			break;
 		default :
