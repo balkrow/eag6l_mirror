@@ -69,12 +69,12 @@ int do_brp(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	return 0;
 }     
 
-
+#if 0/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-23*/
 U_BOOT_CMD(
 		brp,	2,	1,	do_brp,
 		"warning !!! boot rom programing",
 		"[imagename] - warning !!! boot rom image upgrade\n"
 		);
-
+#endif
 
 

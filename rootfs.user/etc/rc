@@ -1,4 +1,7 @@
 #HFR init rc
+# #71 EAG6L Board Bring-up, balkrow. 2024-07-03
+hostname eag6l
+# end #71
 
 mkdir /dev/shm
 
@@ -14,31 +17,44 @@ mdev -s
 ln -s /proc/mounts /etc/mtab
 
 
-if [ ! -d /etc/dropbear ]
-then
-mkdir -p /etc/dropbear
-fi
-
 if [ -d /media/log ]
 then
 ln -s /media/log /var/log
 fi
 
-# load all kernel modules
-for KMODULE in $(ls /lib/modules/*.ko)
-do
-      insmod $KMODULE
-done
+# #71 EAG6L Board Bring-up, balkrow. 2024-07-03
+if [ ! -d /etc/dropbear ]
+then
+mkdir -p /etc/dropbear
+fi
+
+#echo -n "waiting for entropy available"
+#while [ `cat /proc/sys/kernel/random/entropy_avail` -le 1 ]
+#do
+#	ent=`cat /proc/sys/kernel/random/entropy_avail`
+#	echo -n "."
+# 	sleep 0.1 
+#done
 
 #dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
 #dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
 #dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
 #dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key
+#end 71
 
-ifconfig eth0 192.168.157.236 netmask 255.255.255.0
-ifconfig eth0 up
+# load all kernel modules
+for KMODULE in $(ls /lib/modules/*.ko)
+do
+# #71 EAG6L Board Bring-up, balkrow. 2024-07-03
+      insmod $KMODULE en_func_eth=0
+      #insmod $KMODULE
+done
 
-#dropbear -E
+# #71 EAG6L Board Bring-up, balkrow. 2024-07-03
+# insmod mvcpss.ko en_func_eth=0
+
+ifconfig lo 127.0.0.1 up
+
 for i in $( ls -v /etc/rcS.d/S* 2> /dev/null)
 do
     [ ! -f "$i" ] && continue;

@@ -126,4 +126,11 @@ enum rsmu_class_state {
 	E_SRVNUMBERLOSTATES = 8,
 	E_SRVLOSTATEINVALID = 9,
 };
+
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+typedef struct pll_reg_str {
+	uint16_t reg;
+	uint16_t val;
+} PLL_REG;
+#endif
 #endif

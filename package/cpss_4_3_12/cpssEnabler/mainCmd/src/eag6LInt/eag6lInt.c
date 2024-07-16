@@ -12,6 +12,14 @@
 #include <cpss/common/port/cpssPortManager.h>
 #endif
 #include <cpss/dxCh/dxChxGen/port/cpssDxChPortManager.h>
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+#include <cpss/generic/bridge/cpssGenBrgFdb.h>
+#include <cpss/common/config/private/prvCpssConfigTypes.h>
+#include <cpss/common/private/globalShared/prvCpssGlobalDbInterface.h>
+#include <cpss/common/private/globalShared/prvCpssGlobalDb.h>
+#include <appDemo/userExit/userEventHandler.h>
+#include <cpss/dxCh/dxChxGen/networkIf/cpssDxChNetIfTypes.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -34,7 +42,7 @@
 #include "eag6l_fsm.h"
 #endif
 
-#define DEBUG
+#undef DEBUG
 
 #if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
 extern uint8_t EAG6LMacLearningnable (void);
@@ -62,6 +70,46 @@ int portLfRfDetect (struct multi_thread *thread);
 uint8_t gEag6LSDKInitStatus = GT_FALSE;
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 struct multi_thread *llcf_thread = NULL;
+#endif
+
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+extern GT_STATUS cpssDxChNetIfSdmaRxPacketGet
+(
+    IN GT_U8                                devNum,
+    IN GT_U8                                queueIdx,
+    INOUT GT_U32                            *numOfBuffPtr,
+    OUT GT_U8                               *packetBuffsArrPtr[],
+    OUT GT_U32                              buffLenArr[],
+    OUT CPSS_DXCH_NET_RX_PARAMS_STC         *rxParamsPtr
+);
+extern PRV_CPSS_SHARED_GLOBAL_DB       *cpssSharedGlobalVarsPtr;
+GT_STATUS esmcRxHandler(void);
+
+#define EAG_HANDLER_MAX_PRIO     200
+
+extern GT_STATUS cpssDxChBrgFdbMacEntrySet
+(
+    IN GT_U8                        devNum,
+    IN CPSS_MAC_ENTRY_EXT_STC       *macEntryPtr
+);
+
+CPSS_UNI_EV_CAUSE_ENT eagHndlrCauseArr[] =  
+{
+#if 1
+	CPSS_PP_RX_BUFFER_QUEUE0_E,
+#else	
+        CPSS_PP_RX_BUFFER_QUEUE0_E, \
+        CPSS_PP_RX_BUFFER_QUEUE1_E, \
+        CPSS_PP_RX_BUFFER_QUEUE2_E, \
+        CPSS_PP_RX_BUFFER_QUEUE3_E, \
+        CPSS_PP_RX_BUFFER_QUEUE4_E, \
+        CPSS_PP_RX_BUFFER_QUEUE5_E, \
+        CPSS_PP_RX_BUFFER_QUEUE6_E, \
+        CPSS_PP_RX_BUFFER_QUEUE7_E
+#endif
+};
+
+static EAG6L_HNDLR_PARAM tParamArr;
 #endif
 
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
@@ -222,6 +270,13 @@ GT_VOID processPortEvt
  GT_U32 evExtData
  )
 {
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+	GT_U32                              numOfBuff = BUFF_LEN;
+	GT_U8                               *packetBuffs[BUFF_LEN];
+	GT_U32                              buffLenArr[BUFF_LEN];
+	CPSS_DXCH_NET_RX_PARAMS_STC         rxParams;
+#endif
+
 	CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
 	uint8_t portno;
 
@@ -241,6 +296,14 @@ GT_VOID processPortEvt
 		else
 			eag6LLinkStatus[portno] = 0;
 	}
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+	else if(uniEv >= CPSS_PP_RX_BUFFER_QUEUE0_E && uniEv <= CPSS_PP_RX_BUFFER_QUEUE7_E)
+	{
+		cpssDxChNetIfSdmaRxPacketGet(devNum, uniEv, &numOfBuff, 
+					     packetBuffs, buffLenArr, &rxParams);
+		/**/
+	}
+#endif
 }
 #endif
 
@@ -306,11 +369,60 @@ uint8_t gCpssHello(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+#ifdef DEBUG
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gHello, msg->type);
+#endif
 	msg->result = FIFO_CMD_SUCCESS;
 	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 }
+
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+uint8_t gCpssEsmcToCPUSet(uint16_t port)
+{
+	CPSS_MAC_ENTRY_EXT_STC macEntry;
+	GT_STATUS rc;
+
+	/* set Mac for traffic mirrored to CPU*/
+	memset(&macEntry, 0, sizeof(CPSS_MAC_ENTRY_EXT_STC));
+
+	macEntry.daCommand = CPSS_MAC_TABLE_MIRROR_TO_CPU_E;
+	macEntry.isStatic = GT_TRUE;
+
+	macEntry.key.key.macVlan.macAddr.arEther[0] = 0x01;
+	macEntry.key.key.macVlan.macAddr.arEther[1] = 0x80;
+	macEntry.key.key.macVlan.macAddr.arEther[2] = 0xC2;
+	macEntry.key.key.macVlan.macAddr.arEther[3] = 0x0;
+	macEntry.key.key.macVlan.macAddr.arEther[4] = 0x0;
+	macEntry.key.key.macVlan.macAddr.arEther[5] = 0x02;
+	macEntry.key.key.macVlan.vlanId = 1;
+	macEntry.key.entryType = CPSS_MAC_ENTRY_EXT_TYPE_MAC_ADDR_E;
+
+	macEntry.dstInterface.type = CPSS_INTERFACE_VIDX_E;
+	macEntry.dstInterface.devPort.hwDevNum = 0;
+	macEntry.dstInterface.devPort.portNum = port;
+	macEntry.dstInterface.vidx = 1;
+	macEntry.dstInterface.trunkId = 0;
+	macEntry.dstInterface.vlanId = 1;
+	macEntry.daRoute                  = GT_FALSE;
+	macEntry.mirrorToRxAnalyzerPortEn = GT_FALSE;
+	macEntry.saMirrorToRxAnalyzerPortEn = GT_FALSE;
+	macEntry.daMirrorToRxAnalyzerPortEn = GT_FALSE;
+	macEntry.sourceID                 = 0;
+	macEntry.userDefined              = 0;
+	macEntry.daQosIndex               = 0;
+	macEntry.saQosIndex               = 0;
+	macEntry.daSecurityLevel          = 0;
+	macEntry.saSecurityLevel          = 0;
+	macEntry.appSpecificCpuCode       = GT_FALSE;
+	macEntry.age                      = GT_TRUE;
+
+	rc = cpssDxChBrgFdbMacEntrySet(0, &macEntry);
+
+	syslog(LOG_NOTICE, "%s : port %d ret %x", __func__, port, rc);
+	return rc;
+}
+#endif
 
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
 uint8_t gCpssSynceEnable(int args, ...)
@@ -331,11 +443,12 @@ uint8_t gCpssSynceEnable(int args, ...)
 			eag6LPortlist[i], 
 			true, 
 			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+		ret +=	gCpssEsmcToCPUSet(eag6LPortlist[i]);
+#endif
 	}
 
-#ifdef DEBUG
 	syslog(LOG_NOTICE, "%s : synce enable ret=%x", __func__, ret);
-#endif
 
 	if(!ret)
 		msg->result = FIFO_CMD_SUCCESS;
@@ -365,9 +478,7 @@ uint8_t gCpssSynceDisable(int args, ...)
 			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
 	}
 
-#ifdef DEBUG
 	syslog(LOG_NOTICE, "%s : synce disable ret=%x", __func__, ret);
-#endif
 
 	if(!ret)
 		msg->result = FIFO_CMD_SUCCESS;
@@ -406,7 +517,9 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E,
 									false,
 									gSyncePriInf,
-									gSyncePriInf == 50 ? 2 : 0);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
+									 0);
+#endif
 
 			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
@@ -418,7 +531,9 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E,
 									false,
 									gSynceSecInf,
-									gSynceSecInf == 50 ? 2 : 0);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
+									0);
+#endif
 			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
 
@@ -434,7 +549,9 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E,
 									false,
 									gSynceSecInf,
-									gSynceSecInf == 50 ? 2 : 0);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
+									0);
+#endif
 			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
 		}
@@ -445,7 +562,9 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E,
 									false,
 									gSyncePriInf,
-									gSyncePriInf == 50 ? 2 : 0);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
+									0);
+#endif
 			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
 
@@ -456,15 +575,17 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 
 
 
-#ifdef DEBUG
 	syslog(LOG_NOTICE, "%s : clock src %x portNum %x", __func__, clock_src, portNum);
-#endif
 
 	ret += cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
 					  recoveryClkType,
 					  enable,
 					  portNum,
-					  portNum == 50 ? 2 : 0);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
+					  0);
+
+	ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+#endif
 
 	if(!ret)
 	{
@@ -875,7 +996,9 @@ uint8_t gCpssPortAlarm(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+#ifdef DEBUG
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortAlarm, msg->type);
+#endif
 
 #if 1/* just reply with link status table(updated by Marvell link scan event) */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
@@ -951,7 +1074,9 @@ uint8_t gCpssPortPMGet(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+#ifdef DEBUG
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortPMGet, msg->type);
+#endif
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 #if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
@@ -1358,11 +1483,149 @@ static unsigned __TASKCONV OAM_thread(void)
 #endif
 }
 
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+static GT_STATUS prvUniEvMaskAllSet
+(
+    CPSS_UNI_EV_CAUSE_ENT       cpssUniEventArr[],
+    GT_U32                      arrLength,
+    CPSS_EVENT_MASK_SET_ENT     operation
+)
+{
+        GT_STATUS rc = GT_OK;
+        GT_U32    i;                          /* Iterator                     */
+        GT_U8     dev = 0;                    /* Device iterator              */
+
+        /* unmask the interrupt */
+        for(i = 0; i < arrLength; i++)
+        {
+                if(cpssUniEventArr[i] <= CPSS_PP_UNI_EV_MAX_E)
+                {
+			rc = cpssEventDeviceMaskSet(dev, cpssUniEventArr[i], operation);
+			if(rc != GT_OK)
+			{
+				goto exit_cleanly_lbl;
+			}
+                }
+                else
+                {
+                        rc = GT_FAIL;
+                        goto exit_cleanly_lbl;
+                }
+        }
+
+exit_cleanly_lbl:
+/*    extDrvSetIntLockUnlock(INTR_MODE_UNLOCK, &intKey);
+        osTaskUnLock();*/
+
+        return rc;
+} 
+
+static unsigned __TASKCONV rxTxEventsHndlr
+(
+GT_VOID * param
+)
+{
+        GT_STATUS       rc;                                        /* return code         */
+        GT_U32          i;                                                /* iterator            */
+        GT_UINTPTR      evHndl;                                /* event handler       */
+        GT_U32          evBitmapArr[CPSS_UNI_EV_BITMAP_SIZE_CNS];        /* event bitmap array  */
+        GT_U32          evBitmap;                                                                        /* event bitmap 32 bit */
+        GT_U32          evExtData;                                                                        /* event extended data */
+        GT_U8           devNum;                                                                                /* device number       */
+        GT_U32          uniEv;                                                                                /* unified event cause */
+        GT_U32          evCauseIdx;                                                                        /* event index         */
+        EAG6L_HNDLR_PARAM      *hndlrParamPtr;                                                                /* bind event array    */
+
+        hndlrParamPtr = (EAG6L_HNDLR_PARAM*)param;
+        evHndl        = hndlrParamPtr->evHndl;
+
+
+        while(1)
+        {
+                rc = cpssEventSelect(evHndl, NULL, evBitmapArr, (GT_U32)CPSS_UNI_EV_BITMAP_SIZE_CNS);
+#if 0
+                syslog(LOG_INFO, "cpssEventRecv: recv %d\n", rc);
+#endif
+                if(GT_OK != rc)
+                {
+                        /* If seems like this result is not unusual... */
+                        /* DBG_LOG(("CpssEventSelect: err\n", 1, 2, 3, 4, 5, 6));*/
+                        continue;
+                }
+
+                for(evCauseIdx = 0; evCauseIdx < CPSS_UNI_EV_BITMAP_SIZE_CNS; evCauseIdx++)
+                {
+                        if(evBitmapArr[evCauseIdx] == 0)
+                        {
+                                continue;
+                        }
+
+                        evBitmap = evBitmapArr[evCauseIdx];
+
+                        for(i = 0; evBitmap; evBitmap >>= 1, i++)
+                        {
+                                if((evBitmap & 1) == 0)
+                                {
+                                        continue;
+                                }
+                                uniEv = (evCauseIdx << 5) + i;
+
+                                if((rc=cpssEventRecv(evHndl, uniEv, &evExtData, &devNum)) == GT_OK)
+                                {
+                                        syslog(LOG_INFO, "cpssEventRecv: %08x <dev=%d, uniEv=%d, extData=0x%0x>\n",
+                                                         (GT_U32)hndlrParamPtr->hndlrIndex, devNum, uniEv, evExtData);
+
+
+                                        /* Treat packet transmit */
+					/*
+                                        rc = rxTxEnPpEvTreat(devNum, uniEv, evExtData);
+					*/
+
+                                } else
+                                {
+                                        syslog(LOG_ERR, "cpssEventRecv: error %d\n", rc);
+                                }
+                        }
+                }
+        }
+    return 0;
+}
+
+GT_STATUS esmcRxHandler(void)
+{
+
+    GT_STATUS           rc;                                 /* The returned code            */
+    GT_TASK             eventHandlerTid; /* The task Tid                 */
+    GT_U32 evHndlrCauseArrSize = sizeof(eagHndlrCauseArr)/sizeof(eagHndlrCauseArr[0]);
+
+    tParamArr.hndlrIndex = 1;		
+    rc = cpssEventBind(eagHndlrCauseArr, evHndlrCauseArrSize, &tParamArr.evHndl);
+    syslog(LOG_ERR, "cpssEventBind: rc %d\n", rc);
+    rc += prvUniEvMaskAllSet(eagHndlrCauseArr, evHndlrCauseArrSize, CPSS_EVENT_UNMASK_E);
+    syslog(LOG_ERR, "prvUniEvMaskAllSet: rc %d\n", rc);
+
+    rc += osTaskCreate("esmcTxRxHndl",
+		      EAG_HANDLER_MAX_PRIO,
+		      _32KB,
+		      rxTxEventsHndlr,
+		      &tParamArr,
+		      &eventHandlerTid);
+
+    if(rc != GT_OK)
+    {
+	syslog(LOG_ERR, "failed to create esmcTxRxHndl task, rc %d\n", rc);
+	return GT_FAIL;
+    }
+    return GT_OK;
+}
+#endif
+
 
 
 GT_STATUS eag6lOAMstart(void)
 {
     GT_TASK   tid;
+
 
     if (cmdOsTaskCreate(
                 "OAMSupport",
@@ -1372,11 +1635,10 @@ GT_STATUS eag6lOAMstart(void)
                 NULL,
                 &tid) != GT_OK)
     {
-        cmdOsPrintf("commander: failed to create OAM task\n");
+        cmdOsPrintf("OAMSupport: failed to create OAM task\n");
         return GT_FAIL;
     }
     osTaskGracefulCallerRegister(tid, GT_TRUE, NULL, NULL);
-
     return GT_OK;
 }
 

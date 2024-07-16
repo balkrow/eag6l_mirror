@@ -1449,7 +1449,11 @@ static GT_STATUS prvAppDemoPhoenixSerdesPolarityConfigSet
     static APPDEMO_SERDES_LANE_POLARITY_STC  ac5x_DB_PolarityArray[] =
     {
     /* laneNum  invertTx    invertRx */
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-03*/
+        { 11,   GT_FALSE,    GT_FALSE }
+#else
         { 11,   GT_FALSE,    GT_TRUE }
+#endif
     };
 
     rc = cpssDxChCfgDevInfoGet(devNum, &devInfo);
@@ -1515,11 +1519,19 @@ static GT_STATUS prvAppDemoPhoenixLaneMacToSerdesMuxSet
     CPSS_DXCH_PORT_MAP_STC              portMap;
     GT_U32                              portNum;
 
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-03*/
+    static CPSS_PORT_MAC_TO_SERDES_STC  phoenix_DB_MacToSerdesMap[] =
+    {
+        {{0, 1, 2, 3}} /* port 50,51,52,53
+                               10,9, 11, 8*/
+    };
+#else
     static CPSS_PORT_MAC_TO_SERDES_STC  phoenix_DB_MacToSerdesMap[] =
     {
         {{2, 1, 3, 0}} /* port 50,51,52,53
                                10,9, 11, 8*/
     };
+#endif
 
     static CPSS_PORT_MAC_TO_SERDES_STC  phoenix_RD_MacToSerdesMap[] =
     {

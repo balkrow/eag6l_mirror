@@ -31,6 +31,9 @@ static DEFINE_IDA(rsmu_cdev_map);
  */
 static char *firmware;
 module_param(firmware, charp, 0);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+extern u16 init_pll(struct rsmu_cdev *rsmu);
+#endif
 
 static struct rsmu_ops *ops_array[] = {
 	[0] = &cm_ops,
@@ -386,6 +389,10 @@ rsmu_probe(struct platform_device *pdev)
 		ida_simple_remove(&rsmu_cdev_map, rsmu->index);
 		return -ENODEV;
 	}
+
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+	init_pll(rsmu);
+#endif
 
 	dev_info(rsmu->dev, "Probe %s successful\n", rsmu->name);
 	return 0;

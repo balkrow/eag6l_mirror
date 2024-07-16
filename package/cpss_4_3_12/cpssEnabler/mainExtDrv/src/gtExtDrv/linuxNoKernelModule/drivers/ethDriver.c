@@ -72,6 +72,9 @@ disclaimer.
 #define PCI_DEVICE_ID_HARRIER 0x9041
 #define PCI_DEVICE_ID_AC5X    0x981f
 #define PCI_DEVICE_ID_ALDRIN2 0xcc0f
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-03*/
+#define PCI_DEVICE_ID_ALDRIN3s 0x983f
+#endif
 #define PCI_DEVICE_ID_IML     0xa000
 #define NUM_OF_TX_QUEUES NUM_OF_RX_QUEUES
 #define NUM_OF_ATU_WINDOWS 8
@@ -3937,6 +3940,10 @@ static const struct pci_device_id mvppnd_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_IML), 0, 0,
 	  (kernel_ulong_t)&ac5x_private_data},
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_ALDRIN2), 0, 0, 0},
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-03*/
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_ALDRIN3s), 0, 0,
+	  (kernel_ulong_t)&ac5x_private_data},
+#endif
 	{ 0, 0, 0, 0, 0, 0, 0 }
 };
 

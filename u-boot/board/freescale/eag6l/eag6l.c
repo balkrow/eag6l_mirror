@@ -170,7 +170,9 @@ int board_early_init_f(void)
 	 */
 	clrbits_be32(&scfg->etsecdmamcr, SCFG_ETSECDMAMCR_LE_BD_FR);
 	/* EC3_GTX_CLK125 (of enet2) used for all RGMII interfaces */
-	out_be32(&scfg->etsecmcr, SCFG_ETSECCMCR_GE2_CLK125);
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-03*/
+	out_be32(&scfg->etsecmcr, SCFG_ETSECCMCR_GE0_CLK125);
+#endif /*End 71*/
 #endif
 
 #ifdef CONFIG_FSL_IFC

@@ -17,6 +17,9 @@
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 #include "bp_regs.h" 
 #endif
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+#include "rsmu.h" 
+#endif
 
 #undef DEBUG
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
@@ -45,9 +48,6 @@ int8_t rsmu_init (void)
 
 int8_t rsmuGetPLLState(void) 
 {
-#ifdef ACCESS_SIM
-	return FREERUN;
-#endif
 	RSMU_PLL_STATE get;
 
 	memset(&get, 0, sizeof(get));
@@ -58,7 +58,9 @@ int8_t rsmuGetPLLState(void)
 		zlog_err("%s ioctl faild", RSMU_DEVICE_NAME);
 		return RT_NOK;
 	}
-
+#ifdef DEBUG
+	zlog_notice("pll state %x:%x", get.dpll, get.state);
+#endif
 	return get.state;
 }
 

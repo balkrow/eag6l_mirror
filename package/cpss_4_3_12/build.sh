@@ -27,7 +27,7 @@ function _build {
 	make ${MAKEOPT} TARGET=armv7 FAMILY=DX appDemo || exit -1
 	make ${MAKEOPT} TARGET=armv7 FAMILY=DX KERNEL_FOLDER=../../build/kernel modules || exit -1
   elif [ ${BUILD_BOARD_NAME} == "ac5x_db" ] ; then
-	make ${MAKEOPT} TARGET=armv8 FAMILY=DX CONFIG_INCLUDE_UTF=y appDemo || exit -1
+	make ${MAKEOPT} TARGET=armv8 FAMILY=DX appDemo || exit -1
 	make ${MAKEOPT} TARGET=armv8 FAMILY=DX KERNEL_FOLDER=../../build/kernel modules || exit -1
   fi
 }

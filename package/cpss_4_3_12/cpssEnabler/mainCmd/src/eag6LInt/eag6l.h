@@ -15,3 +15,11 @@ typedef struct portFaultstr {
 	uint32_t link; 
 } PortFaultList;
 #endif
+
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+typedef struct
+{
+	GT_UINTPTR          evHndl;
+	GT_U32              hndlrIndex;
+} EAG6L_HNDLR_PARAM;
+#endif

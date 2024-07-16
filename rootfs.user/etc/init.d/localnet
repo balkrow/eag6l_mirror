@@ -1,0 +1,37 @@
+#!/bin/sh
+. /etc/init.d/functions
+
+# 71 EAG6L Board Bring-up, balkrow, 2024-07-30
+case "$1" in
+    start)
+        echo "Bringing up the lo interface..."
+        loadproc ifconfig lo 127.0.0.1
+        #echo "Bringing up the mvpp interface..."
+        #echo 3 > /sys/class/net/mvpp0/atu_win
+        #echo -n 5 > /sys/class/net/mvpp0/tx_queue
+        #echo -n 0xf0 > /sys/class/net/mvpp0/rx_queues
+        #for i in $(seq 1 7)
+        #do
+        #  echo -n "mvpp0.$i $i" > /sys/class/net/mvpp0/if_create
+        #done
+
+        #ip link set mvpp0 up
+        #for i in $(seq 1 7)
+        #do
+        #  ip link set dev mvpp0.$i mtu 1540
+        #  ip link set mvpp0.$i up
+        #done
+        ;;
+    stop)
+        ;;
+    restart)
+        $0 stop
+        $0 start
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+exit 0
+# end 71
