@@ -139,6 +139,10 @@ typedef struct globalDB
 	uint8_t sdk_init_state; /*sdk init state*/
 	uint8_t comm_state; /*sdk init state*/
 	uint8_t fsm_retries;
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-18*/
+	uint8_t synce_pri_port;
+	uint8_t synce_sec_port;
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;
