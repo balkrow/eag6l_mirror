@@ -32,8 +32,8 @@ extern RegMON regMonList [];
 extern uint16_t getIdxFromRegMonList (uint16_t reg);
 #endif
 
-#if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
-#define DEBUG
+#if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-16 */
+#undef DEBUG
 #endif
 
 extern struct thread_master *master;
@@ -665,6 +665,12 @@ uint8_t gReplySynceIfSelect(int args, ...)
 
 	/* process for result. */
 	/*FIXME*/
+#if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-18*/
+	if(msg->portid != 0xff)
+		gDB.synce_pri_port = msg->portid;
+	else if(msg->portid2 != 0xff)
+		gDB.synce_sec_port = msg->portid2;
+#endif
 
 	return ret;
 }
@@ -848,6 +854,49 @@ uint8_t gReplyPortPMClear(int args, ...)
 }
 #endif
 
+#if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-17*/
+uint8_t gReplyPortESMCQLupdate(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	/* process for result. */
+	if(msg->result == FIFO_CMD_SUCCESS) {
+		/*regiter update*/
+		if(msg->portid == gDB.synce_pri_port)
+		{
+			uint16_t val, wr_val;
+			val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
+			val = (val & ~(0xff00));
+			wr_val = (msg->mode << 8) | val; 
+			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, wr_val, PORT_NOREG);
+		}
+		else if(msg->portid == gDB.synce_sec_port)
+		{
+			uint16_t val, wr_val;
+			val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
+			val = (val & ~(0xff));
+			wr_val =  val | msg->mode; 
+			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, wr_val, PORT_NOREG);
+		}
+	} else
+		zlog_notice("port %d ESMC QL update failed. ret[%d].", msg->portid, msg->result);
+}
+#endif
+
 cSysmonReplyFuncs gSysmonReplyFuncs[] =
 {
 	gReplySDKInit,
@@ -864,6 +913,9 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 	gReplyPortPMGet,
 	gReplyPortPMClear,
+#endif
+#if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-17*/
+	gReplyPortESMCQLupdate,
 #endif
 };
 

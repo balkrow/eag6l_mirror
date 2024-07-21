@@ -1,0 +1,26 @@
+#!/bin/sh
+. /etc/init.d/functions
+case "$1" in
+		start)
+				echo "Starting telnetd daemon..."
+        telnetd -l /bin/sh -f /etc/motd
+				evaluate_retval
+				;;
+		stop)
+				echo "Stopping telnetd daemon..."
+				killproc telnetd
+				;;
+		restart)
+				$0 stop
+				sleep 1
+				$0 start
+				;;
+		status)
+				statusproc telnetd
+				;;
+		*)
+				echo "Usage: $0 {start|stop|reload|restart|status}"
+				exit 1
+				;;
+esac
+exit 0

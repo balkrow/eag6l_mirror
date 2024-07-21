@@ -72,6 +72,48 @@ uint8_t gEag6LSDKInitStatus = GT_FALSE;
 struct multi_thread *llcf_thread = NULL;
 #endif
 
+#if 0/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
+static int
+esmc_check_ql_tlv(T_esmc_ql_tlv *ql_tlv) {
+	if(ql_tlv->type != ESMC_PDU_QL_TLV_TYPE_LEN)
+		return -1;
+
+	if(memcmp(ql_tlv->length, g_ql_tlv_length, ESMC_PDU_QL_TLV_LENGTH_LEN))
+		return -1;
+
+	/* SSM code can be zero (e.g. QL-STU has SSM code equal to 0x0 and
+	 * eSSM code equal to 0xFF) */
+
+	return 0;
+}
+
+static int
+esmc_check_ext_ql_tlv(T_esmc_ext_ql_tlv *ext_ql_tlv, int *enhanced) {
+
+	/* Received ESMC PDU does not originate from enhanced node (i.e. eSSM
+	 * code is equal to 0x0), so no need for additional parsing */
+	if(ext_ql_tlv->esmc_e_ssm_code == E_esmc_e_ssm_code_NONE) {
+		*enhanced = 0;
+		return 0;
+	}
+
+	/* Received ESMC PDU has non-zero enhanced SSM code, but need to
+	 * check if other fields are valid */
+
+	if(ext_ql_tlv->type != ESMC_PDU_EXT_QL_TLV_TYPE) {
+		*enhanced = 1;
+		return -1;
+	}
+	if(memcmp(ext_ql_tlv->length, g_ext_ql_tlv_length, ESMC_PDU_EXT_QL_TLV_LENGTH_LEN)) {
+		*enhanced = 1;
+		return -1;
+	}
+
+	*enhanced = 1;
+	return 0;
+}
+#endif
+
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
 extern GT_STATUS cpssDxChNetIfSdmaRxPacketGet
 (
@@ -260,7 +302,289 @@ extern GT_STATUS cpssPortManagerLuaSerdesTypeGet
 	OUT CPSS_PORT_SERDES_TYPE_ENT  *serdesType
 );
 
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
+static int esmc_ssm_and_essm_to_ql_map(T_esmc_network_option net_opt, unsigned char ssm_code, unsigned char e_ssm_code, T_esmc_ql *ql)
+{
+	switch(net_opt) {
+	case E_esmc_network_option_1:
+		switch(ssm_code) {
+		case 0x00:
+			*ql = E_esmc_ql_net_opt_1_INV0;
+			break;
+		case 0x01:
+			*ql = E_esmc_ql_net_opt_1_INV1;
+			break;
+		case 0x02:
+			switch(e_ssm_code) {
+			case E_esmc_e_ssm_code_NONE:
+			case E_esmc_e_ssm_code_EEC:
+				*ql = E_esmc_ql_net_opt_1_PRC;
+				break;
+			case E_esmc_e_ssm_code_PRTC:
+				*ql = E_esmc_ql_net_opt_1_PRTC;
+				break;
+			case E_esmc_e_ssm_code_ePRTC:
+				*ql = E_esmc_ql_net_opt_1_ePRTC;
+				break;
+			case E_esmc_e_ssm_code_eEEC:
+				*ql = E_esmc_ql_net_opt_1_eSEC;
+				break;
+			case E_esmc_e_ssm_code_ePRC:
+				*ql = E_esmc_ql_net_opt_1_ePRC;
+				break;
+			default:
+				return -1;
+			}
+			break;
+		case 0x03:
+			*ql = E_esmc_ql_net_opt_1_INV3;
+			break;
+		case 0x04:
+			*ql = E_esmc_ql_net_opt_1_SSUA;
+			break;
+		case 0x05:
+			*ql = E_esmc_ql_net_opt_1_INV5;
+			break;
+		case 0x06:
+			*ql = E_esmc_ql_net_opt_1_INV6;
+			break;
+		case 0x07:
+			*ql = E_esmc_ql_net_opt_1_INV7;
+			break;
+		case 0x08:
+			*ql = E_esmc_ql_net_opt_1_SSUB;
+			break;
+		case 0x09:
+			*ql = E_esmc_ql_net_opt_1_INV9;
+			break;
+		case 0x0A:
+			*ql = E_esmc_ql_net_opt_1_INV10;
+			break;
+		case 0x0B:
+			switch(e_ssm_code) {
+			case E_esmc_e_ssm_code_NONE:
+			case E_esmc_e_ssm_code_EEC:
+				*ql = E_esmc_ql_net_opt_1_SEC;
+				break;
+			case E_esmc_e_ssm_code_eEEC:
+				*ql = E_esmc_ql_net_opt_1_eSEC;
+				break;
+			default:
+				return -1;
+			}
+			break;
+		case 0x0C:
+			*ql = E_esmc_ql_net_opt_1_INV12;
+			break;
+		case 0x0D:
+			*ql = E_esmc_ql_net_opt_1_INV13;
+			break;
+		case 0x0E:
+			*ql = E_esmc_ql_net_opt_1_INV14;
+			break;
+		case 0x0F:
+			*ql = E_esmc_ql_net_opt_1_DNU;
+			break;
+		default:
+			return -1;
+		}
+		break;
 
+	case E_esmc_network_option_2:
+		switch(ssm_code) {
+		case 0x00:
+			*ql = E_esmc_ql_net_opt_2_STU;
+			break;
+		case 0x01:
+			switch(e_ssm_code) {
+			case E_esmc_e_ssm_code_NONE:
+			case E_esmc_e_ssm_code_EEC:
+				*ql = E_esmc_ql_net_opt_2_PRS;
+				break;
+			case E_esmc_e_ssm_code_PRTC:
+				*ql = E_esmc_ql_net_opt_1_PRTC;
+				break;
+			case E_esmc_e_ssm_code_ePRTC:
+				*ql = E_esmc_ql_net_opt_1_ePRTC;
+				break;
+			case E_esmc_e_ssm_code_ePRC:
+				*ql = E_esmc_ql_net_opt_2_ePRC;
+				break;
+			default:
+				return -1;
+			}
+			break;
+		case 0x02:
+			*ql = E_esmc_ql_net_opt_2_INV2;
+			break;
+		case 0x03:
+			*ql = E_esmc_ql_net_opt_2_INV3;
+			break;
+		case 0x04:
+			*ql = E_esmc_ql_net_opt_2_TNC;
+			break;
+		case 0x05:
+			*ql = E_esmc_ql_net_opt_2_INV5;
+			break;
+		case 0x06:
+			*ql = E_esmc_ql_net_opt_2_INV6;
+			break;
+		case 0x07:
+			*ql = E_esmc_ql_net_opt_2_ST2;
+			break;
+		case 0x08:
+			*ql = E_esmc_ql_net_opt_2_INV8;
+			break;
+		case 0x09:
+			*ql = E_esmc_ql_net_opt_2_INV9;
+			break;
+		case 0x0A:
+			switch(e_ssm_code) {
+			case E_esmc_e_ssm_code_NONE:
+			case E_esmc_e_ssm_code_EEC:
+				*ql = E_esmc_ql_net_opt_2_ST3;
+				break;
+			case E_esmc_e_ssm_code_eEEC:
+				*ql = E_esmc_ql_net_opt_2_eEEC;
+				break;
+			default:
+				return -1;
+			}
+			break;
+		case 0x0B:
+			*ql = E_esmc_ql_net_opt_2_INV11;
+			break;
+		case 0x0C:
+			*ql = E_esmc_ql_net_opt_2_SMC;
+			break;
+		case 0x0D:
+			*ql = E_esmc_ql_net_opt_2_ST3E;
+			break;
+		case 0x0E:
+			*ql = E_esmc_ql_net_opt_2_PROV;
+			break;
+		case 0x0F:
+			*ql = E_esmc_ql_net_opt_2_DUS;
+			break;
+		default:
+			return -1;
+		}
+		break;
+
+	case E_esmc_network_option_3:
+		switch(ssm_code) {
+		case 0x00:
+			*ql = E_esmc_ql_net_opt_3_UNK;
+			break;
+		case 0x01:
+			*ql = E_esmc_ql_net_opt_3_INV1;
+			break;
+		case 0x02:
+			*ql = E_esmc_ql_net_opt_3_INV2;
+			break;
+		case 0x03:
+			*ql = E_esmc_ql_net_opt_3_INV3;
+			break;
+		case 0x04:
+			*ql = E_esmc_ql_net_opt_3_INV4;
+			break;
+		case 0x05:
+			*ql = E_esmc_ql_net_opt_3_INV5;
+			break;
+		case 0x06:
+			*ql = E_esmc_ql_net_opt_3_INV6;
+			break;
+		case 0x07:
+			*ql = E_esmc_ql_net_opt_3_INV7;
+			break;
+		case 0x08:
+			*ql = E_esmc_ql_net_opt_3_INV8;
+			break;
+		case 0x09:
+			*ql = E_esmc_ql_net_opt_3_INV9;
+			break;
+		case 0x0A:
+			*ql = E_esmc_ql_net_opt_3_INV10;
+			break;
+		case 0x0B:
+			*ql = E_esmc_ql_net_opt_3_SEC;
+			break;
+		case 0x0C:
+			*ql = E_esmc_ql_net_opt_3_INV12;
+			break;
+		case 0x0D:
+			*ql = E_esmc_ql_net_opt_3_INV13;
+			break;
+		case 0x0E:
+			*ql = E_esmc_ql_net_opt_3_INV14;
+			break;
+		case 0x0F:
+			*ql = E_esmc_ql_net_opt_3_INV15;
+			break;
+		default:
+			return -1;
+		}
+		break;
+
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+#endif
+
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
+static int send_to_sysmon_master(sysmon_fifo_msg_t * msg) {
+#ifdef DEBUG
+	syslog(LOG_INFO, "Send msg %x to sysmon", msg->type);
+#endif
+#if 1/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
+	return write(syswrfifo, msg, sizeof(sysmon_fifo_msg_t));
+#else
+	if((syswrfifo = open(SYSMON_FIFO_READ/*to-master*/, O_RDWR)) < 0) {
+		syslog(LOG_INFO, "Can't open file to send to master");
+		return 1;
+	}
+
+	write(syswrfifo, msg, sizeof(sysmon_fifo_msg_t));
+
+	close(syswrfifo);
+
+	return 0;
+#endif
+}
+
+uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
+{
+	sysmon_fifo_msg_t msg;
+
+	msg.type = gPortESMCQLupdate;
+	msg.result = FIFO_CMD_SUCCESS; 
+
+	/*network option 1*/
+	if(ql == E_esmc_ql_net_opt_1_DNU)
+		msg.mode = 0x11; 
+	else if(ql == E_esmc_ql_net_opt_1_SEC)
+		msg.mode = 0x12; 
+	else if(ql == E_esmc_ql_net_opt_1_PRC)
+		msg.mode = 0x13; 
+	else if(ql == E_esmc_ql_net_opt_1_SSUA)
+		msg.mode = 0x14; 
+	else if(ql == E_esmc_ql_net_opt_1_SSUB)
+		msg.mode = 0x15; 
+	else 
+		msg.mode = 0xff; 
+	/*network option 2*/
+
+	msg.portid = port; 
+#ifdef DEBUG
+    syslog(LOG_INFO, "called %s port %d ql %x", __func__, port, ql);
+#endif
+	send_to_sysmon_master(&msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif
 
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 GT_VOID processPortEvt
@@ -275,6 +599,14 @@ GT_VOID processPortEvt
 	GT_U8                               *packetBuffs[BUFF_LEN];
 	GT_U32                              buffLenArr[BUFF_LEN];
 	CPSS_DXCH_NET_RX_PARAMS_STC         rxParams;
+#endif
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
+	T_esmc_ql parsed_ql = 0xff;
+	/*
+	T_port_ext_ql_tlv_data parsed_ext_ql_tlv_data;
+	*/
+	T_esmc_network_option net_opt = E_esmc_network_option_1;
+	T_esmc_pdu *msg;
 #endif
 
 	CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
@@ -301,31 +633,19 @@ GT_VOID processPortEvt
 	{
 		cpssDxChNetIfSdmaRxPacketGet(devNum, uniEv, &numOfBuff, 
 					     packetBuffs, buffLenArr, &rxParams);
-		/**/
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
+		msg = (T_esmc_pdu *)packetBuffs;
+		esmc_ssm_and_essm_to_ql_map(net_opt, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, &parsed_ql);
+		cpssDxChNetIfRxBufFree(devNum, CPSS_PP_RX_BUFFER_QUEUE0_E, packetBuffs, numOfBuff);
+
+		if(evExtData == gSyncePriInf || evExtData == gSynceSecInf) 
+			if(parsed_ql != 0xff) 
+				gCpssESMCQL(parsed_ql, evExtData);
+#endif
 	}
 #endif
 }
 #endif
-
-static int send_to_sysmon_master(sysmon_fifo_msg_t * msg) {
-#ifdef DEBUG
-	syslog(LOG_INFO, "Send msg %x to sysmon", msg->type);
-#endif
-#if 1/*[#4] register updating : opening file at both sides don't work, dustin, 2024-05-28 */
-	return write(syswrfifo, msg, sizeof(sysmon_fifo_msg_t));
-#else
-	if((syswrfifo = open(SYSMON_FIFO_READ/*to-master*/, O_RDWR)) < 0) {
-		syslog(LOG_INFO, "Can't open file to send to master");
-		return 1;
-	}
-
-	write(syswrfifo, msg, sizeof(sysmon_fifo_msg_t));
-
-	close(syswrfifo);
-
-	return 0;
-#endif
-}
 
 uint8_t gCpssSDKInit(int args, ...)
 {
@@ -590,10 +910,20 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	if(!ret)
 	{
 		msg->result = FIFO_CMD_SUCCESS;
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-18*/
 		if(clock_src == PRI_SRC)
+		{
 			gSyncePriInf = portNum; 
+			msg->portid = portNum;
+			msg->portid2= 0xff;
+		}
 		else 
+		{ 
 			gSynceSecInf = portNum;
+			msg->portid = 0xff;
+			msg->portid2 = portNum;
+		}
+#endif
 	}
 	else
 		msg->result = FIFO_CMD_FAIL;

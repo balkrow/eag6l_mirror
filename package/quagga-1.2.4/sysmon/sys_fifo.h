@@ -44,6 +44,9 @@ enum sysmon_cmd_fifo_type
 	gPortPMGet,
 	gPortPMClear,
 #endif
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-17*/
+	gPortESMCQLupdate,
+#endif
 #endif
 };
 
