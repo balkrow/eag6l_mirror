@@ -16,7 +16,7 @@
 extern uint8_t gAppDemoIPCstate;
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 uint16_t gSvcFSMretry = 0;
-#define DEBUG
+#undef DEBUG
 #define CLR_RETRY_CNT gSvcFSMretry = 0
 #endif
 
@@ -307,6 +307,14 @@ SVC_EVT svc_init_done(SVC_ST st) {
 	const char *prog = "appDemo";
 	if(gDB.init_state != SYS_INIT_DONE)
 	{
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+		{
+			extern void rdl_update_bank_registers(void);
+
+			// update bp os bank info registers.
+			rdl_update_bank_registers();
+		}
+#endif
 		gDB.init_state = SYS_INIT_DONE;  
 		/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
 		 *

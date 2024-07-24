@@ -9,7 +9,7 @@
 #include "sys_fifo.h"
 #endif
 
-#define DEBUG
+#undef DEBUG
 
 #if 0
 extern u32 INIT_COMPLETE_FLAG;
@@ -241,6 +241,8 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
 	else if(val == 0x6/*10G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
+	else
+		rc = RT_NOK;
 
 	return rc;
 }
@@ -254,6 +256,8 @@ uint16_t synceEnableSet(uint16_t port, uint16_t val)
 		rc = gSysmonToCpssFuncs[gSynceEnable](1, 1);
 	else if(val == 0x5a)
 		rc = gSysmonToCpssFuncs[gSynceDisable](1, 0);
+	else
+		rc = RT_NOK;
 	return rc;	
 }
 #endif
@@ -577,6 +581,7 @@ int rollback_reg(struct thread *thread)
 void regMonitor(void)
 {
 	uint16_t i, val;
+	uint16_t ret;
 	for(i = 0; i < regMonArrSize; i++)
 	{
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
@@ -589,13 +594,15 @@ void regMonitor(void)
 		if(regMonList[i].val != val) 
 		{
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
-			regMonList[i].cb(regMonList[i].portno, val);
+			ret = regMonList[i].cb(regMonList[i].portno, val);
 #else
 			regMonList[i].cb(val);
 #endif
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
-			regMonList[i].rollback_val = regMonList[i].val;
-			regMonList[i].rb_thread = thread_add_timer(master, rollback_reg, (void *)&i, 2);
+			if(ret == RT_OK) {
+				regMonList[i].rollback_val = regMonList[i].val;
+				regMonList[i].rb_thread = thread_add_timer(master, rollback_reg, (void *)&i, 2);
+			}
 #endif
 			regMonList[i].val = val;
 		}
@@ -2064,7 +2071,7 @@ unsigned long __COMMON_CTRL2_ADDR[PORT_ID_EAG6L_MAX] = {
 		COMMON_CTRL2_P4_ADDR, 
 		COMMON_CTRL2_P5_ADDR,
 		COMMON_CTRL2_P6_ADDR, 
-		COMMON_CTRL2_P7_ADDR 
+		NULL_REG_ADDR 
 };
 unsigned long __PORT_CONFIG_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_CONF_ADDR,
 		PORT_2_CONF_ADDR, PORT_3_CONF_ADDR, 

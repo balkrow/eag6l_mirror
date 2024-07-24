@@ -49,8 +49,13 @@
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 extern uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg);
 extern uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t val, uint8_t port_reg);
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+extern uint16_t sys_dpram_memory_read(uint32_t addr);
+extern uint16_t sys_dpram_memory_write(uint32_t addr, uint16_t val);
+#else
 extern uint16_t sys_dpram_memory_read(uint16_t addr);
 extern uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t val);
+#endif
 #endif
 /*
 define Memory Macro
@@ -121,6 +126,16 @@ define Memory Macro
 	wval = (uint16_t)(rval & ~mask) | (uint16_t)((val << shift) & mask); \
 	FPGA_WRITE(reg, wval); \
 }
+
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+#define gDPRAMRegUpdate(reg, shift, mask, val) \
+{ \
+	uint16_t rval = 0, wval =0; \
+	rval = DPRAM_READ(reg); \
+	wval = (uint16_t)(rval & ~mask) | (uint16_t)((val << shift) & mask); \
+	DPRAM_WRITE(reg, wval); \
+}
+#endif
 
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
 typedef struct rsmu_get_sts

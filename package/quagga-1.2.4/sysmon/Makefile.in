@@ -105,12 +105,16 @@ am__v_AR_1 =
 libsysmon_a_AR = $(AR) $(ARFLAGS)
 libsysmon_a_LIBADD =
 am_libsysmon_a_OBJECTS = sysmon.$(OBJEXT) sysmon_zebra.$(OBJEXT) \
-	sys_i2c.$(OBJEXT) sys_fifo.$(OBJEXT)
+	sys_i2c.$(OBJEXT) sys_fifo.$(OBJEXT) svc_fsm.$(OBJEXT) \
+	monitor_registers.$(OBJEXT) devmem.$(OBJEXT) \
+	sysmon_vty.$(OBJEXT) sysmon_hw.$(OBJEXT) rdl_fsm.$(OBJEXT)
 libsysmon_a_OBJECTS = $(am_libsysmon_a_OBJECTS)
 am__installdirs = "$(DESTDIR)$(sbindir)"
 PROGRAMS = $(sbin_PROGRAMS)
 am__objects_1 = sysmon.$(OBJEXT) sysmon_zebra.$(OBJEXT) \
-	sys_i2c.$(OBJEXT) sys_fifo.$(OBJEXT)
+	sys_i2c.$(OBJEXT) sys_fifo.$(OBJEXT) svc_fsm.$(OBJEXT) \
+	monitor_registers.$(OBJEXT) devmem.$(OBJEXT) \
+	sysmon_vty.$(OBJEXT) sysmon_hw.$(OBJEXT) rdl_fsm.$(OBJEXT)
 am_sysmon_OBJECTS = sysmon_main.$(OBJEXT) $(am__objects_1)
 sysmon_OBJECTS = $(am_sysmon_OBJECTS)
 sysmon_DEPENDENCIES = ../lib/libzebra.la
@@ -357,12 +361,12 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib
+AM_CPPFLAGS = -I.. -I$(top_srcdir) -I$(top_srcdir)/lib -I$(top_builddir)/lib -I$(top_srcdir)/../include
 INSTALL_SDATA = @INSTALL@ -m 600
 AM_CFLAGS = $(WERROR)
 noinst_LIBRARIES = libsysmon.a
 libsysmon_a_SOURCES = \
-	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c
+	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c svc_fsm.c monitor_registers.c devmem.c sysmon_vty.c sysmon_hw.c rdl_fsm.c
 
 noinst_HEADERS = \
 	sysmon.h
@@ -474,10 +478,16 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/devmem.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monitor_registers.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rdl_fsm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/svc_fsm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sys_fifo.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sys_i2c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon_hw.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon_vty.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sysmon_zebra.Po@am__quote@
 
 .c.o:
