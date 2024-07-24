@@ -9,6 +9,9 @@
 #define DEBUG
 
 RDL_INFO_LIST_t rdl_info_list = {0, };
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+RDL_INFO_LIST_t emul_info_list = {0, };
+#endif
 extern uint8_t PAGE_CRC_OK;
 extern uint8_t IMG_ACTIVATION_OK;
 extern uint8_t IMG_RUNNING_OK;
@@ -484,6 +487,9 @@ RDL_ST_t rdl_terminate(void) //#18
 
 char *RDL_STATE_STR[] = {
 	"ST_RDL_IDLE",
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+    "ST_RDL_TRIGGER",
+#endif
 	"ST_RDL_START",
 	"ST_RDL_WRITING_P1",
 	"ST_RDL_READING_P1",
@@ -499,6 +505,9 @@ char *RDL_STATE_STR[] = {
 
 char *RDL_EVENT_STR[] = {
 	"EVT_RDL_NONE",
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+    "EVT_RDL_TRIGGER",
+#endif
 	"EVT_RDL_START",
 	"EVT_RDL_WRITING_P1",
 	"EVT_RDL_WRITING_DONE_P1",
@@ -569,3 +578,410 @@ RDL_FSM_t rdl_fsm_list[] =
 int RDL_TRANS_MAX = sizeof(rdl_fsm_list) / sizeof(RDL_FSM_t);
 
 
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+extern RDL_IMG_INFO_t EMUL_INFO;
+extern uint8_t __CACHE_RDL_PAGE[RDL_PAGE_ADDR_SIZE];
+
+FILE *EMUL_FP = NULL;
+FILE *EMUL_OS_FP = NULL;
+long EMUL_FP_POS;
+uint32_t EMUL_LEFT_LEN;
+int EMUL_TRIGGERED;
+int EMUL_FILE_END, EMUL_RDL_DONE;
+char EMUL_FPATH[200];
+
+RDL_ST_t emul_trigger(void)
+{
+    RDL_ST_t state = ST_RDL_TRIGGER;
+	fw_image_header_t hd;
+	struct statfs fst;
+	uint32_t addr, t_crc, t_size, ii;
+	char temp[150];
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// MCU triggered emulation.
+	//    init something(pkg file present, size/page info, and update rdl registers.
+	//    finally set rdl start bit.
+
+	memset(&EMUL_INFO, 0, sizeof EMUL_INFO);
+	EMUL_INFO.bno = RDL_BANK_2;
+
+	// check if pkg file present.
+	if(! syscmd_file_exist(EMUL_FPATH)) {
+		zlog_notice("%s : No such file : %s\n", __func__, EMUL_FPATH);
+		emul_info_list.st = ST_RDL_IDLE;
+		return ST_RDL_IDLE;
+	}
+
+	// get pkg file size.
+	if(check_img_file_crc(EMUL_FPATH, &hd, &t_size, &t_crc) < 0) {
+		zlog_notice("%s : Checking crc failed for pkg file %s.",
+			__func__, EMUL_FPATH);
+		emul_info_list.st = ST_RDL_IDLE;
+		return ST_RDL_IDLE;
+	}
+
+	t_crc = ntohl(hd.fih_dcrc);
+
+	EMUL_INFO.hd.magic      = RDL_IMG_MAGIC;
+	EMUL_INFO.hd.total_crc  = t_crc;
+	EMUL_INFO.hd.total_size = t_size;
+	memcpy(EMUL_INFO.hd.ver_str, hd.fih_ver, RDL_VER_STR_MAX);
+	memcpy(EMUL_INFO.hd.file_name, hd.fih_name, RDL_FILE_NAME_MAX);
+
+	// get total page no.
+	EMUL_INFO.total_pno = t_size / RDL_PAGE_SIZE;
+	EMUL_LEFT_LEN  = t_size % RDL_PAGE_SIZE;
+	if(EMUL_LEFT_LEN)
+		EMUL_INFO.total_pno += 1;
+
+	// update target bank no and total page no.
+	gDPRAMRegUpdate(RDL_TARGET_BANK_ADDR, 0, 0xFFFF, 
+		(EMUL_INFO.bno << 8) | EMUL_INFO.total_pno);
+
+	// set magic number.
+	gDPRAMRegUpdate(RDL_MAGIC_NO_1_ADDR, 0, 0xFFFF, (hd.fih_magic & 0xFFFF));
+	gDPRAMRegUpdate(RDL_MAGIC_NO_2_ADDR, 0, 0xFFFF, ((hd.fih_magic >> 16) & 0xFFFF));
+
+	// set total crc.
+	gDPRAMRegUpdate(RDL_TOTAL_CRC_1_ADDR, 0, 0xFFFF, (t_crc & 0xFFFF));
+	gDPRAMRegUpdate(RDL_TOTAL_CRC_2_ADDR, 0, 0xFFFF, ((t_crc >> 16) & 0xFFFF));
+
+	// set total size.
+	gDPRAMRegUpdate(RDL_TOTAL_SIZE_1_ADDR, 0, 0xFFFF, (t_size & 0xFFFF));
+	gDPRAMRegUpdate(RDL_TOTAL_SIZE_2_ADDR, 0, 0xFFFF, ((t_size >> 16) & 0xFFFF));
+
+	// set build time.
+	gDPRAMRegUpdate(RDL_BUILD_TIME_1_ADDR, 0, 0xFFFF, (hd.fih_time & 0xFFFF));
+	gDPRAMRegUpdate(RDL_BUILD_TIME_2_ADDR, 0, 0xFFFF, ((hd.fih_time >> 16) & 0xFFFF));
+
+	// set version string.
+	for(ii = 0, addr = RDL_VER_STR_START_ADDR;
+	   (ii < strlen(hd.fih_ver)) && (addr < RDL_VER_STR_END_ADDR);
+	    ii += 2, addr += 2) {
+		gDPRAMRegUpdate(addr, 0, 0xFFFF, hd.fih_ver[ii] | (hd.fih_ver[ii + 1] << 8));
+	}
+
+	// set file name string.
+	for(ii = 0, addr = RDL_FILE_NAME_START_ADDR;
+	   (ii < strlen(hd.fih_name)) && (addr < RDL_FILE_NAME_END_ADDR);
+	    ii += 2, addr += 2) {
+		gDPRAMRegUpdate(addr, 0, 0xFFFF, hd.fih_name[ii] | (hd.fih_name[ii + 1] << 8));
+	}
+
+	EMUL_INFO.pno = 1;
+	EMUL_FP_POS = 0;
+
+	// MCU set rdl start.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 0, 0xFFFF, 
+		(RDL_START_BIT << 8) | EMUL_INFO.pno);
+    emul_info_list.st = state;
+    return state;
+}
+
+RDL_ST_t emul_start(void)
+{
+    RDL_ST_t state = ST_RDL_START;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP sent rdl start ack.
+
+	// MCU close src file to open again, if it is open already.
+	if(EMUL_FP != NULL)
+		fclose(EMUL_FP);
+
+	// MCU open src file.
+	EMUL_FP = fopen(EMUL_FPATH, "r");
+	if(EMUL_FP == NULL) {
+		zlog_notice("%s : Cannot open file %s.", __func__, EMUL_FPATH);
+		emul_info_list.st = ST_RDL_IDLE;
+		return ST_RDL_IDLE;
+	}
+
+	// MCU just set writing p-1.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_P1_WRITING_BIT);
+    emul_info_list.st = state;
+    return state;
+}
+
+RDL_ST_t emul_writing_p1(void)
+{
+	RDL_ST_t state = ST_RDL_WRITING_P1;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP sent writing p-1 ack.
+	// MCU read/write to p-1 and set writing p-1 done.
+
+	// backup current position for p-1, for restarting case.
+	EMUL_FP_POS = ftell(EMUL_FP);
+
+	// MCU read/write to p-1.
+	if(fread(&(__CACHE_RDL_PAGE[0]), 1, RDL_PAGE_SEGMENT_SIZE, EMUL_FP) != 
+		RDL_PAGE_SEGMENT_SIZE) {
+		if(EMUL_INFO.pno != EMUL_INFO.total_pno) {
+			zlog_notice("%s : Reading to P-1 failed. pno[%u/%u].",
+				__func__, EMUL_INFO.pno, EMUL_INFO.total_pno);
+			// MCU set page writing error.
+			gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, 
+				RDL_PAGE_WRITING_ERROR_BIT);
+			emul_info_list.st = ST_RDL_TRIGGER;
+		}
+		EMUL_FILE_END = 1;
+	}
+
+	// MCU set writing p-1 done.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_P1_WRITING_DONE_BIT);
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_writing_err_p1(void)
+{
+    RDL_ST_t state = ST_RDL_START;
+#ifdef DEBUG
+    //zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP sent page writing error ack.
+    // MCU goto writing p-1 with current page.
+	//    rewind file position to backup position.
+	zlog_notice("%s : Rewinding file position to offset[%u] for page %u p-1.",
+		__func__, EMUL_FP_POS, EMUL_INFO.pno);
+	fseek(EMUL_FP, EMUL_FP_POS, SEEK_SET);
+
+	// MCU set writing p-1.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_P1_WRITING_BIT);
+    emul_info_list.st = state;
+    return state;
+}
+
+RDL_ST_t emul_reading_p1(void)
+{
+	RDL_ST_t state = ST_RDL_READING_P1;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+
+	// MCU set writing p-2.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_P2_WRITING_BIT);
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_writing_p2(void)
+{
+	RDL_ST_t state = ST_RDL_WRITING_P2;
+	uint16_t calc;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+
+	// BP sent writing p-1 ack.
+	// MCU read/write to p-1 and set writing p-1 done.
+	// NOTE p-2 stage don't need to backup current position.
+
+	// skip if file end in writing p-1.
+	if(! EMUL_FILE_END) {
+		// MCU read/write to p-2.
+		if(fread(&(__CACHE_RDL_PAGE[RDL_PAGE_SEGMENT_SIZE]), 
+			1, RDL_PAGE_SEGMENT_SIZE, EMUL_FP) != RDL_PAGE_SEGMENT_SIZE) {
+			if(EMUL_INFO.pno != EMUL_INFO.total_pno) {
+				zlog_notice("%s : Reading to p-2 failed. pno[%u/%u].",
+					__func__, EMUL_INFO.pno, EMUL_INFO.total_pno);
+				// MCU set page writing error.
+				gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00,
+					RDL_PAGE_WRITING_ERROR_BIT);
+				emul_info_list.st = ST_RDL_TRIGGER;
+			}
+			EMUL_FILE_END = 1;
+		}
+	}
+
+	// calculate crc for the page and update page crc register.
+	calc = get_sum((uint16_t *)__CACHE_RDL_PAGE,
+		(EMUL_INFO.pno < EMUL_INFO.total_pno) ? 
+			RDL_PAGE_SIZE: 
+				(EMUL_LEFT_LEN ? EMUL_LEFT_LEN : RDL_PAGE_SIZE));
+	gDPRAMRegUpdate(RDL_PAGE_CRC_ADDR, 0, 0xFFFF, calc);	
+
+	// MCU set writing p-2 done.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_P2_WRITING_DONE_BIT);
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_reading_p2(void)
+{
+	RDL_ST_t state = ST_RDL_READING_P2;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP will send page reading done.
+	// MCU do nothing.
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_writing_err_p2(void)
+{
+	RDL_ST_t state = ST_RDL_START;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP sent page writing error ack.
+	// MCU goto writing p-1 with current page.
+	//    rewind file position to backup position.
+	zlog_notice("%s : Rewinding file position to offset[%u] for page %u p-1.",
+		__func__, EMUL_FP_POS, EMUL_INFO.pno);
+	fseek(EMUL_FP, EMUL_FP_POS, SEEK_SET);
+
+	// MCU set writing p-1.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_P1_WRITING_BIT);
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_page_done(void)
+{
+	RDL_ST_t state;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP sent page reading done.
+	// MCU check all pages done.
+	//    If so, goto writing total done
+	if(EMUL_INFO.pno == EMUL_INFO.total_pno) {
+		// total page done.  MCU send total writing done.
+		gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_TOTAL_WRITING_DONE_BIT);
+		state = ST_RDL_WRITING_TOTAL;
+	} else {
+		// MCU goto next page.
+		EMUL_INFO.pno += 1;
+		gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 0, 0xFFFF, 
+			(RDL_P1_WRITING_BIT << 8) | EMUL_INFO.pno);
+		state = ST_RDL_START;
+#ifdef DEBUG
+		if(!(EMUL_INFO.pno % 20))
+			zlog_notice("%s : rdl page [%u/%u].", 
+				__func__, EMUL_INFO.pno, EMUL_INFO.total_pno);
+#endif
+	}
+
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_reading_err_p2(void)
+{
+	RDL_ST_t state = ST_RDL_START;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP sent page reading error.
+	// MCU goto writing p-1 with current page.
+	//    rewind file position to backup position.
+	zlog_notice("%s : Rewinding file position to offset[%u] for page %u p-1.",
+			__func__, EMUL_FP_POS, EMUL_INFO.pno);
+	fseek(EMUL_FP, EMUL_FP_POS, SEEK_SET);
+
+	// MCU set writing p-1.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, RDL_P1_WRITING_BIT);
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_writing_total(void)
+{
+	RDL_ST_t state = ST_RDL_TERM;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// BP sent total reading done.
+	// MCU finish rdl process.
+	zlog_notice("%s : Finishing rdl process.", __func__);
+	if(EMUL_FP != NULL) {
+		fclose(EMUL_FP);
+		EMUL_FP = NULL;
+	}
+
+#if 1//PWY_FIXME
+	// remove rdl src file.
+	if(syscmd_file_exist(EMUL_FPATH)) {
+		unlink(EMUL_FPATH);
+		system("sync");
+	}
+#endif //PWY_FIXME
+
+	EMUL_RDL_DONE = 1;
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_restart(void)
+{
+	RDL_ST_t state = ST_RDL_TRIGGER;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// reset pno.
+	EMUL_INFO.pno = 1;
+
+	// close file.
+	if(EMUL_FP != NULL) {
+		fclose(EMUL_FP);
+		EMUL_FP = NULL;
+		EMUL_FP_POS = 0;
+	}
+
+	// MCU set rdl start.
+	gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 0, 0xFFFF, 
+		(RDL_START_BIT << 8) | EMUL_INFO.pno);
+
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_ST_t emul_terminate(void)
+{
+	RDL_ST_t state = ST_RDL_TERM;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	if(EMUL_FP != NULL) {
+		fclose(EMUL_FP);
+		EMUL_FP = NULL;
+	}
+	emul_info_list.st = state;
+	return state;
+}
+
+RDL_FSM_t emul_fsm_list[] =
+{
+    {ST_RDL_IDLE,               EVT_RDL_TRIGGER,                emul_trigger},
+
+    {ST_RDL_TRIGGER,            EVT_RDL_START,                  emul_start},
+
+    {ST_RDL_START,              EVT_RDL_WRITING_P1,             emul_writing_p1},
+
+    {ST_RDL_WRITING_P1,         EVT_RDL_WRITING_DONE_P1,        emul_reading_p1},
+    {ST_RDL_WRITING_P1,         EVT_RDL_WRITING_ERROR,          emul_writing_err_p1},
+
+    {ST_RDL_READING_P1,         EVT_RDL_WRITING_P2,             emul_writing_p2},
+
+    {ST_RDL_WRITING_P2,         EVT_RDL_WRITING_DONE_P2,        emul_reading_p2},
+    {ST_RDL_WRITING_P2,         EVT_RDL_WRITING_ERROR,          emul_writing_err_p2},
+
+    {ST_RDL_READING_P2,         EVT_RDL_READING_DONE_P2,        emul_page_done},
+    {ST_RDL_READING_P2,         EVT_RDL_READING_ERROR,          emul_reading_err_p2},
+
+    {ST_RDL_WRITING_TOTAL,      EVT_RDL_WRITING_DONE_TOTAL,     emul_writing_total},
+    {ST_RDL_WRITING_TOTAL,      EVT_RDL_READING_ERROR_TOTAL,    emul_restart},
+    {ST_RDL_WRITING_TOTAL,      EVT_RDL_WRITING_ERROR_TOTAL,    emul_restart},
+
+    {ST_RDL_TERM,               EVT_RDL_NONE,                   emul_terminate},
+};
+
+int EMUL_TRANS_MAX = sizeof(emul_fsm_list) / sizeof(RDL_FSM_t);
+#endif

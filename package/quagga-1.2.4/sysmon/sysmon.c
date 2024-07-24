@@ -66,6 +66,9 @@ uint8_t IMG_ACTIVATION_OK;
 uint8_t IMG_RUNNING_OK;
 uint8_t *RDL_PAGE = NULL;
 RDL_IMG_INFO_t    RDL_INFO;
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+RDL_IMG_INFO_t    EMUL_INFO;
+#endif
 
 fw_header_t       RDL_PKG_HEADER;
 fw_image_header_t RDL_OS_HEADER;
@@ -1534,6 +1537,143 @@ int rdl_fsm_func(struct thread *thread)
 	thread_add_timer_msec (master, rdl_fsm_func, NULL, 100);
 	return 0;
 }
+
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+extern RDL_ST_t emul_trigger(void);
+
+extern RDL_INFO_LIST_t emul_info_list;
+extern RDL_FSM_t emul_fsm_list[];
+extern int EMUL_TRANS_MAX;
+extern int EMUL_TRIGGERED;
+
+RDL_EVT_t emul_get_evt(RDL_ST_t state)
+{
+	RDL_EVT_t evt = EVT_RDL_EVT_MAX;
+	uint16_t hw_val, sts, pno;
+
+	hw_val = DPRAM_READ(RDL_STATE_RESP_ADDR);
+	sts    = (hw_val & 0xFF00) >> 8;
+	pno    = (hw_val & 0xFF);
+//zlog_notice("---> %s : read val[0x%x] sts[0x%x] pno[%u].", __func__, hw_val, sts, pno);//ZZPP
+
+	switch(state)	
+	{
+		case	ST_RDL_IDLE:
+			if(EMUL_TRIGGERED)
+				evt = EVT_RDL_TRIGGER;
+			break;
+
+		case	ST_RDL_TRIGGER:
+			if(sts == RDL_START_ACK_BIT)
+				evt = EVT_RDL_START;
+			break;
+
+		case	ST_RDL_START:
+			if(sts == RDL_P1_WRITING_ACK_BIT)
+				evt = EVT_RDL_WRITING_P1;
+			break;
+
+		case	ST_RDL_WRITING_P1:
+			if(sts == RDL_P1_WRITING_DONE_ACK_BIT)
+				evt = EVT_RDL_WRITING_DONE_P1;
+			else if(sts == RDL_PAGE_WRITING_ERROR_ACK_BIT)
+				evt = EVT_RDL_WRITING_ERROR;
+			break;
+
+		case	ST_RDL_READING_P1:
+			if(sts == RDL_P2_WRITING_ACK_BIT)
+				evt = EVT_RDL_WRITING_P2;
+			break;
+
+		case	ST_RDL_WRITING_P2:
+			if(sts == RDL_P2_WRITING_DONE_ACK_BIT)
+				evt = EVT_RDL_WRITING_DONE_P2;
+			else if(sts == RDL_PAGE_WRITING_ERROR_ACK_BIT)
+				evt = EVT_RDL_WRITING_ERROR;
+			break;
+
+		case	ST_RDL_READING_P2:
+			if(sts == RDL_PAGE_READING_DONE_BIT)
+				evt = EVT_RDL_READING_DONE_P2;
+			else if(sts == RDL_PAGE_READING_ERROR_BIT)
+				evt = EVT_RDL_READING_ERROR;
+			break;
+
+		case	ST_RDL_WRITING_TOTAL:
+			if(sts == RDL_TOTAL_READING_DONE_BIT)
+				evt = EVT_RDL_WRITING_DONE_TOTAL;
+			else if(sts == RDL_TOTAL_READING_ERROR_BIT)
+				evt = EVT_RDL_READING_ERROR_TOTAL;
+			else if(sts == RDL_TOTAL_WRITING_ERROR_ACK_BIT)
+				evt = EVT_RDL_WRITING_ERROR_TOTAL;
+			break;
+
+		case	ST_RDL_TERM:
+			evt = EVT_RDL_NONE;
+			break;
+	}
+	return evt;
+}
+
+RDL_ST_t emul_update_fsm(void)
+{
+	RDL_ST_t st = emul_info_list.st;
+	RDL_EVT_t evt;
+	uint8_t offset;
+	uint8_t n, ret = 0;
+
+	if(st == ST_RDL_TERM)
+		st = ST_RDL_IDLE;
+
+	while (st != ST_RDL_ST_MAX)
+	{
+		evt = emul_get_evt(st);
+		if(evt == EVT_RDL_EVT_MAX)
+			goto next_turn;
+#ifdef DEBUG
+//		zlog_notice("---> %s : new evt[%s].", 
+//			__func__, rdl_get_event_str(evt));//ZZPP
+#endif
+		
+		for(n = 0; n < EMUL_TRANS_MAX; n++)
+		{
+			if((emul_fsm_list[n].state == st) && (emul_fsm_list[n].evt == evt))
+			{
+				st = emul_fsm_list[n].func();
+#ifdef DEBUG
+//				zlog_notice("---> %s : new state[%s].", 
+//					__func__, rdl_get_state_str(st));//ZZPP
+#endif
+				goto next_turn;
+			}
+		}
+
+		if(st == emul_info_list.st)
+			break;
+	}
+next_turn :
+	return st;
+
+}
+
+int rdl_mcu_emul_func(struct thread *thread)
+{
+	char cmd[200];
+
+	//////////////////////////////////////////////////////////
+	// start MCU RDL emulation
+	//////////////////////////////////////////////////////////
+	if(EMUL_TRIGGERED) {
+		emul_trigger();
+		EMUL_TRIGGERED = 0;
+	}
+
+	emul_update_fsm();
+
+	thread_add_timer_msec (master, rdl_mcu_emul_func, NULL, 100);
+	return 0;
+}
+#endif
 #endif
 
 #if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
@@ -1680,6 +1820,9 @@ void sysmon_thread_init (void)
 #endif	
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 	thread_add_timer (master, rdl_fsm_func, NULL, 5);
+#endif
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+	thread_add_timer (master, rdl_mcu_emul_func, NULL, 5);
 #endif
 }
 

@@ -86,6 +86,9 @@ typedef enum {
 
 typedef enum {
 	ST_RDL_IDLE,
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+	ST_RDL_TRIGGER,
+#endif
 	ST_RDL_START,
 	ST_RDL_WRITING_P1,
 	ST_RDL_READING_P1,
@@ -101,6 +104,9 @@ typedef enum {
 
 typedef enum {
 	EVT_RDL_NONE,
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+	EVT_RDL_TRIGGER,
+#endif
 	EVT_RDL_START,
 	EVT_RDL_WRITING_P1,
 	EVT_RDL_WRITING_DONE_P1,
