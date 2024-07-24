@@ -1127,6 +1127,33 @@ extern uint8_t *RDL_PAGE;
 	}
 	return CMD_SUCCESS;
 }
+
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+DEFUN (rdl_emu_test,
+       rdl_emu_test_cmd,
+       "rdl emulation WORD",
+       "RDL\n"
+       "RDL emulation for MCU - BP interworking\n"
+       "RDL Target File (img header + zipped pkg)\n")
+{
+extern char EMUL_FPATH[200];
+extern int EMUL_TRIGGERED;
+
+	// check if target file is present.
+	snprintf(EMUL_FPATH, sizeof(EMUL_FPATH) - 1, "%s%s", 
+		RDL_DFT_PATH, argv[0]);
+	if(! syscmd_file_exist(EMUL_FPATH)) {
+		vty_out(vty, "RDL] No such file : %s\n", EMUL_FPATH);
+		return CMD_ERR_INCOMPLETE;
+	}
+
+	// trigger flag to run emulation.
+	vty_out(vty, "\n[RDL] Start Emulation for %s.\n\n", EMUL_FPATH);
+	EMUL_TRIGGERED = 1;
+
+	return CMD_SUCCESS;
+}
+#endif
 #endif
 
 void
@@ -1162,6 +1189,9 @@ sysmon_vty_init (void)
 #endif
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
   install_element (ENABLE_NODE, &rdl_test_cmd);
+#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
+  install_element (ENABLE_NODE, &rdl_emu_test_cmd);
+#endif
 #endif
 
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
