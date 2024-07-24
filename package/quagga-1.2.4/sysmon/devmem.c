@@ -32,6 +32,24 @@ static uint16_t __CACHE_INIT_COMPLETE = 0x0;
 #endif
 #endif
 
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+static uint16_t __CACHE_RDL_STATE_REQ = 0x0;
+static uint16_t __CACHE_RDL_STATE_RESP = 0x0;
+static uint16_t __CACHE_RDL_PAGE_CRC = 0x0;
+static uint16_t __CACHE_RDL_TARGET_BANK = 0x0;
+static uint16_t __CACHE_RDL_MAGIC_NO_1 = 0x0;
+static uint16_t __CACHE_RDL_MAGIC_NO_2 = 0x0;
+static uint16_t __CACHE_RDL_TOTAL_CRC_1 = 0x0;
+static uint16_t __CACHE_RDL_TOTAL_CRC_2 = 0x0;
+static uint16_t __CACHE_RDL_BUILD_TIME_1 = 0x0;
+static uint16_t __CACHE_RDL_BUILD_TIME_2 = 0x0;
+static uint16_t __CACHE_RDL_TOTAL_SIZE_1 = 0x0;
+static uint16_t __CACHE_RDL_TOTAL_SIZE_2 = 0x0;
+static uint16_t __CACHE_RDL_VER_STR[8] = { 0x0, };
+static uint16_t __CACHE_RDL_FILE_NAME[16] = { 0x0, };
+uint8_t __CACHE_RDL_PAGE[RDL_PAGE_ADDR_SIZE] = { 0x0, };
+#endif
+
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
 uint16_t fpga_sim_val = 0x100;
 #endif
@@ -210,9 +228,64 @@ uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval) {
 #endif
 }
 
-uint16_t sys_dpram_memory_read(uint16_t addr) {
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+uint16_t sys_dpram_memory_read(uint32_t addr)
+#else
+uint16_t sys_dpram_memory_read(uint16_t addr)
+#endif
+{
 
 #ifdef ACCESS_SIM
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	/* match registers */
+	switch(addr) {
+		case RDL_STATE_REQ_ADDR:
+			return __CACHE_RDL_STATE_REQ;
+		case RDL_STATE_RESP_ADDR:
+			return __CACHE_RDL_STATE_RESP;
+		case RDL_PAGE_CRC_ADDR:
+			return __CACHE_RDL_PAGE_CRC;
+		case RDL_TARGET_BANK_ADDR:
+			return __CACHE_RDL_TARGET_BANK;
+		case RDL_MAGIC_NO_1_ADDR:
+			return __CACHE_RDL_MAGIC_NO_1;
+		case RDL_MAGIC_NO_2_ADDR:
+			return __CACHE_RDL_MAGIC_NO_2;
+		case RDL_TOTAL_CRC_1_ADDR:
+			return __CACHE_RDL_TOTAL_CRC_1;
+		case RDL_TOTAL_CRC_2_ADDR:
+			return __CACHE_RDL_TOTAL_CRC_2;
+		case RDL_BUILD_TIME_1_ADDR:
+			return __CACHE_RDL_BUILD_TIME_1;
+		case RDL_BUILD_TIME_2_ADDR:
+			return __CACHE_RDL_BUILD_TIME_2;
+		case RDL_TOTAL_SIZE_1_ADDR:
+			return __CACHE_RDL_TOTAL_SIZE_1;
+		case RDL_TOTAL_SIZE_2_ADDR:
+			return __CACHE_RDL_TOTAL_SIZE_2;
+		default: /* pass-through */
+			break;
+	}
+
+	if((RDL_VER_STR_START_ADDR <= addr) && 
+	   (addr <= RDL_VER_STR_END_ADDR)) {
+		uint16_t offset;
+		offset = (addr - RDL_VER_STR_START_ADDR) / 2;
+		return __CACHE_RDL_VER_STR[offset];
+	} else if((RDL_FILE_NAME_START_ADDR <= addr) && 
+		      (addr <= RDL_FILE_NAME_END_ADDR)) {
+		uint16_t offset;
+		offset = (addr - RDL_FILE_NAME_START_ADDR) / 2;
+		return __CACHE_RDL_FILE_NAME[offset];
+	} else if((RDL_PAGE_1_START_ADDR <= addr) && 
+		      (addr <= RDL_PAGE_2_END_ADDR)) {
+		uint32_t offset;
+		uint16_t data;
+		offset = (addr - RDL_PAGE_1_START_ADDR);
+		data = __CACHE_RDL_PAGE[offset] | (__CACHE_RDL_PAGE[offset + 1] << 8);
+		return data;
+	}
+#endif
 	return 0xaa;
 #else
         dprammemory_t dprammemory;
@@ -226,10 +299,69 @@ uint16_t sys_dpram_memory_read(uint16_t addr) {
 #endif
 }
 
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+uint16_t sys_dpram_memory_write(uint32_t addr, uint16_t writeval)
+#else
 uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t writeval)
+#endif
 {
 #ifdef ACCESS_SIM
+#ifdef DEBUG
 	zlog_debug("[dpram] reg=%x, writeval=%x", addr, writeval);
+#endif
+
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	/* match registers */
+	switch(addr) {
+		case RDL_STATE_REQ_ADDR:
+			return (__CACHE_RDL_STATE_REQ = writeval);
+		case RDL_STATE_RESP_ADDR:
+			return (__CACHE_RDL_STATE_RESP = writeval);
+		case RDL_PAGE_CRC_ADDR:
+			return (__CACHE_RDL_PAGE_CRC = writeval);
+		case RDL_TARGET_BANK_ADDR:
+			return (__CACHE_RDL_TARGET_BANK = writeval);
+		case RDL_MAGIC_NO_1_ADDR:
+			return (__CACHE_RDL_MAGIC_NO_1 = writeval);
+		case RDL_MAGIC_NO_2_ADDR:
+			return (__CACHE_RDL_MAGIC_NO_2 = writeval);
+		case RDL_TOTAL_CRC_1_ADDR:
+			return (__CACHE_RDL_TOTAL_CRC_1 = writeval);
+		case RDL_TOTAL_CRC_2_ADDR:
+			return (__CACHE_RDL_TOTAL_CRC_2 = writeval);
+		case RDL_BUILD_TIME_1_ADDR:
+			return (__CACHE_RDL_BUILD_TIME_1 = writeval);
+		case RDL_BUILD_TIME_2_ADDR:
+			return (__CACHE_RDL_BUILD_TIME_2 = writeval);
+		case RDL_TOTAL_SIZE_1_ADDR:
+			return (__CACHE_RDL_TOTAL_SIZE_1 = writeval);
+		case RDL_TOTAL_SIZE_2_ADDR:
+			return (__CACHE_RDL_TOTAL_SIZE_2 = writeval);
+		default: /* pass-through */
+			break;
+	}
+
+	if((RDL_VER_STR_START_ADDR <= addr) && 
+	   (addr <= RDL_VER_STR_END_ADDR)) {
+		uint16_t offset;
+		offset = (addr - RDL_VER_STR_START_ADDR) / 2;
+		return (__CACHE_RDL_VER_STR[offset] = writeval);
+	} else if((RDL_FILE_NAME_START_ADDR <= addr) && 
+	          (addr <= RDL_FILE_NAME_END_ADDR)) {
+		uint16_t offset;
+		offset = (addr - RDL_FILE_NAME_START_ADDR) / 2;
+		return (__CACHE_RDL_FILE_NAME[offset] = writeval);
+	} else if((RDL_PAGE_1_START_ADDR <= addr) && 
+		      (addr <= RDL_PAGE_2_END_ADDR)) {
+		uint32_t offset;
+		uint16_t data;
+		offset = (addr - RDL_PAGE_1_START_ADDR);
+		__CACHE_RDL_PAGE[offset]     = writeval & 0xFF;
+		__CACHE_RDL_PAGE[offset + 1] = (writeval >> 8) & 0xFF;
+		data = (__CACHE_RDL_PAGE[offset] | (__CACHE_RDL_PAGE[offset + 1] << 8));
+		return (data);
+	}
+#endif
 	return writeval;
 #else
         dprammemory_t dprammemory;

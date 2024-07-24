@@ -1268,7 +1268,8 @@ uint8_t gCpssPortSetRate(int args, ...)
 
 #if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 	/* get current speed */
-	get_port_speed(msg->portid, &eag6LSpeedStatus[msg->portid]);
+	if(msg->portid != (PORT_ID_EAG6L_MAX - 1))
+		get_port_speed(msg->portid, &eag6LSpeedStatus[msg->portid]);
 #endif
 _gCpssPortSetRate_exit:
 	msg->result = ret;

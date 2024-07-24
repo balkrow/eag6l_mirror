@@ -17,6 +17,19 @@
 #endif
 #include "sys_fifo.h"
 
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+#include "rdl_fsm.h"
+
+extern RDL_IMG_INFO_t RDL_INFO;
+extern fw_image_header_t RDL_OS_HEADER;
+extern fw_image_header_t RDL_OS2_HEADER;
+extern fw_image_header_t RDL_FW_HEADER;
+
+extern int rdl_decompress_package_file(char *filename);
+extern int rdl_install_package(int bno);
+extern int rdl_activate_bp(int bno);
+#endif
+
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 extern GLOBAL_DB gDB;
 
@@ -30,7 +43,6 @@ uint8_t * gSvcFsmStateStr[SVC_ST_MAX] = {
 	"SDK Init",
 	"Get Inventory information",
 	"INIT Done",
-	"----"
 };
 
 uint8_t * gSvcFsmEvtStr[SVC_EVT_MAX] = {
@@ -55,7 +67,6 @@ uint8_t * gSvcFsmEvtStr[SVC_EVT_MAX] = {
 	"Port Link Down",
 	"INIT Done",
 	"AppDemo Shutdown",
-	"----"
 };
 #endif
 
@@ -92,7 +103,7 @@ DEFUN (llcf_conf,
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
-extern synce_if_pri_select(int8_t port, int8_t pri);
+extern int synce_if_pri_select(int8_t port, int8_t pri);
 DEFUN (synce_if_conf,
        synce_if_conf_cmd,
        "sync-e (primary|secondary) IFNAME",
@@ -630,7 +641,16 @@ DEFUN (synce_enable,
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
 DEFUN (get_register,
        get_register_cmd,
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+       "get-register ( synce-gconfig | synce-if-select | pm-clear | " \
+           "chip-reset | bd-sfp-cr | fw-bank-select | keep-alive2 | " \
+           "init-complete | " \
+           "rdl-req | rdl-resp | rdl-page-crc | rdl-target-bank | rdl-magic | " \
+           "rdl-total-crci | rdl-build-time | rdl-total-size | rdl-version | rdl-filename " \
+           ")",
+#else
        "get-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select | keep-alive2 | init-complete )",
+#endif
        "get register\n"
        "Synce Global enable\n"
        "Synce IF select\n"
@@ -639,9 +659,26 @@ DEFUN (get_register,
        "BD SFP CR\n"
        "FPGA Bank Select\n"
        "Keep-alive-2\n"
-       "INIT Complete\n")
+       "INIT Complete\n"
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+       "RDL State Request\n"
+       "RDL State Response\n"
+       "RDL page crc\n"
+       "RDL target bank\n"
+       "RDL magic\n"
+       "RDL total crc\n"
+       "RDL build-time\n"
+       "RDL total size\n"
+       "RDL version\n"
+       "RDL file-name\n"
+#endif
+       )
 {
 	uint16_t addr, val;
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	uint32_t addr2;
+	uint8_t dpram_flag = 0;
+#endif
 
 	if(! strncmp(argv[0], "synce-if-select", strlen("synce-if-select")))
 		addr = SYNCE_IF_SELECT_ADDR;
@@ -654,19 +691,96 @@ DEFUN (get_register,
 	else if(! strncmp(argv[0], "bd-sfp-cr", strlen("bd-sfp-cr")))
 		addr = BD_SFP_CR_ADDR;
 	else if(! strncmp(argv[0], "fw-bank-select", strlen("fw-bank-select")))
-		addr = FW_BANK_SELECT_ADDR;
+		addr2 = FW_BANK_SELECT_ADDR;
 	else if(! strncmp(argv[0], "keep-alive2", strlen("keep-alive2")))
 		addr = HW_KEEP_ALIVE_2_ADDR;
 	else if(! strncmp(argv[0], "init-complete", strlen("init-complete")))
 		addr = INIT_COMPLETE_ADDR;
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	else if(! strncmp(argv[0], "rdl-req", strlen("rdl-req"))) {
+		addr2 = RDL_STATE_REQ_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-resp", strlen("rdl-resp"))) {
+		addr2 = RDL_STATE_RESP_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-page-crc", strlen("rdl-page-crc"))) {
+		addr2 = RDL_PAGE_CRC_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-target-bank", strlen("rdl-target-bank"))) {
+		addr2 = RDL_TARGET_BANK_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-magic", strlen("rdl-magic"))) {
+		uint16_t val2;
+		addr2 = RDL_MAGIC_NO_1_ADDR;
+		val = DPRAM_READ(addr2); val2 = DPRAM_READ(addr2 + 2);
+		vty_out(vty, "Read addr[%08x] = 0x%x%s\nRead addr[%08x] = 0x%x%s\n", 
+			addr2, val, addr2 + 2, val2, VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+	else if(! strncmp(argv[0], "rdl-total-crc", strlen("rdl-total-crc"))) {
+		uint16_t val2;
+		addr2 = RDL_TOTAL_CRC_1_ADDR;
+		val = DPRAM_READ(addr2); val2 = DPRAM_READ(addr2 + 2);
+		vty_out(vty, "Read addr[%08x] = 0x%x%s\nRead addr[%08x] = 0x%x%s\n", 
+			addr2, val, addr2 + 2, val2, VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+	else if(! strncmp(argv[0], "rdl-build-time", strlen("rdl-build-time"))) {
+		uint16_t val2;
+		addr2 = RDL_BUILD_TIME_1_ADDR;
+		val = DPRAM_READ(addr2); val2 = DPRAM_READ(addr2 + 2);
+		vty_out(vty, "Read addr[%08x] = 0x%x%s\nRead addr[%08x] = 0x%x%s\n", 
+			addr2, val, addr2 + 2, val2, VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+	else if(! strncmp(argv[0], "rdl-total-size", strlen("rdl-total-size"))) {
+		uint16_t val2;
+		addr2 = RDL_TOTAL_SIZE_1_ADDR;
+		val = DPRAM_READ(addr2); val2 = DPRAM_READ(addr2 + 2);
+		vty_out(vty, "Read addr[%08x] = 0x%x%s\nRead addr[%08x] = 0x%x%s\n", 
+			addr2, val, addr2 + 2, val2, VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+	else if(! strncmp(argv[0], "rdl-version", strlen("rdl-version"))) {
+		uint16_t ii = 0;
+		uint8_t buf[50];
+		memset(buf, 0, sizeof buf);
+		for(addr2 = RDL_VER_STR_START_ADDR; addr2 < RDL_VER_STR_END_ADDR; addr2 += 2)
+			buf[ii++] = DPRAM_READ(addr2);
+		vty_out(vty, "Read = [%s]%s\n", buf, VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+	else if(! strncmp(argv[0], "rdl-file-name", strlen("rdl-file-name"))) {
+		uint16_t ii = 0;
+		uint8_t buf[50];
+		memset(buf, 0, sizeof buf);
+		for(addr2 = RDL_FILE_NAME_START_ADDR; addr2 < RDL_FILE_NAME_END_ADDR; addr2 += 2)
+			buf[ii++] = DPRAM_READ(addr2);
+		vty_out(vty, "Read = [%s]%s\n", buf, VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+#endif
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
 		return CMD_ERR_NO_MATCH;
 	}
 
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	if(dpram_flag)
+		val = DPRAM_READ(addr2);
+	else
+		val = FPGA_READ(addr);
+
+	vty_out(vty, "Read addr[%08x] = 0x%x%s", addr2, val, VTY_NEWLINE);
+#else
 	val = FPGA_READ(addr);
 
 	vty_out(vty, "Read addr[%08x] = 0x%x%s", addr, val, VTY_NEWLINE);
+#endif
 	return CMD_SUCCESS;
 }
 
@@ -710,7 +824,16 @@ DEFUN (get_register2,
 
 DEFUN (set_register,
        set_register_cmd,
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+       "set-register ( synce-gconfig | synce-if-select | pm-clear | " \
+           "chip-reset | bd-sfp-cr | fw-bank-select | keep-alive2 | " \
+           "init-complete | " \
+           "rdl-req | rdl-resp | rdl-page-crc | rdl-target-bank | rdl-magic | " \
+           "rdl-total-crci | rdl-build-time | rdl-total-size | rdl-version | rdl-filename " \
+           ") WORD",
+#else
        "set-register ( synce-gconfig | synce-if-select | pm-clear | chip-reset | bd-sfp-cr | fw-bank-select | keep-alive2 | init-complete ) <0-65535>",
+#endif
        "Set register\n"
        "Synce Global enable\n"
        "Synce IF select\n"
@@ -720,10 +843,27 @@ DEFUN (set_register,
        "FPGA Bank Select\n"
        "Keep-alive-2\n"
        "INIT Complete\n"
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+       "RDL State Request\n"
+       "RDL State Response\n"
+       "RDL page crc\n"
+       "RDL target bank\n"
+       "RDL magic\n"
+       "RDL total crc\n"
+       "RDL build-time\n"
+       "RDL total size\n"
+       "RDL version\n"
+       "RDL file-name\n"
+#endif
        "Vlaue to write <0x0000 - 0xFFFF>\n")
 {
 	uint16_t addr;
 	uint32_t val;
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	uint32_t addr2;
+	uint8_t dpram_flag = 0;
+	uint8_t buf[50];
+#endif
 
 	if(! strncmp(argv[0], "synce-if-select", strlen("synce-if-select")))
 		addr = SYNCE_IF_SELECT_ADDR;
@@ -736,27 +876,127 @@ DEFUN (set_register,
 	else if(! strncmp(argv[0], "bd-sfp-cr", strlen("bd-sfp-cr")))
 		addr = BD_SFP_CR_ADDR;
 	else if(! strncmp(argv[0], "fw-bank-select", strlen("fw-bank-select")))
-		addr = FW_BANK_SELECT_ADDR;
+		addr2 = FW_BANK_SELECT_ADDR;
 	else if(! strncmp(argv[0], "keep-alive2", strlen("keep-alive2")))
 		addr = HW_KEEP_ALIVE_2_ADDR;
 	else if(! strncmp(argv[0], "init-complete", strlen("init-complete")))
 		addr = INIT_COMPLETE_ADDR;
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	else if(! strncmp(argv[0], "rdl-req", strlen("rdl-req"))) {
+		addr2 = RDL_STATE_REQ_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-resp", strlen("rdl-resp"))) {
+		addr2 = RDL_STATE_RESP_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-page-crc", strlen("rdl-page-crc"))) {
+		addr2 = RDL_PAGE_CRC_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-target-bank", strlen("rdl-target-bank"))) {
+		addr2 = RDL_TARGET_BANK_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-magic", strlen("rdl-magic"))) {
+		addr2 = RDL_MAGIC_NO_1_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-total-crc", strlen("rdl-total-crc"))) {
+		addr2 = RDL_TOTAL_CRC_1_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-build-time", strlen("rdl-build-time"))) {
+		addr2 = RDL_BUILD_TIME_1_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-total-size", strlen("rdl-total-size"))) {
+		addr2 = RDL_TOTAL_SIZE_1_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-version", strlen("rdl-version"))) {
+		addr2 = RDL_VER_STR_START_ADDR;
+		dpram_flag = 1;
+	}
+	else if(! strncmp(argv[0], "rdl-file-name", strlen("rdl-file-name"))) {
+		addr2 = RDL_FILE_NAME_START_ADDR;
+		dpram_flag = 1;
+	}
+#endif
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
 		return CMD_ERR_NO_MATCH;
 	}
 
-	if(sscanf(argv[1], "%u", &val) != 1) {
-		vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
-		return CMD_ERR_AMBIGUOUS;
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%u", &val) != 1) {
+			if(sscanf(argv[1], "%s", buf) != 1) {
+				vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+				return CMD_ERR_AMBIGUOUS;
+			}
+		}
 	}
+
+	if(dpram_flag) {
+		if(! strncmp(argv[0], "rdl-magic", strlen("rdl-magic"))) {
+			DPRAM_WRITE(addr2, (val & 0xFFFF)); 
+			DPRAM_WRITE(addr2 + 2, (val >> 16) & 0xFFFF);
+			return CMD_SUCCESS;
+		}
+		else if(! strncmp(argv[0], "rdl-total-crc", strlen("rdl-total-crc"))) {
+			DPRAM_WRITE(addr2, (val & 0xFFFF)); 
+			DPRAM_WRITE(addr2 + 2, (val >> 16) & 0xFFFF);
+			return CMD_SUCCESS;
+		}
+		else if(! strncmp(argv[0], "rdl-build-time", strlen("rdl-build-time"))) {
+			DPRAM_WRITE(addr2, (val & 0xFFFF)); 
+			DPRAM_WRITE(addr2 + 2, (val >> 16) & 0xFFFF);
+			return CMD_SUCCESS;
+		}
+		else if(! strncmp(argv[0], "rdl-total-size", strlen("rdl-total-size"))) {
+			DPRAM_WRITE(addr2, (val & 0xFFFF)); 
+			DPRAM_WRITE(addr2 + 2, (val >> 16) & 0xFFFF);
+			return CMD_SUCCESS;
+		}
+		else if(! strncmp(argv[0], "rdl-version", strlen("rdl-version"))) {
+			uint16_t ii = 0;
+			for(addr2 = RDL_VER_STR_START_ADDR; addr2 < RDL_VER_STR_END_ADDR; addr2 += 2) {
+				val = buf[ii] | (buf[ii + 1] << 8);
+				ii += 2;
+				DPRAM_WRITE(addr2, val);
+			}
+			return CMD_SUCCESS;
+		}
+		else if(! strncmp(argv[0], "rdl-file-name", strlen("rdl-file-name"))) {
+			uint16_t ii = 0;
+			for(addr2 = RDL_FILE_NAME_START_ADDR; addr2 < RDL_FILE_NAME_END_ADDR; addr2 += 2) {
+				val = buf[ii] | (buf[ii + 1] << 8);
+				ii += 2;
+				DPRAM_WRITE(addr2, val);
+			}
+			return CMD_SUCCESS;
+		} else
+			DPRAM_WRITE(addr2, (uint16_t)val);
+	}
+	else
+		FPGA_WRITE(addr, (uint16_t)val);
+#else
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%u", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
 	FPGA_WRITE(addr, (uint16_t)val);
+#endif
 	return CMD_SUCCESS;
 }
 
 DEFUN (set_register2,
        set_register2_cmd,
-       "set-register ( common-control2 | port-config | alarm-mask | set-channel-no | get-channel-no ) <1-9> <0-65535>",
+       "set-register ( common-control2 | port-config | alarm-mask | set-channel-no | get-channel-no ) <1-9> WORD",
        "Set register\n"
        "Port Common Control2\n"
        "Port Config\n"
@@ -787,12 +1027,94 @@ DEFUN (set_register2,
 		return CMD_ERR_NO_MATCH;
 	}
 
-	if(sscanf(argv[2], "%u", &val) != 1) {
-		vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
-		return CMD_ERR_AMBIGUOUS;
+	if(sscanf(argv[2], "0x%x", &val) != 1) {
+		if(sscanf(argv[2], "%u", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
 	}
 
 	FPGA_PORT_WRITE(addr, (uint16_t)val);
+	return CMD_SUCCESS;
+}
+#endif
+
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+DEFUN (rdl_test,
+       rdl_test_cmd,
+       "rdl (start | decompress | install-1 | install-2 | activate-1 | activate-2 | fpga-1 | fpga-2)",
+       "RDL\n"
+       "RDL start\n"
+       "RDL decompress\n"
+       "RDL install to bank 1\n"
+       "RDL install to bank 2\n"
+       "RDL activate-1\n"
+       "RDL activate-2\n"
+       "RDL FPGA 1\n"
+       "RDL FPGA 2\n")
+{
+extern uint8_t *RDL_PAGE;
+	char cmd[200];
+	int mflag = 0;
+
+	// create directories.
+	snprintf(cmd, sizeof(cmd) - 1, "mkdir %s; mkdir %s; mkdir %s; mkdir %s",
+		RDL_IMG_PATH, RDL_B1_PATH, RDL_B2_PATH, RDL_BOOT_PATH);
+	system(cmd);
+
+	memset(&RDL_OS_HEADER, 0, sizeof RDL_OS_HEADER);
+	memset(&RDL_OS2_HEADER, 0, sizeof RDL_OS_HEADER);
+	memset(&RDL_FW_HEADER, 0, sizeof RDL_OS_HEADER);
+	strcpy(RDL_OS_HEADER.fih_name, "eag6l-os-v1.0.0.bin");
+	strcpy(RDL_OS2_HEADER.fih_name, "eag6l-fpga-os-v1.0.0.bin");
+	strcpy(RDL_FW_HEADER.fih_name, "eag6l-fpga-fw-v1.0.0.bin");
+
+	if(RDL_PAGE == NULL) {
+		RDL_PAGE = malloc(RDL_PAGE_SIZE);
+		if(RDL_PAGE == NULL) {
+			vty_out(vty, "Cannot alloc RDL_PAGE\n");
+			return CMD_ERR_NO_MATCH;
+		}
+		mflag = 1;
+	}
+
+	if(! strncmp(argv[0], "start", strlen("start"))) {
+		// init rdl registers.
+		// rdl start and emulate states.
+	} else if(! strncmp(argv[0], "decompress", strlen("decompress"))) {
+		// init RDL_INFO.
+		memset(&RDL_INFO, 0, sizeof(RDL_INFO));
+		RDL_INFO.bno           = RDL_BANK_1;
+		RDL_INFO.hd.magic      = htonl(RDL_IMG_MAGIC);
+		RDL_INFO.hd.total_size = 55427984;
+		RDL_INFO.hd.total_crc  = 0xAADD;
+		strcpy(RDL_INFO.hd.ver_str, "1.0.0");
+		strcpy(RDL_INFO.hd.file_name, "EAG6L-PKG-0100.PKG");
+
+		// call decompress. pkg file fixed as EAG6L-PKG-0100.PKG
+		if(rdl_decompress_package_file(RDL_INFO.hd.file_name) < 0) {
+        	//FIXME : success or failed, pkg file will be removed anyway.
+        	vty_out(vty, "[RDL] Decompressing pkg file %s has failed. Go to IDLE.",
+        		RDL_INFO.hd.file_name);
+        	return CMD_SUCCESS;
+        }
+
+       	vty_out(vty, "[RDL] Decompressing pkg file %s has DONE.",
+       		RDL_INFO.hd.file_name);
+	} else if(! strncmp(argv[0], "install-1", strlen("install-1"))) {
+		rdl_install_package(RDL_BANK_1);
+	} else if(! strncmp(argv[0], "install-2", strlen("install-2"))) {
+		rdl_install_package(RDL_BANK_2);
+	} else if(! strncmp(argv[0], "activate-1", strlen("activate-1"))) {
+		rdl_activate_bp(RDL_BANK_1);
+	} else if(! strncmp(argv[0], "activate-2", strlen("activate-2"))) {
+		rdl_activate_bp(RDL_BANK_2);
+	}
+
+	if(mflag) {
+		free(RDL_PAGE);
+		RDL_PAGE = NULL;
+	}
 	return CMD_SUCCESS;
 }
 #endif
@@ -827,6 +1149,9 @@ sysmon_vty_init (void)
   install_element (VIEW_NODE, &get_register2_cmd);
   install_element (ENABLE_NODE, &set_register_cmd);
   install_element (ENABLE_NODE, &set_register2_cmd);
+#endif
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+  install_element (ENABLE_NODE, &rdl_test_cmd);
 #endif
 
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */

@@ -64,8 +64,12 @@ typedef struct reg_mon_str
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 /* Start DPRAM registers*/
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+#define DPRAM_RDL_STATE RDL_STATE_RESP_ADDR
+#else
 #define DPRAM_IMG_HDR 0x0
 #define DPRAM_RDL_STATE 0x2
+#endif
 /* End DPRAM registers*/
 #endif
 
@@ -99,7 +103,6 @@ typedef struct reg_mon_str
 #define COMMON_CTRL2_P4_ADDR		0x26	// r/w for mcu, r/o for bp 
 #define COMMON_CTRL2_P5_ADDR		0x28	// r/w for mcu, r/o for bp 
 #define COMMON_CTRL2_P6_ADDR		0x2A	// r/w for mcu, r/o for bp 
-#define COMMON_CTRL2_P7_ADDR		0x2C	// r/w for mcu, r/o for bp 
 
 
 /****************************
@@ -1214,6 +1217,77 @@ typedef struct reg_mon_str
 #define PORT_ALM_MASK_RF			0x0008
 #define PORT_ALM_MASK_TX_BIAS		0x0100
 #define PORT_ALM_MASK_FT_RESET		0x8000
+
+
+#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+/*
+ * RDL DPRAM DATA (RDL PAGE)
+ */
+
+#define RDL_DPRAM_BASE              0x600000
+#define RDL_PAGE_ADDR_SIZE          0x40000
+#define RDL_PAGE_SIZE               (RDL_PAGE_ADDR_SIZE)
+#define RDL_PAGE_SEGMENT_SIZE       (RDL_PAGE_ADDR_SIZE / 2)
+#define RDL_PAGE_1_START_ADDR       0x600000
+#define RDL_PAGE_1_END_ADDR         0x61FFFF
+#define RDL_PAGE_2_START_ADDR       0x620000
+#define RDL_PAGE_2_END_ADDR         0x63FFFF
+
+
+/*
+ * RDL DPRAM (CONTROL/STATUS)
+ */
+
+#define RDL_STATE_REQ_ADDR          0x500000	/* refer to DPRAM_BASE */
+#define RDL_STATE_RESP_ADDR         0x500002
+#define RDL_PAGE_CRC_ADDR           0x500010
+#define RDL_WRITE_STATE_ADDR        0x500012
+#define RDL_TARGET_BANK_ADDR        0x500014	/* 1: bank1, 2: bank2, 0/3:none */
+#define RDL_MAGIC_NO_1_ADDR         0x500100
+#define RDL_MAGIC_NO_2_ADDR         0x500102
+#define RDL_TOTAL_CRC_1_ADDR        0x500104
+#define RDL_TOTAL_CRC_2_ADDR        0x500106
+#define RDL_BUILD_TIME_1_ADDR       0x500108
+#define RDL_BUILD_TIME_2_ADDR       0x50010A
+#define RDL_TOTAL_SIZE_1_ADDR       0x50010C
+#define RDL_TOTAL_SIZE_2_ADDR       0x50010E
+#define RDL_VER_STR_START_ADDR      0x500110
+#define RDL_VER_STR_END_ADDR        0x50011F
+#define RDL_FILE_NAME_START_ADDR    0x500120
+#define RDL_FILE_NAME_END_ADDR      0x50013F
+
+
+/*
+ * Bank 1/2 Header
+ */
+
+#define BANK1_MAGIC_NO_1_ADDR       0x501100
+#define BANK1_MAGIC_NO_2_ADDR       0x501102
+#define BANK1_TOTAL_CRC_1_ADDR      0x501104
+#define BANK1_TOTAL_CRC_2_ADDR      0x501106
+#define BANK1_BUILD_TIME_1_ADDR     0x501108
+#define BANK1_BUILD_TIME_2_ADDR     0x50110A
+#define BANK1_TOTAL_SIZE_1_ADDR     0x50110C
+#define BANK1_TOTAL_SIZE_2_ADDR     0x50110E
+#define BANK1_VER_STR_START_ADDR    0x501110
+#define BANK1_VER_STR_END_ADDR      0x50111F
+#define BANK1_FILE_NAME_START_ADDR  0x501120
+#define BANK1_FILE_NAME_END_ADDR    0x50113F
+
+
+#define BANK2_MAGIC_NO_1_ADDR       0x502100
+#define BANK2_MAGIC_NO_2_ADDR       0x502102
+#define BANK2_TOTAL_CRC_1_ADDR      0x502104
+#define BANK2_TOTAL_CRC_2_ADDR      0x502106
+#define BANK2_BUILD_TIME_1_ADDR     0x502108
+#define BANK2_BUILD_TIME_2_ADDR     0x50210A
+#define BANK2_TOTAL_SIZE_1_ADDR     0x50210C
+#define BANK2_TOTAL_SIZE_2_ADDR     0x50210E
+#define BANK2_VER_STR_START_ADDR    0x502110
+#define BANK2_VER_STR_END_ADDR      0x50211F
+#define BANK2_FILE_NAME_START_ADDR  0x502120
+#define BANK2_FILE_NAME_END_ADDR    0x50213F
+#endif/*[#70]*/
 
 
 #define PWM_NOT_USED        (-99.9f)

@@ -22,6 +22,7 @@
 #include <string.h>
 #include "thread.h"
 
+#include "log.h"
 #include "sysmon.h"
 #include "sys_fifo.h"
 
@@ -42,6 +43,8 @@ extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 extern GLOBAL_DB gDB;
 #endif
+
+int send_to_sysmon_slave(sysmon_fifo_msg_t * msg);
 
 
 /*define send callback function */
@@ -354,36 +357,6 @@ uint8_t gCpssPortPMClear(int args, ...)
 }
 #endif
 #endif
-#endif
-
-#if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
-static int sysmon_master_hello_test(struct thread *thread)
-{
-    int len = 0;
-    sysmon_fifo_msg_t msg;
-
-    thread_add_timer (master, sysmon_master_hello_test, NULL, 10);
-
-#if 0//PWY_FIXME
-	memset(&msg, 0, sizeof msg);
-	msg.type = sysmon_cmd_fifo_hello_test;
-	strcpy(msg.noti_msg, "Hello~ THIS IS TEST");
-
-	send_to_sysmon_slave(&msg);
-#else/////////////////////////////////////////////
-int synce_config_set_admin(int enable);
-int synce_config_set_if_select(int pri_port, int sec_port);
-
-#if 0//PWY_FIXME
-	synce_config_set_admin(1);
-	synce_config_set_if_select(1, 2);
-	port_config_speed(1, PORT_IF_10G_KR, PORT_IF_10G_KR);
-#endif //PWY_FIXME
-	pm_request_counters();
-	port_status_alarm();
-#endif //PWY_FIXME
-    return 0;
-}
 #endif
 
 cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
@@ -723,11 +696,27 @@ uint8_t gReplyPortSetRate(int args, ...)
 	if(msg->result != FIFO_CMD_SUCCESS) {
 #if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
 		zlog_notice("Setting port speed/mode failed. ret[%d].", msg->result);
+		return ret;
 #endif
 	}
 
 	PORT_STATUS[msg->portid].speed  = msg->speed;
 	PORT_STATUS[msg->portid].ifmode = msg->mode;
+
+#if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+	if(msg->result == FIFO_CMD_SUCCESS)
+	{
+		uint16_t idx;
+		idx = getIdxFromRegMonList(SYNCE_GCONFIG_ADDR);
+		if(idx != 0xff && regMonList[idx].rb_thread)
+		{
+			thread_cancel(regMonList[idx].rb_thread);
+			regMonList[idx].rb_thread = NULL;
+		}
+	}
+
+	zlog_notice("%s  result=%x", __func__, msg->result);
+#endif
 
 	return ret;
 }
