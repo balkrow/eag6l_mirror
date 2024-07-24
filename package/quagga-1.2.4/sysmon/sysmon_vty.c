@@ -28,6 +28,9 @@ extern fw_image_header_t RDL_FW_HEADER;
 extern int rdl_decompress_package_file(char *filename);
 extern int rdl_install_package(int bno);
 extern int rdl_activate_bp(int bno);
+#if 1/* [#76] Adding for processing FPGA F/W, dustin, 2024-07-15 */
+extern int rdl_activate_fpga(uint8_t bno);
+#endif
 #endif
 
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
@@ -1110,6 +1113,13 @@ extern uint8_t *RDL_PAGE;
 	} else if(! strncmp(argv[0], "activate-2", strlen("activate-2"))) {
 		rdl_activate_bp(RDL_BANK_2);
 	}
+#if 1/* [#76] Adding for processing FPGA F/W, dustin, 2024-07-15 */
+	else if(! strncmp(argv[0], "fpga-1", strlen("fpga-1"))) {
+		rdl_activate_fpga(RDL_BANK_1);
+	} else if(! strncmp(argv[0], "fpga-2", strlen("fpga-2"))) {
+		rdl_activate_fpga(RDL_BANK_2);
+	}
+#endif
 
 	if(mflag) {
 		free(RDL_PAGE);

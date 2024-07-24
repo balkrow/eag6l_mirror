@@ -1236,7 +1236,116 @@ int rdl_install_package(int bno)
 
 int rdl_activate_fpga(uint8_t bno)
 {
+#if 1/* [#76] Adding for processing FPGA F/W, dustin, 2024-07-15 */
+    fw_header_t bh;
+	FILE *fp = NULL;
+	FILE *os_fp = NULL;
+	FILE *fw_fp = NULL;
+	uint32_t len, wcnt;
+	int ret = -1;
+    char tbuf[100];
+
+    // read pkg header info.
+    get_pkg_fwheader_info((bno == RDL_BANK_1) ?
+    	RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &bh);
+    
+    snprintf(tbuf, sizeof(tbuf) - 1, "%s%s",
+		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH, bh.ih_image2_str);
+
+	if(strlen(bh.ih_image2_str) && syscmd_file_exist(tbuf)) {
+		// FIXME : check fpga os version and new version ? how ??
+
+		// open src file.
+		fp = fopen(tbuf, "r");
+		if(fp == NULL) {
+			zlog_err("%s : Cannot open fpag os file %s. reason[%s].", 
+				__func__, tbuf, strerror(errno));
+			goto __failed__;
+		}
+
+		// open device for fpga os.
+		os_fp = fopen(RDL_DEV_FPGA_OS, "w");
+		if(os_fp == NULL) {
+			zlog_err("%s : Cannot open fpag os device %s. reason[%s].", 
+				__func__, RDL_DEV_FPGA_OS, strerror(errno));
+			goto __failed__;
+		}
+
+		// read fpga os file, write to device.
+		while(! feof(fp)) {
+			len = fread(RDL_PAGE, RDL_BUFF_SIZE, 1, fp);
+			if(len > 0) {
+				wcnt = fwrite(RDL_PAGE, RDL_BUFF_SIZE, len, os_fp);
+				if(len != wcnt) {
+					zlog_notice("%s : read %u and written %u : fpag os failed.",
+						__func__, len, wcnt);
+					goto __failed__;
+				}
+			}
+		}
+
+		fclose(fp);
+		fp = NULL;
+		fclose(os_fp);
+		os_fp = NULL;
+	}
+
+    snprintf(tbuf, sizeof(tbuf) - 1, "%s%s",
+		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH, bh.ih_image3_str);
+
+	if(strlen(bh.ih_image3_str) && syscmd_file_exist(tbuf)) {
+		// FIXME : check fpga fw version and new version ? how ??
+
+		// open src file.
+		fp = fopen(tbuf, "r");
+		if(fp == NULL) {
+			zlog_err("%s : Cannot open fpag fw file %s. reason[%s].", 
+				__func__, tbuf, strerror(errno));
+			return -1;
+		}
+
+		// open device for fpga fw.
+		fw_fp = fopen(RDL_DEV_FPGA_FW, "w");
+		if(fw_fp == NULL) {
+			zlog_err("%s : Cannot open fpag fw device %s. reason[%s].", 
+				__func__, RDL_DEV_FPGA_FW, strerror(errno));
+			return -1;
+		}
+
+		// read fpga os file, write to device.
+		while(! feof(fp)) {
+			// read from file.
+			len = fread(RDL_PAGE, RDL_BUFF_SIZE, 1, fp);
+			if(len > 0) {
+				// write to device.
+				wcnt = fwrite(RDL_PAGE, RDL_BUFF_SIZE, len, fw_fp);
+				if(len != wcnt) {
+					zlog_notice("%s : read %u and written %u : fpag fw failed.",
+						__func__, len, wcnt);
+					goto __failed__;
+				}
+			}
+		}
+
+		fclose(fp);
+		fp = NULL;
+		fclose(fw_fp);
+		fw_fp = NULL;
+	}
+
+	ret = 0;
+
+__failed__:
+	if(fp)
+		fclose(fp);
+	if(os_fp)
+		fclose(os_fp);
+	if(fw_fp)
+		fclose(fw_fp);
+	return ret;
+#else
 	return 0;
+#endif
 }
 
 // just overwrite, don't care version, different file.
