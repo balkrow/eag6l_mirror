@@ -1926,6 +1926,9 @@ GT_STATUS prvAppDemoGetDefaultFecMode
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 	    /*force config fec */
                ((mode == CPSS_PORT_INTERFACE_MODE_KR_E) && (speed == CPSS_PORT_SPEED_25000_E)) ||
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-23 */
+               ((mode == CPSS_PORT_INTERFACE_MODE_SR_LR_E) && (speed == CPSS_PORT_SPEED_25000_E)) ||
+#endif
 
 #endif
                ((mode == CPSS_PORT_INTERFACE_MODE_KR4_E) && (speed == CPSS_PORT_SPEED_100G_E)) ||

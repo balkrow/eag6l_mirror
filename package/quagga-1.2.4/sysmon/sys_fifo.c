@@ -175,6 +175,25 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	msg.mode = pri_src;
 	msg.portid = port;
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	if(msg.mode == PRI_SRC)
+	{
+		if(gDB.synce_pri_port != port)
+		{
+			uint16_t val, wr_val;
+			gDB.synce_pri_port = port;
+			val = sys_fpga_memory_read(SYNCE_SRC_STAT_ADDR, PORT_NOREG);
+			val = (val & ~(0xff00));
+			wr_val = (getMPortByCport(port) << 8) | val; 
+			sys_fpga_memory_write(SYNCE_SRC_STAT_ADDR, wr_val, PORT_NOREG);
+		}
+	}
+	else if(msg.mode == SEC_SRC)
+	{
+		gDB.synce_sec_port = port;
+	}
+#endif
+
 	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
@@ -199,10 +218,9 @@ uint8_t gCpssPortSetRate(int args, ...)
 
 	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
-#if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 	msg.portid = va_arg(argP, uint32_t);
 	msg.speed = va_arg(argP, uint32_t);
-	msg.mode = va_arg(argP, uint32_t);
 #endif
 	va_end(argP);
 	msg.type = gPortSetRate;
@@ -512,9 +530,6 @@ uint8_t gReplySDKInit(int args, ...)
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
 
-#ifdef DEBUG
-	zlog_notice("%s (REPLY): args=%d", __func__, args);
-#endif
 	if(args !=  1) {
 		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
@@ -534,6 +549,8 @@ uint8_t gReplySDKInit(int args, ...)
 	else
 		gDB.sdk_init_state = SDK_INIT_DONE;
 #endif
+
+	zlog_notice("SDK INIT %s", gDB.sdk_init_state == SDK_INIT_DONE ? "SUCCESS" : "FAIL" );
 
 	return ret;
 }
@@ -861,9 +878,6 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
 
-#ifdef DEBUG
-	zlog_notice("%s (REPLY): args=%d", __func__, args);
-#endif
 	if(args !=  1) {
 		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
@@ -872,6 +886,8 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+
+	zlog_notice("port %d RX ESMC QL %x", msg->portid, msg->mode);
 
 	/* process for result. */
 	if(msg->result == FIFO_CMD_SUCCESS) {
@@ -892,6 +908,63 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 			wr_val =  val | msg->mode; 
 			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, wr_val, PORT_NOREG);
 		}
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+		{
+			uint16_t val, wr_val;
+			if(msg->portid == C_PORT1)
+			{
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
+				val = (val & ~(0xff00));
+				wr_val = (msg->mode << 8) | val; 
+				sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, wr_val, PORT_NOREG);
+			}
+			else if(msg->portid == C_PORT2)
+			{
+				uint16_t val, wr_val;
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
+				val = (val & ~(0xff));
+				wr_val =  val | msg->mode; 
+				sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, wr_val, PORT_NOREG);
+			}
+			else if(msg->portid == C_PORT3)
+			{
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
+				val = (val & ~(0xff00));
+				wr_val = (msg->mode << 8) | val; 
+				sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, wr_val, PORT_NOREG);
+			}
+			else if(msg->portid == C_PORT4)
+			{
+				uint16_t val, wr_val;
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
+				val = (val & ~(0xff));
+				wr_val =  val | msg->mode; 
+				sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, wr_val, PORT_NOREG);
+			}
+			else if(msg->portid == C_PORT5)
+			{
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
+				val = (val & ~(0xff00));
+				wr_val = (msg->mode << 8) | val; 
+				sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, wr_val, PORT_NOREG);
+			}
+			else if(msg->portid == C_PORT6)
+			{
+				uint16_t val, wr_val;
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
+				val = (val & ~(0xff));
+				wr_val =  val | msg->mode; 
+				sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, wr_val, PORT_NOREG);
+			}
+			else if(msg->portid == C_PORT7)
+			{
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL5_ADDR, PORT_NOREG);
+				val = (val & ~(0xff00));
+				wr_val = (msg->mode << 8) | val; 
+				sys_fpga_memory_write(SYNCE_ESMC_RQL5_ADDR, wr_val, PORT_NOREG);
+			}
+		}
+#endif
 	} else
 		zlog_notice("port %d ESMC QL update failed. ret[%d].", msg->portid, msg->result);
 }

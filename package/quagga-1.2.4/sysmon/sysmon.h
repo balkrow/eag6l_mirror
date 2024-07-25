@@ -75,8 +75,10 @@ define Memory Macro
 
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 #define UNINITIALIZED_FD   -1
-#define RSMU_DEVICE_NAME   "dev/rsmu0"
-#define HDRV_DEVICE_NAME   "dev/hdrv"
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+#define RSMU_DEVICE_NAME   "/dev/rsmu0"
+#define HDRV_DEVICE_NAME   "/dev/hdrv"
+#endif
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-15*/
 #define RSMU_PLL_IDX	4  
 #endif
@@ -101,6 +103,13 @@ define Memory Macro
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 #define SDK_INIT_FAIL 1
 #define SDK_INIT_DONE 0xAA
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+#define SDK_INIT_WAIT 2
+#define CFG_ENABLE 1
+#define CFG_DISABLE 1
+#define NOT_DEFINED 0xff
+#endif
+
 #define COMM_FAIL 1
 #define COMM_SUCCESS 0xAA
 #define FSM_MAX_TRIES 10
@@ -139,6 +148,9 @@ typedef struct globalDB
 	uint8_t sdk_init_state; /*sdk init state*/
 	uint8_t comm_state; /*sdk init state*/
 	uint8_t fsm_retries;
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	uint8_t synce_state;
+#endif
 #if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-18*/
 	uint8_t synce_pri_port;
 	uint8_t synce_sec_port;
@@ -246,6 +258,10 @@ extern void print_console(const char *fmt, ...);
 	{
 		PORT_IF_10G_KR,
 		PORT_IF_25G_KR,
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+		PORT_IF_10G_SR_LR,
+		PORT_IF_25G_SR_LR,
+#endif
 	};
 #if 0
 	enum ePortLinkStaus

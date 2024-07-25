@@ -16,7 +16,7 @@
 extern uint8_t gAppDemoIPCstate;
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 uint16_t gSvcFSMretry = 0;
-#define DEBUG
+#undef DEBUG
 #define CLR_RETRY_CNT gSvcFSMretry = 0
 #endif
 
@@ -145,7 +145,11 @@ SVC_EVT svc_init_fail(SVC_ST st) {
 	}
 
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	return SVC_EVT_INIT_FAIL;
+#else
 	return SVC_EVT_INIT;
+#endif
 #else /*! [#56]*/
 	return SVC_EVT_NONE;
 #endif /*End [#56]*/
@@ -276,7 +280,11 @@ SVC_EVT svc_sdk_init(SVC_ST st) {
 
 	/* check sdk_init result*/
 	if(gSysmonToCpssFuncs[gSDKInit](1, &msg) == FIFO_CMD_SUCCESS)
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+		evt = SVC_EVT_SDK_INIT_WAIT;
+#else
 		evt = SVC_EVT_SDK_INIT_SUCCESS;
+#endif
 	else	
 		evt = SVC_EVT_SDK_INIT_FAIL;
 
@@ -297,7 +305,21 @@ SVC_EVT svc_get_inven(SVC_ST st) {
 #endif
 }
 
-#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+SVC_EVT svc_sdk_init_wait(SVC_ST st) {
+	SVC_EVT evt = SVC_EVT_SDK_INIT_WAIT;
+
+	if(gDB.sdk_init_state == SDK_INIT_DONE)
+		evt = SVC_EVT_SDK_INIT_SUCCESS;
+	else if(gDB.sdk_init_state == SDK_INIT_FAIL)
+		evt = SVC_EVT_SDK_INIT_FAIL;
+
+#ifdef DEBUG
+	zlog_notice("called %s evt %d sdk_init_state %x", __func__, evt, gDB.sdk_init_state);
+#endif
+
+	return evt;
+}
 #endif
 
 SVC_EVT svc_init_done(SVC_ST st) {
@@ -328,7 +350,7 @@ SVC_EVT svc_init_done(SVC_ST st) {
 	return evt;
 }
 
-
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
 	SVC_ST ret = SVC_ST_INIT_FAIL;
@@ -337,9 +359,11 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
 	case SVC_ST_INIT:
 		if(event == SVC_EVT_IPC_COM_SUCCESS)
-			ret = SVC_ST_DPRAM_CHK; 
+			ret = SVC_ST_SDK_INIT; 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 		else if(event == SVC_EVT_IPC_COM_WAIT)
+			ret = SVC_ST_INIT; 
+		else if(event == SVC_EVT_INIT)
 			ret = SVC_ST_INIT; 
 		else 
 			goto init_fail;
@@ -393,7 +417,7 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
 	case SVC_ST_CPLD_CHK:
 		if(event == SVC_EVT_CPLD_ACCESS_SUCCESS)
-			ret = SVC_ST_SDK_INIT; 
+			ret = SVC_ST_GET_INVEN; 
 		else if (event == SVC_EVT_CPLD_ACCESS_FAIL)
 			goto init_fail;
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
@@ -408,21 +432,37 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 		break;
 
 	case SVC_ST_SDK_INIT:
+#if 0/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
 		if(event == SVC_EVT_SDK_INIT_SUCCESS)
-			ret = SVC_ST_GET_INVEN; 
+			ret = SVC_ST_DPRAM_CHK;
 		else if (event == SVC_EVT_SDK_INIT_FAIL)
 			goto init_fail;
+#else
+		if (event == SVC_EVT_SDK_INIT_FAIL)
+			goto init_fail;
+#endif
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 		else if (event == SVC_EVT_APPDEMO_SHUTDOWN)
 			ret = SVC_ST_APPDEMO_SHUTDOWN; 
 #endif
-		/*		
-		 *TODO: 			
-		else
-			return SVC_ST_DPRAM_CHK;		
-		*/
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+		else if (event == SVC_EVT_SDK_INIT_WAIT)
+			ret = SVC_ST_SDK_INIT_CHK;		
+#endif
 		break;
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	case SVC_ST_SDK_INIT_CHK:
+		if(event == SVC_EVT_SDK_INIT_SUCCESS)
+			ret = SVC_ST_DPRAM_CHK;
+		else if (event == SVC_EVT_SDK_INIT_FAIL)
+			goto init_fail;
+		else if (event == SVC_EVT_APPDEMO_SHUTDOWN)
+			ret = SVC_ST_APPDEMO_SHUTDOWN; 
+		else if (event == SVC_EVT_SDK_INIT_WAIT)
+			ret = SVC_ST_SDK_INIT_CHK;		
+		break;
+#endif
 	case SVC_ST_GET_INVEN:
 		if(event == SVC_EVT_GET_INVEN_SUCCESS)
 			ret = SVC_ST_INIT_DONE; 
@@ -467,3 +507,4 @@ normal_return:
 init_fail:
 	return SVC_ST_INIT_FAIL;
 }
+#endif

@@ -5,5 +5,5 @@
 #::respawn:/sbin/appDemo -daemon
 #::respawn:/sbin/sysmon -f /etc/sysmon.conf -u root -g root -d
 #[#56] end
-::respawn:/sbin/getty -n 0 -t 3600 ttyS0
+::respawn:/sbin/getty -n 0 -t 0 ttyS0
 

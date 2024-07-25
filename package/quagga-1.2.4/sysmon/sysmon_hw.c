@@ -36,7 +36,7 @@ int8_t rsmu_init (void)
 	{
 		if((g_rsmu_fd = open(RSMU_DEVICE_NAME, O_WRONLY)) < 0)
 		{
-			zlog_err("%s open faild", RSMU_DEVICE_NAME);
+			zlog_err("%s open faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
 			return RT_NOK;
 		} else
 			zlog_notice("%s open success", RSMU_DEVICE_NAME);
@@ -55,7 +55,7 @@ int8_t rsmuGetPLLState(void)
 
 	if(ioctl(g_rsmu_fd, RSMU_GET_STATE, &get))
 	{
-		zlog_err("%s ioctl faild", RSMU_DEVICE_NAME);
+		zlog_err("%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
 		return RT_NOK;
 	}
 #ifdef DEBUG

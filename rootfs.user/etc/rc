@@ -23,10 +23,10 @@ ln -s /media/log /var/log
 fi
 
 # #71 EAG6L Board Bring-up, balkrow. 2024-07-03
-if [ ! -d /etc/dropbear ]
-then
-mkdir -p /etc/dropbear
-fi
+#if [ ! -d /etc/dropbear ]
+#then
+#mkdir -p /etc/dropbear
+#fi
 
 #echo -n "waiting for entropy available"
 #while [ `cat /proc/sys/kernel/random/entropy_avail` -le 1 ]

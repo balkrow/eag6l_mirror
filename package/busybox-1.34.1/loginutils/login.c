@@ -349,8 +349,11 @@ int login_main(int argc UNUSED_PARAM, char **argv)
 	IF_FEATURE_UTMP(pid_t my_pid;)
 
 	INIT_G();
-
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	G.timeout = 0;
+#else
 	G.timeout = xatoi_positive(getenv("LOGIN_TIMEOUT") ? : "60");
+#endif
 
 	/* More of suid paranoia if called by non-root: */
 	/* Clear dangerous stuff, set PATH */

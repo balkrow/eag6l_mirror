@@ -69,6 +69,27 @@ typedef struct reg_mon_str
 /* End DPRAM registers*/
 #endif
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
+typedef enum {
+	M_PORT1 = 0x11,
+	M_PORT2 = 0x12,
+	M_PORT3 = 0x13,
+	M_PORT4 = 0x14,
+	M_PORT5 = 0x21,
+	M_PORT6 = 0x22,
+	M_PORT7 = 0x23
+} MCU_SIDE_PORT_NUM;
+
+typedef enum {
+	C_PORT1 = 0,
+	C_PORT2 = 8,
+	C_PORT3 = 16,
+	C_PORT4 = 24,
+	C_PORT5 = 32,
+	C_PORT6 = 40,
+	C_PORT7 = 50
+} CARD_SIDE_PORT_NUM;
+#endif
 /****************************
  * unit related registers
  ****************************/
