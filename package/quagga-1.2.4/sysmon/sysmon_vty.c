@@ -36,7 +36,7 @@ extern int rdl_activate_fpga(uint8_t bno);
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 extern GLOBAL_DB gDB;
 
-uint8_t * gSvcFsmStateStr[SVC_ST_MAX] = {
+const char * gSvcFsmStateStr[SVC_ST_MAX] = {
 	"INIT",
 	"INIT Fail",
 	"APPDemo Shutdown",
@@ -44,11 +44,14 @@ uint8_t * gSvcFsmStateStr[SVC_ST_MAX] = {
 	"Check FPGA access",
 	"Check DPRAM access",
 	"SDK Init",
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	"Waiting SDK Initial",
+#endif
 	"Get Inventory information",
 	"INIT Done",
 };
 
-uint8_t * gSvcFsmEvtStr[SVC_EVT_MAX] = {
+const char * gSvcFsmEvtStr[SVC_EVT_MAX] = {
 	"None",
 	"Init",
 	"IPC Comm Successfully",
@@ -70,7 +73,16 @@ uint8_t * gSvcFsmEvtStr[SVC_EVT_MAX] = {
 	"Port Link Down",
 	"INIT Done",
 	"AppDemo Shutdown",
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	"Waiting SDK Initial ",
+	"SYS Init Failure ",
+#endif
+	"----"
 };
+#endif
+
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
+extern void getPortStrByCport(CARD_SIDE_PORT_NUM port, char *port_str);
 #endif
 
 extern int8_t sysmon_llcf_set
@@ -143,13 +155,46 @@ DEFUN (show_sysmon_system,
        SHOW_STR
        "sysmon info\n")
 {
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
+	char port_str[10] = {0, };
+	char pll_state[10] = {0, };
 	/*fsm status*/
-	vty_out(vty, "-------------------------------------------%s", VTY_NEWLINE);
-	vty_out(vty, "Init FSM state %s (%s)%s", gSvcFsmStateStr[gDB.svc_fsm.state],
-		gSvcFsmEvtStr[gDB.svc_fsm.evt], VTY_NEWLINE);
-	vty_out(vty, "Init FSM state %x (%x)%s", gDB.svc_fsm.state,
-		gDB.svc_fsm.evt, VTY_NEWLINE);
-	vty_out(vty, "PLL state %x%s", gDB.pll_state, VTY_NEWLINE);
+	vty_out(vty, "------|---------|---------------------------%s", VTY_NEWLINE);
+	vty_out(vty, "%s %s%s", "FSM    state    : ",gSvcFsmStateStr[gDB.svc_fsm.state], VTY_NEWLINE);
+	vty_out(vty, "%s %s%s", "       event(L) : ",gSvcFsmEvtStr[gDB.svc_fsm.evt], VTY_NEWLINE);
+	vty_out(vty, "%s %s%s%s","SDK    state    : " ,gDB.sdk_init_state == SDK_INIT_DONE ? "Init Down":"Init Fail" 
+		, VTY_NEWLINE, VTY_NEWLINE);
+	switch(gDB.pll_state) {
+	case FREERUN :
+		sprintf(pll_state, "%s", "FREERUN");
+		break;
+	case LOCK_RECOVERY :
+		sprintf(pll_state, "%s", "UNLOCK");
+		break;
+	case PLL_LOCK :
+		sprintf(pll_state, "%s", "LOCK");
+		break;
+	case HOLD_OVER :
+		sprintf(pll_state, "%s", "HOLD OVER");
+		break;
+	default  :
+		sprintf(pll_state, "%s", "UNKNOWN");
+		break;
+	}
+
+	if(gDB.pll_state == FREERUN)
+		sprintf(pll_state, "%s", "FREERUN");
+	else if(gDB.pll_state == FREERUN)
+		sprintf(pll_state, "%s", "FREERUN");
+
+	vty_out(vty, "PLL    state    : %s%s", pll_state, VTY_NEWLINE);
+	vty_out(vty, "Sync-e state    : %s%s", gDB.synce_state == CFG_ENABLE ? "Enable":"Disable"
+		, VTY_NEWLINE);
+	getPortStrByCport(gDB.synce_pri_port, port_str);
+	vty_out(vty, " Pri interface  : %s%s", port_str , VTY_NEWLINE);
+	getPortStrByCport(gDB.synce_sec_port, port_str);
+	vty_out(vty, " Sec interface  : %s%s", port_str , VTY_NEWLINE);
+#endif
 	return CMD_SUCCESS;
 }
 #endif

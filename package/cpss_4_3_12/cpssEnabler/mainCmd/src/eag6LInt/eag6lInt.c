@@ -586,6 +586,111 @@ uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 }
 #endif
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+#define PKTDUMP_MAX_BYTES       64
+#define PKTDUMP_BYTES_PER_LINE  16
+/**
+* @internal showDxChRxPktReceive function
+* @endinternal
+*
+* @brief   Show received packet function. Enabled by command line
+*
+* @param[in] devNum                   - The device number in which the packet was received.
+*                                      queue        - The Rx queue in which the packet was received.
+* @param[in] numOfBuff                - Num of used buffs in packetBuffs
+* @param[in] packetBuffs              - The received packet buffers list
+* @param[in] buffLenArr               - List of buffer lengths for packetBuffs
+* @param[in] rxParamsPtr              - Rx info
+*                                       None
+*/
+#ifdef DEBUG
+static void showDxChRxPktReceive
+(
+    IN GT_U8                                devNum,
+    IN GT_U8                                queueIdx,
+    IN GT_U32                               numOfBuff,
+    IN GT_U8                               **packetBuffs,
+    IN GT_U32                              *buffLenArr,
+    IN CPSS_DXCH_NET_RX_PARAMS_STC         *rxParamsPtr
+)
+{
+    int bytesShown = 0;
+    unsigned int i;
+    FILE * fp = NULL;
+
+
+    fp=stdout;
+
+    fprintf(fp,"RX dev=%d queue=%d vid=%d",devNum, queueIdx,
+            rxParamsPtr->dsaParam.commonParams.vid);
+    if (rxParamsPtr->dsaParam.dsaType == CPSS_DXCH_NET_DSA_CMD_TO_CPU_E)
+    {
+        CPSS_DXCH_NET_DSA_TO_CPU_STC *toCpu = &(rxParamsPtr->dsaParam.dsaInfo.toCpu);
+
+        fprintf(fp," hwDev=%d tagged=%d", toCpu->hwDevNum, toCpu->isTagged);
+        if (toCpu->srcIsTrunk == GT_TRUE)
+        {
+            printf(" srcTrunk=%d",toCpu->interface.srcTrunkId);
+        }
+        else
+        {
+           fprintf(fp," portNum=%d ePort=%d",
+                    toCpu->interface.portNum,
+                    toCpu->interface.ePort);
+        }
+        printf(" cpuCode=%d",toCpu->cpuCode);
+    }
+    /* TODO: other DSA type */
+    fprintf(fp,"\n");
+
+    for (;numOfBuff && bytesShown < PKTDUMP_MAX_BYTES; numOfBuff--,packetBuffs++,buffLenArr++)
+    {
+        for (i = 0; i < *buffLenArr && bytesShown < PKTDUMP_MAX_BYTES; i++, bytesShown++)
+        {
+            if ((bytesShown % PKTDUMP_BYTES_PER_LINE) == 0 && bytesShown != 0)
+                fprintf(fp,"\n");
+            fprintf(fp," %02x",(*packetBuffs)[i]);
+        }
+    }
+    if (bytesShown != 0)
+        fprintf(fp,"\n");
+}
+#endif
+
+static void RxPktReceive
+(
+ IN GT_U8                                devNum,
+ IN GT_U8                               **packetBuffs,
+ IN CPSS_DXCH_NET_RX_PARAMS_STC         *rxParamsPtr
+ )
+{
+	T_esmc_ql parsed_ql = 0xff;
+	CPSS_DXCH_NET_DSA_TO_CPU_STC *toCpu; 
+	/*
+	   T_port_ext_ql_tlv_data parsed_ext_ql_tlv_data;
+	   */
+	T_esmc_network_option net_opt = E_esmc_network_option_1;
+	T_esmc_pdu *msg;
+
+
+	if (rxParamsPtr->dsaParam.dsaType == CPSS_DXCH_NET_DSA_CMD_TO_CPU_E)
+		toCpu = &(rxParamsPtr->dsaParam.dsaInfo.toCpu);
+
+
+	msg = (T_esmc_pdu *)*packetBuffs;
+	esmc_ssm_and_essm_to_ql_map(net_opt, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, &parsed_ql);
+	syslog(LOG_INFO,"port event : devNum %x, port %d, ssm_code %x, e_ssm_code %x, ql %x, PriInf %x, SecInf %x",
+			devNum, toCpu->interface.portNum, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, parsed_ql, gSyncePriInf, gSynceSecInf); 
+#if 0
+	if(toCpu->interface.portNum == gSyncePriInf || toCpu->interface.portNum == gSynceSecInf) 
+#endif
+	if(parsed_ql != 0xff) 
+		gCpssESMCQL(parsed_ql, toCpu->interface.portNum);
+
+
+}
+#endif
+
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 GT_VOID processPortEvt
 (
@@ -595,18 +700,12 @@ GT_VOID processPortEvt
  )
 {
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+	GT_U32                              rc;
 	GT_U32                              numOfBuff = BUFF_LEN;
-	GT_U8                               *packetBuffs[BUFF_LEN];
+	GT_U8                               packetBuffs[BUFF_LEN];
 	GT_U32                              buffLenArr[BUFF_LEN];
 	CPSS_DXCH_NET_RX_PARAMS_STC         rxParams;
-#endif
-#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
-	T_esmc_ql parsed_ql = 0xff;
-	/*
-	T_port_ext_ql_tlv_data parsed_ext_ql_tlv_data;
-	*/
-	T_esmc_network_option net_opt = E_esmc_network_option_1;
-	T_esmc_pdu *msg;
+	GT_U8                               queueIdx  = 0;
 #endif
 
 	CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
@@ -631,16 +730,22 @@ GT_VOID processPortEvt
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
 	else if(uniEv >= CPSS_PP_RX_BUFFER_QUEUE0_E && uniEv <= CPSS_PP_RX_BUFFER_QUEUE7_E)
 	{
-		cpssDxChNetIfSdmaRxPacketGet(devNum, uniEv, &numOfBuff, 
-					     packetBuffs, buffLenArr, &rxParams);
-#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
-		msg = (T_esmc_pdu *)packetBuffs;
-		esmc_ssm_and_essm_to_ql_map(net_opt, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, &parsed_ql);
-		cpssDxChNetIfRxBufFree(devNum, CPSS_PP_RX_BUFFER_QUEUE0_E, packetBuffs, numOfBuff);
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+		queueIdx = (GT_U8)(uniEv - CPSS_PP_RX_BUFFER_QUEUE0_E);
+		rc = cpssDxChNetIfSdmaRxPacketGet(devNum, queueIdx, &numOfBuff, 
+					     (GT_U8 **)packetBuffs, buffLenArr, &rxParams);
 
-		if(evExtData == gSyncePriInf || evExtData == gSynceSecInf) 
-			if(parsed_ql != 0xff) 
-				gCpssESMCQL(parsed_ql, evExtData);
+		if(rc != GT_OK)
+		{
+			syslog(LOG_ERR, "cpssDxChNetIfSdmaRxPacketGet error %x", rc);
+		}
+		else
+			RxPktReceive(devNum, (GT_U8 **)packetBuffs, &rxParams);
+#endif
+
+#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
+		cpssDxChNetIfRxBufFree(devNum, queueIdx, (GT_U8 **)packetBuffs, numOfBuff);
+
 #endif
 	}
 #endif
@@ -744,6 +849,26 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 }
 #endif
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+uint8_t gCpssEsmcToCPUUnSet(void)
+{
+	CPSS_MAC_ENTRY_EXT_KEY_STC             macEntry;
+	GT_STATUS rc = 0;
+	GT_U8 devNum = 0;
+
+	macEntry.key.macVlan.macAddr.arEther[0] = 0x01;
+	macEntry.key.macVlan.macAddr.arEther[1] = 0x80;
+	macEntry.key.macVlan.macAddr.arEther[2] = 0xC2;
+	macEntry.key.macVlan.macAddr.arEther[3] = 0x0;
+	macEntry.key.macVlan.macAddr.arEther[4] = 0x0;
+	macEntry.key.macVlan.macAddr.arEther[5] = 0x02;
+	macEntry.key.macVlan.vlanId = 1;
+
+	rc = cpssDxChBrgFdbMacEntryDelete(devNum, &macEntry);
+	return rc;
+}
+#endif
+
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
 uint8_t gCpssSynceEnable(int args, ...)
 {
@@ -797,6 +922,10 @@ uint8_t gCpssSynceDisable(int args, ...)
 			false, 
 			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
 	}
+
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+	gCpssEsmcToCPUUnSet();
+#endif
 
 	syslog(LOG_NOTICE, "%s : synce disable ret=%x", __func__, ret);
 
@@ -1120,30 +1249,15 @@ uint8_t gCpssPortSetRate(int args, ...)
 		speed = CPSS_PORT_SPEED_25000_E;
 		ifmode = CPSS_PORT_INTERFACE_MODE_KR_C_E;
 		break;
-#else
-	case PORT_IF_10G_XGMII:
+#endif
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+	case PORT_IF_10G_SR_LR:
 		speed = CPSS_PORT_SPEED_10000_E;
-		ifmode = CPSS_PORT_INTERFACE_MODE_XGMII_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_SR_LR_E;
 		break;
-	case PORT_IF_10G_RXAUI:
-		speed = CPSS_PORT_SPEED_10000_E;
-		ifmode = CPSS_PORT_INTERFACE_MODE_RXAUI_E;
-		break;
-	case PORT_IF_10G_KR:
-		speed = CPSS_PORT_SPEED_10000_E;
-		ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
-		break;
-	case PORT_IF_25G_KR:
+	case PORT_IF_25G_SR_LR:
 		speed = CPSS_PORT_SPEED_25000_E;
-		ifmode = CPSS_PORT_INTERFACE_MODE_KR_C_E;
-		break;
-	case PORT_IF_25G_CR:
-		speed = CPSS_PORT_SPEED_25000_E;
-		ifmode = CPSS_PORT_INTERFACE_MODE_CR_C_E;
-		break;
-	case PORT_IF_100G_KR4:
-		speed = CPSS_PORT_SPEED_100G_E;
-		ifmode = CPSS_PORT_INTERFACE_MODE_KR4_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_SR_LR_E;
 		break;
 #endif
 	default:

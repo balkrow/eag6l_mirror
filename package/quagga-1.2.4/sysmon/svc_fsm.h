@@ -9,7 +9,7 @@ typedef enum {
 	SVC_EVT_DPRAM_ACCESS_SUCCESS,
 	SVC_EVT_DPRAM_ACCESS_FAIL,
 	SVC_EVT_FPGA_ACCESS_SUCCESS,
-	SVC_EVT_FPGA_ACCESS_FAIL,
+	SVC_EVT_FPGA_ACCESS_FAIL, /* 10 */
 	SVC_EVT_CPLD_ACCESS_SUCCESS,
 	SVC_EVT_CPLD_ACCESS_FAIL,
 	SVC_EVT_SDK_INIT_SUCCESS,
@@ -20,7 +20,11 @@ typedef enum {
 	SVC_EVT_PORT_LINK_UP,
 	SVC_EVT_INIT_DONE,
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
-	SVC_EVT_APPDEMO_SHUTDOWN,
+	SVC_EVT_APPDEMO_SHUTDOWN, /* 20 */
+#endif 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	SVC_EVT_SDK_INIT_WAIT,
+	SVC_EVT_INIT_FAIL,
 #endif
 	SVC_EVT_MAX
 } SVC_EVT;
@@ -33,8 +37,11 @@ typedef enum {
 #endif
 	SVC_ST_DPRAM_CHK,
 	SVC_ST_FPGA_CHK,
-	SVC_ST_CPLD_CHK,
+	SVC_ST_CPLD_CHK, /*5*/
 	SVC_ST_SDK_INIT,
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	SVC_ST_SDK_INIT_CHK,
+#endif
 	SVC_ST_GET_INVEN,
 	SVC_ST_INIT_DONE,
 	/*

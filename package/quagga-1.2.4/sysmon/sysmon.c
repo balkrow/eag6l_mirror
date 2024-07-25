@@ -52,6 +52,9 @@ extern SVC_EVT svc_init_done(SVC_ST st);
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
 extern SVC_EVT svc_appDemo_shutdown(SVC_ST st);
 #endif
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+extern SVC_EVT svc_sdk_init_wait(SVC_ST st); 
+#endif
 
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 extern char *rdl_get_state_str(int sno);
@@ -176,6 +179,9 @@ void init_svc_fsm(void) {
 	gDB.svc_fsm.cb[SVC_ST_SDK_INIT] = svc_sdk_init;
 	gDB.svc_fsm.cb[SVC_ST_GET_INVEN] = svc_get_inven;
 	gDB.svc_fsm.cb[SVC_ST_INIT_DONE] = svc_init_done;
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	gDB.svc_fsm.cb[SVC_ST_SDK_INIT_CHK] = svc_sdk_init_wait;
+#endif
 }
 
 
@@ -189,7 +195,11 @@ int svc_fsm_timer(struct thread *thread) {
 		event = gDB.svc_fsm.cb[state](state);
 
 	gDB.svc_fsm.state = state;
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+	if(event != SVC_EVT_INIT_FAIL) 
+#endif
 	gDB.svc_fsm.evt = event;
+
 #ifdef DEBUG
 //	zlog_notice("FSM state=%x, evt=%x", gDB.svc_fsm.state, gDB.svc_fsm.evt);
 #endif
@@ -1800,7 +1810,7 @@ uint16_t sysmonUpdateGetSWVer(void)
 void sysmon_thread_init (void)
 {
 #if 1/*[#26] system managent FSM 真, balkrow, 2024-05-20*/
-	thread_add_timer (master, svc_fsm_timer, NULL, 1);
+	thread_add_timer (master, svc_fsm_timer, NULL, 2);
 #endif
 #if 0/*[#25] I2C related register update, dustin, 2024-05-28 */
 	thread_add_timer (master, sfp_timer_func, NULL, 10);
@@ -1825,6 +1835,105 @@ void sysmon_thread_init (void)
 	thread_add_timer (master, rdl_mcu_emul_func, NULL, 5);
 #endif
 }
+
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
+CARD_SIDE_PORT_NUM getCPortByMport(MCU_SIDE_PORT_NUM port)
+{
+	CARD_SIDE_PORT_NUM portNum;
+	switch(port)
+	{
+	case M_PORT1:
+		portNum = C_PORT1;
+		break;
+	case M_PORT2:
+		portNum = C_PORT2;
+		break;
+	case M_PORT3:
+		portNum = C_PORT3;
+		break;
+	case M_PORT4:
+		portNum = C_PORT4;
+		break;
+	case M_PORT5:
+		portNum = C_PORT5;
+		break;
+	case M_PORT6:
+		portNum = C_PORT6;
+		break;
+	case M_PORT7:
+		portNum = C_PORT7;
+		break;
+	default:
+		portNum = NOT_DEFINED;
+		break;
+	}
+	return portNum;
+}
+
+MCU_SIDE_PORT_NUM getMPortByCport(CARD_SIDE_PORT_NUM port)
+{
+	MCU_SIDE_PORT_NUM portNum;
+	switch(port)
+	{
+	case C_PORT1:
+		portNum = M_PORT1;
+		break;
+	case C_PORT2:
+		portNum = M_PORT2;
+		break;
+	case C_PORT3:
+		portNum = M_PORT3;
+		break;
+	case C_PORT4:
+		portNum = M_PORT4;
+		break;
+	case C_PORT5:
+		portNum = M_PORT5;
+		break;
+	case C_PORT6:
+		portNum = M_PORT6;
+		break;
+	case C_PORT7:
+		portNum = M_PORT7;
+		break;
+	default:
+		portNum = NOT_DEFINED;
+		break;
+	}
+	return portNum;
+}
+
+void getPortStrByCport(CARD_SIDE_PORT_NUM port, char *port_str)
+{
+	switch(port)
+	{
+	case C_PORT1:
+		sprintf(port_str, "%s", "P1");
+		break;
+	case C_PORT2:
+		sprintf(port_str, "%s", "P2");
+		break;
+	case C_PORT3:
+		sprintf(port_str, "%s", "P3");
+		break;
+	case C_PORT4:
+		sprintf(port_str, "%s", "P4");
+		break;
+	case C_PORT5:
+		sprintf(port_str, "%s", "P5");
+		break;
+	case C_PORT6:
+		sprintf(port_str, "%s", "P6");
+		break;
+	case C_PORT7:
+		sprintf(port_str, "%s", "P7");
+		break;
+	default:
+		sprintf(port_str, "%s", "UNKNOWN");
+		break;
+	}
+}
+#endif
 
 int init_rlimit(void)
 {
@@ -1853,6 +1962,10 @@ extern int8_t monitor_hw_init(void);
 #endif
 #if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 	memset(&gDB, 0, sizeof(gDB));
+#endif
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
+	gDB.synce_pri_port = NOT_DEFINED;
+	gDB.synce_sec_port = NOT_DEFINED;
 #endif
 
 	zlog_notice("init sysmon");

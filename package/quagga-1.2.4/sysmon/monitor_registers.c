@@ -237,10 +237,17 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 #endif
 #endif //PWY_FIXME
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+	if(val == 0x7/*25G*/)
+		rc = gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_25G_SR_LR);
+	else if(val == 0x6/*10G*/)
+		rc = gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_10G_SR_LR);
+#else
 	if(val == 0x7/*25G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
 	else if(val == 0x6/*10G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
+#endif
 	else
 		rc = RT_NOK;
 
@@ -252,12 +259,15 @@ uint16_t synceEnableSet(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 	port = port;
-	if(val == 0xa5)
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+	if(val == 0xa5) {
 		rc = gSysmonToCpssFuncs[gSynceEnable](1, 1);
-	else if(val == 0x5a)
+		gDB.synce_state = CFG_ENABLE;
+	} else if(val == 0x5a) {
 		rc = gSysmonToCpssFuncs[gSynceDisable](1, 0);
-	else
-		rc = RT_NOK;
+		gDB.synce_state = CFG_DISABLE;
+	}
+#endif
 	return rc;	
 }
 #endif
@@ -686,12 +696,15 @@ int8_t rsmu_pll_update(void)
 			wr_val = 0x13;
 			break;
 		default :
+			wr_val = 0x11;
 			val = UNKNOWN; 
 			break;
 		}
-		gDB.pll_state = val;
 
 		zlog_notice("change pll state %x -> %x", gDB.pll_state, val);
+
+		gDB.pll_state = val;
+
 		if(wr_val)
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, SYNCE_SRC_STAT_ADDR_MASK, wr_val)
 	}
