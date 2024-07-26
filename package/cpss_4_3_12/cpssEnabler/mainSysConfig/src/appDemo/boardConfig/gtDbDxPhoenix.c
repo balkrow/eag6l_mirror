@@ -387,8 +387,8 @@ static PortInitList_STC phoenix_16G_6x25g_portInitlist[] =
 
 static PortInitList_STC phoenix_12x25g_portInitlist[] =
 {    /* ports in 25G */
-#if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
-    { PORT_LIST_TYPE_LIST,  {0,8,16,24,32,40, APP_INV_PORT_CNS }, CPSS_PORT_SPEED_25000_E,  CPSS_PORT_INTERFACE_MODE_SR_LR_E}
+#if 1/*[#83] 25G interface mode KR로 rollback, balkrow, 2024-07-26*/
+    { PORT_LIST_TYPE_LIST,  {0,8,16,24,32,40, APP_INV_PORT_CNS }, CPSS_PORT_SPEED_25000_E,  CPSS_PORT_INTERFACE_MODE_KR_E}
 #endif
 #ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
 #warning "-----MV DEMOBOARD ----------"
