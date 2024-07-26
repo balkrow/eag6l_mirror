@@ -190,7 +190,9 @@ int i2c_read(int fd ,unsigned short dev_addr,unsigned short reg_addr)
 	return 0;
 } 
 #endif
+#if 0/* [#78] Adding system inventory management, dustin, 2024-07-24 */
 extern int get_cpu_num(void);
+#endif
 
 int cmd_i2c_init()
 {
