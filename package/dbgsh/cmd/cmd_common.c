@@ -12,7 +12,11 @@ DEFUN (show_version,
 {
 	char info[1024];
 
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+	sprintf(info, "EAG6L.  All rights reserved. v1.0");
+#else
 	sprintf(info, "Product 1830 VWM IUG.  All rights reserved. v1.1");
+#endif
 	
 	vty_out (vty, "%s\n", info);
 

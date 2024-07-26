@@ -100,6 +100,10 @@ define Memory Macro
 #define SYS_INIT_FAIL 1
 #define SYS_INIT_DONE 0xAA
 
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+#define EAG6L_INVENTORY_FILE        "/mnt/flash/.EAG6L_IDATA"
+#endif
+
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 #define PRI_SRC 1
 #define SEC_SRC 0

@@ -1,6 +1,6 @@
 CC = ${CROSS_COMPILE}gcc
 
-CFLAGS=-Wall -g -I. -I../ -I../include 
+CFLAGS=-Wall -g -I. -I../ -I../include -I../quagga-1.2.4/sysmon
 LIBS=-lreadline -lcrypt -ltermcap
 STRIP=strip
 

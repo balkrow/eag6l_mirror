@@ -49,6 +49,48 @@ static uint16_t __CACHE_RDL_VER_STR[8] = { 0x0, };
 static uint16_t __CACHE_RDL_FILE_NAME[16] = { 0x0, };
 uint8_t __CACHE_RDL_PAGE[RDL_PAGE_ADDR_SIZE] = { 0x0, };
 #endif
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+static uint16_t __CACHE_INV_HW_MANU_1 = 0x00;
+static uint16_t __CACHE_INV_HW_MANU_2 = 0x00;
+static uint16_t __CACHE_INV_HW_MANU_3 = 0x00;
+static uint16_t __CACHE_INV_HW_MANU_4 = 0x00;
+static uint16_t __CACHE_INV_HW_MANU_5 = 0x00;
+static uint16_t __CACHE_INV_HW_MODEL_1 = 0x00;
+static uint16_t __CACHE_INV_HW_MODEL_2 = 0x00;
+static uint16_t __CACHE_INV_HW_MODEL_3 = 0x00;
+static uint16_t __CACHE_INV_HW_MODEL_4 = 0x00;
+static uint16_t __CACHE_INV_HW_MODEL_5 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_1 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_2 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_3 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_4 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_5 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_6 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_7 = 0x00;
+static uint16_t __CACHE_INV_HW_PN_8 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_1 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_2 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_3 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_4 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_5 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_6 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_7 = 0x00;
+static uint16_t __CACHE_INV_HW_SN_8 = 0x00;
+static uint16_t __CACHE_INV_HW_REV_1 = 0x00;
+static uint16_t __CACHE_INV_HW_REV_2 = 0x00;
+static uint16_t __CACHE_INV_HW_MDATE_1 = 0x00;
+static uint16_t __CACHE_INV_HW_MDATE_2 = 0x00;
+static uint16_t __CACHE_INV_HW_MDATE_3 = 0x00;
+static uint16_t __CACHE_INV_HW_MDATE_4 = 0x00;
+static uint16_t __CACHE_INV_HW_MDATE_5 = 0x00;
+static uint16_t __CACHE_INV_HW_RDATE_1 = 0x00;
+static uint16_t __CACHE_INV_HW_RDATE_2 = 0x00;
+static uint16_t __CACHE_INV_HW_RDATE_3 = 0x00;
+static uint16_t __CACHE_INV_HW_RDATE_4 = 0x00;
+static uint16_t __CACHE_INV_HW_RDATE_5 = 0x00;
+static uint16_t __CACHE_INV_HW_RCODE_1 = 0x00;
+static uint16_t __CACHE_INV_HW_RCODE_2 = 0x00;
+#endif
 
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
 uint16_t fpga_sim_val = 0x100;
@@ -81,6 +123,88 @@ uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg)
 			return __CACHE_HW_KEEP_ALIVE_2;
 		case INIT_COMPLETE_ADDR:
 			return __CACHE_INIT_COMPLETE;
+#endif
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+		case INV_HW_MANU_1_ADDR:
+			return __CACHE_INV_HW_MANU_1;
+		case INV_HW_MANU_2_ADDR:
+			return __CACHE_INV_HW_MANU_2;
+		case INV_HW_MANU_3_ADDR:
+			return __CACHE_INV_HW_MANU_3;
+		case INV_HW_MANU_4_ADDR:
+			return __CACHE_INV_HW_MANU_4;
+		case INV_HW_MANU_5_ADDR:
+			return __CACHE_INV_HW_MANU_5;
+		case INV_HW_MODEL_1_ADDR:
+			return __CACHE_INV_HW_MODEL_1;
+		case INV_HW_MODEL_2_ADDR:
+			return __CACHE_INV_HW_MODEL_2;
+		case INV_HW_MODEL_3_ADDR:
+			return __CACHE_INV_HW_MODEL_3;
+		case INV_HW_MODEL_4_ADDR:
+			return __CACHE_INV_HW_MODEL_4;
+		case INV_HW_MODEL_5_ADDR:
+			return __CACHE_INV_HW_MODEL_5;
+		case INV_HW_PN_1_ADDR:
+			return __CACHE_INV_HW_PN_1;
+		case INV_HW_PN_2_ADDR:
+			return __CACHE_INV_HW_PN_2;
+		case INV_HW_PN_3_ADDR:
+			return __CACHE_INV_HW_PN_3;
+		case INV_HW_PN_4_ADDR:
+			return __CACHE_INV_HW_PN_4;
+		case INV_HW_PN_5_ADDR:
+			return __CACHE_INV_HW_PN_5;
+		case INV_HW_PN_6_ADDR:
+			return __CACHE_INV_HW_PN_6;
+		case INV_HW_PN_7_ADDR:
+			return __CACHE_INV_HW_PN_7;
+		case INV_HW_PN_8_ADDR:
+			return __CACHE_INV_HW_PN_8;
+		case INV_HW_SN_1_ADDR:
+			return __CACHE_INV_HW_SN_1;
+		case INV_HW_SN_2_ADDR:
+			return __CACHE_INV_HW_SN_2;
+		case INV_HW_SN_3_ADDR:
+			return __CACHE_INV_HW_SN_3;
+		case INV_HW_SN_4_ADDR:
+			return __CACHE_INV_HW_SN_4;
+		case INV_HW_SN_5_ADDR:
+			return __CACHE_INV_HW_SN_5;
+		case INV_HW_SN_6_ADDR:
+			return __CACHE_INV_HW_SN_6;
+		case INV_HW_SN_7_ADDR:
+			return __CACHE_INV_HW_SN_7;
+		case INV_HW_SN_8_ADDR:
+			return __CACHE_INV_HW_SN_8;
+		case INV_HW_REV_1_ADDR:
+			return __CACHE_INV_HW_REV_1;
+		case INV_HW_REV_2_ADDR:
+			return __CACHE_INV_HW_REV_2;
+		case INV_HW_MDATE_1_ADDR:
+			return __CACHE_INV_HW_MDATE_1;
+		case INV_HW_MDATE_2_ADDR:
+			return __CACHE_INV_HW_MDATE_2;
+		case INV_HW_MDATE_3_ADDR:
+			return __CACHE_INV_HW_MDATE_3;
+		case INV_HW_MDATE_4_ADDR:
+			return __CACHE_INV_HW_MDATE_4;
+		case INV_HW_MDATE_5_ADDR:
+			return __CACHE_INV_HW_MDATE_5;
+		case INV_HW_RDATE_1_ADDR:
+			return __CACHE_INV_HW_RDATE_1;
+		case INV_HW_RDATE_2_ADDR:
+			return __CACHE_INV_HW_RDATE_2;
+		case INV_HW_RDATE_3_ADDR:
+			return __CACHE_INV_HW_RDATE_3;
+		case INV_HW_RDATE_4_ADDR:
+			return __CACHE_INV_HW_RDATE_4;
+		case INV_HW_RDATE_5_ADDR:
+			return __CACHE_INV_HW_RDATE_5;
+		case INV_HW_RCODE_1_ADDR:
+			return __CACHE_INV_HW_RCODE_1;
+		case INV_HW_RCODE_2_ADDR:
+			return __CACHE_INV_HW_RCODE_2;
 #endif
 		default:/*pass-through*/
 			break;
@@ -154,6 +278,88 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 				return (__CACHE_HW_KEEP_ALIVE_2 = writeval);
 			case INIT_COMPLETE_ADDR:
 				return (__CACHE_INIT_COMPLETE = writeval);
+#endif
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+			case INV_HW_MANU_1_ADDR:
+				return (__CACHE_INV_HW_MANU_1 = writeval);
+			case INV_HW_MANU_2_ADDR:
+				return (__CACHE_INV_HW_MANU_2 = writeval);
+			case INV_HW_MANU_3_ADDR:
+				return (__CACHE_INV_HW_MANU_3 = writeval);
+			case INV_HW_MANU_4_ADDR:
+				return (__CACHE_INV_HW_MANU_4 = writeval);
+			case INV_HW_MANU_5_ADDR:
+				return (__CACHE_INV_HW_MANU_5 = writeval);
+			case INV_HW_MODEL_1_ADDR:
+				return (__CACHE_INV_HW_MODEL_1 = writeval);
+			case INV_HW_MODEL_2_ADDR:
+				return (__CACHE_INV_HW_MODEL_2 = writeval);
+			case INV_HW_MODEL_3_ADDR:
+				return (__CACHE_INV_HW_MODEL_3 = writeval);
+			case INV_HW_MODEL_4_ADDR:
+				return (__CACHE_INV_HW_MODEL_4 = writeval);
+			case INV_HW_MODEL_5_ADDR:
+				return (__CACHE_INV_HW_MODEL_5 = writeval);
+			case INV_HW_PN_1_ADDR:
+				return (__CACHE_INV_HW_PN_1 = writeval);
+			case INV_HW_PN_2_ADDR:
+				return (__CACHE_INV_HW_PN_2 = writeval);
+			case INV_HW_PN_3_ADDR:
+				return (__CACHE_INV_HW_PN_3 = writeval);
+			case INV_HW_PN_4_ADDR:
+				return (__CACHE_INV_HW_PN_4 = writeval);
+			case INV_HW_PN_5_ADDR:
+				return (__CACHE_INV_HW_PN_5 = writeval);
+			case INV_HW_PN_6_ADDR:
+				return (__CACHE_INV_HW_PN_6 = writeval);
+			case INV_HW_PN_7_ADDR:
+				return (__CACHE_INV_HW_PN_7 = writeval);
+			case INV_HW_PN_8_ADDR:
+				return (__CACHE_INV_HW_PN_8 = writeval);
+			case INV_HW_SN_1_ADDR:
+				return (__CACHE_INV_HW_SN_1 = writeval);
+			case INV_HW_SN_2_ADDR:
+				return (__CACHE_INV_HW_SN_2 = writeval);
+			case INV_HW_SN_3_ADDR:
+				return (__CACHE_INV_HW_SN_3 = writeval);
+			case INV_HW_SN_4_ADDR:
+				return (__CACHE_INV_HW_SN_4 = writeval);
+			case INV_HW_SN_5_ADDR:
+				return (__CACHE_INV_HW_SN_5 = writeval);
+			case INV_HW_SN_6_ADDR:
+				return (__CACHE_INV_HW_SN_6 = writeval);
+			case INV_HW_SN_7_ADDR:
+				return (__CACHE_INV_HW_SN_7 = writeval);
+			case INV_HW_SN_8_ADDR:
+				return (__CACHE_INV_HW_SN_8 = writeval);
+			case INV_HW_REV_1_ADDR:
+				return (__CACHE_INV_HW_REV_1 = writeval);
+			case INV_HW_REV_2_ADDR:
+				return (__CACHE_INV_HW_REV_2 = writeval);
+			case INV_HW_MDATE_1_ADDR:
+				return (__CACHE_INV_HW_MDATE_1 = writeval);
+			case INV_HW_MDATE_2_ADDR:
+				return (__CACHE_INV_HW_MDATE_2 = writeval);
+			case INV_HW_MDATE_3_ADDR:
+				return (__CACHE_INV_HW_MDATE_3 = writeval);
+			case INV_HW_MDATE_4_ADDR:
+				return (__CACHE_INV_HW_MDATE_4 = writeval);
+			case INV_HW_MDATE_5_ADDR:
+				return (__CACHE_INV_HW_MDATE_5 = writeval);
+			case INV_HW_RDATE_1_ADDR:
+				return (__CACHE_INV_HW_RDATE_1 = writeval);
+			case INV_HW_RDATE_2_ADDR:
+				return (__CACHE_INV_HW_RDATE_2 = writeval);
+			case INV_HW_RDATE_3_ADDR:
+				return (__CACHE_INV_HW_RDATE_3 = writeval);
+			case INV_HW_RDATE_4_ADDR:
+				return (__CACHE_INV_HW_RDATE_4 = writeval);
+			case INV_HW_RDATE_5_ADDR:
+				return (__CACHE_INV_HW_RDATE_5 = writeval);
+			case INV_HW_RCODE_1_ADDR:
+				return (__CACHE_INV_HW_RCODE_1 = writeval);
+			case INV_HW_RCODE_2_ADDR:
+				return (__CACHE_INV_HW_RCODE_2 = writeval);
 #endif
 			default:/*pass-through*/
 				break;

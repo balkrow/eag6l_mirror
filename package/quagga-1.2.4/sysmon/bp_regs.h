@@ -179,6 +179,14 @@ typedef enum {
 // H/W serial number
 #define INV_HW_SN_1_ADDR			0x3A0	// r/o for mcu, r/w for bp 
 #define INV_HW_SN_2_ADDR			0x3A2	// r/o for mcu, r/w for bp 
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+#define INV_HW_SN_3_ADDR			0x3A4	// r/o for mcu, r/w for bp 
+#define INV_HW_SN_4_ADDR			0x3A6	// r/o for mcu, r/w for bp 
+#define INV_HW_SN_5_ADDR			0x3A8	// r/o for mcu, r/w for bp 
+#define INV_HW_SN_6_ADDR			0x3AA	// r/o for mcu, r/w for bp 
+#define INV_HW_SN_7_ADDR			0x3AC	// r/o for mcu, r/w for bp 
+#define INV_HW_SN_8_ADDR			0x3AE	// r/o for mcu, r/w for bp 
+#endif
 
 // H/W revision number
 #define INV_HW_REV_1_ADDR			0x3B0	// r/o for mcu, r/w for bp 
@@ -190,7 +198,9 @@ typedef enum {
 #define INV_HW_MDATE_3_ADDR			0x3B8	// r/o for mcu, r/w for bp 
 #define INV_HW_MDATE_4_ADDR			0x3BA	// r/o for mcu, r/w for bp 
 #define INV_HW_MDATE_5_ADDR			0x3BC	// r/o for mcu, r/w for bp 
+#if 0/* [#78] Adding system inventory management, dustin, 2024-07-24 */
 #define INV_HW_MDATE_6_ADDR			0x3BE	// r/o for mcu, r/w for bp 
+#endif
 
 // H/W repair date
 #define INV_HW_RDATE_1_ADDR			0x3C0	// r/o for mcu, r/w for bp 

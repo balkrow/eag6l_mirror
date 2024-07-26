@@ -8,6 +8,9 @@
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
 #include "sys_fifo.h"
 #endif
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+#include "hdriver.h"
+#endif
 
 #undef DEBUG
 
@@ -1104,8 +1107,288 @@ void process_dco_registers(void)
 /*FIXME*/
 }
 
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+int read_bd_inventory(board_inventory_t *binv)
+{
+	FILE *fp = NULL;
+
+	fp = fopen(EAG6L_INVENTORY_FILE, "r");
+	if(fp == NULL) {
+		zlog_err("%s : Cannot open inventory file %s. reason[%s].",
+			__func__, EAG6L_INVENTORY_FILE, strerror(errno));
+		return -1;
+	}
+
+	fread(binv, 1, sizeof(board_inventory_t)-16, fp);
+	fclose(fp);
+	return 0;
+}
+#endif
+
 void process_hw_inventory_infos(void)
 {
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+	board_inventory_t inv;
+	unsigned int val[20];
+	char buff[32];
+
+	// read iventory.
+	read_bd_inventory(&inv);
+
+	/* update manufacture. */
+	val[0] = inv.manufacturer[0] | (inv.manufacturer[1] << 8);
+	FPGA_WRITE(INV_HW_MANU_1_ADDR, val[0]);
+	val[1] = inv.manufacturer[2] | (inv.manufacturer[3] << 8);
+	FPGA_WRITE(INV_HW_MANU_2_ADDR, val[1]);
+	val[2] = inv.manufacturer[4] | (inv.manufacturer[5] << 8);
+	FPGA_WRITE(INV_HW_MANU_3_ADDR, val[2]);
+	val[3] = inv.manufacturer[6] | (inv.manufacturer[7] << 8);
+	FPGA_WRITE(INV_HW_MANU_4_ADDR, val[3]);
+	val[4] = inv.manufacturer[8] | (inv.manufacturer[9] << 8);
+	FPGA_WRITE(INV_HW_MANU_5_ADDR, val[4]);
+
+#ifdef DEBUG
+	val[0] = FPGA_READ(INV_HW_MANU_1_ADDR);
+	val[1] = FPGA_READ(INV_HW_MANU_2_ADDR);
+	val[2] = FPGA_READ(INV_HW_MANU_3_ADDR);
+	val[3] = FPGA_READ(INV_HW_MANU_4_ADDR);
+	val[4] = FPGA_READ(INV_HW_MANU_5_ADDR);
+
+	memset(buff, 0, sizeof buff);
+	buff[0] = val[0] & 0xFF;
+	buff[1] = (val[0] >> 8) & 0xFF;
+	buff[2] = val[1] & 0xFF;
+	buff[3] = (val[1] >> 8) & 0xFF;
+	buff[4] = val[2] & 0xFF;
+	buff[5] = (val[2] >> 8) & 0xFF;
+	buff[6] = val[3] & 0xFF;
+	buff[7] = (val[3] >> 8) & 0xFF;
+	buff[8] = val[4] & 0xFF;
+	buff[9] = (val[4] >> 8) & 0xFF;
+	zlog_notice("INVENTORY: HW MANUFACTURE [%s]", buff);
+#endif
+
+	/* update h/w model name */
+    val[0] = inv.model_name[0] | (inv.model_name[1] << 8);
+    FPGA_WRITE(INV_HW_MODEL_1_ADDR, val[0]);
+    val[1] = inv.model_name[2] | (inv.model_name[3] << 8);
+    FPGA_WRITE(INV_HW_MODEL_2_ADDR, val[1]);
+    val[2] = inv.model_name[4] | (inv.model_name[5] << 8);
+    FPGA_WRITE(INV_HW_MODEL_3_ADDR, val[2]);
+    val[3] = inv.model_name[6] | (inv.model_name[7] << 8);
+    FPGA_WRITE(INV_HW_MODEL_4_ADDR, val[3]);
+    val[4] = inv.model_name[8] | (inv.model_name[9] << 8);
+    FPGA_WRITE(INV_HW_MODEL_5_ADDR, val[4]);
+
+#ifdef DEBUG
+    val[0] = FPGA_READ(INV_HW_MODEL_1_ADDR);
+    val[1] = FPGA_READ(INV_HW_MODEL_2_ADDR);
+    val[2] = FPGA_READ(INV_HW_MODEL_3_ADDR);
+    val[3] = FPGA_READ(INV_HW_MODEL_4_ADDR);
+    val[4] = FPGA_READ(INV_HW_MODEL_5_ADDR);
+
+    memset(buff, 0, sizeof buff);
+    buff[0] = val[0] & 0xFF;
+    buff[1] = (val[0] >> 8) & 0xFF;
+    buff[2] = val[1] & 0xFF;
+    buff[3] = (val[1] >> 8) & 0xFF;
+    buff[4] = val[2] & 0xFF;
+    buff[5] = (val[2] >> 8) & 0xFF;
+    buff[6] = val[3] & 0xFF;
+    buff[7] = (val[3] >> 8) & 0xFF;
+    buff[8] = val[4] & 0xFF;
+    buff[9] = (val[4] >> 8) & 0xFF;
+    zlog_notice("INVENTORY: HW MODEL [%s]", buff);
+#endif
+
+	/* update h/w part number */
+    val[0] = inv.part_number[0] | (inv.part_number[1] << 8);
+    FPGA_WRITE(INV_HW_PN_1_ADDR, val[0]);
+    val[1] = inv.part_number[2] | (inv.part_number[3] << 8);
+    FPGA_WRITE(INV_HW_PN_2_ADDR, val[1]);
+    val[2] = inv.part_number[4] | (inv.part_number[5] << 8);
+    FPGA_WRITE(INV_HW_PN_3_ADDR, val[2]);
+    val[3] = inv.part_number[6] | (inv.part_number[7] << 8);
+    FPGA_WRITE(INV_HW_PN_4_ADDR, val[3]);
+    val[4] = inv.part_number[8] | (inv.part_number[9] << 8);
+    FPGA_WRITE(INV_HW_PN_5_ADDR, val[4]);
+    val[5] = inv.part_number[10] | (inv.part_number[11] << 8);
+    FPGA_WRITE(INV_HW_PN_6_ADDR, val[4]);
+    val[6] = inv.part_number[12] | (inv.part_number[13] << 8);
+    FPGA_WRITE(INV_HW_PN_7_ADDR, val[4]);
+    val[7] = inv.part_number[14] | (inv.part_number[15] << 8);
+    FPGA_WRITE(INV_HW_PN_8_ADDR, val[4]);
+
+#ifdef DEBUG
+    val[0] = FPGA_READ(INV_HW_PN_1_ADDR);
+    val[1] = FPGA_READ(INV_HW_PN_2_ADDR);
+    val[2] = FPGA_READ(INV_HW_PN_3_ADDR);
+    val[3] = FPGA_READ(INV_HW_PN_4_ADDR);
+    val[4] = FPGA_READ(INV_HW_PN_5_ADDR);
+    val[5] = FPGA_READ(INV_HW_PN_6_ADDR);
+    val[6] = FPGA_READ(INV_HW_PN_7_ADDR);
+    val[7] = FPGA_READ(INV_HW_PN_8_ADDR);
+
+    memset(buff, 0, sizeof buff);
+    buff[0] = val[0] & 0xFF;
+    buff[1] = (val[0] >> 8) & 0xFF;
+    buff[2] = val[1] & 0xFF;
+    buff[3] = (val[1] >> 8) & 0xFF;
+    buff[4] = val[2] & 0xFF;
+    buff[5] = (val[2] >> 8) & 0xFF;
+    buff[6] = val[3] & 0xFF;
+    buff[7] = (val[3] >> 8) & 0xFF;
+    buff[8] = val[4] & 0xFF;
+    buff[9] = (val[4] >> 8) & 0xFF;
+    buff[10] = val[5] & 0xFF;
+    buff[11] = (val[5] >> 8) & 0xFF;
+    buff[12] = val[6] & 0xFF;
+    buff[13] = (val[6] >> 8) & 0xFF;
+    buff[14] = val[7] & 0xFF;
+    buff[15] = (val[7] >> 8) & 0xFF;
+    zlog_notice("INVENTORY: HW PN [%s]", buff);
+#endif
+
+	/* update h/w serial number */
+    val[0] = inv.serial_number[0] | (inv.serial_number[1] << 8);
+    FPGA_WRITE(INV_HW_SN_1_ADDR, val[0]);
+    val[1] = inv.serial_number[2] | (inv.serial_number[3] << 8);
+    FPGA_WRITE(INV_HW_SN_2_ADDR, val[1]);
+    val[2] = inv.serial_number[4] | (inv.serial_number[5] << 8);
+    FPGA_WRITE(INV_HW_SN_3_ADDR, val[2]);
+    val[3] = inv.serial_number[6] | (inv.serial_number[7] << 8);
+    FPGA_WRITE(INV_HW_SN_4_ADDR, val[3]);
+    val[4] = inv.serial_number[8] | (inv.serial_number[9] << 8);
+    FPGA_WRITE(INV_HW_SN_5_ADDR, val[4]);
+    val[5] = inv.serial_number[10] | (inv.serial_number[11] << 8);
+    FPGA_WRITE(INV_HW_SN_6_ADDR, val[5]);
+    val[6] = inv.serial_number[12] | (inv.serial_number[13] << 8);
+    FPGA_WRITE(INV_HW_SN_7_ADDR, val[6]);
+    val[7] = inv.serial_number[14] | (inv.serial_number[15] << 8);
+    FPGA_WRITE(INV_HW_SN_8_ADDR, val[7]);
+
+#ifdef DEBUG
+    val[0] = FPGA_READ(INV_HW_SN_1_ADDR);
+    val[1] = FPGA_READ(INV_HW_SN_2_ADDR);
+    val[2] = FPGA_READ(INV_HW_SN_3_ADDR);
+    val[3] = FPGA_READ(INV_HW_SN_4_ADDR);
+    val[4] = FPGA_READ(INV_HW_SN_5_ADDR);
+    val[5] = FPGA_READ(INV_HW_SN_6_ADDR);
+    val[6] = FPGA_READ(INV_HW_SN_7_ADDR);
+    val[7] = FPGA_READ(INV_HW_SN_8_ADDR);
+
+    memset(buff, 0, sizeof buff);
+    buff[0] = val[0] & 0xFF;
+    buff[1] = (val[0] >> 8) & 0xFF;
+    buff[2] = val[1] & 0xFF;
+    buff[3] = (val[1] >> 8) & 0xFF;
+    buff[4] = val[2] & 0xFF;
+    buff[5] = (val[2] >> 8) & 0xFF;
+    buff[6] = val[3] & 0xFF;
+    buff[7] = (val[3] >> 8) & 0xFF;
+    buff[8] = val[4] & 0xFF;
+    buff[9] = (val[4] >> 8) & 0xFF;
+    buff[10] = val[5] & 0xFF;
+    buff[11] = (val[5] >> 8) & 0xFF;
+    buff[12] = val[6] & 0xFF;
+    buff[13] = (val[6] >> 8) & 0xFF;
+    buff[14] = val[7] & 0xFF;
+    buff[15] = (val[7] >> 8) & 0xFF;
+    zlog_notice("INVENTORY: HW SN [%s]", buff);
+#endif
+
+	/* update h/w revision */
+    val[0] = (inv.revision & 0xFF) | (inv.revision & 0xFF00);
+    FPGA_WRITE(INV_HW_REV_1_ADDR, val[0]);
+    val[1] = ((inv.revision >> 16) & 0xFF) | ((inv.revision >> 16) & 0xFF00);
+    FPGA_WRITE(INV_HW_REV_2_ADDR, val[1]);
+
+#ifdef DEBUG
+    val[0] = FPGA_READ(INV_HW_REV_1_ADDR);
+    val[1] = FPGA_READ(INV_HW_REV_2_ADDR);
+
+    zlog_notice("INVENTORY: HW REV [0x%x]", val[0] | (val[1] << 16));
+#endif
+
+	/* update h/w manufacture date */
+    val[0] = inv.manufacture_date[0] | (inv.manufacture_date[1] << 8);
+    FPGA_WRITE(INV_HW_MDATE_1_ADDR, val[0]);
+    val[1] = inv.manufacture_date[2] | (inv.manufacture_date[3] << 8);
+    FPGA_WRITE(INV_HW_MDATE_2_ADDR, val[1]);
+    val[2] = inv.manufacture_date[4] | (inv.manufacture_date[5] << 8);
+    FPGA_WRITE(INV_HW_MDATE_3_ADDR, val[2]);
+    val[3] = inv.manufacture_date[6] | (inv.manufacture_date[7] << 8);
+    FPGA_WRITE(INV_HW_MDATE_4_ADDR, val[3]);
+    val[4] = inv.manufacture_date[8] | (inv.manufacture_date[9] << 8);
+    FPGA_WRITE(INV_HW_MDATE_5_ADDR, val[4]);
+
+#ifdef DEBUG
+    val[0] = FPGA_READ(INV_HW_MDATE_1_ADDR);
+    val[1] = FPGA_READ(INV_HW_MDATE_2_ADDR);
+    val[2] = FPGA_READ(INV_HW_MDATE_3_ADDR);
+    val[3] = FPGA_READ(INV_HW_MDATE_4_ADDR);
+    val[4] = FPGA_READ(INV_HW_MDATE_5_ADDR);
+
+    memset(buff, 0, sizeof buff);
+    buff[0] = val[0] & 0xFF;
+    buff[1] = (val[0] >> 8) & 0xFF;
+    buff[2] = val[1] & 0xFF;
+    buff[3] = (val[1] >> 8) & 0xFF;
+    buff[4] = val[2] & 0xFF;
+    buff[5] = (val[2] >> 8) & 0xFF;
+    buff[6] = val[3] & 0xFF;
+    buff[7] = (val[3] >> 8) & 0xFF;
+    buff[8] = val[4] & 0xFF;
+    buff[9] = (val[4] >> 8) & 0xFF;
+    zlog_notice("INVENTORY: HW MDATE [%s]", buff);
+#endif
+
+	/* update h/w repair date */
+    val[0] = inv.repair_date[0] | (inv.repair_date[1] << 8);
+    FPGA_WRITE(INV_HW_RDATE_1_ADDR, val[0]);
+    val[1] = inv.repair_date[2] | (inv.repair_date[3] << 8);
+    FPGA_WRITE(INV_HW_RDATE_2_ADDR, val[1]);
+    val[2] = inv.repair_date[4] | (inv.repair_date[5] << 8);
+    FPGA_WRITE(INV_HW_RDATE_3_ADDR, val[2]);
+    val[3] = inv.repair_date[6] | (inv.repair_date[7] << 8);
+    FPGA_WRITE(INV_HW_RDATE_4_ADDR, val[3]);
+    val[4] = inv.repair_date[8] | (inv.repair_date[9] << 8);
+    FPGA_WRITE(INV_HW_RDATE_5_ADDR, val[4]);
+
+#ifdef DEBUG
+    val[0] = FPGA_READ(INV_HW_RDATE_1_ADDR);
+    val[1] = FPGA_READ(INV_HW_RDATE_2_ADDR);
+    val[2] = FPGA_READ(INV_HW_RDATE_3_ADDR);
+    val[3] = FPGA_READ(INV_HW_RDATE_4_ADDR);
+    val[4] = FPGA_READ(INV_HW_RDATE_5_ADDR);
+
+    memset(buff, 0, sizeof buff);
+    buff[0] = val[0] & 0xFF;
+    buff[1] = (val[0] >> 8) & 0xFF;
+    buff[2] = val[1] & 0xFF;
+    buff[3] = (val[1] >> 8) & 0xFF;
+    buff[4] = val[2] & 0xFF;
+    buff[5] = (val[2] >> 8) & 0xFF;
+    buff[6] = val[3] & 0xFF;
+    buff[7] = (val[3] >> 8) & 0xFF;
+    buff[8] = val[4] & 0xFF;
+    buff[9] = (val[4] >> 8) & 0xFF;
+    zlog_notice("INVENTORY: HW RDATE [%s]", buff);
+#endif
+
+	/* update h/w repair code */
+    val[0] = (inv.repair_code & 0xFF) | (inv.repair_code & 0xFF00);
+    FPGA_WRITE(INV_HW_RCODE_1_ADDR, val[0]);
+    val[1] = ((inv.repair_code >> 16) & 0xFF) | ((inv.repair_code >> 16) & 0xFF00);
+    FPGA_WRITE(INV_HW_RCODE_2_ADDR, val[1]);
+
+#ifdef DEBUG
+    val[0] = FPGA_READ(INV_HW_RCODE_1_ADDR);
+    val[1] = FPGA_READ(INV_HW_RCODE_2_ADDR);
+
+    zlog_notice("INVENTORY: HW RCODE [0x%x]", val[0] | (val[1] << 16));
+#endif
+#else///////////////////////////////////////////////////////////////
 	/*FIXME : should replaced with real inv data in flash. */
 	struct inventory inv = { "hfrnet1234", "EAG6L12345", "PN123456789ABCD", 
 		                     "SN12", "RV12", "240520010203", "2405200102", "RP01",
@@ -1350,6 +1633,7 @@ void process_hw_inventory_infos(void)
     buff[2] = val[1] & 0xFF;
     buff[3] = (val[1] >> 8) & 0xFF;
     zlog_notice("INVENTORY: HW RCODE [%s]", buff);
+#endif
 #endif
 
 	return;

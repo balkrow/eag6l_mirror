@@ -300,7 +300,12 @@ SVC_EVT svc_get_inven(SVC_ST st) {
 #if FSM_SIM
 	return SVC_EVT_GET_INVEN_SUCCESS;
 #else
-	/* check dpram access*/
+#if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
+	extern void process_hw_inventory_infos(void);
+
+	/* read/update board inventory information. */
+	process_hw_inventory_infos();
+#endif
 	return SVC_EVT_GET_INVEN_SUCCESS;
 #endif
 }
