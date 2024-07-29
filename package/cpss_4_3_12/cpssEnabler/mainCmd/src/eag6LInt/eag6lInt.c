@@ -37,12 +37,15 @@
 #include "eag6l.h"
 #include "syslog.h"
 #endif
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+#include "bp_regs.h"
+#endif
 
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 #include "eag6l_fsm.h"
 #endif
 
-#undef DEBUG
+#define DEBUG
 
 #if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
 extern uint8_t EAG6LMacLearningnable (void);
@@ -70,6 +73,39 @@ int portLfRfDetect (struct multi_thread *thread);
 uint8_t gEag6LSDKInitStatus = GT_FALSE;
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 struct multi_thread *llcf_thread = NULL;
+#endif
+
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+void getPortStrByCport(CARD_SIDE_PORT_NUM port, char *port_str)
+{
+	switch(port)
+	{
+	case C_PORT1:
+		sprintf(port_str, "%s", "P1");
+		break;
+	case C_PORT2:
+		sprintf(port_str, "%s", "P2");
+		break;
+	case C_PORT3:
+		sprintf(port_str, "%s", "P3");
+		break;
+	case C_PORT4:
+		sprintf(port_str, "%s", "P4");
+		break;
+	case C_PORT5:
+		sprintf(port_str, "%s", "P5");
+		break;
+	case C_PORT6:
+		sprintf(port_str, "%s", "P6");
+		break;
+	case C_PORT7:
+		sprintf(port_str, "%s", "P7");
+		break;
+	default:
+		sprintf(port_str, "%s", "UNKNOWN");
+		break;
+	}
+}
 #endif
 
 #if 0/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
@@ -258,6 +294,10 @@ uint8_t get_port_speed(uint8_t lport, uint8_t * speed)
 		return 0;
 #endif
 	dport = get_eag6L_dport(lport);
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+	if(dport == 0xff)
+		return 0;
+#endif	
 	memset(&pparam, 0, sizeof pparam);
 	ret = cpssDxChPortManagerPortParamsGet(0, dport, &pparam);
 	if(ret != GT_OK) {
@@ -578,8 +618,14 @@ uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 	/*network option 2*/
 
 	msg.portid = port; 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 #ifdef DEBUG
-    syslog(LOG_INFO, "called %s port %d ql %x", __func__, port, ql);
+	{
+		char port_str[10] = {0, };
+		getPortStrByCport(port, port_str);
+		syslog(LOG_INFO, "port %s RX QL %x", port_str, ql);
+	}
+#endif
 #endif
 	send_to_sysmon_master(&msg);
 	return IPC_CMD_SUCCESS;
@@ -603,7 +649,7 @@ uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 * @param[in] rxParamsPtr              - Rx info
 *                                       None
 */
-#ifdef DEBUG
+#if 0
 static void showDxChRxPktReceive
 (
     IN GT_U8                                devNum,
@@ -659,7 +705,9 @@ static void showDxChRxPktReceive
 
 static void RxPktReceive
 (
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
  IN GT_U8                                devNum,
+#endif
  IN GT_U8                               **packetBuffs,
  IN CPSS_DXCH_NET_RX_PARAMS_STC         *rxParamsPtr
  )
@@ -679,8 +727,10 @@ static void RxPktReceive
 
 	msg = (T_esmc_pdu *)*packetBuffs;
 	esmc_ssm_and_essm_to_ql_map(net_opt, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, &parsed_ql);
-	syslog(LOG_INFO,"port event : devNum %x, port %d, ssm_code %x, e_ssm_code %x, ql %x, PriInf %x, SecInf %x",
-			devNum, toCpu->interface.portNum, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, parsed_ql, gSyncePriInf, gSynceSecInf); 
+#ifdef DEBUG /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+	syslog(LOG_INFO,"port event : port %d, ssm_code %x, e_ssm_code %x, ql %x, PriInf %x, SecInf %x",
+			toCpu->interface.portNum, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, parsed_ql, gSyncePriInf, gSynceSecInf); 
+#endif
 #if 0
 	if(toCpu->interface.portNum == gSyncePriInf || toCpu->interface.portNum == gSynceSecInf) 
 #endif
@@ -707,6 +757,9 @@ GT_VOID processPortEvt
 	CPSS_DXCH_NET_RX_PARAMS_STC         rxParams;
 	GT_U8                               queueIdx  = 0;
 #endif
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+	char port_str[10] = {0, };
+#endif
 
 	CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
 	uint8_t portno;
@@ -714,10 +767,10 @@ GT_VOID processPortEvt
 	if(uniEv == CPSS_PP_PORT_PM_LINK_STATUS_CHANGED_E) 
 	{
 		cpssDxChPortManagerStatusGet(devNum, evExtData, &portConfigOutParams);
-#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
-
-		syslog(LOG_INFO,"port event : devNum=%x, uniEv=%x, evExtData=%x, portState=%s",
-			devNum, uniEv, evExtData, 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+		getPortStrByCport((GT_U8)evExtData, port_str);
+		syslog(LOG_INFO,"port event : devNum=%x, uniEv=%x, port=%s, portState=%s",
+			devNum, uniEv, port_str, 
 			portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E ? "Link Up":"Link Down");
 #endif
 		/* update link status cache */
@@ -740,7 +793,9 @@ GT_VOID processPortEvt
 			syslog(LOG_ERR, "cpssDxChNetIfSdmaRxPacketGet error %x", rc);
 		}
 		else
-			RxPktReceive(devNum, (GT_U8 **)packetBuffs, &rxParams);
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+			RxPktReceive((GT_U8 **)packetBuffs, &rxParams);
+#endif
 #endif
 
 #if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-16*/
@@ -775,7 +830,7 @@ uint8_t gCpssSDKInit(int args, ...)
 		gEag6LSDKInitStatus = GT_TRUE; 
 #endif
 
-#ifdef DEBUG
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	syslog(LOG_INFO, "cpssInitSystem result %x", result);
 #endif
 	va_start(argP, args);
@@ -807,6 +862,9 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 {
 	CPSS_MAC_ENTRY_EXT_STC macEntry;
 	GT_STATUS rc;
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+	char port_str[10] = {0, };
+#endif
 
 	/* set Mac for traffic mirrored to CPU*/
 	memset(&macEntry, 0, sizeof(CPSS_MAC_ENTRY_EXT_STC));
@@ -844,7 +902,10 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 
 	rc = cpssDxChBrgFdbMacEntrySet(0, &macEntry);
 
-	syslog(LOG_NOTICE, "%s : port %d ret %x", __func__, port, rc);
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+	getPortStrByCport(port, port_str);
+	syslog(LOG_NOTICE, "port %s set cpu trap function ret %x", port_str, rc);
+#endif
 	return rc;
 }
 #endif
@@ -1247,7 +1308,9 @@ uint8_t gCpssPortSetRate(int args, ...)
 		break;
 	case PORT_IF_25G_KR:
 		speed = CPSS_PORT_SPEED_25000_E;
-		ifmode = CPSS_PORT_INTERFACE_MODE_KR_C_E;
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+		ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
+#endif
 		break;
 #endif
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
@@ -1441,6 +1504,7 @@ uint8_t gCpssPortAlarm(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+
 #ifdef DEBUG
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortAlarm, msg->type);
 #endif
@@ -1505,10 +1569,12 @@ uint8_t gCpssPortAlarm(int args, ...)
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 uint8_t gCpssPortPMGet(int args, ...)
 {
-    uint8_t portno, dport;
-    uint8_t ret = GT_OK;
+	uint8_t portno, dport;
+	uint8_t ret = GT_OK;
 	CPSS_PORT_MAC_COUNTER_SET_STC pmc;
+#if 0/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 	CPSS_DXCH_PORT_FEC_MODE_ENT fecmode;
+#endif
 	CPSS_RSFEC_COUNTERS_STC rs_cnt;
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
@@ -1534,6 +1600,7 @@ uint8_t gCpssPortPMGet(int args, ...)
 		if(ret != GT_OK)
 			syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
 
+#if 0/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 #if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
 		fecmode = FEC_MODE[portno];
 		if(fecmode != CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
@@ -1554,6 +1621,7 @@ uint8_t gCpssPortPMGet(int args, ...)
 			if(ret != GT_OK)
 				syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
 		}
+#endif
 
 		/* copy data to msg->pm */
 #if 1/*[#63] Fixing rx/tx frame counter of PM counters, dustin, 2024-06-20 */
@@ -1589,6 +1657,22 @@ uint8_t gCpssPortPMGet(int args, ...)
 			                        (u64)pmc.badCrc.l[0];
 #endif
 
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+		if(eag6LSpeedStatus[portno] == PORT_IF_25G_KR) {
+			memset(&rs_cnt, 0, sizeof rs_cnt);
+			ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
+
+			if(ret != GT_OK)
+				syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
+			msg->pm[portno].fcs_ok   = ((u64)rs_cnt.correctedFecCodeword.l[1] << 32) |
+				                        (u64)rs_cnt.correctedFecCodeword.l[0];
+			msg->pm[portno].fcs_nok  = ((u64)rs_cnt.uncorrectedFecCodeword.l[1] << 32) |
+				                        (u64)rs_cnt.uncorrectedFecCodeword.l[0];
+		} else {
+			msg->pm[portno].fcs_ok   = 0;
+			msg->pm[portno].fcs_nok  = 0;
+		}
+#else
 		if(fecmode == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
 			msg->pm[portno].fcs_ok   = ((u64)rs_cnt.correctedFecCodeword.l[1] << 32) |
 				                        (u64)rs_cnt.correctedFecCodeword.l[0];
@@ -1598,6 +1682,8 @@ uint8_t gCpssPortPMGet(int args, ...)
 			msg->pm[portno].fcs_ok   = 0;
 			msg->pm[portno].fcs_nok  = 0;
 		}
+#endif
+
 #ifdef DEBUG
 #ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
 syslog(LOG_INFO, ">>> gCpssPortPMGet : port[%d] ret[%d]", portno, ret);
