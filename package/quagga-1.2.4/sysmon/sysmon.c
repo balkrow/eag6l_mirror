@@ -1689,9 +1689,11 @@ int rdl_mcu_emul_func(struct thread *thread)
 #if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 int monitor_hw_timer(struct thread *thread)
 {
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	if(gDB.init_state != SYS_INIT_DONE) {
 		goto __SKIP_1__;
 	}
+#endif
 
 	/*PLL state*/
 	rsmu_pll_update();
@@ -1715,9 +1717,15 @@ extern void process_port_pm_counters(void);
 	/*update KeepAlive reg*/
 	update_KeepAlive();
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+	if(gDB.sdk_init_state != SDK_INIT_DONE) {
+		goto __SKIP_2__;
+	}
+#else
 	if(gDB.init_state != SYS_INIT_DONE) {
 		goto __SKIP_2__;
 	}
+#endif
 
 	pm_request_counters();
 
@@ -1740,9 +1748,11 @@ extern void update_bp_reg(void);
 extern void update_sfp(void);
 extern uint16_t portAlarm(void);
 
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	if(gDB.init_state != SYS_INIT_DONE) {
 		goto __SKIP_3__;
 	}
+#endif
 
 	if(! i2c_in_use_flag)
 #endif
@@ -1786,9 +1796,15 @@ int monMCUupdate(struct thread *thread)
 {
 extern void regMonitor(void);
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+	if(gDB.sdk_init_state != SDK_INIT_DONE) {
+		goto __SKIP_4__;
+	}
+#else
 	if(gDB.init_state != SYS_INIT_DONE) {
 		goto __SKIP_4__;
 	}
+#endif
 
 	regMonitor();
 

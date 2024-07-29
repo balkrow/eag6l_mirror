@@ -181,11 +181,12 @@ DEFUN (show_sysmon_system,
 		sprintf(pll_state, "%s", "UNKNOWN");
 		break;
 	}
-
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	if(gDB.pll_state == FREERUN)
 		sprintf(pll_state, "%s", "FREERUN");
 	else if(gDB.pll_state == FREERUN)
 		sprintf(pll_state, "%s", "FREERUN");
+#endif
 
 	vty_out(vty, "PLL    state    : %s%s", pll_state, VTY_NEWLINE);
 	vty_out(vty, "Sync-e state    : %s%s", gDB.synce_state == CFG_ENABLE ? "Enable":"Disable"
