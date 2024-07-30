@@ -426,7 +426,7 @@ static void print_port_pm_counters(struct vty *vty, int portno)
 
     pmc = &(PM_TBL[portno]);
 
-    vty_out(vty, "[%d] tx_frame[%13lu] rx_frame[%13lu] tx_byte[%13lu] rx_byte[%13lu] rx_fcs[%13lu] rec_ok[%13lu] rec_nok[%13lu]\n",
+    vty_out(vty, "port[%d] tx_frame[%13llu] rx_frame[%13llu] tx_byte[%13llu] rx_byte[%13llu] rx_fcs[%13llu] rec_ok[%13llu] rec_nok[%13llu]\n",
         portno,
 		pmc->tx_frame,
 		pmc->rx_frame,
