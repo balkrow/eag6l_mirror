@@ -377,6 +377,35 @@ uint8_t gCpssPortPMClear(int args, ...)
 #endif
 #endif
 
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+uint8_t gCpssPortPMFECClear(int args, ...)
+{
+	va_list argP;
+	sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+	if(args != 1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	memset(&msg, 0, sizeof msg);
+	va_start(argP, args);
+	msg.portid = va_arg(argP, uint32_t);
+	va_end(argP);
+	msg.type = gPortPMFECClear;
+
+	if(send_to_sysmon_slave(&msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 {
 	gCpssSDKInit,	
@@ -399,6 +428,9 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 	gCpssPortPMGet,
 	gCpssPortPMClear,
+#endif
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+	gCpssPortPMFECClear,
 #endif
 };
 
