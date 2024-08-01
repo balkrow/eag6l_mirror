@@ -32,6 +32,9 @@ extern int rdl_activate_bp(int bno);
 extern int rdl_activate_fpga(uint8_t bno);
 #endif
 #endif
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+extern uint16_t portRateSet (uint16_t port, uint16_t val);
+#endif
 
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 extern GLOBAL_DB gDB;
@@ -426,7 +429,7 @@ static void print_port_pm_counters(struct vty *vty, int portno)
 
     pmc = &(PM_TBL[portno]);
 
-    vty_out(vty, "port[%d] tx_frame[%13llu] rx_frame[%13llu] tx_byte[%13llu] rx_byte[%13llu] rx_fcs[%13llu] rec_ok[%13llu] rec_nok[%13llu]\n",
+    vty_out(vty, "port[%d] tx_frame[%13llu] rx_frame[%13llu] tx_byte[%13llu] rx_byte[%13llu] rx_fcs[%13llu] fec_ok[%13llu] fec_nok[%13llu]\n",
         portno,
 		pmc->tx_frame,
 		pmc->rx_frame,
@@ -647,7 +650,11 @@ DEFUN (set_port_speed,
 	             (! strncmp(argv[1], "10g", strlen("10g"))) ? 
 			PORT_IF_10G_KR : PORT_IF_25G_KR);
 
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+	portRateSet(portno, (speed == PORT_IF_10G_KR) ? 0x6 : 0x7);
+#else
 	gSysmonToCpssFuncs[gPortSetRate](3, (uint16_t)portno, (uint16_t)speed, (uint16_t)speed);
+#endif/*ZZPP*/
 
 	PORT_STATUS[portno].speed = speed;
 	PORT_STATUS[portno].ifmode = speed;

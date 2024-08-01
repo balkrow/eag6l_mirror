@@ -61,6 +61,9 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val);
 uint16_t synceIFSelect(uint16_t port, uint16_t val);
 #endif
 uint16_t pmClear(uint16_t port, uint16_t val);
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+uint16_t pmFECClear(uint16_t port);
+#endif
 uint16_t chipReset(uint16_t port, uint16_t val);
 uint16_t boardStatus(uint16_t port, uint16_t val);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
@@ -187,6 +190,16 @@ RegMON regMonList [] = {
 
 uint16_t regMonArrSize = sizeof(regMonList) / sizeof(RegMON);
 
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+void pm_clear_fec_counters(struct thread *thread)
+{
+	uint8_t portno = thread->arg;
+
+	pmFECClear(portno);
+	return 0;
+}
+#endif
+
 #if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 uint16_t portRateSet (uint16_t port)
 {
@@ -241,10 +254,17 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 #endif //PWY_FIXME
 
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+	if(val == 0x7/*25G*/)
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
+	else if(val == 0x6/*10G*/)
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
+#else
 	if(val == 0x7/*25G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_25G_SR_LR);
 	else if(val == 0x6/*10G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_10G_SR_LR);
+#endif
 #else
 	if(val == 0x7/*25G*/)
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
@@ -253,6 +273,11 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 #endif
 	else
 		rc = RT_NOK;
+
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+	if((val == 0x7/*25G*/) && (rc != RT_NOK))
+		thread_add_timer(master, pm_clear_fec_counters, port, 2);
+#endif
 
 	return rc;
 }
@@ -369,6 +394,11 @@ uint16_t pmClear(uint16_t port, uint16_t val)
 		return SUCCESS;
 
 	gSysmonToCpssFuncs[gPortPMClear](1, 1);
+
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+	/* clear pm counter for resetting fec counter. */
+	memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
+#endif
 	return SUCCESS;
 }
 #else
@@ -382,6 +412,15 @@ extern void pm_request_clear(void);
 
 	pm_request_clear();
 	return SUCCESS;
+}
+#endif
+
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+uint16_t pmFECClear(uint16_t port)
+{
+	gSysmonToCpssFuncs[gPortPMFECClear](1, port);
+	PM_TBL[port].fcs_ok  = 0;
+	PM_TBL[port].fcs_nok = 0;
 }
 #endif
 
@@ -422,8 +461,12 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 			memset(&(PORT_STATUS[port]), 0, sizeof(port_status_t));
 #endif
 
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+			pmClear(port, 0xA5);
+#else
 			/* clear pm counter? */
 			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
+#endif
 
 			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
 			PORT_STATUS[port].equip = 0;/*not-installed*/
@@ -484,6 +527,10 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 			/* set rtwdm loopback if configured. */
 			if(PORT_STATUS[port].cfg_rtwdm_loopback)
 				set_rtwdm_loopback(port, 1/*enable*/);
+#endif
+
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+			thread_add_timer(master, pm_clear_fec_counters, port, 2);
 #endif
 
 			update_port_sfp_inventory();

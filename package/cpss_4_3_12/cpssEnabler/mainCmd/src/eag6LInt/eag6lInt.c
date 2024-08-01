@@ -305,10 +305,34 @@ uint8_t get_port_speed(uint8_t lport, uint8_t * speed)
 		return -1;
 	}
 
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+	if(pparam.portParamsType.regPort.speed == 
+			CPSS_PORT_SPEED_25000_E) {
+		if(pparam.portParamsType.regPort.ifMode == 
+			CPSS_PORT_INTERFACE_MODE_KR_E)
+			*speed = PORT_IF_25G_KR;
+		else if(pparam.portParamsType.regPort.ifMode == 
+			CPSS_PORT_INTERFACE_MODE_SR_LR_E)
+			*speed = PORT_IF_25G_SR_LR;
+		else
+			*speed = PORT_IF_25G_KR;
+	} else if(pparam.portParamsType.regPort.speed == 
+			CPSS_PORT_SPEED_10000_E) {
+		if(pparam.portParamsType.regPort.ifMode == 
+			CPSS_PORT_INTERFACE_MODE_KR_E)
+			*speed = PORT_IF_10G_KR;
+		else if(pparam.portParamsType.regPort.ifMode == 
+			CPSS_PORT_INTERFACE_MODE_SR_LR_E)
+			*speed = PORT_IF_10G_SR_LR;
+		else
+			*speed = PORT_IF_10G_KR;
+	}
+#else
 	if(pparam.portParamsType.regPort.speed == CPSS_PORT_SPEED_25000_E)
 		*speed = PORT_IF_25G_KR;
 	else if(pparam.portParamsType.regPort.speed == CPSS_PORT_SPEED_10000_E)
 		*speed = PORT_IF_10G_KR;
+#endif
 	else {
 		syslog(LOG_INFO, "%s: invalid speed ? [%d].", 
 			__func__, pparam.portParamsType.regPort.speed);
@@ -1687,10 +1711,10 @@ uint8_t gCpssPortPMGet(int args, ...)
 #ifdef DEBUG
 #ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
 syslog(LOG_INFO, ">>> gCpssPortPMGet : port[%d] ret[%d]", portno, ret);
-syslog(LOG_INFO, ">>> gCpssPortPMGet tx_frame[%u/%u > %lu] rx_frame[%u/%u > %lu]", pmc.goodPktsSent.l[0], pmc.goodPktsSent.l[1], msg->pm[portno].tx_frame, pmc.goodPktsRcv.l[0], pmc.goodPktsRcv.l[1], msg->pm[portno].rx_frame);
-syslog(LOG_INFO, ">>> gCpssPortPMGet tx_bytes[%u/%u > %lu] rx_bytes[%u/%u > %lu]", pmc.goodOctetsSent.l[0], pmc.goodOctetsSent.l[1], msg->pm[portno].tx_byte, pmc.goodOctetsRcv.l[0], pmc.goodOctetsRcv.l[1], msg->pm[portno].rx_byte);
-syslog(LOG_INFO, ">>> gCpssPortPMGet rx_fcs[%lu]", msg->pm[portno].rx_fcs);
-syslog(LOG_INFO, ">>> gCpssPortPMGet fcs_ok[%u/%u > %lu] fcs_nok[%u/%u > %lu]", rs_cnt.correctedFecCodeword.l[0], rs_cnt.correctedFecCodeword.l[1], msg->pm[portno].fcs_ok, rs_cnt.uncorrectedFecCodeword.l[0], rs_cnt.uncorrectedFecCodeword.l[1], msg->pm[portno].fcs_nok);
+syslog(LOG_INFO, ">>> gCpssPortPMGet tx_frame[%u/%u > %llu] rx_frame[%u/%u > %llu]", pmc.goodPktsSent.l[0], pmc.goodPktsSent.l[1], msg->pm[portno].tx_frame, pmc.goodPktsRcv.l[0], pmc.goodPktsRcv.l[1], msg->pm[portno].rx_frame);
+syslog(LOG_INFO, ">>> gCpssPortPMGet tx_bytes[%u/%u > %llu] rx_bytes[%u/%u > %llu]", pmc.goodOctetsSent.l[0], pmc.goodOctetsSent.l[1], msg->pm[portno].tx_byte, pmc.goodOctetsRcv.l[0], pmc.goodOctetsRcv.l[1], msg->pm[portno].rx_byte);
+syslog(LOG_INFO, ">>> gCpssPortPMGet rx_fcs[%llu]", msg->pm[portno].rx_fcs);
+syslog(LOG_INFO, ">>> gCpssPortPMGet fcs_ok[%u/%u > %llu] fcs_nok[%u/%u > %llu]", rs_cnt.correctedFecCodeword.l[0], rs_cnt.correctedFecCodeword.l[1], msg->pm[portno].fcs_ok, rs_cnt.uncorrectedFecCodeword.l[0], rs_cnt.uncorrectedFecCodeword.l[1], msg->pm[portno].fcs_nok);
 #else /*! armv8*/
 syslog(LOG_INFO, ">>> gCpssPortPMGet : port[%d] ret[%d]", portno, ret);
 syslog(LOG_INFO, ">>> gCpssPortPMGet tx_frame[%u/%u > %llu] rx_frame[%u/%u > %llu]", pmc.goodPktsSent.l[0], pmc.goodPktsSent.l[1], msg->pm[portno].tx_frame, pmc.goodPktsRcv.l[0], pmc.goodPktsRcv.l[1], msg->pm[portno].rx_frame);
@@ -1759,6 +1783,64 @@ uint8_t gCpssPortPMClear(int args, ...)
 }
 #endif
 
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+uint8_t gCpssPortPMFECClear(int args, ...)
+{
+    uint8_t portno, dport;
+    uint8_t ret = GT_OK;
+	GT_BOOL enable;
+	CPSS_RSFEC_COUNTERS_STC rs_cnt;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] for port[%d].", 
+		__func__, gPortPMFECClear, msg->type, msg->portid);
+
+	portno = msg->portid;
+	dport = get_eag6L_dport(portno);
+
+	/* first, check if clear-on-read enabled. */
+	ret = cpssDxChPortMacCountersClearOnReadGet(0, dport, &enable);
+	if(ret != GT_OK)
+		syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadGet: port[%d] ret[%d]", portno, ret);
+
+	/* enable if clear on read is not enabled. */
+	if(! enable) {
+		ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_TRUE);
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
+	}
+
+	/* read to clear counters. */
+	if(eag6LSpeedStatus[portno] == PORT_IF_25G_KR) {
+syslog(LOG_INFO, "%s (REQ): 25GGGGGG for port[%d].", __func__, msg->portid);/*ZZPP*/
+		memset(&rs_cnt, 0, sizeof rs_cnt);
+		ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
+
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
+	} else
+syslog(LOG_INFO, "%s (REQ): NOOOOT 25GGGGGG for port[%d].", __func__, msg->portid);/*ZZPP*/
+
+	/* recover if clear on read is not enabled. */
+	if(! enable) {
+		ret = cpssDxChPortMacCountersClearOnReadSet(0, dport, GT_FALSE);
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChPortMacCountersClearOnReadSet: port[%d] ret[%d]", portno, ret);
+	}
+
+	syslog(LOG_INFO, ">>> gCpssPortPMFECClear DONE <<<");
+	msg->result = ret;
+
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 {
 	gCpssSDKInit,
@@ -1778,6 +1860,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 	gCpssPortPMGet,
 	gCpssPortPMClear,
+#endif
+#if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+	gCpssPortPMFECClear,
 #endif
 };
 
