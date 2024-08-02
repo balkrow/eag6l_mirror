@@ -133,8 +133,35 @@
 
 
 &ifc {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	/* NOR Flash on board */
+	ranges = <0x0 0x0 0x0 0x71000000 0x600000>;
 	status = "okay";
+
+	fpga_nor@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash";
+		bank-width = <2>;
+		device-width = <1>;
+		reg = <0x0 0x0 0x2000000>;
+
+    partition@0 {
+            reg = <0x0 0x200000>;
+            label = "fpga-bank0";
+    };
+    partition@1 {
+            reg = <0x200000 0x400000>;
+            label = "fpga-bank1";
+    };
+    partition@2 {
+            reg = <0x400000 0x600000>;
+            label = "fpga-bank2";
+    };
+	};
 };
+
 
 &lpuart0 {
 	status = "okay";

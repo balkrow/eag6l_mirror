@@ -115,13 +115,19 @@ static int trigger;
 
 struct hdriver_priv_data  *hdrv_priv;
 
-#define CONFIG_SYS_DPRAM_ADDR 0x60000000
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+#define CONFIG_SYS_DPRAM_ADDR 0x60500000
+#endif
 #define CONFIG_SYS_FPGA_ADDR 0x60000000
-#define CONFIG_SYS_CPLD_ADDR 0x60000000
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+#define CONFIG_SYS_CPLD_ADDR 0x70000000
+#endif
 
 static unsigned int init_devmem_virt_base = 0;
 
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
 unsigned long hdriver_dpram_virt_base;
+#endif
 unsigned long hdriver_fpga_virt_base;
 unsigned long hdriver_cpld_virt_base;
 
@@ -369,12 +375,21 @@ unsigned short dpram_memory( int type,unsigned int addr, unsigned short value) {
 	if(hdriver_fpga_cut)
 		return 0;
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+	if(type == HDRIVER_MEMORY_TYPE_READ) {
+		value = *(volatile unsigned short*)(hdriver_fpga_virt_base + addr);
+	} else if(type == HDRIVER_MEMORY_TYPE_WRITE) {
+		*(volatile unsigned short*)(hdriver_fpga_virt_base + addr) = (value & 0xffff);
+	} else
+		value = 0;
+#else
 	if(type == HDRIVER_MEMORY_TYPE_READ) {
 		value = *(volatile unsigned short*)(hdriver_dpram_virt_base + addr);
 	} else if(type == HDRIVER_MEMORY_TYPE_WRITE) {
 		*(volatile unsigned short*)(hdriver_dpram_virt_base + addr) = (value & 0xffff);
 	} else
 		value = 0;
+#endif
 
 	return value;   
 }
@@ -885,9 +900,13 @@ hdriver_release(struct inode *inode, struct file *filp)
 static int  hdriver_devmem_init(void)
 {
 
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
     hdriver_dpram_virt_base = (unsigned long)ioremap(CONFIG_SYS_DPRAM_ADDR, 0x04000000);
-    hdriver_fpga_virt_base = (unsigned long)ioremap(CONFIG_SYS_FPGA_ADDR, 0x02000000);
-    hdriver_cpld_virt_base = (unsigned long)ioremap(CONFIG_SYS_FPGA_ADDR, 0x02000000);
+#endif
+    hdriver_fpga_virt_base = (unsigned long)ioremap(CONFIG_SYS_FPGA_ADDR, 0x4000000);
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+    hdriver_cpld_virt_base = (unsigned long)ioremap(CONFIG_SYS_CPLD_ADDR, 0x4000000);
+#endif
 
     init_devmem_virt_base = 1;
 

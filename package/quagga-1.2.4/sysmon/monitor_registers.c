@@ -1917,6 +1917,12 @@ extern int update_flex_tune_status(int portno);
 	process_alarm_info();
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-29*/
+		if(!PORT_STATUS[portno].equip)
+			continue;
+#endif
+		
+		
 		/* update tx power */
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/));

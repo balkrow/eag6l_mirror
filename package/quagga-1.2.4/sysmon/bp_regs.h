@@ -133,7 +133,7 @@ typedef enum {
 /* Fixing wrong address */
 #define CHIP_RESET_ADDR			0x40
 #else
-#define CHIP_RESET_ADDR			0x20	// r/w for both mcu/bp.
+#define CHIP_RESET_ADDR			0x20	
 #endif
 
 
@@ -151,21 +151,21 @@ typedef enum {
  * DCO related registers
  ****************************/
 
-// H/W manufacture
+/* H/W manufacture */
 #define INV_HW_MANU_1_ADDR			0x370	
 #define INV_HW_MANU_2_ADDR			0x372	
 #define INV_HW_MANU_3_ADDR			0x374	
 #define INV_HW_MANU_4_ADDR			0x376	
 #define INV_HW_MANU_5_ADDR			0x378	
 
-// H/W model
+/* H/W model */
 #define INV_HW_MODEL_1_ADDR			0x380	
 #define INV_HW_MODEL_2_ADDR			0x382	
 #define INV_HW_MODEL_3_ADDR			0x384	
 #define INV_HW_MODEL_4_ADDR			0x386	
 #define INV_HW_MODEL_5_ADDR			0x388	
 
-// H/W part number
+/* H/W part number */
 #define INV_HW_PN_1_ADDR			0x390	
 #define INV_HW_PN_2_ADDR			0x392	
 #define INV_HW_PN_3_ADDR			0x394	
@@ -175,7 +175,7 @@ typedef enum {
 #define INV_HW_PN_7_ADDR			0x39C	
 #define INV_HW_PN_8_ADDR			0x39E	
 
-// H/W serial number
+/* H/W serial number */
 #define INV_HW_SN_1_ADDR			0x3A0	
 #define INV_HW_SN_2_ADDR			0x3A2	
 #if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
@@ -187,11 +187,11 @@ typedef enum {
 #define INV_HW_SN_8_ADDR			0x3AE	
 #endif
 
-// H/W revision number
+/* H/W revision number */
 #define INV_HW_REV_1_ADDR			0x3B0	
 #define INV_HW_REV_2_ADDR			0x3B2	
 
-// H/W manufacture date
+/* H/W manufacture date */
 #define INV_HW_MDATE_1_ADDR			0x3B4	
 #define INV_HW_MDATE_2_ADDR			0x3B6	
 #define INV_HW_MDATE_3_ADDR			0x3B8	
@@ -201,14 +201,14 @@ typedef enum {
 #define INV_HW_MDATE_6_ADDR			0x3BE
 #endif
 
-// H/W repair date
+/* H/W repair date */
 #define INV_HW_RDATE_1_ADDR			0x3C0	 
 #define INV_HW_RDATE_2_ADDR			0x3C2	 
 #define INV_HW_RDATE_3_ADDR			0x3C4	 
 #define INV_HW_RDATE_4_ADDR			0x3C6	 
 #define INV_HW_RDATE_5_ADDR			0x3C8	 
 
-// H/W repair code
+/* H/W repair code */
 #define INV_HW_RCODE_1_ADDR			0x3CA	 
 #define INV_HW_RCODE_2_ADDR			0x3CC	 
 
