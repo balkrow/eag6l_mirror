@@ -355,6 +355,7 @@ return CMD_SUCCESS;
 
 }
 
+#if 0/*[82] eag6l board SW Debugging, balkrow, 2024-08-02*/
 DEFUN (slot_display,
        slot_display_cmd,
        "slotmd ADDRESS [<0-1024>]",
@@ -468,7 +469,7 @@ DEFUN (slot_write,
 	return CMD_SUCCESS;
 
 }
-
+#endif
 
 
 DEFUN (fpga_display,
@@ -518,8 +519,8 @@ DEFUN (fpga_display,
 		linebytes = (nbytes>DISP_LINE_LEN)?DISP_LINE_LEN:nbytes;
 
 		for (i=0; i<linebytes; i+= size) {
-
-			fpgamemory.addr = addr;fpgamemory.type=HDRIVER_MEMORY_TYPE_READ;fpgamemory.value=0;
+			fpgamemory.addr = addr;
+			fpgamemory.value = 0;
 			ioctl(gebd_fd, HDRIVER_IOCG_FPGA_SHOW_MEMORY, &fpgamemory);
 			b = fpgamemory.value;
 			vty_out (vty," %04x", (*usp++ = b));
@@ -576,7 +577,11 @@ DEFUN (fpga_write,
 		return -1;
 	}
 
-	fpgamemory.addr = addr;fpgamemory.type=HDRIVER_MEMORY_TYPE_WRITE;fpgamemory.value=writeval;
+	fpgamemory.addr = addr;
+#if 0/*[82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+	fpgamemory.type=HDRIVER_MEMORY_TYPE_WRITE;
+#endif
+	fpgamemory.value=writeval;
 	ioctl(gebd_fd, HDRIVER_IOCS_FPGA_WRITE_MEMORY, &fpgamemory);
 
 
@@ -587,7 +592,7 @@ DEFUN (fpga_write,
 
 }
 
-#if 1//modified  by balkrow
+#if 0//modified  by balkrow
 DEFUN (ofiu_display,
 		ofiu_display_cmd,
 		"ofiumd NUM ADDRESS [<0-1024>]",
@@ -801,8 +806,10 @@ int cmd_memory_init()
   cmd_install_element ( &fpga_display_cmd);
   cmd_install_element ( &fpga_write_cmd);
 
+#if 0/*[82] eag6l board SW Debugging, balkrow, 2024-08-02*/
   cmd_install_element ( &ofiu_display_cmd);
   cmd_install_element ( &ofiu_write_cmd);
+#endif
 
   
   return 0;
