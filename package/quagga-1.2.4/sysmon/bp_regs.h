@@ -133,7 +133,7 @@ typedef enum {
 /* Fixing wrong address */
 #define CHIP_RESET_ADDR			0x40
 #else
-#define CHIP_RESET_ADDR			0x20	/* r/w for both mcu/bp. */
+#define CHIP_RESET_ADDR			0x20	
 #endif
 
 

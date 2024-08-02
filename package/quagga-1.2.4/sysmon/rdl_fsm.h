@@ -56,7 +56,9 @@
 #define RDL_BOOT_LINK_PATH          "/mnt/flash/boot/uImage"
 
 #define RDL_DEV_FPGA_OS             "/mnt/flash/FPGA_OS"
-#define RDL_DEV_FPGA_FW             "/mnt/flash/FPGA_FW"
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-29*/
+#define RDL_DEV_FPGA_FW             "/dev/mtd1" /*bank1 : /dev/mtd1, bank2 : /dev/mtd2*/
+#endif
 #if 0//PWY_FIXME
 #define RDL_DEV_FPGA_OS             "/dev/fpga_os"
 #define RDL_DEV_FPGA_FW             "/dev/fpga_fw"
