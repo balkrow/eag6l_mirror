@@ -3017,16 +3017,24 @@ int boot_flash_image(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		mmc_init(mmc);
 	}
 
+#if 1/*[82]eag6l board SW Debugging, balkrow, 2024-08-02*/
+	/**
+	 * bank str is NULL, bank 2 
+	 * bank str is 1, bank 0 
+	 * bank str is 2, bank 1 
+	 *
+	 */
 #if 1/*[20]eMMC partition에 bank1,bank2 추가, 2024-05-20*/
 	bank_str = env_get("bank");
 	if(bank_str == NULL)
-		bank = 0;
+		bank = 2;
 	else if(!strcmp(bank_str, "1"))
-		bank = 1;		
+		bank = 0;		
 	else if(!strcmp(bank_str, "2"))
-		bank = 2;		
+		bank = 1;		
 	else 
-		bank = 0;
+		bank = 2;
+#endif
 #endif
 
 	for(i = 0 ; i < 5; i ++)
@@ -3039,19 +3047,21 @@ int boot_flash_image(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	strcpy(imgload_argv[1], "mmc");
 
 #if 1/*[20]eMMC partition에 bank1,bank2 추가, 2024-05-20*/
-	if(bank == 1) {
-		strcpy(imgload_argv[2], "0:1");
-		store_bootimagename("bank2");
+#if 1/*[82]eag6l board SW Debugging, balkrow, 2024-08-02*/
+	if(bank == 0) {
+		strcpy(imgload_argv[2], "0:0");
+		store_bootimagename("bank1");
 	} else if(bank == 2) {
 		strcpy(imgload_argv[2], "0:2");
 		store_bootimagename("factory");
-	} else if(bank == 0) {
-		strcpy(imgload_argv[2], "0:0");
-		store_bootimagename("bank1");
+	} else if(bank == 1) {
+		strcpy(imgload_argv[2], "0:1");
+		store_bootimagename("bank2");
 	} else { 
 		strcpy(imgload_argv[2], "0:2");
 		store_bootimagename("factory");
 	}
+#endif
 #else
 	strcpy(imgload_argv[2], "0:0");
 #endif

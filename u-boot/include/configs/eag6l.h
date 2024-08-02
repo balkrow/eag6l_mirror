@@ -279,13 +279,13 @@
 
 #define CONFIG_SERVERIP 192.168.157.13
 #define CONFIG_IPADDR 192.168.157.221
-#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-03*/
+#if 1/*[82]eag6l board SW Debugging, balkrow, 2024-08-02*/
 #define CONFIG_EXTRA_ENV_SETTINGS					\
 	"bootargs=root=/dev/ram0 rw console=ttyS0,115200 panic=60 blkdevparts=mmcblk0:1M@4K(uboot),10M@2M(uboot_env),128M(bank1),128M(bank2),128M(factory),128M(log),-(flash)\0"	\
 	"initrd_high=0x8f000000\0"					\
 	"fdt_high=0x88000000\0"						\
 	"bootup=tftp 0x82000000 balkrow/eag6l-boot-v1.0.0.bin && mmc rescan && mmc dev 0 && mmc erase 8 0x800 && mmc write 0x82000000 8 0x800\0"	\
-	"ipaddr=192.168.157.229\0"						\
+	"ipaddr=192.168.157.245\0"						\
 	"serverip=192.168.157.13\0"						\
 	"netmask=255.255.255.0\0"						\
 	"bootcmd=boot_tftp balkrow/eag6l-os-v1.0.0.bin\0"						\

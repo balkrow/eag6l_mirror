@@ -98,7 +98,9 @@ struct timer_list hdriver_timer3;
 
 static int hdriver_open_flag;
 
-static int hdriver_fpga_cut = 1;
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+static int hdriver_fpga_cut = 0;
+#endif
 
 #define HDRVDEBUG 1
 
@@ -125,11 +127,14 @@ struct hdriver_priv_data  *hdrv_priv;
 
 static unsigned int init_devmem_virt_base = 0;
 
-#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+void __iomem *hdriver_fpga_virt_base;
+void __iomem *hdriver_cpld_virt_base;
+#else
 unsigned long hdriver_dpram_virt_base;
-#endif
 unsigned long hdriver_fpga_virt_base;
 unsigned long hdriver_cpld_virt_base;
+#endif
 
 
 #define RTL8368_SPI_IF_OUT_OFFSET       0x60
@@ -376,12 +381,16 @@ unsigned short dpram_memory( int type,unsigned int addr, unsigned short value) {
 		return 0;
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
-	if(type == HDRIVER_MEMORY_TYPE_READ) {
-		value = *(volatile unsigned short*)(hdriver_fpga_virt_base + addr);
-	} else if(type == HDRIVER_MEMORY_TYPE_WRITE) {
-		*(volatile unsigned short*)(hdriver_fpga_virt_base + addr) = (value & 0xffff);
-	} else
-		value = 0;
+    if(type == HDRIVER_MEMORY_TYPE_READ) {
+        value = ioread16(hdriver_fpga_virt_base + addr);
+        return value;
+
+    } else if(type == HDRIVER_MEMORY_TYPE_WRITE) {
+        iowrite16((value & 0xffff), hdriver_fpga_virt_base + addr);
+        return value;
+    }
+    else
+	value = 0;
 #else
 	if(type == HDRIVER_MEMORY_TYPE_READ) {
 		value = *(volatile unsigned short*)(hdriver_dpram_virt_base + addr);
@@ -399,6 +408,18 @@ unsigned short fpga_memory( int type,unsigned int addr, unsigned short value) {
     if(hdriver_fpga_cut)
         return 0;
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+    if(type == HDRIVER_MEMORY_TYPE_READ) {
+        value = ioread16(hdriver_fpga_virt_base + addr);
+        return value;
+
+    } else if(type == HDRIVER_MEMORY_TYPE_WRITE) {
+        iowrite16((value & 0xffff), hdriver_fpga_virt_base + addr);
+        return value;
+    }
+    else
+	value = 0;
+#else
     if(type == HDRIVER_MEMORY_TYPE_READ) {
         value = *(volatile unsigned short*)(hdriver_fpga_virt_base + addr);
         return value;
@@ -407,6 +428,7 @@ unsigned short fpga_memory( int type,unsigned int addr, unsigned short value) {
         *(volatile unsigned short*)(hdriver_fpga_virt_base + addr) = (value & 0xffff);
         return value;
     }
+#endif
 
     return 0;   
 }
@@ -900,11 +922,12 @@ hdriver_release(struct inode *inode, struct file *filp)
 static int  hdriver_devmem_init(void)
 {
 
-#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
-    hdriver_dpram_virt_base = (unsigned long)ioremap(CONFIG_SYS_DPRAM_ADDR, 0x04000000);
-#endif
-    hdriver_fpga_virt_base = (unsigned long)ioremap(CONFIG_SYS_FPGA_ADDR, 0x4000000);
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+    hdriver_fpga_virt_base = ioremap(CONFIG_SYS_FPGA_ADDR, 0x04000000);
+    hdriver_cpld_virt_base = ioremap(CONFIG_SYS_CPLD_ADDR, 0x04000000);
+#else
+    hdriver_dpram_virt_base = (unsigned long)ioremap(CONFIG_SYS_DPRAM_ADDR, 0x04000000);
+    hdriver_fpga_virt_base = (unsigned long)ioremap(CONFIG_SYS_FPGA_ADDR, 0x4000000);
     hdriver_cpld_virt_base = (unsigned long)ioremap(CONFIG_SYS_CPLD_ADDR, 0x4000000);
 #endif
 
