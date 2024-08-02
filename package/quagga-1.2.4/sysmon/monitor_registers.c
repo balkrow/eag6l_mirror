@@ -1890,7 +1890,11 @@ void process_alarm_info(void)
 			val &= ~(1 << 0);
 
 		/* update link down (Local Fault?) */
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+		if(! PORT_STATUS[portno].link || PORT_STATUS[portno].local_fault)
+#else
 		if(! PORT_STATUS[portno].link)
+#endif
 			val |= (1 << 1);
 		else
 			val &= ~(1 << 1);

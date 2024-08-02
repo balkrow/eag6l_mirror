@@ -842,12 +842,13 @@ DEFUN (get_register,
 
 DEFUN (get_register2,
        get_register2_cmd,
-       "get-register ( common-control2 | port-config | alarm-mask | set-channel-no | get-channel-no ) <1-9>",
+       "get-register ( common-control2 | port-config | alarm | alarm-mask | set-channel-no | get-channel-no ) <1-9>",
        "get register\n"
        "Port Common Control2\n"
        "Target port\n"
        "Port Config\n"
        "Target port\n"
+       "Port Alarm\n"
        "Port Alarm Mask\n"
        "Set channel no for tunable sfp\n"
        "Get channel no for tunable sfp\n"
@@ -862,6 +863,10 @@ DEFUN (get_register2,
 		addr = __COMMON_CTRL2_ADDR[portno];
 	else if(! strncmp(argv[0], "port-config", strlen("port-config")))
 		addr = __PORT_CONFIG_ADDR[portno];
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+	else if(! strncmp(argv[0], "alarm", strlen("alarm")))
+		addr = __PORT_ALM_ADDR[portno];
+#endif
 	else if(! strncmp(argv[0], "alarm-mask", strlen("alarm-mask")))
 		addr = __PORT_ALM_MASK_ADDR[portno];
 	else if(! strncmp(argv[0], "set-channel-no", strlen("set-channel-no")))
@@ -1072,6 +1077,10 @@ DEFUN (set_register2,
 		addr = __COMMON_CTRL2_ADDR[portno];
 	else if(! strncmp(argv[0], "port-config", strlen("port-config")))
 		addr = __PORT_CONFIG_ADDR[portno];
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+	else if(! strncmp(argv[0], "alarm", strlen("alarm")))
+		addr = __PORT_ALM_ADDR[portno];
+#endif
 	else if(! strncmp(argv[0], "alarm-mask", strlen("alarm-mask")))
 		addr = __PORT_ALM_MASK_ADDR[portno];
 	else if(! strncmp(argv[0], "set-channel-no", strlen("set-channel-no")))
