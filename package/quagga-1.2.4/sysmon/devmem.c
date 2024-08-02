@@ -22,6 +22,9 @@ static uint16_t __CACHE_FW_BANK_SELECT = 0x0;
 static uint16_t __CACHE_SW_VERSION = 0x0;
 static uint16_t __CACHE_COMMON_CTRL2[PORT_ID_EAG6L_MAX] = { 0x17, };
 static uint16_t __CACHE_PORT_CONF[PORT_ID_EAG6L_MAX] = { 0x0, };
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+static uint16_t __CACHE_PORT_ALM[PORT_ID_EAG6L_MAX] = { 0x0, };
+#endif
 static uint16_t __CACHE_PORT_ALM_MASK[PORT_ID_EAG6L_MAX] = { 0x0, };
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 static uint16_t __CACHE_SET_CH_NUM[PORT_ID_EAG6L_MAX] = { 0x0, };
@@ -216,6 +219,10 @@ uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg)
 			return __CACHE_COMMON_CTRL2[portno];
 		else if(addr == __PORT_CONFIG_ADDR[portno])
 			return __CACHE_PORT_CONF[portno];
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+		else if(addr == __PORT_ALM_ADDR[portno])
+			return __CACHE_PORT_ALM[portno];
+#endif
 		else if(addr == __PORT_ALM_MASK_ADDR[portno])
 			return __CACHE_PORT_ALM_MASK[portno];
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
@@ -371,6 +378,10 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 			return (__CACHE_COMMON_CTRL2[portno] = writeval);
 		else if(addr == __PORT_CONFIG_ADDR[portno])
 			return (__CACHE_PORT_CONF[portno] = writeval);
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+		else if(addr == __PORT_ALM_ADDR[portno])
+			return (__CACHE_PORT_ALM[portno] = writeval);
+#endif
 		else if(addr == __PORT_ALM_MASK_ADDR[portno])
 			return (__CACHE_PORT_ALM_MASK[portno] = writeval);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */

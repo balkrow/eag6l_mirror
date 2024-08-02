@@ -259,6 +259,10 @@ uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
 CPSS_DXCH_PORT_FEC_MODE_ENT FEC_MODE[PORT_ID_EAG6L_MAX];
 uint8_t SPEED[PORT_ID_EAG6L_MAX];
 #endif
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+uint8_t eag6LLF[PORT_ID_EAG6L_MAX];
+uint8_t eag6LRF[PORT_ID_EAG6L_MAX];
+#endif
 
 uint8_t get_eag6L_dport(uint8_t lport)
 {
@@ -752,7 +756,7 @@ static void RxPktReceive
 	msg = (T_esmc_pdu *)*packetBuffs;
 	esmc_ssm_and_essm_to_ql_map(net_opt, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, &parsed_ql);
 #ifdef DEBUG /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
-	syslog(LOG_INFO,"port event : port %d, ssm_code %x, e_ssm_code %x, ql %x, PriInf %x, SecInf %x",
+	syslog(LOG_INFO,"esmc event : port %d, ssm_code %x, e_ssm_code %x, ql %x, PriInf %x, SecInf %x",
 			toCpu->interface.portNum, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, parsed_ql, gSyncePriInf, gSynceSecInf); 
 #endif
 #if 0
@@ -781,6 +785,9 @@ GT_VOID processPortEvt
 	CPSS_DXCH_NET_RX_PARAMS_STC         rxParams;
 	GT_U8                               queueIdx  = 0;
 #endif
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+	GT_BOOL                             lf_st, rf_st;
+#endif
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	char port_str[10] = {0, };
 #endif
@@ -799,10 +806,38 @@ GT_VOID processPortEvt
 #endif
 		/* update link status cache */
 		portno = get_eag6L_lport(evExtData/*dport*/);
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+		if(portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E)
+		{
+			eag6LLinkStatus[portno] = 1;
+			eag6LRF[portno] = eag6LLF[portno] = 0;
+		}
+		else
+		{
+			eag6LLinkStatus[portno] = 0;
+
+			/* get local fault */
+			rc = cpssDxChPortXgmiiLocalFaultGet(devNum, evExtData, &lf_st);
+			if(rc != GT_OK)
+				syslog(LOG_INFO, "loca fault : get failed for port %s, ret[%d].",
+					port_str, rc);
+			else
+				eag6LLF[portno] = lf_st;
+
+			/* get remote fault */
+			rc = cpssDxChPortXgmiiRemoteFaultGet(devNum, evExtData, &rf_st);
+			if(rc != GT_OK)
+				syslog(LOG_INFO, "loca fault : get failed for port %s, ret[%d].",
+					port_str, rc);
+			else
+				eag6LRF[portno] = rf_st;
+		}
+#else
 		if(portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E)
 			eag6LLinkStatus[portno] = 1;
 		else
 			eag6LLinkStatus[portno] = 0;
+#endif
 	}
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
 	else if(uniEv >= CPSS_PP_RX_BUFFER_QUEUE0_E && uniEv <= CPSS_PP_RX_BUFFER_QUEUE7_E)
@@ -1546,6 +1581,10 @@ uint8_t gCpssPortAlarm(int args, ...)
 			msg->port_sts[portno].speed = eag6LSpeedStatus[portno];
 		}
 #endif
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+		msg->port_sts[portno].local_fault  = eag6LLF[portno];
+		msg->port_sts[portno].remote_fault = eag6LRF[portno];
+#endif
 	}
 #else/***********************************************************/
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
@@ -1816,14 +1855,12 @@ uint8_t gCpssPortPMFECClear(int args, ...)
 
 	/* read to clear counters. */
 	if(eag6LSpeedStatus[portno] == PORT_IF_25G_KR) {
-syslog(LOG_INFO, "%s (REQ): 25GGGGGG for port[%d].", __func__, msg->portid);/*ZZPP*/
 		memset(&rs_cnt, 0, sizeof rs_cnt);
 		ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
 
 		if(ret != GT_OK)
 			syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
 	} else
-syslog(LOG_INFO, "%s (REQ): NOOOOT 25GGGGGG for port[%d].", __func__, msg->portid);/*ZZPP*/
 
 	/* recover if clear on read is not enabled. */
 	if(! enable) {

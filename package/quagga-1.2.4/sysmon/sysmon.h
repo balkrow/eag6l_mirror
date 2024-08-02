@@ -418,6 +418,9 @@ typedef struct port_status
         u8  lof;
         u8  esmc_loss;
 		u8  remote_fault;
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+		u8  local_fault;
+#endif
 		u8  tsfp_self_lp;
 		u8  rtwdm_lp;
 		u8  tx_bias_sts;

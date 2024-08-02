@@ -818,6 +818,10 @@ uint8_t gReplyPortAlarm(int args, ...)
 #if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 		PORT_STATUS[portno].speed = msg->port_sts[portno].speed;
 #endif
+#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+		PORT_STATUS[portno].local_fault  = msg->port_sts[portno].local_fault;
+		PORT_STATUS[portno].remote_fault = msg->port_sts[portno].remote_fault;
+#endif
 	}
 
 	return ret;
