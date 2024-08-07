@@ -108,7 +108,9 @@ typedef enum {
                                            
 #define INIT_COMPLETE_ADDR		0x18	/* bp set 0xAA to [15:8] if init done.*/
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
-#define INIT_COMPLETE_ADDR_MASK		0xFF00
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-07*/
+#define INIT_COMPLETE_ADDR_MASK		0xFF /*LSB write for because FPGA someting*/
+#endif
 #endif
 
 #if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
