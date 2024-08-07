@@ -226,6 +226,7 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
 
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-07*/
 	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
 	 *
 	 * WRITE UNIT DEFINED 1(0xA)
@@ -237,6 +238,7 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	 * WRITE UNIT DEFINED 2(0xC)
 	 * */
 	FPGA_WRITE(SW_VERSION_ADDR, 0x164);
+#endif
 	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
 	 *
 	 * WRITE COMMAND CONTROL REG2(SIG SEL, Rate SEL)(0x20)
