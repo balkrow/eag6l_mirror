@@ -45,7 +45,7 @@
 #include "eag6l_fsm.h"
 #endif
 
-#define DEBUG
+#undef DEBUG
 
 #if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
 extern uint8_t EAG6LMacLearningnable (void);
@@ -73,6 +73,42 @@ int portLfRfDetect (struct multi_thread *thread);
 uint8_t gEag6LSDKInitStatus = GT_FALSE;
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 struct multi_thread *llcf_thread = NULL;
+#endif
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+uint8_t esmcRxPort = 0;
+
+uint8_t getSPortByCport(CARD_SIDE_PORT_NUM  port)
+{
+	uint8_t bitVal;
+	switch(port)
+	{
+	case C_PORT1:
+		bitVal = 0;
+		break;
+	case C_PORT2:
+		bitVal = 1;
+		break;
+	case C_PORT3:
+		bitVal = 2;
+		break;
+	case C_PORT4:
+		bitVal = 3;
+		break;
+	case C_PORT5:
+		bitVal = 4;
+		break;
+	case C_PORT6:
+		bitVal = 5;
+		break;
+	case C_PORT7:
+		bitVal = 6;
+		break;
+	default:
+		bitVal = 7;
+		break;
+	}
+	return bitVal;
+}
 #endif
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
@@ -752,10 +788,14 @@ static void RxPktReceive
 	if (rxParamsPtr->dsaParam.dsaType == CPSS_DXCH_NET_DSA_CMD_TO_CPU_E)
 		toCpu = &(rxParamsPtr->dsaParam.dsaInfo.toCpu);
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+	if((esmcRxPort & (1 << getSPortByCport(toCpu->interface.portNum))) == 0)
+		return;
+#endif
 
 	msg = (T_esmc_pdu *)*packetBuffs;
 	esmc_ssm_and_essm_to_ql_map(net_opt, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, &parsed_ql);
-#ifdef DEBUG /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+#ifdef DEBUG 
 	syslog(LOG_INFO,"esmc event : port %d, ssm_code %x, e_ssm_code %x, ql %x, PriInf %x, SecInf %x",
 			toCpu->interface.portNum, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, parsed_ql, gSyncePriInf, gSynceSecInf); 
 #endif
@@ -940,7 +980,7 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 	macEntry.key.key.macVlan.vlanId = 1;
 	macEntry.key.entryType = CPSS_MAC_ENTRY_EXT_TYPE_MAC_ADDR_E;
 
-	macEntry.dstInterface.type = CPSS_INTERFACE_VIDX_E;
+	macEntry.dstInterface.type = CPSS_INTERFACE_VID_E;
 	macEntry.dstInterface.devPort.hwDevNum = 0;
 	macEntry.dstInterface.devPort.portNum = port;
 	macEntry.dstInterface.vidx = 1;
@@ -1008,10 +1048,13 @@ uint8_t gCpssSynceEnable(int args, ...)
 			eag6LPortlist[i], 
 			true, 
 			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
-#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+#if 0/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
 		ret +=	gCpssEsmcToCPUSet(eag6LPortlist[i]);
 #endif
 	}
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+	ret +=	gCpssEsmcToCPUSet(eag6LPortlist[0]);
+#endif
 
 	syslog(LOG_NOTICE, "%s : synce enable ret=%x", __func__, ret);
 
@@ -1517,22 +1560,27 @@ _gCpssPortSetRate_exit:
 
 uint8_t gCpssPortESMCenable(int args, ...)
 {
-    uint8_t ret = GT_OK;
-    va_list argP;
-    sysmon_fifo_msg_t *msg = NULL;
+	uint8_t ret = GT_OK;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
 #ifdef DEBUG
-    syslog(LOG_INFO, "called %s args=%d", __func__, args);
+	syslog(LOG_INFO, "called %s args=%d", __func__, args);
 #endif
 
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-	syslog(LOG_INFO, "%s (REQ): type[%d/%d] port[%d] state[%d].", 
-		__func__, gPortESMCenable, msg->type, msg->portid, msg->state);
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] port[%d] eanble[%d].", 
+	       __func__, gPortESMCenable, msg->type, msg->portid, msg->mode);
 
-	/* FIXME : call sdk api to en/disable per-port ESMC state. */
+	if(msg->mode) 
+		esmcRxPort |= 1 << (msg->portid - 1); 
+	else
+		esmcRxPort &= ~(1 << (msg->portid - 1)); 
+#endif
 
-    syslog(LOG_INFO, ">>> gCpssPortESMCenable DONE ret[%d] <<<", ret);
+	syslog(LOG_INFO, ">>> gCpssPortESMCenable DONE ret[%x] <<<", esmcRxPort);
 
 	msg->result = ret;
 

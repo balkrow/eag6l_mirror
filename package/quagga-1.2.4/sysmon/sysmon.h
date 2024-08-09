@@ -87,7 +87,9 @@ define Memory Macro
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-15*/
 #define RSMU_PLL_IDX	4  
 #endif
-#define RT_OK 0
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+#define RT_OK 0xff
+#endif
 #define RT_NOK 1
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
 #define UNKNOWN 0
@@ -109,13 +111,15 @@ define Memory Macro
 #define SEC_SRC 0
 #endif
 
-#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#if 1/*[#56] register update timer 수정, balkrow, 2024-06-13 */
 #define SDK_INIT_FAIL 1
 #define SDK_INIT_DONE 0xAA
-#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2024-07-22 */
 #define SDK_INIT_WAIT 2
 #define CFG_ENABLE 1
-#define CFG_DISABLE 1
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+#define CFG_DISABLE 2
+#endif
 #define NOT_DEFINED 0xff
 #endif
 
@@ -173,6 +177,9 @@ typedef struct globalDB
 #if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-18*/
 	uint8_t synce_pri_port;
 	uint8_t synce_sec_port;
+#endif
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+	uint8_t esmcRxCfg[7];
 #endif
 	SVC_FSM svc_fsm;
 #endif

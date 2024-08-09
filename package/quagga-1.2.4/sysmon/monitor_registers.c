@@ -112,8 +112,8 @@ RegMON regMonList [] = {
   { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
-  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portESMCenable }, /* 10 */  
+  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portESMCenable },
   { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
 	/* port configuration - flex control */
   { PORT_1_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
@@ -124,7 +124,7 @@ RegMON regMonList [] = {
   { PORT_6_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
   { PORT_7_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
 	/* port configuration - rtwdm loopback */
-  { PORT_1_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+  { PORT_1_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, /* 20 */ 
   { PORT_2_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
   { PORT_3_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
   { PORT_4_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
@@ -135,7 +135,7 @@ RegMON regMonList [] = {
   { PORT_1_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
   { PORT_2_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
   { PORT_3_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
-  { PORT_4_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+  { PORT_4_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, /*30*/ 
   { PORT_5_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
   { PORT_6_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
   { PORT_7_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
@@ -146,7 +146,7 @@ RegMON regMonList [] = {
   { PORT_4_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
   { PORT_5_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
   { PORT_6_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
-  { PORT_7_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
+  { PORT_7_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, /*40*/ 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* channel number set */
 	/* FIXME : there are no channel table for 100G */
@@ -237,8 +237,13 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 	/*TODO: */
-	port = port;
-	val = val;
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+	rc = gSysmonToCpssFuncs[gPortESMCenable](2, port, val);
+	if(val)
+		gDB.esmcRxCfg[port - 1] = CFG_ENABLE;
+	else
+		gDB.esmcRxCfg[port - 1] = CFG_DISABLE;
+#endif
 	return rc;
 }
 

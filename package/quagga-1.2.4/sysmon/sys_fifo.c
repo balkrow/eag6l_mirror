@@ -244,13 +244,17 @@ uint8_t gCpssPortESMCenable(int args, ...)
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-	if(args != 1) {
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+	if(args != 2) {
 		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
 	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
+	msg.portid = va_arg(argP, uint32_t);
+	msg.mode = va_arg(argP, uint32_t);
+#endif
 	va_end(argP);
 
 	msg.type = gPortESMCenable;
@@ -405,6 +409,7 @@ uint8_t gCpssPortPMFECClear(int args, ...)
 	return IPC_CMD_SUCCESS;
 }
 #endif
+
 
 cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 {
@@ -789,7 +794,9 @@ uint8_t gReplyPortESMCEnable(int args, ...)
 	va_end(argP);
 
 	/* process for result. */
-	PORT_STATUS[msg->portid].cfg_esmc_enable = msg->state;
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+	PORT_STATUS[msg->portid].cfg_esmc_enable = msg->mode;
+#endif
 
 	return ret;
 }
@@ -995,6 +1002,30 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 }
 #endif
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+uint8_t gReplyFecCountClear(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+        /*Something To do*/		
+	return ret;
+}
+#endif
+
 cSysmonReplyFuncs gSysmonReplyFuncs[] =
 {
 	gReplySDKInit,
@@ -1011,6 +1042,9 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 #if 1/*[#32] PM related register update, dustin, 2024-05-28 */
 	gReplyPortPMGet,
 	gReplyPortPMClear,
+#endif
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+	gReplyFecCountClear,
 #endif
 #if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-17*/
 	gReplyPortESMCQLupdate,
