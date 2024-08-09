@@ -1852,6 +1852,41 @@ void sysmon_thread_init (void)
 #endif
 }
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+CARD_SIDE_PORT_NUM getCPortBySport(int16_t port)
+{
+	CARD_SIDE_PORT_NUM portNum;
+	switch(port)
+	{
+	case PORT_ID_EAG6L_PORT1:
+		portNum = C_PORT1;
+		break;
+	case PORT_ID_EAG6L_PORT2:
+		portNum = C_PORT2;
+		break;
+	case PORT_ID_EAG6L_PORT3:
+		portNum = C_PORT3;
+		break;
+	case PORT_ID_EAG6L_PORT4:
+		portNum = C_PORT4;
+		break;
+	case PORT_ID_EAG6L_PORT5:
+		portNum = C_PORT5;
+		break;
+	case PORT_ID_EAG6L_PORT6:
+		portNum = C_PORT6;
+		break;
+	case PORT_ID_EAG6L_PORT7:
+		portNum = C_PORT7;
+		break;
+	default:
+		portNum = NOT_DEFINED;
+		break;
+	}
+	return portNum;
+}
+#endif
+
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
 CARD_SIDE_PORT_NUM getCPortByMport(MCU_SIDE_PORT_NUM port)
 {

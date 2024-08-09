@@ -151,6 +151,37 @@ DEFUN (synce_if_conf,
 }
 #endif
 
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+extern uint16_t portESMCenable (uint16_t port, uint16_t val);
+DEFUN (esmc_if_conf,
+       esmc_if_conf_cmd,
+       "port-esmc (enable|disable) IFNAME",
+       "Prt ESMC"
+       "Enable\n"
+       "Disable\n"
+       "interface number(etc 0,8,16..50)\n")
+{
+  uint8_t enable = 0;
+  uint8_t port = 0;
+
+#if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
+  if(argc != 2)
+  {
+	vty_out (vty, "parameter error%s", VTY_NEWLINE);
+	return CMD_SUCCESS;
+  }
+
+  if (strncmp (argv[0], "e", 1) == 0)
+	  enable = 1;
+
+  port = atoi(argv[1]);
+  portESMCenable(port , enable);
+#endif
+
+  return CMD_SUCCESS;
+}
+#endif
+
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 DEFUN (show_sysmon_system,
        show_sysmon_system_cmd,
@@ -161,6 +192,9 @@ DEFUN (show_sysmon_system,
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
 	char port_str[10] = {0, };
 	char pll_state[10] = {0, };
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+	int i;
+#endif
 	/*fsm status*/
 	vty_out(vty, "------|---------|---------------------------%s", VTY_NEWLINE);
 	vty_out(vty, "%s %s%s", "FSM    state    : ",gSvcFsmStateStr[gDB.svc_fsm.state], VTY_NEWLINE);
@@ -198,6 +232,12 @@ DEFUN (show_sysmon_system,
 	vty_out(vty, " Pri interface  : %s%s", port_str , VTY_NEWLINE);
 	getPortStrByCport(gDB.synce_sec_port, port_str);
 	vty_out(vty, " Sec interface  : %s%s", port_str , VTY_NEWLINE);
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+	for(i = 0; i < PORT_ID_EAG6L_MAX; i++)
+	{
+		vty_out(vty, "Port[%d] ESMC RX CFG  : %d%s", i+1 , gDB.esmcRxCfg[i], VTY_NEWLINE);
+	}
+#endif
 #endif
 	return CMD_SUCCESS;
 }
@@ -1226,6 +1266,9 @@ sysmon_vty_init (void)
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
   install_element (VIEW_NODE, &synce_if_conf_cmd);
   install_element (VIEW_NODE, &show_sysmon_system_cmd);
+#endif
+#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
+  install_element (VIEW_NODE, &esmc_if_conf_cmd);
 #endif
 #if 1/*[#55] Adding vty shell test CLIs, dustin, 2024-06-20 */
   install_element (VIEW_NODE, &show_port_cmd);
