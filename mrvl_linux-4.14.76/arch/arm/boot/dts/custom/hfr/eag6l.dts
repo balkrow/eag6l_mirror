@@ -136,7 +136,7 @@
 	#address-cells = <2>;
 	#size-cells = <1>;
 	/* NOR Flash on board */
-	ranges = <0x0 0x0 0x0 0x71000000 0x600000>;
+	ranges = <0x0 0x0 0x0 0x71200000 0x400000>;
 	status = "okay";
 
 	fpga_nor@0,0 {
@@ -149,14 +149,10 @@
 
     partition@0 {
             reg = <0x0 0x200000>;
-            label = "fpga-bank0";
+            label = "fpga-bank1";
     };
     partition@1 {
             reg = <0x200000 0x400000>;
-            label = "fpga-bank1";
-    };
-    partition@2 {
-            reg = <0x400000 0x600000>;
             label = "fpga-bank2";
     };
 	};
