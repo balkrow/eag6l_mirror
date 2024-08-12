@@ -10,6 +10,7 @@
 
 extern int32_t g_hdrv_fd;
 
+#ifdef ACCESS_SIM
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
 static uint16_t __CACHE_SYNCE_GCONFIG = 0x0;
@@ -34,6 +35,7 @@ static uint16_t __CACHE_INIT_COMPLETE = 0x0;
 #endif
 #endif
 #endif
+#endif/*ACCESS_SIM*/
 
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 static uint16_t __CACHE_RDL_STATE_REQ = 0x0;
@@ -52,6 +54,7 @@ static uint16_t __CACHE_RDL_VER_STR[8] = { 0x0, };
 static uint16_t __CACHE_RDL_FILE_NAME[16] = { 0x0, };
 uint8_t __CACHE_RDL_PAGE[RDL_PAGE_ADDR_SIZE] = { 0x0, };
 #endif
+#ifdef ACCESS_SIM
 #if 1/* [#78] Adding system inventory management, dustin, 2024-07-24 */
 static uint16_t __CACHE_INV_HW_MANU_1 = 0x00;
 static uint16_t __CACHE_INV_HW_MANU_2 = 0x00;
@@ -94,12 +97,17 @@ static uint16_t __CACHE_INV_HW_RDATE_5 = 0x00;
 static uint16_t __CACHE_INV_HW_RCODE_1 = 0x00;
 static uint16_t __CACHE_INV_HW_RCODE_2 = 0x00;
 #endif
+#endif /*ACCESS_SIM*/
 
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
 uint16_t fpga_sim_val = 0x100;
 #endif
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+uint16_t sys_fpga_memory_read(uint32_t addr, uint8_t port_reg) 
+#else
 uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg) 
+#endif
 {
 #ifdef ACCESS_SIM
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
@@ -255,7 +263,11 @@ uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg)
 #endif
 }
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+uint16_t sys_fpga_memory_write(uint32_t addr, uint16_t writeval, uint8_t port_reg) {
+#else
 uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_reg) {
+#endif
 #ifdef ACCESS_SIM
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
 	int portno;
@@ -419,14 +431,18 @@ uint16_t sys_cpld_memory_read(uint16_t addr) {
 #ifdef ACCESS_SIM
 	return 0x100;
 #else
-        cpldmemory_t cpldmemory;
+	cpldmemory_t cpldmemory;
 
-        cpldmemory.addr = addr;
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	cpldmemory.addr = CPLD_BASE + addr;
+#else
+	cpldmemory.addr = addr;
+#endif
 	cpldmemory.value = 0;
 
-        ioctl(g_hdrv_fd, HDRIVER_IOCG_CPLD_SHOW_MEMORY, &cpldmemory);
+	ioctl(g_hdrv_fd, HDRIVER_IOCG_CPLD_SHOW_MEMORY, &cpldmemory);
 
-        return cpldmemory.value;
+	return cpldmemory.value;
 #endif
 }
 
@@ -435,13 +451,17 @@ uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval) {
 	zlog_debug("[cpld] reg=%x, writeval=%x", addr, writeval);
 	return writeval;
 #else
-        cpldmemory_t cpldmemory;
+	cpldmemory_t cpldmemory;
 
-        cpldmemory.addr = addr;
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	cpldmemory.addr = CPLD_BASE + addr;
+#else
+	cpldmemory.addr = addr;
+#endif
 	cpldmemory.value = writeval;
-        ioctl(g_hdrv_fd, HDRIVER_IOCS_CPLD_WRITE_MEMORY, &cpldmemory);
+	ioctl(g_hdrv_fd, HDRIVER_IOCS_CPLD_WRITE_MEMORY, &cpldmemory);
 
-        return cpldmemory.value;
+	return cpldmemory.value;
 #endif
 }
 

@@ -33,10 +33,17 @@ typedef uint16_t (*REG_CALLBACK) (uint16_t);
 
 typedef struct reg_mon_str
 {
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	uint32_t reg;
+	uint16_t mask;
+	uint16_t shift;
+	uint16_t val;
+#else
 	uint16_t reg;
 	uint16_t mask;
 	uint16_t shift;
 	uint16_t val;
+#endif
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 	uint8_t  portno;/*if zero, then single register. if non-zero then per-port registers. */
 #endif
@@ -344,7 +351,9 @@ typedef enum {
 #define PORT_4_STSFP_STAT_ADDR		0x8E	
 #define PORT_5_STSFP_STAT_ADDR		0xAE	
 #define PORT_6_STSFP_STAT_ADDR		0xCE	
+#if 0 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 #define PORT_7_STSFP_STAT_ADDR		0xEE	
+#endif
 
 #define PORT_1_ALM_ADDR			0x30	
 #define PORT_2_ALM_ADDR			0x50	
@@ -1332,6 +1341,9 @@ typedef enum {
  */
 
 #define FW_BANK_SELECT_ADDR		0xF00000
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#define CPLD_FW_BANK_SELECT_ADDR	0x001C
+#endif
 #endif
 
 

@@ -78,6 +78,9 @@ fw_image_header_t RDL_OS_HEADER;
 fw_image_header_t RDL_OS2_HEADER;
 fw_image_header_t RDL_FW_HEADER;
 #endif
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+extern int check_fifo_hello(struct thread *thread);
+#endif
 
 #if 0
 SVC_FSM svc_fsm;
@@ -492,7 +495,6 @@ long rdl_get_file_size(char *filename)
 	char temp[150];
 
 	sprintf(temp, "%s%s", RDL_IMG_PATH, filename);
-zlog_notice("%s : fpath[%s].", __func__, temp);//ZZPP
 	fp = fopen(temp, "r");
 	if(fp == NULL) {
 		zlog_notice("%s : Can't open a file %s. reason[%s].",
@@ -741,6 +743,44 @@ int get_sw_active_bank_flag(void)
 		return RDL_BANK_2;
 	return RDL_BANK_1;
 }
+
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+// mark fpag fw active bank flag.
+// create fpag fw bank flag file for bank 2 only.
+void set_fpga_fw_active_bank_flag(uint8_t bno)
+{
+	char cmd[128];
+	int act_bank, stb_bank;
+
+	if(bno == RDL_BANK_1) {
+		act_bank = RDL_BANK_1;
+		stb_bank = RDL_BANK_2;
+		unlink(RDL_FPGA_BANK_FLAG );
+	} else {
+		act_bank = RDL_BANK_2;
+		stb_bank = RDL_BANK_1;
+		sprintf(cmd, "touch %s", RDL_FPGA_BANK_FLAG );
+		system(cmd);
+	}
+
+	/* update fpga fw bank env variable for next loading. */
+	sprintf(cmd, "fw_setenv fw_act_bank %d", act_bank);
+	system(cmd);
+	sprintf(cmd, "fw_setenv fw_stb_bank %d", stb_bank);
+	system(cmd);
+
+	system("sync");
+	return;
+}
+
+// get bank no by active bank flag.
+int get_fpga_fw_active_bank_flag(void)
+{
+	if(syscmd_file_exist(RDL_FPGA_BANK_FLAG ))
+		return RDL_BANK_2;
+	return RDL_BANK_1;
+}
+#endif
 
 // copy/restore original img file from file with fw header.
 int restore_pkg_file(char *src, char *dst)
@@ -1271,7 +1311,7 @@ int rdl_activate_fpga(uint8_t bno)
 		// open src file.
 		fp = fopen(tbuf, "r");
 		if(fp == NULL) {
-			zlog_err("%s : Cannot open fpag os file %s. reason[%s].", 
+			zlog_err("%s : Cannot open fpag fw file %s. reason[%s].", 
 				__func__, tbuf, strerror(errno));
 			goto __failed__;
 		}
@@ -1290,7 +1330,7 @@ int rdl_activate_fpga(uint8_t bno)
 			if(len > 0) {
 				wcnt = fwrite(RDL_PAGE, RDL_BUFF_SIZE, len, os_fp);
 				if(len != wcnt) {
-					zlog_notice("%s : read %u and written %u : fpag os failed.",
+					zlog_notice("%s : read %u and written %u : fpag fw failed.",
 						__func__, len, wcnt);
 					goto __failed__;
 				}
@@ -1849,6 +1889,9 @@ void sysmon_thread_init (void)
 #endif
 #if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
 	thread_add_timer (master, rdl_mcu_emul_func, NULL, 5);
+#endif
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	thread_add_timer(master, check_fifo_hello, NULL, 10/*sec*/);
 #endif
 }
 
