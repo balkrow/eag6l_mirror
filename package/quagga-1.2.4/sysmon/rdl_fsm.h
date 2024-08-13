@@ -56,13 +56,8 @@
 #define RDL_B1_LINK_PATH            "/media/bank1/uImage"
 #define RDL_B2_LINK_PATH            "/media/bank2/uImage"
 
-#if 0//PWY_FIXME
 #define RDL_DEV1_FPGA_FW            "/dev/mtd1" /* FPGA bank1 */
 #define RDL_DEV2_FPGA_FW            "/dev/mtd2" /* FPGA bank2 */
-#else
-#define RDL_DEV1_FPGA_FW            "/dev/mtdblock1" /* FPGA bank1 */
-#define RDL_DEV2_FPGA_FW            "/dev/mtdblock2" /* FPGA bank2 */
-#endif //PWY_FIXME
 
 #define RDL_ACTIVE_BANK_FLAG        "/media/.activate.bank"
 #else /*************************************************************/
