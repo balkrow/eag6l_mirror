@@ -46,6 +46,21 @@
 #define RDL_PKG_INFO_FILE           "/mnt/flash/.RDL/.pkg_info"
 #define RDL_TEMP_ZIP_FILE           "/mnt/flash/.RDL/_pkt_.zip"
 
+#if 0 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#define RDL_B1_PATH                 "/media/bank1/"
+#define RDL_B2_PATH                 "/media/bank2/"
+
+#define RDL_B1_PKG_INFO_FILE        "/media/bank1/.pkg_info"
+#define RDL_B2_PKG_INFO_FILE        "/media/bank2/.pkg_info"
+
+#define RDL_B1_LINK_PATH            "/media/bank1/uImage"
+#define RDL_B2_LINK_PATH            "/media/bank2/uImage"
+
+#define RDL_DEV1_FPGA_FW            "/dev/mtd0" /* FPGA bank1 */
+#define RDL_DEV2_FPGA_FW            "/dev/mtd1" /* FPGA bank2 */
+
+#define RDL_ACTIVE_BANK_FLAG        "/media/.activate.bank"
+#else /*************************************************************/
 #define RDL_B1_PATH                 "/mnt/flash/Bank1/"
 #define RDL_B2_PATH                 "/mnt/flash/Bank2/"
 
@@ -65,6 +80,10 @@
 #endif //PWY_FIXME
 
 #define RDL_ACTIVE_BANK_FLAG        "/mnt/flash/.activate.bank"
+#endif
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#define RDL_FPGA_BANK_FLAG          "/media/.fpga.bank"
+#endif
 
 #define RDL_BUFF_SIZE               8196
 

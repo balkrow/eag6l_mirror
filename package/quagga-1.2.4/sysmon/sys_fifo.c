@@ -749,7 +749,8 @@ uint8_t gReplyPortSetRate(int args, ...)
 	/* process for result. */
 	if(msg->result != FIFO_CMD_SUCCESS) {
 #if 1/*[#59] Synce configuration ¿¿ ¿¿ ¿¿, balkrow, 2024-06-19 */
-		zlog_notice("Setting port speed/mode failed. ret[%d].", msg->result);
+		zlog_notice("Setting port speed/mode failed for port[%d]. ret[%d].", 
+			msg->portid, msg->result);
 		return ret;
 #endif
 	}
@@ -761,7 +762,11 @@ uint8_t gReplyPortSetRate(int args, ...)
 	if(msg->result == FIFO_CMD_SUCCESS)
 	{
 		uint16_t idx;
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+		idx = getIdxFromRegMonList(__COMMON_CTRL2_ADDR[msg->portid]);
+#else
 		idx = getIdxFromRegMonList(SYNCE_GCONFIG_ADDR);
+#endif
 		if(idx != 0xff && regMonList[idx].rb_thread)
 		{
 			thread_cancel(regMonList[idx].rb_thread);
@@ -769,7 +774,7 @@ uint8_t gReplyPortSetRate(int args, ...)
 		}
 	}
 
-	zlog_notice("%s  result=%x", __func__, msg->result);
+	zlog_notice("%s  result=%x for port[%d].", __func__, msg->result, msg->portid);
 #endif
 
 	return ret;
@@ -903,6 +908,35 @@ uint8_t gReplyPortPMClear(int args, ...)
 }
 #endif
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+uint8_t gReplyPortPMFECClear(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+    va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+    if(args != 1) {
+        zlog_notice("%s: invalid args[%d].", __func__, args);
+        return IPC_CMD_FAIL;
+    }
+
+    va_start(argP, args);
+    msg = va_arg(argP, sysmon_fifo_msg_t *);
+    va_end(argP);
+
+	/* process for result. */
+	if(msg->result == FIFO_CMD_SUCCESS) {
+		PM_TBL[msg->portid].fcs_ok = 0;
+		PM_TBL[msg->portid].fcs_nok = 0;
+	} else
+		zlog_notice("Clearing PM FEC counters failed. ret[%d].", msg->result);
+    return ret;
+}
+#endif
+
 #if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-17*/
 uint8_t gReplyPortESMCQLupdate(int args, ...)
 {
@@ -1002,30 +1036,6 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 }
 #endif
 
-#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
-uint8_t gReplyFecCountClear(int args, ...)
-{
-	uint8_t ret = IPC_CMD_SUCCESS;
-	va_list argP;
-	sysmon_fifo_msg_t *msg = NULL;
-
-#ifdef DEBUG
-	zlog_notice("%s (REPLY): args=%d", __func__, args);
-#endif
-	if(args !=  1) {
-		zlog_notice("%s: invalid args[%d].", __func__, args);
-		return IPC_CMD_FAIL;
-	}
-
-	va_start(argP, args);
-	msg = va_arg(argP, sysmon_fifo_msg_t *);
-	va_end(argP);
-
-        /*Something To do*/		
-	return ret;
-}
-#endif
-
 cSysmonReplyFuncs gSysmonReplyFuncs[] =
 {
 	gReplySDKInit,
@@ -1043,8 +1053,8 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 	gReplyPortPMGet,
 	gReplyPortPMClear,
 #endif
-#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
-	gReplyFecCountClear,
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	gReplyPortPMFECClear,
 #endif
 #if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-17*/
 	gReplyPortESMCQLupdate,

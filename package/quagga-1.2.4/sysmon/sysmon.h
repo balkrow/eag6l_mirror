@@ -39,6 +39,10 @@
 #undef ACCESS_SIM	/* define if simulation for access on demo system */
 #endif
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#define BP_BYTE_SWAP
+#endif
+
 /*
 #define PATH_SYSMON_PID "/var/run/sysmon.pid"
 */
@@ -47,8 +51,13 @@
 #define SYSMON_VTY_PORT                 9998 
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+extern uint16_t sys_fpga_memory_read(uint32_t addr, uint8_t port_reg);
+extern uint16_t sys_fpga_memory_write(uint32_t addr, uint16_t val, uint8_t port_reg);
+#else
 extern uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg);
 extern uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t val, uint8_t port_reg);
+#endif
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 extern uint16_t sys_dpram_memory_read(uint32_t addr);
 extern uint16_t sys_dpram_memory_write(uint32_t addr, uint16_t val);

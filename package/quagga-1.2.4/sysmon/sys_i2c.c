@@ -589,7 +589,11 @@ int check_sfp_is_present(int portno)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	// now set target mux.
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -689,7 +693,11 @@ uint16_t set_smart_tsfp_self_loopback(uint16_t portno, uint16_t enable)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -808,6 +816,11 @@ int get_smart_tsfp_self_loopback(int portno, int * enable)
 	unsigned char val;
 	unsigned int chann_mask;
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	if(! PORT_STATUS[portno].equip)
+		return;
+#endif
+
     /* do nothing for non-tunable sfp or 100G port */
     if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
         return SUCCESS;
@@ -849,7 +862,11 @@ int get_smart_tsfp_self_loopback(int portno, int * enable)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -987,7 +1004,11 @@ uint16_t set_rtwdm_loopback(uint16_t portno, uint16_t enable)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -1102,6 +1123,11 @@ int get_rtwdm_loopback(int portno, int * enable)
 	unsigned char val;
 	unsigned int chann_mask;
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	if(! PORT_STATUS[portno].equip)
+		return;
+#endif
+
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return SUCCESS;
@@ -1143,7 +1169,11 @@ int get_rtwdm_loopback(int portno, int * enable)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -1277,7 +1307,11 @@ uint16_t set_flex_tune_control(uint16_t portno, uint16_t enable)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -1405,7 +1439,11 @@ uint16_t set_flex_tune_reset(uint16_t portno, uint16_t enable)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -1414,6 +1452,32 @@ uint16_t set_flex_tune_reset(uint16_t portno, uint16_t enable)
 
 	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	/* read for update. */
+	if((val = i2c_smbus_read_byte_data(fd, 253/*0xFD*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] flex tune reset failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* update bit 4 for flex tune reset, no disable action. */
+	if(enable)
+		val |= 0x10;
+
+	/* write updated value. */
+	if((ret = i2c_smbus_write_byte_data(fd, 253/*0xFD*/, val)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] flex tune reset failed. ret[%d]", 
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* read again for reset action. */
+	if((val = i2c_smbus_read_byte_data(fd, 253/*0xFD*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] flex tune reset failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+#else
 	/* read for update. */
 	if((ret = i2c_smbus_read_byte_data(fd, 253/*0xFD*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] flex tune reset failed. ret[%d].",
@@ -1438,6 +1502,7 @@ uint16_t set_flex_tune_reset(uint16_t portno, uint16_t enable)
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
+#endif
 
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);/* wait for 10ms */
 
@@ -1509,6 +1574,11 @@ int get_flex_tune_status(int portno)
 	unsigned char val;
 	unsigned int chann_mask;
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	if(! PORT_STATUS[portno].equip)
+		return;
+#endif
+
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return SUCCESS;
@@ -1550,7 +1620,11 @@ int get_flex_tune_status(int portno)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -1635,6 +1709,11 @@ int get_tunable_sfp_channel_no(int portno)
 	unsigned char val;
 	unsigned int chann_mask, data;
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	if(! PORT_STATUS[portno].equip)
+		return;
+#endif
+
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return SUCCESS;
@@ -1676,7 +1755,11 @@ int get_tunable_sfp_channel_no(int portno)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -1731,6 +1814,18 @@ int get_tunable_sfp_channel_no(int portno)
 					(wval <= (COT_WAVELENGTH_10G_TBL[ii] + tval)))
 				break;
 		}
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+		if(ii >= MAX_CHANNEL_NO) {
+			for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
+				if(! WAVELENGTH_25G_TBL[ii])
+					continue;
+				tval = WAVELENGTH_25G_TBL[ii] / 5000;
+				if(((WAVELENGTH_25G_TBL[ii] - tval) <= wval) &&
+					(wval <= (WAVELENGTH_25G_TBL[ii] + tval)))
+					break;
+			}
+		}
+#endif
 	} else if(PORT_STATUS[portno].sfp_type == SFP_ID_SMART_BIDI_TSFP_RT) {
 		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
 			if(! RT_WAVELENGTH_10G_TBL[ii])
@@ -1740,6 +1835,18 @@ int get_tunable_sfp_channel_no(int portno)
 					(wval <= (RT_WAVELENGTH_10G_TBL[ii] + tval)))
 				break;
 		}
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+		if(ii >= MAX_CHANNEL_NO) {
+			for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
+				if(! WAVELENGTH_25G_TBL[ii])
+					continue;
+				tval = WAVELENGTH_25G_TBL[ii] / 5000;
+				if(((WAVELENGTH_25G_TBL[ii] - tval) <= wval) &&
+					(wval <= (WAVELENGTH_25G_TBL[ii] + tval)))
+					break;
+			}
+		}
+#endif
 	} else if((PORT_STATUS[portno].speed == PORT_IF_25G_KR) || 
 		      (PORT_STATUS[portno].speed == PORT_IF_10G_KR)) {
 		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
@@ -1772,7 +1879,11 @@ __exit_1__:
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
 		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+		goto __exit_2__;
+#else
 		goto __exit_1__;
+#endif
 	}
 
 __exit_2__:
@@ -1959,7 +2070,11 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -2073,6 +2188,9 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 	int fd, mux_addr, ret, type = SFP_ID_UNKNOWN;
 	unsigned char val1, val2, val3, val4, val5;
 	unsigned int chann_mask, intval, mod;
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	unsigned int retry;
+#endif
 
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
@@ -2111,7 +2229,11 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	/* now set target mux. */
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -2120,11 +2242,27 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	retry = 0;
+	while(retry++ < 5) {
+		if((ret = i2c_smbus_read_byte_data(fd, 65/*0x41*/)) < 0) {
+			zlog_notice("%s: Reading port[%d(0/%d)] tunable flag failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			if(retry < 5)
+				continue;
+			goto __exit_2__;
+		}
+		if(ret >= 0)
+			break;
+	}
+	val1 = (unsigned char)ret;
+#else
 	if((val1 = i2c_smbus_read_byte_data(fd, 65/*0x41*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] tunable flag failed. ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), val1);
 		goto __exit_2__;
 	}
+#endif
 
 	if(val1 & 0x40) { /* tunable type */
 		PORT_STATUS[portno].tunable_sfp = 1;
@@ -2445,7 +2583,11 @@ void i2c_set_sfp_channel_no(int bus, int portno)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	// now set target mux.
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 #if 1/*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
 	if(ret < 0)
 		zlog_notice("i2c_set_sfp_channel_no : port[%d(0/%d)] ret[%d].", 
@@ -2751,7 +2893,11 @@ void  get_sfp_rtwdm_info(int portno, struct module_inventory * mod_inv)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	// now set target mux.
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -3082,9 +3228,19 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 
 	// Laser temperature
 	sfp_get_ad(raw_diag->optional_diag[0], raw_diag->optional_diag[1], &ltemp);
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	sfp_get_slope(raw_diag->ext_cal_constants[28], raw_diag->ext_cal_constants[29], &temp_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[30], raw_diag->ext_cal_constants[31], &temp_offset);
+	sfp_get_temp(ltemp, temp_slope, temp_offset, &ltemp);
+#endif
 
 	// TEC Current
 	sfp_get_ad(raw_diag->optional_diag[2], raw_diag->optional_diag[3], &tcurr);
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	sfp_get_slope(raw_diag->ext_cal_constants[32], raw_diag->ext_cal_constants[33], &vcc_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[34], raw_diag->ext_cal_constants[35], &vcc_offset);
+	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
+#endif
 
 #if 0
 	cprintf("bias:%+14.4f ", bias);
@@ -3128,6 +3284,11 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	unsigned long funcs;
 	int fd, mux_addr, ret, succ_len, tunable_flag, type, val, data, bus = 1;
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	if(! PORT_STATUS[portno].equip)
+		return;
+#endif
+
 	// check if tunable sfp and not a 100G port.
 	if((portno >= (PORT_ID_EAG6L_MAX - 1)) || (! PORT_STATUS[portno].tunable_sfp))
 		return;
@@ -3170,7 +3331,11 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	i2c_set_slave_addr(fd, mux_addr, 1);
 
 	// now set target mux.
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
 	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
 	if(ret < 0) {
 		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
@@ -3384,9 +3549,19 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 
 	// Laser temperature
 	sfp_get_ad(raw_diag->optional_diag[0], raw_diag->optional_diag[1], &ltemp);
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	sfp_get_slope(raw_diag0->ext_cal_constants[28], raw_diag0->ext_cal_constants[29], &temp_slope);
+	sfp_get_offset(raw_diag0->ext_cal_constants[30], raw_diag0->ext_cal_constants[31], &temp_offset);
+	sfp_get_temp(ltemp, temp_slope, temp_offset, &ltemp);
+#endif
 
 	// TEC Current
 	sfp_get_ad(raw_diag->optional_diag[2], raw_diag->optional_diag[3], &tcurr);
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	sfp_get_slope(raw_diag0->ext_cal_constants[32], raw_diag0->ext_cal_constants[33], &vcc_slope);
+	sfp_get_offset(raw_diag0->ext_cal_constants[34], raw_diag0->ext_cal_constants[35], &vcc_offset);
+	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
+#endif
 
 	port_sts->rtwdm_ddm_info.rx_pwr = (float)rx_db;
 	port_sts->rtwdm_ddm_info.tx_pwr = (float)tx_db;
@@ -3399,5 +3574,84 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 __exit__:
 	close(fd);
 	return;
+}
+#endif
+
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+void init_100g_sfp(void)
+{
+	unsigned int chann_mask;
+	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
+	unsigned char val;
+
+	if(! PORT_STATUS[portno].equip)
+		return;
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		mux_addr = I2C_MUX;
+		chann_mask = I2C_MUX_100G_MASK;
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+#else
+	ret = i2c_smbus_write_byte_data(fd, mux_addr, chann_mask);
+#endif
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+
+	val |= 0x80;/*set-host-side-fec*/
+
+	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* recover page to default */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+__exit__:
+    close(fd);
+    return;
 }
 #endif

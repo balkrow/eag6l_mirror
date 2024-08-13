@@ -871,7 +871,10 @@ DEFUN (get_register,
 	else
 		val = FPGA_READ(addr);
 
-	vty_out(vty, "Read addr[%08x] = 0x%x%s", addr2, val, VTY_NEWLINE);
+#ifdef ACCESS_SIM
+	vty_out(vty, "[ACCESS_SIM] mode.%s", VTY_NEWLINE);
+#endif
+	vty_out(vty, "Read addr[%08x] = 0x%x%s", dpram_flag ? addr2 : addr, val, VTY_NEWLINE);
 #else
 	val = FPGA_READ(addr);
 
@@ -918,7 +921,17 @@ DEFUN (get_register2,
 		return CMD_ERR_NO_MATCH;
 	}
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	if(addr == __COMMON_CTRL2_ADDR[portno])
+		val = FPGA_READ(addr);
+	else
+		val = FPGA_PORT_READ(addr);
+#else
 	val = FPGA_PORT_READ(addr);
+#endif
+#ifdef ACCESS_SIM
+	vty_out(vty, "[ACCESS_SIM] mode.%s", VTY_NEWLINE);
+#endif
 	vty_out(vty, "Read addr[%08x] = 0x%x%s", addr, val, VTY_NEWLINE);
 	return CMD_SUCCESS;
 }
@@ -1139,7 +1152,14 @@ DEFUN (set_register2,
 		}
 	}
 
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	if(addr == __COMMON_CTRL2_ADDR[portno])
+		FPGA_WRITE(addr, (uint16_t)val);
+	else
+		FPGA_PORT_WRITE(addr, (uint16_t)val);
+#else
 	FPGA_PORT_WRITE(addr, (uint16_t)val);
+#endif
 	return CMD_SUCCESS;
 }
 #endif
