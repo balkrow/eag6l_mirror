@@ -437,7 +437,18 @@ unsigned short cpld_memory( int type,unsigned int addr, unsigned short value) {
 
     if(hdriver_fpga_cut)
         return 0;
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-14*/
+    if(type == HDRIVER_MEMORY_TYPE_READ) {
+        value = ioread16(hdriver_cpld_virt_base + addr);
+        return value;
 
+    } else if(type == HDRIVER_MEMORY_TYPE_WRITE) {
+        iowrite16((value & 0xffff), hdriver_cpld_virt_base + addr);
+        return value;
+    }
+    else
+	value = 0;
+#else
     if(type == HDRIVER_MEMORY_TYPE_READ) {
         value = *(volatile unsigned short*)(hdriver_cpld_virt_base + addr);
         return value;
@@ -446,6 +457,7 @@ unsigned short cpld_memory( int type,unsigned int addr, unsigned short value) {
         *(volatile unsigned short*)(hdriver_cpld_virt_base + addr) = (value & 0xffff);
         return value;
     }
+#endif
 
     return 0;   
 }
@@ -750,11 +762,12 @@ hdriver_ioctl(struct file *filp, uint cmd, ulong arg)
                 return -EFAULT;
             }
             cpmp->value = cpld_memory(HDRIVER_MEMORY_TYPE_READ, cpmp->addr, 0);
-
-            if (copy_to_user((void *)arg, (void *)fpmp, sizeof(cpldmemory_t))) {
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-14*/
+            if (copy_to_user((void *)arg, (void *)cpmp, sizeof(cpldmemory_t))) {
                 hdrvdebug("hdriver_ioctl: copy_to_user fail\n");
                 return -EFAULT;
             }       
+#endif
             break;
 
         case HDRIVER_IOCS_CPLD_WRITE_MEMORY:
