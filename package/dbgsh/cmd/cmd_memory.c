@@ -548,6 +548,7 @@ DEFUN (fpga_display,
 	return CMD_SUCCESS;
 }
 
+
 DEFUN (fpga_write,
        fpga_write_cmd,
        "fpgamw ADDRESS VAL",
@@ -591,6 +592,128 @@ DEFUN (fpga_write,
 
 
 }
+
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-14*/
+DEFUN (cpld_display,
+		cpld_display_cmd,
+		"cpldmd ADDRESS [<0-1024>]",
+		"cpldmd memory Display command\n"
+		"Memory address hexa\n"
+		"Length\n")
+{
+
+	int gebd_fd,i;
+	unsigned int	addr, size, length;
+	int	nbytes, linebytes;
+	unsigned char	*cp;
+	char *endptr = NULL;
+
+
+	length = dp_last_length;
+
+	sscanf(argv[0], "%x", &addr);
+	addr += base_address;
+
+	size = 2;
+
+
+	if (argc > 1){
+		length = strtoul(argv[1], &endptr, 10);
+
+	}
+
+
+	gebd_fd = open("/dev/hdrv",O_RDWR);
+	if ( gebd_fd < 0 ) {
+		vty_out (vty,"%%hdrv open err\n");
+		return CMD_WARNING;
+	}
+	nbytes = length * size;
+	do 
+	{
+		unsigned int bb[2];
+		char	linebuf[DISP_LINE_LEN];
+		unsigned short	*usp = (unsigned short *)linebuf;
+		cpldmemory_t cpldmemory;
+		unsigned short b;
+
+		vty_out (vty,"%08x:", (unsigned int)addr);
+		linebytes = (nbytes>DISP_LINE_LEN)?DISP_LINE_LEN:nbytes;
+
+		for (i=0; i<linebytes; i+= size) {
+			cpldmemory.addr = addr;
+			cpldmemory.value = 0;
+			ioctl(gebd_fd, HDRIVER_IOCG_CPLD_SHOW_MEMORY, &cpldmemory);
+			b = cpldmemory.value;
+			vty_out (vty," %04x", (*usp++ = b));
+
+			addr += size;
+		}
+
+		vty_out (vty,"    ");
+		cp = linebuf;
+		for (i=0; i<linebytes; i++) {
+			if ((*cp < 0x20) || (*cp > 0x7e))
+				vty_out (vty,".");
+			else
+				vty_out (vty,"%c", *cp);
+			cp++;
+		}
+		vty_out (vty,"\n");
+		nbytes -= linebytes;
+	} while (nbytes > 0);
+
+	dp_last_length = length;
+
+	close(gebd_fd); 
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (cpld_write,
+       cpld_write_cmd,
+       "cpldmw ADDRESS VAL",
+       "Cpld memory Write command\n"
+       "Memory address hexa\n"
+       "WRITE VALUE\n")
+{
+	int gebd_fd,i;
+	unsigned int	addr, size, writeval, count;
+	cpldmemory_t cpldmemory;
+	char *endptr = NULL;
+
+	sscanf(argv[0], "%x", &addr);
+	addr += base_address;
+
+
+	size = 2;
+
+
+	writeval = simple_strtoul(argv[1], NULL, 16);
+
+
+
+	gebd_fd = open("/dev/hdrv",O_RDWR);
+	if ( gebd_fd < 0 ) {
+		printf("hdrv open err\n");
+		return -1;
+	}
+
+	cpldmemory.addr = addr;
+#if 0/*[82] eag6l board SW Debugging, balkrow, 2024-08-02*/
+	fpgamemory.type=HDRIVER_MEMORY_TYPE_WRITE;
+#endif
+	cpldmemory.value=writeval;
+	ioctl(gebd_fd, HDRIVER_IOCS_CPLD_WRITE_MEMORY, &cpldmemory);
+
+
+	close(gebd_fd);		
+
+	return CMD_SUCCESS;
+
+
+}
+#endif
 
 #if 0//modified  by balkrow
 DEFUN (ofiu_display,
@@ -805,6 +928,11 @@ int cmd_memory_init()
   //cmd_install_element ( &slot_write_cmd);
   cmd_install_element ( &fpga_display_cmd);
   cmd_install_element ( &fpga_write_cmd);
+
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-14*/
+  cmd_install_element ( &cpld_display_cmd);
+  cmd_install_element ( &cpld_write_cmd);
+#endif
 
 #if 0/*[82] eag6l board SW Debugging, balkrow, 2024-08-02*/
   cmd_install_element ( &ofiu_display_cmd);
