@@ -21,11 +21,14 @@
 #include <sys/mman.h>
 #include "rdl_fsm.h"
 #endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#include <mtd/mtd-user.h>
+#endif
 
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 #define ACCESS_SIM	/* moved to sysmon.h */
 #endif
-#undef DEBUG
+#define DEBUG
 
 #if 0/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
 u32 INIT_COMPLETE_FLAG;
@@ -63,6 +66,9 @@ extern char *rdl_get_event_str(int eno);
 extern RDL_FSM_t rdl_fsm_list[];
 extern RDL_INFO_LIST_t rdl_info_list;
 extern int RDL_TRANS_MAX;
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+extern uint16_t RDL_ACTIVATION_STATE;
+#endif
 
 uint8_t PAGE_CRC_OK;
 uint8_t IMG_ACTIVATION_OK;
@@ -310,8 +316,13 @@ void rdl_copy_page_segment_to_buffer(int sno)
 		data = DPRAM_READ(addr);
 
 		// write to buffer.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+		RDL_PAGE[idx]     = (data & 0xFF00) >> 8;
+		RDL_PAGE[idx + 1] = (data & 0xFF);
+#else
 		RDL_PAGE[idx]     = (data & 0xFF);
 		RDL_PAGE[idx + 1] = (data & 0xFF00) >> 8;
+#endif
 #ifdef DEBUG
 		if(0/*offset == 0*/)
 		zlog_notice("%s : pno[%u] sno[%u] addr[%x] idx[%u] data[%x] RDL_PAGE[idx]=%04x/%04x.", 
@@ -347,7 +358,11 @@ uint16_t get_sum(uint16_t *addr, int32_t nleft)
 	uint8_t *odd_addr;
 
 	while (nleft > 1) {
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+		sum += htons(*(addr++));
+#else
 		sum += *(addr++);
+#endif
 		nleft -= 2;
 	}
 
@@ -360,6 +375,67 @@ uint16_t get_sum(uint16_t *addr, int32_t nleft)
 
 	return sum;
 }
+
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+static int mtd_fd = -1;
+
+#define KB(x) ((x) / 1024)
+#define PERCENTAGE(x,total) (((x) * 100) / (total))
+
+int fpga_erase_all(int bno)
+{
+	struct mtd_info_user mtd;
+    struct erase_info_user erase;
+	int blocks, ii;
+
+	/* open mtd device. */
+	mtd_fd = open((bno == RDL_BANK_1) ? 
+		RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW, O_SYNC | O_RDWR);
+	if(mtd_fd < 0) {
+		zlog_notice("%s : Cannot open mtd %s.", __func__,
+			(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+		return -1;
+	}
+
+	/* get mtd info. */
+	if(ioctl(mtd_fd, MEMGETINFO, &mtd) < 0) {
+		zlog_notice("%s : Cannot get mtd info %s.", __func__,
+			(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+		return -1;
+	}
+
+	erase.start = 0;
+	erase.length = mtd.size;
+
+	zlog_notice("%s : erasing %s started.", __func__, 
+		(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+
+	blocks = erase.length / mtd.erasesize;
+	erase.length = mtd.erasesize;
+	for(ii = 1; ii <= blocks; ii++)
+	{
+#ifdef DEBUG
+		zlog_notice("%s : erasing blocks: %d/%d (%d%%)", 
+			__func__, ii, blocks, PERCENTAGE(ii, blocks));
+#endif
+
+		if(ioctl(mtd_fd, MEMERASE, &erase) < 0) {
+			zlog_notice("%s : failed while erasing blocks " \
+				"0x%.8x-0x%.8x on %s: %m", __func__,
+				(unsigned int)erase.start, 
+				(unsigned int)(erase.start + erase.length), 
+				(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+			return -1;
+		}
+		erase.start += mtd.erasesize;
+	}
+
+	zlog_notice("%s : erased done (100%%) for %s.",
+		__func__, 
+		(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+	return 0;
+}
+#endif
 
 // check crc from page buffer with specified one.
 RDL_CRC_t rdl_check_page_crc(void)
@@ -419,6 +495,20 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
 		__func__, pinfo->bno, pinfo->total_pno);
 #endif
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+    pinfo->hd.magic = DPRAM_READ(RDL_MAGIC_NO_2_ADDR);
+    pinfo->hd.magic |= DPRAM_READ(RDL_MAGIC_NO_1_ADDR) << 16;
+	if((! pinfo->hd.magic) || (pinfo->hd.magic != RDL_IMG_MAGIC)) {
+#ifdef DEBUG
+		zlog_notice("%s : Invalid Magic Number [0x%x(0x%x)].", __func__, 
+			pinfo->hd.magic, ntohl(pinfo->hd.magic));
+#endif
+		return -1;
+	}
+#ifdef DEBUG
+	zlog_notice("%s : Magic Number [0x%x].", __func__, pinfo->hd.magic);
+#endif
+#else
     pinfo->hd.magic = DPRAM_READ(RDL_MAGIC_NO_1_ADDR);
     pinfo->hd.magic |= (DPRAM_READ(RDL_MAGIC_NO_2_ADDR) << 16);
 	if((! pinfo->hd.magic) || (ntohl(pinfo->hd.magic) != RDL_IMG_MAGIC)) {
@@ -430,9 +520,15 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
 #ifdef DEBUG
 	zlog_notice("%s : Magic Number [0x%x].", __func__, ntohl(pinfo->hd.magic));
 #endif
+#endif
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+    pinfo->hd.total_crc = DPRAM_READ(RDL_TOTAL_CRC_2_ADDR);
+    pinfo->hd.total_crc |= DPRAM_READ(RDL_TOTAL_CRC_1_ADDR) << 16;
+#else
     pinfo->hd.total_crc = DPRAM_READ(RDL_TOTAL_CRC_1_ADDR);
     pinfo->hd.total_crc |= (DPRAM_READ(RDL_TOTAL_CRC_2_ADDR) << 16);
+#endif
 	if(! pinfo->hd.total_crc) {
 #ifdef DEBUG
 		zlog_notice("%s : Invalid Total CRC [0x%x].", __func__, pinfo->hd.total_crc);
@@ -443,13 +539,23 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
 	zlog_notice("%s : Total CRC [0x%x].", __func__, pinfo->hd.total_crc);
 #endif
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+    pinfo->hd.build_time = DPRAM_READ(RDL_BUILD_TIME_2_ADDR);
+    pinfo->hd.build_time |= DPRAM_READ(RDL_BUILD_TIME_1_ADDR) << 16;
+#else
     pinfo->hd.build_time = DPRAM_READ(RDL_BUILD_TIME_1_ADDR);
     pinfo->hd.build_time |= (DPRAM_READ(RDL_BUILD_TIME_2_ADDR) << 16);
+#endif
 #ifdef DEBUG
 	zlog_notice("%s : Build Time [0x%x].", __func__, pinfo->hd.build_time);
 #endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+    pinfo->hd.total_size = DPRAM_READ(RDL_TOTAL_SIZE_2_ADDR);
+    pinfo->hd.total_size |= DPRAM_READ(RDL_TOTAL_SIZE_1_ADDR) << 16;
+#else
     pinfo->hd.total_size = DPRAM_READ(RDL_TOTAL_SIZE_1_ADDR);
     pinfo->hd.total_size |= (DPRAM_READ(RDL_TOTAL_SIZE_2_ADDR) << 16);
+#endif
 	if(! pinfo->hd.total_crc) {
 #ifdef DEBUG
 		zlog_notice("%s : Invalid Total Size [%u].", __func__, pinfo->hd.total_size);
@@ -465,8 +571,13 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
         addr < RDL_VER_STR_END_ADDR; 
 		addr += 2) {
         data = DPRAM_READ(addr);
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+        pinfo->hd.ver_str[ii++] = (data >> 8) & 0xFF;
+        pinfo->hd.ver_str[ii++] = data & 0xFF;
+#else
         pinfo->hd.ver_str[ii++] = data & 0xFF;
         pinfo->hd.ver_str[ii++] = (data >> 8) & 0xFF;
+#endif
     }
 #ifdef DEBUG
 	zlog_notice("%s : Version [%s].", __func__, pinfo->hd.ver_str);
@@ -477,8 +588,13 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
         addr < RDL_FILE_NAME_END_ADDR; 
 		addr += 2) {
         data = DPRAM_READ(addr);
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+        pinfo->hd.file_name[ii++] = (data >> 8) & 0xFF;
+        pinfo->hd.file_name[ii++] = data & 0xFF;
+#else
         pinfo->hd.file_name[ii++] = data & 0xFF;
         pinfo->hd.file_name[ii++] = (data >> 8) & 0xFF;
+#endif
     }
 #ifdef DEBUG
 	zlog_notice("%s : Image File Name [%s].", __func__, pinfo->hd.file_name);
@@ -813,10 +929,13 @@ int restore_pkg_file(char *src, char *dst)
 
 	close(in); close(out);
 
+#if 0 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/*NOTE : fih_dcrc and total_crc comes from different crc calculation. cannot match them. */
 	if(total_sum != ntohl(hd.fih_dcrc)) {
 		zlog_notice("%s : Checking chksum by get_sum() failed. [0x%x/0x%x]",
 			__func__, total_sum, ntohl(hd.fih_dcrc));
 	}
+#endif
 
 	return 0;
 }
@@ -866,7 +985,11 @@ int restore_img_file(char *src, char *dst)
 	return 0;
 }
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+int rdl_collect_img_header_info(int bno, char *fname, fw_image_header_t *hd)
+#else
 int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
+#endif
 {
 	struct stat fs;
 	uint32_t checksum = 0l, calc;
@@ -880,7 +1003,16 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 	if((fname == NULL) || (hd == NULL))
 		return -1;
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	if(bno == RDL_BANK_1)
+		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_B1_PATH, fname);
+	else if(bno == RDL_BANK_2)
+		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_B2_PATH, fname);
+	else
+		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_IMG_PATH, fname);
+#else
 	snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_IMG_PATH, fname);
+#endif
 	if((fd = open(fpath, O_RDONLY)) < 0) {
 		zlog_notice("%s : Can't open file %s.", __func__, fpath);
 		goto error_out;
@@ -938,6 +1070,82 @@ error_out:
 }
 
 // update rdl registers.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+void rdl_update_bank_registers(int bno)
+{
+	const uint32_t magic1_addr[] = { BANK1_MAGIC_NO_1_ADDR,      BANK2_MAGIC_NO_1_ADDR };
+	const uint32_t magic2_addr[] = { BANK1_MAGIC_NO_2_ADDR,      BANK2_MAGIC_NO_2_ADDR };
+	const uint32_t tcrc1_addr[] = { BANK1_TOTAL_CRC_1_ADDR,      BANK2_TOTAL_CRC_1_ADDR };
+	const uint32_t tcrc2_addr[] = { BANK1_TOTAL_CRC_2_ADDR,      BANK2_TOTAL_CRC_2_ADDR };
+	const uint32_t btime1_addr[] = { BANK1_BUILD_TIME_1_ADDR,    BANK2_BUILD_TIME_1_ADDR };
+	const uint32_t btime2_addr[] = { BANK1_BUILD_TIME_2_ADDR,    BANK2_BUILD_TIME_2_ADDR };
+	const uint32_t tsize1_addr[] = { BANK1_TOTAL_SIZE_1_ADDR,    BANK2_TOTAL_SIZE_1_ADDR };
+	const uint32_t tsize2_addr[] = { BANK1_TOTAL_SIZE_2_ADDR,    BANK2_TOTAL_SIZE_2_ADDR };
+	const uint32_t vstr1_addr[] = { BANK1_VER_STR_START_ADDR,    BANK2_VER_STR_START_ADDR };
+	const uint32_t vstr2_addr[] = { BANK1_VER_STR_END_ADDR,      BANK2_VER_STR_END_ADDR };
+	const uint32_t fname1_addr[] = { BANK1_FILE_NAME_START_ADDR, BANK2_FILE_NAME_START_ADDR };
+	const uint32_t fname2_addr[] = { BANK1_FILE_NAME_END_ADDR,   BANK2_FILE_NAME_END_ADDR };
+	char ver_str[RDL_VER_STR_MAX];
+	char fname[RDL_FILE_NAME_MAX];
+	uint32_t data2, addr;
+	uint16_t data, ii;
+
+#ifndef RDL_BIN_HEADER// NOTE : no header for binary image.
+	if(rdl_collect_img_header_info(bno, RDL_PKG_HEADER.ih_image1_str, 
+		&RDL_OS_HEADER) < 0) {
+		zlog_notice("%s : Collecting header failed for os1 image %s.",
+			__func__, RDL_PKG_HEADER.ih_image1_str);
+		return;
+	}
+#else//////////////////////////////////////////////////////////////////
+	// get pkg header from specified bank.
+	if(get_pkg_fwheader_info((bno == RDL_BANK_1) ? 
+		RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &RDL_OS_HEADER) < 0) {
+		zlog_notice("%s : Cannot read pkg info for bank%d.", __func__, bno);
+		return;
+	}
+#endif
+
+	// write magic.
+	data2 = RDL_OS_HEADER.fih_magic;
+	DPRAM_WRITE(magic1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
+	DPRAM_WRITE(magic2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
+
+	// write total crc.
+	data2 = RDL_OS_HEADER.fih_dcrc;
+	DPRAM_WRITE(tcrc1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
+	DPRAM_WRITE(tcrc2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
+
+	// write build time.
+	data2 = RDL_OS_HEADER.fih_time;
+	DPRAM_WRITE(btime1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
+	DPRAM_WRITE(btime2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
+
+	// write total size.
+	data2 = RDL_OS_HEADER.fih_size;
+	DPRAM_WRITE(tsize1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
+	DPRAM_WRITE(tsize2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
+
+	// write ver string.
+    for(ii = 0, addr = vstr1_addr[bno - RDL_BANK_1];
+        addr < vstr2_addr[bno - RDL_BANK_1]; 
+		addr += 2, ii += 2) {
+        data  = RDL_OS_HEADER.fih_ver[ii + 1];
+        data |= (uint16_t)(RDL_OS_HEADER.fih_ver[ii] << 8);
+        DPRAM_WRITE(addr, data);
+    }
+
+	// write file name.
+    for(ii = 0, addr = fname1_addr[bno - RDL_BANK_1];
+        addr < fname2_addr[bno - RDL_BANK_1]; 
+		addr += 2, ii += 2) {
+        data  = RDL_OS_HEADER.fih_name[ii + 1];
+        data |= (uint16_t)(RDL_OS_HEADER.fih_name[ii] << 8);
+        DPRAM_WRITE(addr, data);
+    }
+	return;
+}
+#else /*******************************************************/
 void rdl_update_bank_registers(void)
 {
 	const uint32_t magic1_addr[] = { BANK1_MAGIC_NO_1_ADDR,      BANK2_MAGIC_NO_1_ADDR };
@@ -956,19 +1164,16 @@ void rdl_update_bank_registers(void)
 	char fname[RDL_FILE_NAME_MAX];
 	uint32_t data2, addr;
 	uint16_t data, ii;
-	uint8_t bno;
 
 	// get current bank no. 
 	bno = get_sw_active_bank_flag();
 
-#if 0//PWY_FIXME : need fw_image_header_t from where?
 	// get pkg header from specified bank.
 	if(get_pkg_fwheader_info((bno == RDL_BANK_1) ? 
 		RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &RDL_OS_HEADER) < 0) {
 		zlog_notice("%s : Cannot read pkg info for bank%d.", __func__, bno);
 		return;
 	}
-#endif //PWY_FIXME
 
 	// write magic.
 	data2 = RDL_OS_HEADER.fih_magic;
@@ -1009,6 +1214,7 @@ void rdl_update_bank_registers(void)
     }
 	return;
 }
+#endif
 
 // decompress pkg file into original bp os & fpga f/w img files.
 int rdl_decompress_package_file(char *filename)
@@ -1028,6 +1234,22 @@ int rdl_decompress_package_file(char *filename)
 	}
 
 	// header info must be same as RDL_INFO.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	if(htonl(hd.fih_magic) != RDL_INFO.hd.magic) {
+		zlog_notice("%s : Different magic [0x%x/0x%x] ? Or No header present ?",
+			__func__, htonl(hd.fih_magic), RDL_INFO.hd.magic);
+		unlink(fsrc);
+		goto __return__;
+	}
+	if(htonl(hd.fih_size) != (RDL_INFO.hd.total_size - sizeof(fw_image_header_t))) {
+		zlog_notice("%s : Different file size [%u/%u].",
+			__func__, ntohl(hd.fih_size), 
+			(RDL_INFO.hd.total_size - sizeof(fw_image_header_t)));
+		unlink(fsrc);
+		goto __return__;
+	}
+	/*NOTE : fih_dcrc and total_crc comes from diffrent crc calculation. cannot match them. */
+#else
 	if(ntohl(hd.fih_magic) != ntohl(RDL_INFO.hd.magic)) {
 		zlog_notice("%s : Different magic [0x%x/0x%x] ? Or No header present ?",
 			__func__, ntohl(hd.fih_magic), ntohl(RDL_INFO.hd.magic));
@@ -1047,6 +1269,7 @@ int rdl_decompress_package_file(char *filename)
 		unlink(fsrc);
 		goto __return__;
 	}
+#endif
 
 	// remove img header and get zipped pkg(os + fw + .pkg_info) file.
 	restore_pkg_file(fsrc, RDL_TEMP_ZIP_FILE);
@@ -1096,8 +1319,14 @@ __retry__:
 			goto __return__;
 		}
 
-#ifndef RDL_BIN_HEDER// NOTE : no header for binary image.
-		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image1_str, &RDL_OS_HEADER) < 0) {
+#ifndef RDL_BIN_HEADER// NOTE : no header for binary image.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+		if(rdl_collect_img_header_info(0/*no-bank*/, 
+			RDL_PKG_HEADER.ih_image1_str, &RDL_OS_HEADER) < 0)
+#else
+		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image1_str, &RDL_OS_HEADER) < 0)
+#endif
+		{
 			zlog_notice("%s : Collecting header failed for os1 image %s.",
 				__func__, RDL_PKG_HEADER.ih_image1_str);
 			result = -1;
@@ -1146,7 +1375,13 @@ __retry__:
 		}
 
 #ifndef RDL_BIN_HEADER// NOTE : no header for binary image.
-		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image2_str, &RDL_OS2_HEADER) < 0) {
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+		if(rdl_collect_img_header_info(0/*no-bank*/, 
+			RDL_PKG_HEADER.ih_image2_str, &RDL_OS2_HEADER) < 0)
+#else
+		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image2_str, &RDL_OS2_HEADER) < 0)
+#endif
+		{
 			zlog_notice("%s : Collecting header failed for os2 image %s.",
 				__func__, RDL_PKG_HEADER.ih_image2_str);
 			result = -1;
@@ -1195,7 +1430,13 @@ __retry__:
 		}
 
 #ifndef RDL_BIN_HEADER// NOTE : no header for binary image.
-		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image3_str, &RDL_FW_HEADER) < 0) {
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+		if(rdl_collect_img_header_info(0/*no-bank*/, 
+			RDL_PKG_HEADER.ih_image3_str, &RDL_FW_HEADER) < 0)
+#else
+		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image3_str, &RDL_FW_HEADER) < 0)
+#endif
+		{
 			zlog_notice("%s : Collecting header failed for os3 image %s.",
 				__func__, RDL_PKG_HEADER.ih_image3_str);
 			result = -1;
@@ -1228,7 +1469,9 @@ __retry__:
 		}
 #endif
 	} else {
+#ifdef DEBUG
 		zlog_notice("%s : No os3 file ? %s.", __func__, RDL_PKG_HEADER.ih_image3_str);
+#endif
 	}
 
 	result = 0;
@@ -1270,12 +1513,13 @@ int rdl_install_package(int bno)
 	// move bp os2 to target bank, if os2 is present
 	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, RDL_OS2_HEADER.fih_name);
 	if(strlen(RDL_OS2_HEADER.fih_name) && syscmd_file_exist(tbuf)) {
-		// move bp os1 to target bank.
+		// move bp os2 to target bank.
 		snprintf(cmd, sizeof(cmd) - 1, "mv %s %s", tbuf,
 			(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH);
 		system(cmd);
 	}
 
+#if 0 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	// move fpga fw to target bank. together with os1.
 	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, RDL_FW_HEADER.fih_name);
 	if(strlen(RDL_FW_HEADER.fih_name) && syscmd_file_exist(tbuf)) {
@@ -1283,6 +1527,23 @@ int rdl_install_package(int bno)
 			(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH);
 		system(cmd);
 	}
+#endif
+
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/* create new link. */
+	if(symlink(RDL_OS_HEADER.fih_name,
+		(bno == RDL_BANK_1) ? RDL_B1_LINK_PATH : RDL_B2_LINK_PATH) != 0) {
+		sprintf(cmd, "cd %s; ln -s %s uImage",
+			(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH, RDL_OS_HEADER.fih_name);
+		if(system(cmd) != 0) {
+			zlog_notice("%s : Linking %s as uImage has failed.",
+				__func__, RDL_OS_HEADER.fih_name);
+			return -1;
+		}
+	}
+
+	system("sync");
+#endif
 
 	return 0;
 }
@@ -1290,6 +1551,125 @@ int rdl_install_package(int bno)
 int rdl_activate_fpga(uint8_t bno)
 {
 #if 1/* [#76] Adding for processing FPGA F/W, dustin, 2024-07-15 */
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+    fw_header_t bh;
+	int fd = -1;
+	int os_fd = -1;
+	int ret = -1, item;
+	uint32_t len, wcnt;
+    char tbuf[100];
+	unsigned char sbuf[RDL_BUFF_SIZE], dbuf[RDL_BUFF_SIZE];
+	struct stat fs;
+	size_t size, written;
+
+    /* read pkg header info. */
+    get_pkg_fwheader_info((bno == RDL_BANK_1) ?
+    	RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &bh);
+    
+    snprintf(tbuf, sizeof(tbuf) - 1, "%s%s",
+		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH, bh.ih_image2_str);
+
+	if(strlen(bh.ih_image2_str) && syscmd_file_exist(tbuf)) {
+		/* FIXME : check fpga os version and new version ? how ?? */
+
+		/* erase before copying. */
+		if(fpga_erase_all(bno) < 0) {
+			zlog_err("%s : Cannot erase mtd device %s.", 
+				__func__, tbuf);
+			goto __failed__;
+		}
+
+		/* open src file. */
+		fd = open(tbuf, O_RDONLY);
+		if(fd < 0) {
+			zlog_err("%s : Cannot open fpag fw file %s. reason[%s].", 
+				__func__, tbuf, strerror(errno));
+			goto __failed__;
+		}
+
+		if(fstat(fd, &fs) < 0) {
+			zlog_err("%s : Cannot fstat fpag fw file %s. reason[%s].", 
+				__func__, tbuf, strerror(errno));
+		}
+
+		/* open device for fpga os. */
+		os_fd = open((bno == RDL_BANK_1) ? 
+			RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW, O_SYNC | O_RDWR);
+		if(os_fd < 0) {
+			zlog_err("%s : Cannot open fpag fw device %s. reason[%s].", 
+				__func__, (bno == RDL_BANK_1) ? RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW, 
+				strerror(errno));
+			goto __failed__;
+		}
+
+		/* read fpga fw file, write to device. */
+		size = fs.st_size;
+		written = 0;
+		item = RDL_BUFF_SIZE;
+		while(size) {
+			if(size < RDL_BUFF_SIZE) item = size;
+
+			len = read(fd, sbuf, item);
+			if(len > 0) {
+				wcnt = write(os_fd, sbuf, len);
+				if(len != wcnt) {
+					zlog_notice("%s : read %u and written %u : fpag fw failed.",
+						__func__, len, wcnt);
+					goto __failed__;
+				}
+			}
+
+			written += item;
+			size -= item;
+		}
+
+		/* verify file with flash */
+		lseek(fd,    0L, SEEK_SET);
+		lseek(os_fd, 0L, SEEK_SET);
+
+		size = fs.st_size;
+		written = 0;
+		item = RDL_BUFF_SIZE;
+		while(size) {
+			if(size < RDL_BUFF_SIZE) item = size;
+
+			len  = read(fd,    sbuf, item);
+			wcnt = read(os_fd, dbuf, item);
+
+			if((len != wcnt) || memcmp(sbuf, dbuf, len)) {
+				zlog_err("%s : Different size[%u/%u] or content. [%u].", 
+					__func__, len, wcnt, written);
+				goto __failed__;
+			}
+
+			written += item;
+			size -= item;
+		}
+
+		zlog_notice("%s : Flash writting %u bytes verified.", 
+			__func__, written);
+
+		close(fd);
+		fd = -1;
+		close(os_fd);
+		os_fd = -1;
+	}
+
+	/* update working bank. */
+	gRegUpdate(FW_BANK_SELECT_ADDR, 8, 0x70, bno);
+
+	/* set bank flag for fpga fw */
+	set_fpga_fw_active_bank_flag(bno);
+
+	ret = 0;
+
+__failed__:
+	if(fd > 0)
+		close(fd);
+	if(os_fd > 0)
+		close(os_fd);
+	return ret;
+#else /*********************************************************************/
     fw_header_t bh;
 	FILE *fp = NULL;
 	FILE *os_fp = NULL;
@@ -1324,7 +1704,7 @@ int rdl_activate_fpga(uint8_t bno)
 			goto __failed__;
 		}
 
-		// read fpga os file, write to device.
+		// read fpga fw file, write to device.
 		while(! feof(fp)) {
 			len = fread(RDL_PAGE, RDL_BUFF_SIZE, 1, fp);
 			if(len > 0) {
@@ -1396,6 +1776,7 @@ __failed__:
 	if(fw_fp)
 		fclose(fw_fp);
 	return ret;
+#endif
 #else
 	return 0;
 #endif
@@ -1404,6 +1785,24 @@ __failed__:
 // just overwrite, don't care version, different file.
 int rdl_activate_bp(int bno)
 {
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	char cmd[100];
+
+	/* update bank env variable for next loading. */
+	sprintf(cmd, "fw_setenv bank %d", bno);
+	system(cmd);
+
+	/* get pkg info */
+	get_pkg_fwheader_info((bno == RDL_BANK_1) ? 
+		RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &RDL_PKG_HEADER);
+
+	/* BP update OS related registers. */
+	rdl_update_bank_registers(bno);
+
+	/*FIXME : auto rebooting ? */
+
+	return 0;
+#else
 	fw_header_t bh;
 	char cmd[200], fname[100];
 	int ret;
@@ -1451,6 +1850,7 @@ int rdl_activate_bp(int bno)
 	set_sw_active_bank_flag(bno);
 
 	return 0;
+#endif
 }
 
 RDL_EVT_t rdl_get_evt(RDL_ST_t state)
@@ -1519,10 +1919,17 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 			break;
 
 		case	ST_RDL_ACTIVATE_DONE:
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+			if(RDL_ACTIVATION_STATE >= 0)
+				evt = EVT_RDL_IMG_ACTIVE_SUCCESS;
+			else 
+				evt = EVT_RDL_IMG_ACTIVE_FAIL;
+#else
 			if(1/*FIXME : if activation is ok */)
 				evt = EVT_RDL_IMG_ACTIVE_SUCCESS;
 			else 
 				evt = EVT_RDL_IMG_ACTIVE_FAIL;
+#endif
 			break;
 
 		case	ST_RDL_RUNNING_CHECK:
@@ -1857,8 +2264,53 @@ __SKIP_4__:
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
 uint16_t sysmonUpdateGetSWVer(void)
 {
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	FILE *fn = NULL;
+	char buf[10], fname[100], *str = NULL;
+	int bank = RDL_BANK_1, major, minor;
+
+	/* get current bank. */
+	fn = popen("fw_printenv -n bank", "r");
+	if(fn == NULL) {
+		zlog_notice("%s : Cannot get bank env variable.", __func__);
+		return 0x10;
+	}
+
+	fread(buf, sizeof(char), 1, fn);
+	pclose(fn);
+
+	if(sscanf(buf, "%d", &bank) != 1) {
+		zlog_notice("%s : Invalid bank env variable.", __func__);
+		return 0x10;
+	}
+
+	/* read link to get current os file name. */
+	if(readlink((bank == RDL_BANK_1) ? 
+		RDL_B1_LINK_PATH : RDL_B2_LINK_PATH, fname, sizeof(fname) - 1) < 0) {
+		zlog_notice("%s : Cannot read linked file name.", __func__);
+		return 0x10;
+	} 
+
+	/* parse major/minor version info. */
+	str = strstr(fname, "v");
+	if(str) {
+		if(sscanf(str, "v%d.%d", &major, &minor) != 2) {
+            zlog_notice("%s : Invalid version string [%s].", __func__, str);
+			return 0x10;
+        }
+
+		return ((major << 4) | minor);
+	} else {
+		zlog_notice("%s : Cannot find 'v' for version from [%s].",
+			__func__, fname);
+			return 0x10;
+	}
+
+	return 0x10;
+#else
 	/*TODO: real data*/
 	return 0x100;
+#endif
 }
 #endif
 

@@ -433,7 +433,7 @@ uint16_t sys_cpld_memory_read(uint16_t addr) {
 #else
 	cpldmemory_t cpldmemory;
 
-#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#if 0 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 	cpldmemory.addr = CPLD_BASE + addr;
 #else
 	cpldmemory.addr = addr;
@@ -453,7 +453,7 @@ uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval) {
 #else
 	cpldmemory_t cpldmemory;
 
-#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#if 0 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 	cpldmemory.addr = CPLD_BASE + addr;
 #else
 	cpldmemory.addr = addr;
