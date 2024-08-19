@@ -23,7 +23,11 @@ extern void rdl_copy_page_segment_to_buffer(int sno);
 extern int rdl_save_page_to_img_file(uint32_t size);
 extern long rdl_get_file_size(char *filename);
 extern int rdl_read_img_info(RDL_IMG_INFO_t *pinfo);
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+extern void rdl_update_bank_registers(int bno);
+#else
 extern void rdl_update_bank_registers(void);
+#endif
 extern int get_pkg_fwheader_info(char *fpath, fw_header_t *hdr);
 extern int check_img_file_crc(char *fpath, fw_image_header_t *hdr, 
 	           uint32_t *t_size, uint32_t *t_crc);
@@ -35,15 +39,25 @@ extern uint16_t chipReset(uint16_t port, uint16_t val);
 extern int syscmd_file_exist(char *fpath);
 extern uint16_t get_sum(uint16_t *addr, int32_t nleft);
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+uint16_t RDL_ACTIVATION_STATE;
+#endif
 
 RDL_ST_t rdl_start(void) //#1
 {
     RDL_ST_t state = ST_RDL_START;
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	struct timeval sss;
+#endif
 	struct statfs fst;
 	FILE *fp = NULL;
 	char temp[150];
 #ifdef DEBUG
 	//zlog_notice("------> %s : entered.", __func__);
+#endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	gettimeofday(&sss, NULL);
+    zlog_notice("%s : ----> RDL Start time[%ld sec].", __func__, sss.tv_sec);
 #endif
 	// RDL start ack
 	// MCU start RDL, BP read img header info registers, init page buff, 
@@ -84,6 +98,9 @@ RDL_ST_t rdl_start(void) //#1
 #endif //PWY_FIXME
 
 	// get temp page buffer.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	if(RDL_PAGE == NULL)
+#endif
 	RDL_PAGE = malloc(RDL_PAGE_SIZE);
 	if(RDL_PAGE == NULL) {
 		zlog_err("%s : Cannot get RDL page buffer.", __func__);
@@ -212,6 +229,9 @@ RDL_ST_t rdl_reading_p2(void) //#7
 {
 	pid_t pid;
 	uint32_t total_size, page_size;
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	uint32_t left;
+#endif
 
     RDL_ST_t state = ST_RDL_READING_P2;
 #ifdef DEBUG
@@ -224,8 +244,18 @@ RDL_ST_t rdl_reading_p2(void) //#7
 	// ack for p2 writing done.
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_P2_WRITING_DONE_ACK_BIT);
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	// get current page length.
+	left = RDL_INFO.hd.total_size % RDL_PAGE_SIZE;
+	if((RDL_INFO.pno < RDL_INFO.total_pno) || 
+	   (left >= RDL_PAGE_SEGMENT_SIZE)) {
+		// copy P-2 to buffer.
+		rdl_copy_page_segment_to_buffer(RDL_PAGE_SEGMENT_2);
+	}
+#else
 	// copy P-2 to buffer.
 	rdl_copy_page_segment_to_buffer(RDL_PAGE_SEGMENT_2);
+#endif
 
 	// check page data.
 	PAGE_CRC_OK = rdl_check_page_crc();
@@ -373,10 +403,17 @@ RDL_ST_t rdl_next_page(void) //#12
 RDL_ST_t rdl_img_activation(void) //#13
 {
     RDL_ST_t state = ST_RDL_ACTIVATE_DONE;
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	struct timeval sss;
+#endif
 	struct statfs fst;
 	int bno = RDL_INFO.bno;
 #ifdef DEBUG
 	//zlog_notice("------> %s : entered.", __func__);
+#endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	gettimeofday(&sss, NULL);
+    zlog_notice("%s : ----> Activation start time[%ld sec].", __func__, sss.tv_sec);
 #endif
 	// BP check if disk space is enough for processing.
 	// check free space for rdl. Go idle state if not available.
@@ -406,14 +443,34 @@ RDL_ST_t rdl_img_activation(void) //#13
 	rdl_install_package(bno);
 
 	// BP copy os img to /flash/boot for activation.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	RDL_ACTIVATION_STATE = rdl_activate_bp(bno);
+#else
 	rdl_activate_bp(bno);
+#endif
 	
 	// BP update OS related registers.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	if(RDL_ACTIVATION_STATE >= 0)
+		rdl_update_bank_registers(bno);
+#else
 	rdl_update_bank_registers();
+#endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	gettimeofday(&sss, NULL);
+    zlog_notice("%s : ----> BP OS end time[%ld sec].", __func__, sss.tv_sec);
+#endif
 
 	// BP check version and download to FPGA F/W ?
 	// FIXME : do it~!!
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	RDL_ACTIVATION_STATE = rdl_activate_fpga(bno);
+
+	gettimeofday(&sss, NULL);
+    zlog_notice("%s : ----> FPGA FW end time[%ld sec].", __func__, sss.tv_sec);
+#else
 	rdl_activate_fpga(bno);
+#endif
 
     rdl_info_list.st = state;
     return state;
@@ -429,6 +486,12 @@ RDL_ST_t rdl_restart(void) //#14
 	// total error.
 	// MCU go to rdl idle, BP clean-up temp img file, page buffer, rld info.
 	// FIXME : do it~!!
+
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/* reset rdl state response register. */
+	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 0, 0xFFFF, 0);
+#endif
+
     rdl_info_list.st = state;
     return state;
 }
@@ -439,6 +502,11 @@ RDL_ST_t rdl_sw_reset(void) //#15
 #ifdef DEBUG
 	//zlog_notice("------> %s : entered.", __func__);
 #endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/* reset rdl state response register. */
+	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 0, 0xFFFF, 0);
+#endif
+
 	// sw-reset register check and reset
 	// FIXME : always auto reset ?? save a flag file to notify to check running os ??
 #if 0//PWY_FIXME
@@ -468,6 +536,12 @@ RDL_ST_t rdl_running_fail()  //#17
 #endif
  	// how ??
  	// FIXME : failed if flag file is still present ?
+
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/* reset rdl state response register. */
+	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 0, 0xFFFF, 0);
+#endif
+
 	rdl_info_list.st = state;
 	return state;
 }
@@ -481,6 +555,12 @@ RDL_ST_t rdl_terminate(void) //#18
 	// terminate state.
 	// rdl done anyway (success or failure)
 	// FIXME : clean-up buffer? remove temp image file? reset rdl registers?
+
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/* reset rdl state response register. */
+	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 0, 0xFFFF, 0);
+#endif
+
     rdl_info_list.st = state;
     return state;
 }

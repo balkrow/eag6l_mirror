@@ -23,6 +23,16 @@ PRODUCT_NAME=$7
 BUILD_ID=$8
 BUILD_NAME=$9
 
+echo "OS_IMG = $OS_IMG"
+echo "FPGA_OS_IMG = $FPGA_OS_IMG"
+echo "FPGA_IMG = $FPGA_IMG"
+echo "EVAL_VERSION = $EVAL_VERSION"
+echo "PRODUCT_VENDOR = $PRODUCT_VENDOR"
+echo "PRODUCT_CODE = $PRODUCT_CODE"
+echo "PRODUCT_NAME = $PRODUCT_NAME"
+echo "BUILD_ID = $BUILD_ID"
+echo "BUILD_NAME = $BUILD_NAME"
+
 cp $IMG_DIR$1 .
 cp $IMG_DIR$2 .
 ###cp $IMG_DIR$3 .
@@ -49,10 +59,10 @@ fi
 ###fi
 
 # create fw_info
-./mkfwimage -j $MAJOR -i $MINOR -r $REV -X -d $OS_IMG:$FPGA_OS_IMG:$FPGA_IMG
+./mkfwimage -j $MAJOR -i $MINOR -r $REV -X -d $OS_IMG:$FPGA_OS_IMG:
 mv .fw_info $FW_INFO
 
-zip $PRODUCT_NAME-PKG.zip $OS_IMG $FPGA_OS_IMG $FPGA_IMG $FW_INFO
+zip $PRODUCT_NAME-PKG.zip $OS_IMG $FPGA_OS_IMG $FW_INFO
 
 FILESIZE=`du -sb $PRODUCT_NAME-PKG.zip | awk '{print $1}'`
 

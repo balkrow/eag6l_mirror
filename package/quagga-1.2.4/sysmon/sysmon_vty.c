@@ -936,6 +936,35 @@ DEFUN (get_register2,
 	return CMD_SUCCESS;
 }
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+DEFUN (get_register3,
+       get_register3_cmd,
+       "get-register WORD",
+       "get register\n"
+       "address to read (in hexadecimal, 0x??)\n")
+{
+	uint32_t addr;
+	uint16_t val;
+
+	if(sscanf(argv[0], "0x%x", &addr) != 1) {
+		if(sscanf(argv[0], "%u", &addr) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	if((RDL_STATE_REQ_ADDR <= addr) && (addr <= RDL_PAGE_2_END_ADDR))
+		val = DPRAM_READ(addr);
+	else
+		val = FPGA_READ((uint16_t)addr);
+#ifdef ACCESS_SIM
+	vty_out(vty, "[ACCESS_SIM] mode.%s", VTY_NEWLINE);
+#endif
+	vty_out(vty, "Read addr[%08x] = 0x%x%s", addr, val, VTY_NEWLINE);
+	return CMD_SUCCESS;
+}
+#endif
+
 DEFUN (set_register,
        set_register_cmd,
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
@@ -1164,6 +1193,41 @@ DEFUN (set_register2,
 }
 #endif
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+DEFUN (set_register3,
+       set_register3_cmd,
+       "set-register WORD WORD",
+       "set register\n"
+       "address to write (in hexadecimal, 0x??)\n"
+       "value to write (in hexadecimal, 0x??)\n")
+{
+	uint32_t data, addr;
+	uint16_t val;
+
+	if(sscanf(argv[0], "0x%x", &data) != 1) {
+		if(sscanf(argv[0], "%u", &data) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+	addr = data;
+
+	if(sscanf(argv[1], "0x%x", &data) != 1) {
+		if(sscanf(argv[1], "%u", &data) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+	val = (uint16_t)data;
+
+	if((RDL_STATE_REQ_ADDR <= addr) && (addr <= RDL_PAGE_2_END_ADDR))
+		DPRAM_WRITE(addr, (uint16_t)val);
+	else
+		FPGA_WRITE((uint16_t)addr, (uint16_t)val);
+	return CMD_SUCCESS;
+}
+#endif
+
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 DEFUN (rdl_test,
        rdl_test_cmd,
@@ -1183,16 +1247,26 @@ extern uint8_t *RDL_PAGE;
 	int mflag = 0;
 
 	// create directories.
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	snprintf(cmd, sizeof(cmd) - 1, "mkdir %s; mkdir %s; mkdir %s",
+		RDL_IMG_PATH, RDL_B1_PATH, RDL_B2_PATH);
+#else
 	snprintf(cmd, sizeof(cmd) - 1, "mkdir %s; mkdir %s; mkdir %s; mkdir %s",
 		RDL_IMG_PATH, RDL_B1_PATH, RDL_B2_PATH, RDL_BOOT_PATH);
+#endif
 	system(cmd);
 
 	memset(&RDL_OS_HEADER, 0, sizeof RDL_OS_HEADER);
 	memset(&RDL_OS2_HEADER, 0, sizeof RDL_OS_HEADER);
 	memset(&RDL_FW_HEADER, 0, sizeof RDL_OS_HEADER);
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	strcpy(RDL_OS_HEADER.fih_name, "eag6l-os-v1.0.0.bin");
+	strcpy(RDL_OS2_HEADER.fih_name, "FPGA_LED_FAIL_240812-v1.0.0.bin");
+#else
 	strcpy(RDL_OS2_HEADER.fih_name, "eag6l-fpga-os-v1.0.0.bin");
 	strcpy(RDL_FW_HEADER.fih_name, "eag6l-fpga-fw-v1.0.0.bin");
+#endif
+	strcpy(RDL_FW_HEADER.fih_name, "");
 
 	if(RDL_PAGE == NULL) {
 		RDL_PAGE = malloc(RDL_PAGE_SIZE);
@@ -1214,7 +1288,11 @@ extern uint8_t *RDL_PAGE;
 		RDL_INFO.hd.total_size = 55427984;
 		RDL_INFO.hd.total_crc  = 0xAADD;
 		strcpy(RDL_INFO.hd.ver_str, "1.0.0");
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+		strcpy(RDL_INFO.hd.file_name, "EAG6L-PKG-v1.0.0.bin");
+#else
 		strcpy(RDL_INFO.hd.file_name, "EAG6L-PKG-0100.PKG");
+#endif
 
 		// call decompress. pkg file fixed as EAG6L-PKG-0100.PKG
 		if(rdl_decompress_package_file(RDL_INFO.hd.file_name) < 0) {
@@ -1311,6 +1389,10 @@ sysmon_vty_init (void)
   install_element (VIEW_NODE, &get_register2_cmd);
   install_element (ENABLE_NODE, &set_register_cmd);
   install_element (ENABLE_NODE, &set_register2_cmd);
+#endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+  install_element (VIEW_NODE, &get_register3_cmd);
+  install_element (ENABLE_NODE, &set_register3_cmd);
 #endif
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
   install_element (ENABLE_NODE, &rdl_test_cmd);
