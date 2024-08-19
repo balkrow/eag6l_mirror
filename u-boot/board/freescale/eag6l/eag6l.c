@@ -17,6 +17,14 @@
 #include <fsl_qe.h>
 #endif
 #include <asm/tzasc380.h>
+#if 1/*[#92] uboot에서 FPGA bank 보정작업, balkrow, 2024-08-14*/
+#include <mapmem.h>
+#include <errno.h>
+#include <stdlib.h>
+#define BANK_CFG_SUCCESS 0x9
+#define BANK_CFG_FAIL 0x8
+#define BANK_MAX_TRY 0x2
+#endif
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -231,6 +239,99 @@ void board_init_f(ulong dummy)
 }
 #endif
 
+#if 1/*[#92] uboot에서 FPGA bank 보정작업, balkrow, 2024-08-14*/
+uint16_t str_to_16bitInt(char * const str, uint16_t *value)
+{
+	ulong temp;
+
+	errno = 0; // 초기화
+	temp = simple_strtoul(str, NULL, 10);
+
+	// 변환 오류 확인
+	if (errno != 0)
+	   return 0; // 변환 실패
+	
+	if (temp != 1 && temp != 2)
+	   return 0; // 범위 초과
+
+	*value = (uint16_t)temp; 
+	return 1;
+}
+int try_boot_with_confirm(uint16_t bank)
+{
+	const void *buf;
+	uint16_t loop;
+
+	buf = map_sysmem(0x7000001c, 2);
+	*((u16 *)buf) = bank;
+	unmap_sysmem(buf);
+	udelay(500000);
+
+	for(loop = 0; loop < 2; loop++)
+	{
+		uint16_t bank_cfg_result;
+		buf = map_sysmem(0x70000010, 2);
+		bank_cfg_result = *(volatile uint16_t *)buf;
+		unmap_sysmem(buf);
+
+		if(bank_cfg_result == BANK_CFG_SUCCESS) 
+		{
+			printf("Successfully booted from the bank %d.\n", bank);
+			buf = map_sysmem(0x60f00000, 2);
+			*((u16 *)buf) = bank << 8;
+			unmap_sysmem(buf);
+			return 1;
+		}
+		else
+			printf("retry bank result=%x\n", bank_cfg_result);
+
+		udelay(10000);
+	}
+	return 0;
+}
+int fpga_bank_adjust(void)
+{
+	const void *buf;
+	uint16_t running_bank, act_bank = 0, std_bank = 0;
+	uint16_t try_cnt;
+	char *act_bank_str = env_get("fw_act_bank");
+	char *std_bank_str = env_get("fw_stb_bank");
+
+	buf = map_sysmem(0x7000001c, 2);
+	/*check active bank*/
+	if(act_bank_str != NULL)
+		str_to_16bitInt(act_bank_str, &act_bank);
+	printf("FPGA active bank %d\n", act_bank);
+	
+	/*check standby bank*/
+	if(std_bank_str != NULL)
+		str_to_16bitInt(std_bank_str, &std_bank);
+	printf("FPGA standby bank %d\n", std_bank);
+
+	if(act_bank != 0) 
+	{
+		printf("Attempt to boot from the Active bank..\n");
+		for(try_cnt = 0; try_cnt < BANK_MAX_TRY; try_cnt++)
+			if(try_boot_with_confirm(act_bank))
+				return;
+
+	}
+
+	if(std_bank != 0) 
+	{
+		printf("Attempt to boot from the Standby bank..\n");
+		for(try_cnt = 0; try_cnt < BANK_MAX_TRY; try_cnt++)
+			if(try_boot_with_confirm(std_bank))
+				return;
+
+	}
+
+	printf("FPGA Default bank booting..\n"); 
+
+	return 0;
+}
+#endif
+
 int board_init(void)
 {
 #ifndef CONFIG_SYS_FSL_NO_SERDES
@@ -275,6 +376,10 @@ int misc_init_r(void)
 {
 #ifdef CONFIG_FSL_DEVICE_DISABLE
 	device_disable(devdis_tbl, ARRAY_SIZE(devdis_tbl));
+#endif
+
+#if 1/*[#92] uboot에서 FPGA bank 보정작업, balkrow, 2024-08-14*/
+	fpga_bank_adjust();
 #endif
 
 #ifdef CONFIG_FSL_CAAM
