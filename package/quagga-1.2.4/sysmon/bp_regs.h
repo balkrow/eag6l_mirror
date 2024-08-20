@@ -21,7 +21,11 @@ typedef enum {
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+typedef uint16_t (*READ_FUNC) (uint32_t, uint8_t);
+#else
 typedef uint16_t (*READ_FUNC) (uint16_t, uint8_t);
+#endif
 #else
 typedef uint16_t (*READ_FUNC) (uint16_t);
 #endif
@@ -1343,6 +1347,11 @@ typedef enum {
 #define FW_BANK_SELECT_ADDR		0xF00000
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 #define CPLD_FW_BANK_SELECT_ADDR	0x001C
+#endif
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+#define CPLD_FW_BANK_STATUS_ADDR	0x0010
+#define CPLD_BANK_BAD               0x08
+#define CPLD_BANK_OK                0x09
 #endif
 #endif
 

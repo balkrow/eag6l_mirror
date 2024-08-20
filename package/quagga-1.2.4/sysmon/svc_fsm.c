@@ -236,7 +236,11 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	/* check cpld 0x7000001C for current fpga bank */
 	{
 		int bno = CPLD_READ(CPLD_FW_BANK_SELECT_ADDR);
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+		int sts, retry;
+#endif
 
+		zlog_notice("%s : Current FPGA bank [%d].", __func__, bno);
 		if(bno == 0) {
 			FILE *fn = NULL;
 			char cmd[50];
@@ -261,15 +265,29 @@ _try_dft_:
 				} else stb_flag = 1;
 			} else act_flag = 1;
 
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+			if(fn != NULL) {
+				fread(cmd, sizeof(char), 1, fn);
+				pclose(fn);
+
+				if((sscanf(cmd, "%d", &bno) != 1) || 
+					((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
+					zlog_notice("%s : Invalid fpga bank env variable[%d].", 
+						__func__, bno);
+					invalid = 1;
+				}
+			}
+#else
 			fread(cmd, sizeof(char), 1, fn);
 			pclose(fn);
 
 			if((sscanf(cmd, "%d", &bno) != 1) || 
-			   ((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
+				((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
 				zlog_notice("%s : Invalid fpga bank env variable[%d].", 
 					__func__, bno);
 				invalid = 1;
 			}
+#endif
 
 _next_job_:
 			if(none) {
@@ -293,7 +311,7 @@ _next_job_:
 					bno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
 			}
 
-			zlog_notice("%s : Update FPGA bank to [%d].", bno);
+			zlog_notice("%s : Update FPGA bank to [%d].", __func__, bno);
 			/* set fpga active bank */
 			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
 
@@ -321,6 +339,35 @@ _next_job_:
 				system(cmd);
 			}
 		}
+
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+__retry__:
+		/* check fpga bank config status. */
+		for(retry = 0; retry < 10; retry++) {
+			sts = CPLD_READ(CPLD_FW_BANK_STATUS_ADDR);
+			if(sts == CPLD_BANK_OK) {
+				zlog_notice("%s : FPGA bank status OK.", __func__);
+				break;
+			}
+			usleep(50000);
+		}
+
+		/* if target bank failed, change to other bank */
+		if(sts == CPLD_BANK_BAD) {
+			/* try standby bank */
+			bno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
+
+			zlog_notice("%s : Try standby FPGA bank to [%d].", __func__, bno);
+			/* set fpga standby bank */
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
+			goto __retry__;
+		} else if(sts == CPLD_BANK_OK) {
+			zlog_notice("%s : Update working FPGA bank to [%d].", 
+				__func__, bno);
+			/* update working bank info. */
+			gRegUpdate(FW_BANK_SELECT_ADDR, 8, 0x70, bno);
+		}
+#endif
 	}
 #endif
 

@@ -1661,8 +1661,11 @@ int rdl_activate_fpga(uint8_t bno)
 		os_fd = -1;
 	}
 
+#if 0 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+	/* NOTE : updating here is useless. */
 	/* update working bank. */
 	gRegUpdate(FW_BANK_SELECT_ADDR, 8, 0x70, bno);
+#endif
 
 	/* set bank flag for fpga fw */
 	set_fpga_fw_active_bank_flag(bno);

@@ -22,6 +22,12 @@ then
 ln -s /media/log /var/log
 fi
 
+# [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02
+if [ ! -d /mnt/flash/.RDL ]
+then
+mkdir -p /mnt/flash/.RDL
+fi
+
 # #71 EAG6L Board Bring-up, balkrow. 2024-07-03
 #if [ ! -d /etc/dropbear ]
 #then

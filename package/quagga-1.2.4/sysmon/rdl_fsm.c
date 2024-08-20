@@ -471,6 +471,14 @@ RDL_ST_t rdl_img_activation(void) //#13
 #else
 	rdl_activate_fpga(bno);
 #endif
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+	if(RDL_ACTIVATION_STATE >= 0) {
+		/* request reboot to specified bank */
+		CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
+		/* reset bp too */
+		system("reboot -nf");
+	}
+#endif
 
     rdl_info_list.st = state;
     return state;
