@@ -687,15 +687,16 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 		return -1;
 	}
 
-zlog_notice("------> %s : change FGPA restart bank~! to [%d].", __func__, val);//ZZPP
-	if((FPGA_READ(INIT_COMPLETE_ADDR) == 0xAA) /*FIXME &&
-	   (FPGA_READ(DCO_ACCESS_METHOD_ADDR) == 0x5) */) {
-zlog_notice("------> %s : GOGO FGPA restart bank~! to [%d].", __func__, val);//ZZPP
 		/* update cpld fpga fw bank select, it will cuase fpga reboot. */
 		CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, val);
 		/* set bank flag for fpga fw */
 		set_fpga_fw_active_bank_flag(val);
-	}
+
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+		usleep(50000);
+		zlog_notice("%s : Reboot BP too after FPGA reset.", __func__);//ZZPP
+		system("reboot -nf");
+#endif
 #else
 	uint16_t rbank;
 
@@ -794,8 +795,11 @@ u8 eag6LPortlist[] =
 	24,     /*port4-25G*/
 	32,     /*port5-25G*/
 	40,     /*port6-25G*/
+#ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
+#warning "----- MVDEMO board ------------"
 	48,     /*port7-25G*/
 	49,     /*port8-25G*/
+#endif
 	50,     /*port9-100G-offset-0*/
 #if 0/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 	51,     /*port9-100G-offset-1*/
