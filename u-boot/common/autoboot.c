@@ -246,7 +246,11 @@ static int abortboot_single_key(int bootdelay)
 	int abort = 0;
 	unsigned long ts;
 
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-20*/
+	printf("Hit Ctrl+x key to stop autoboot: %2d ", bootdelay);
+#else
 	printf("Hit any key to stop autoboot: %2d ", bootdelay);
+#endif
 
 	/*
 	 * Check if key already pressed
@@ -265,8 +269,16 @@ static int abortboot_single_key(int bootdelay)
 			if (tstc()) {	/* we got a key press	*/
 				int key;
 
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-20*/
+				if(key == 0x18)
+				{
+					abort  = 1;	/* don't auto boot	*/
+					bootdelay = 0;	/* no more delay	*/
+				}
+#else
 				abort  = 1;	/* don't auto boot	*/
 				bootdelay = 0;	/* no more delay	*/
+#endif
 				key = getc(); /* consume input	*/
 				if (IS_ENABLED(CONFIG_USE_AUTOBOOT_MENUKEY))
 					menukey = key;
