@@ -1052,9 +1052,15 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 
 		sprintf(hd->fih_ver, "v%d.%d.%d", major, minor, rev);
 	} else {
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+		zlog_notice("%s : Cannot find 'v' for version from [%s]. Force v1.0.0.", 
+			__func__, fname);
+		sprintf(hd->fih_ver, "v1.0.0");
+#else
 		zlog_notice("%s : Cannot find 'v' for version from [%s].", 
 			__func__, fname);
 		goto error_out;
+#endif
 	}
 
 	ret = 0;

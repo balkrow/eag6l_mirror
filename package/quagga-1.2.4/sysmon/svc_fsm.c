@@ -10,6 +10,12 @@
 #include "sysmon.h"
 #include "bp_regs.h"
 #endif
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#include "rdl_fsm.h"
+
+extern uint16_t sys_cpld_memory_read(uint16_t addr);
+extern uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval);
+#endif
 
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
 #include "sys_fifo.h"
@@ -226,6 +232,98 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
 
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/* check cpld 0x7000001C for current fpga bank */
+	{
+		int bno = CPLD_READ(CPLD_FW_BANK_SELECT_ADDR);
+
+		if(bno == 0) {
+			FILE *fn = NULL;
+			char cmd[50];
+			char act_flag, stb_flag, dft_flag, none, invalid;
+
+			act_flag = stb_flag = dft_flag = none = invalid = 0;
+
+			/* get bank from env */
+			fn = popen("fw_printenv -n fw_act_bank", "r");
+			if(fn == NULL) {
+_try_stb_:
+				fn = popen("fw_printenv -n fw_stb_bank", "r");
+				if(fn == NULL) {
+_try_dft_:
+					fn = popen("fw_printenv -n fw_dft_bank", "r");
+					if(fn == NULL) {
+						zlog_notice("%s : Cannot get fpga bank env variable.",
+							__func__);
+						none = 1;
+						goto _next_job_;
+					} else dft_flag = 1;
+				} else stb_flag = 1;
+			} else act_flag = 1;
+
+			fread(cmd, sizeof(char), 1, fn);
+			pclose(fn);
+
+			if((sscanf(cmd, "%d", &bno) != 1) || 
+			   ((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
+				zlog_notice("%s : Invalid fpga bank env variable[%d].", 
+					__func__, bno);
+				invalid = 1;
+			}
+
+_next_job_:
+			if(none) {
+				bno = RDL_BANK_1;
+			} else if(invalid) {
+				if(act_flag) {
+					act_flag = invalid = 0;
+					goto _try_stb_;
+				}
+				else if(stb_flag) {
+					stb_flag = invalid = 0;
+					goto _try_dft_;
+				} else if(dft_flag) {
+					dft_flag = 0;
+					bno = RDL_BANK_1;
+				}
+				else
+					bno = RDL_BANK_1;
+			} else {
+				if(stb_flag)
+					bno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
+			}
+
+			zlog_notice("%s : Update FPGA bank to [%d].", bno);
+			/* set fpga active bank */
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
+
+			/* set env variable */
+			if(act_flag) {
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+			} else if(stb_flag) {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
+				system(cmd);
+			} else if(dft_flag) {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+			} else {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_dft_bank %d", bno);
+				system(cmd);
+			}
+		}
+	}
+#endif
+
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
 	FPGA_WRITE(SYNCE_GCONFIG_ADDR, 0x5a);
 #endif
@@ -328,10 +426,23 @@ SVC_EVT svc_init_done(SVC_ST st) {
 	{
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 		{
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+			extern fw_header_t RDL_PKG_HEADER;
+			extern void rdl_update_bank_registers(int bno);
+			int bno = get_sw_active_bank_flag();
+
+			/* get pkg info */
+			get_pkg_fwheader_info((bno == RDL_BANK_1) ?
+				RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &RDL_PKG_HEADER);
+
+			// update bp os bank info registers.
+			rdl_update_bank_registers(bno);
+#else
 			extern void rdl_update_bank_registers(void);
 
 			// update bp os bank info registers.
 			rdl_update_bank_registers();
+#endif
 		}
 #endif
 		gDB.init_state = SYS_INIT_DONE;  
