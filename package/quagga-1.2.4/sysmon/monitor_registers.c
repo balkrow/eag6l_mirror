@@ -687,10 +687,6 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 		return -1;
 	}
 
-zlog_notice("------> %s : change FGPA restart bank~! to [%d].", __func__, val);//ZZPP
-	if((FPGA_READ(INIT_COMPLETE_ADDR) == 0xAAAA) /*FIXME &&
-	   (FPGA_READ(DCO_ACCESS_METHOD_ADDR) == 0x5) */) {
-zlog_notice("------> %s : GOGO FGPA restart bank~! to [%d].", __func__, val);//ZZPP
 		/* update cpld fpga fw bank select, it will cuase fpga reboot. */
 		CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, val);
 		/* set bank flag for fpga fw */
@@ -700,12 +696,6 @@ zlog_notice("------> %s : GOGO FGPA restart bank~! to [%d].", __func__, val);//Z
 		usleep(50000);
 		zlog_notice("%s : Reboot BP too after FPGA reset.", __func__);//ZZPP
 		system("reboot -nf");
-#endif
-	}
-#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
-	/* not to update regMon previous value. */
-	else
-		return -1;
 #endif
 #else
 	uint16_t rbank;
