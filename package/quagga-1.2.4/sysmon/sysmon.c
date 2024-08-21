@@ -1096,7 +1096,7 @@ void rdl_update_bank_registers(int bno)
 	uint32_t data2, addr;
 	uint16_t data, ii;
 
-#ifndef RDL_BIN_HEADER// NOTE : no header for binary image.
+#ifndef RDL_BIN_HEADER/* NOTE : no header for binary image. */
 	if(rdl_collect_img_header_info(bno, RDL_PKG_HEADER.ih_image1_str, 
 		&RDL_OS_HEADER) < 0) {
 		zlog_notice("%s : Collecting header failed for os1 image %s.",
@@ -2390,6 +2390,57 @@ uint16_t sysmonUpdateGetSWVer(void)
 	/*TODO: real data*/
 	return 0x100;
 #endif
+}
+#endif
+
+#if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+int _CHECK_FPGA_STATUS_ = 0;
+uint8_t _FPGA_BNO_;
+uint8_t _FPGA_CHANGED_FLAG_ = 0;
+
+int check_fpga_status(void)
+{
+extern void do_recovery_update_after_fpga_reset(void);
+
+	uint16_t data;
+	uint8_t bno;
+
+	if(_CHECK_FPGA_STATUS_) {
+		data = CPLD_READ(CPLD_FW_BANK_STATUS_ADDR);
+		if(data == CPLD_BANK_OK) {
+			zlog_notice("%s : FPGA bank[%d] OK. Do register recovery.", 
+				__func__, _FPGA_BNO_);
+			/* update/recover some registers. */
+			do_recovery_update_after_fpga_reset();
+
+			/* turn off flag and no more thread. */
+			_CHECK_FPGA_STATUS_ = 0;
+			return 0;
+		} else if(data == CPLD_BANK_BAD) {
+			if(! _FPGA_CHANGED_FLAG_) {
+				/* try standby bank */
+				bno = (_FPGA_BNO_ == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
+				zlog_notice("%s : Try standby FPGA bank [%d].", __func__, bno);
+				_FPGA_CHANGED_FLAG_ = 1;
+			} else {
+				bno = 0;
+				zlog_notice("%s : Bank1/2 failed. Try default FPGA bank.", 
+					__func__);
+				_FPGA_CHANGED_FLAG_ = 0;
+			}
+
+			/* set fpga standby bank */
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
+			_FPGA_BNO_ = bno;
+
+			/* give a time to let mcu detect board CR event. */
+			thread_add_timer_msec(master, check_fpga_status, NULL, 500);
+			return 0;
+		}
+	}
+
+	thread_add_timer_msec(master, check_fpga_status, NULL, 100);
+	return 0;
 }
 #endif
 
