@@ -477,7 +477,7 @@ RDL_ST_t rdl_img_activation(void) //#13
 		CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
 #if 1 /* [#96] Adding option bit after downloading FPGA, dustin, 2024-08-19 */
 		/* need some time to display syslog. */
-		usleep(10000);
+		usleep(500000);
 #endif
 		/* reset bp too */
 		system("reboot -nf");

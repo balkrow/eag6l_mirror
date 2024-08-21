@@ -677,6 +677,178 @@ uint16_t bankSelect1(uint16_t port, uint16_t val)
 }
 #endif
 
+#if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+void update_fpga_bank_status(void)
+{
+#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+	/* check cpld 0x7000001C for current fpga bank */
+	{
+		int bno = CPLD_READ(CPLD_FW_BANK_SELECT_ADDR);
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+		int sts, retry;
+#endif
+
+		zlog_notice("%s : Current FPGA bank [%d].", __func__, bno);
+		if(bno == 0) {
+			FILE *fn = NULL;
+			char cmd[50];
+			char act_flag, stb_flag, dft_flag, none, invalid;
+
+			act_flag = stb_flag = dft_flag = none = invalid = 0;
+
+			/* get bank from env */
+			fn = popen("fw_printenv -n fw_act_bank", "r");
+			if(fn == NULL) {
+_try_stb_:
+				fn = popen("fw_printenv -n fw_stb_bank", "r");
+				if(fn == NULL) {
+_try_dft_:
+					fn = popen("fw_printenv -n fw_dft_bank", "r");
+					if(fn == NULL) {
+						zlog_notice("%s : Cannot get fpga bank env variable.",
+							__func__);
+						none = 1;
+						goto _next_job_;
+					} else dft_flag = 1;
+				} else stb_flag = 1;
+			} else act_flag = 1;
+
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+			if(fn != NULL) {
+				fread(cmd, sizeof(char), 1, fn);
+				pclose(fn);
+
+				if((sscanf(cmd, "%d", &bno) != 1) || 
+					((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
+					zlog_notice("%s : Invalid fpga bank env variable[%d].", 
+						__func__, bno);
+					invalid = 1;
+				}
+			}
+#else
+			fread(cmd, sizeof(char), 1, fn);
+			pclose(fn);
+
+			if((sscanf(cmd, "%d", &bno) != 1) || 
+				((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
+				zlog_notice("%s : Invalid fpga bank env variable[%d].", 
+					__func__, bno);
+				invalid = 1;
+			}
+#endif
+
+_next_job_:
+			if(none) {
+				bno = RDL_BANK_1;
+			} else if(invalid) {
+				if(act_flag) {
+					act_flag = invalid = 0;
+					goto _try_stb_;
+				}
+				else if(stb_flag) {
+					stb_flag = invalid = 0;
+					goto _try_dft_;
+				} else if(dft_flag) {
+					dft_flag = 0;
+					bno = RDL_BANK_1;
+				}
+				else
+					bno = RDL_BANK_1;
+			} else {
+				if(stb_flag)
+					bno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
+			}
+
+			zlog_notice("%s : Update CPLD FPGA bank to [%d].", __func__, bno);
+			/* set fpga active bank */
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
+
+			/* set env variable */
+			if(act_flag) {
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+			} else if(stb_flag) {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
+				system(cmd);
+			} else if(dft_flag) {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+			} else {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_dft_bank %d", bno);
+				system(cmd);
+			}
+		}
+
+#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
+__retry__:
+		/* check fpga bank config status. */
+		for(retry = 0; retry < 10; retry++) {
+			sts = CPLD_READ(CPLD_FW_BANK_STATUS_ADDR);
+			if(sts == CPLD_BANK_OK) {
+				zlog_notice("%s : FPGA bank status OK.", __func__);
+				break;
+			}
+			usleep(50000);
+		}
+
+		/* if target bank failed, change to other bank */
+		if(sts == CPLD_BANK_BAD) {
+			/* try standby bank */
+			bno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
+
+			zlog_notice("%s : Try standby FPGA bank [%d].", __func__, bno);
+			/* set fpga standby bank */
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
+			goto __retry__;
+		} else if(sts == CPLD_BANK_OK) {
+			zlog_notice("%s : Update working FPGA bank to [%d].", 
+				__func__, bno);
+			/* update working bank info. */
+			gRegUpdate(FW_BANK_SELECT_ADDR, 8, 0x700, bno);
+		}
+#endif
+	}
+#endif
+}
+
+void do_recovery_update_after_fpga_reset(void)
+{
+extern uint16_t sysmonUpdateGetSWVer(void);
+extern void rdl_update_bank_registers(int bno);
+void process_hw_inventory_infos(void);
+
+uint16_t data;
+
+	data = sysmonUpdateGetSWVer();
+
+	/* recover sw version register. */
+	FPGA_WRITE(SW_VERSION_ADDR, data);
+
+	/* update working bank info. */
+	data = CPLD_READ(CPLD_FW_BANK_SELECT_ADDR);
+	gRegUpdate(FW_BANK_SELECT_ADDR, 8, 0x700, data);
+
+	/* recover hw inventory registers. */
+	process_hw_inventory_infos();
+
+	/* recover bp os bank1/2 header registers. */
+	rdl_update_bank_registers(RDL_BANK_1);
+	rdl_update_bank_registers(RDL_BANK_2);
+
+	/* recover initial complete register. */
+	FPGA_WRITE(INIT_COMPLETE_ADDR, 0xAA);
+}
+#endif
+
 uint16_t bankSelect2(uint16_t port, uint16_t val)
 {
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
@@ -692,11 +864,26 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 		/* set bank flag for fpga fw */
 		set_fpga_fw_active_bank_flag(val);
 
+#if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+	{
+		extern int check_fpga_status(void);
+		extern int _CHECK_FPGA_STATUS_;
+		extern uint8_t _FPGA_BNO_;
+
+		/* turn on flag to check fpga status by thread. */
+		_CHECK_FPGA_STATUS_ = 1;
+		_FPGA_BNO_ = val;
+
+		/* give a time to let mcu detect board CR event. */
+		thread_add_timer_msec(master, check_fpga_status, NULL, 500);
+	}
+#else /***********************************************************/
 #if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
 		usleep(50000);
 		zlog_notice("%s : Reboot BP too after FPGA reset.", __func__);//ZZPP
 		system("reboot -nf");
 #endif
+#endif /* [#97] */
 #else
 	uint16_t rbank;
 
@@ -1443,12 +1630,21 @@ void process_hw_inventory_infos(void)
     FPGA_WRITE(INV_HW_PN_4_ADDR, val[3]);
     val[4] = inv.part_number[9] | (inv.part_number[8] << 8);
     FPGA_WRITE(INV_HW_PN_5_ADDR, val[4]);
+#if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+    val[5] = inv.part_number[11] | (inv.part_number[10] << 8);
+    FPGA_WRITE(INV_HW_PN_6_ADDR, val[5]);
+    val[6] = inv.part_number[13] | (inv.part_number[12] << 8);
+    FPGA_WRITE(INV_HW_PN_7_ADDR, val[6]);
+    val[7] = inv.part_number[15] | (inv.part_number[14] << 8);
+    FPGA_WRITE(INV_HW_PN_8_ADDR, val[7]);
+#else
     val[5] = inv.part_number[11] | (inv.part_number[10] << 8);
     FPGA_WRITE(INV_HW_PN_6_ADDR, val[4]);
     val[6] = inv.part_number[13] | (inv.part_number[12] << 8);
     FPGA_WRITE(INV_HW_PN_7_ADDR, val[4]);
     val[7] = inv.part_number[15] | (inv.part_number[14] << 8);
     FPGA_WRITE(INV_HW_PN_8_ADDR, val[4]);
+#endif
 #else
     val[0] = inv.part_number[0] | (inv.part_number[1] << 8);
     FPGA_WRITE(INV_HW_PN_1_ADDR, val[0]);
@@ -1460,12 +1656,21 @@ void process_hw_inventory_infos(void)
     FPGA_WRITE(INV_HW_PN_4_ADDR, val[3]);
     val[4] = inv.part_number[8] | (inv.part_number[9] << 8);
     FPGA_WRITE(INV_HW_PN_5_ADDR, val[4]);
+#if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+    val[5] = inv.part_number[10] | (inv.part_number[11] << 8);
+    FPGA_WRITE(INV_HW_PN_6_ADDR, val[5]);
+    val[6] = inv.part_number[12] | (inv.part_number[13] << 8);
+    FPGA_WRITE(INV_HW_PN_7_ADDR, val[6]);
+    val[7] = inv.part_number[14] | (inv.part_number[15] << 8);
+    FPGA_WRITE(INV_HW_PN_8_ADDR, val[7]);
+#else
     val[5] = inv.part_number[10] | (inv.part_number[11] << 8);
     FPGA_WRITE(INV_HW_PN_6_ADDR, val[4]);
     val[6] = inv.part_number[12] | (inv.part_number[13] << 8);
     FPGA_WRITE(INV_HW_PN_7_ADDR, val[4]);
     val[7] = inv.part_number[14] | (inv.part_number[15] << 8);
     FPGA_WRITE(INV_HW_PN_8_ADDR, val[4]);
+#endif
 #endif
 
 #ifdef DEBUG
@@ -1566,14 +1771,26 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w revision */
+#ifdef BP_BYTE_SWAP /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+    val[0] = (inv.revision & 0xFF) | (inv.revision & 0xFF00);
+    FPGA_WRITE(INV_HW_REV_2_ADDR, val[0]);
+    val[1] = ((inv.revision >> 16) & 0xFF) | ((inv.revision >> 16) & 0xFF00);
+    FPGA_WRITE(INV_HW_REV_1_ADDR, val[1]);
+#else
     val[0] = (inv.revision & 0xFF) | (inv.revision & 0xFF00);
     FPGA_WRITE(INV_HW_REV_1_ADDR, val[0]);
     val[1] = ((inv.revision >> 16) & 0xFF) | ((inv.revision >> 16) & 0xFF00);
     FPGA_WRITE(INV_HW_REV_2_ADDR, val[1]);
+#endif
 
 #ifdef DEBUG
+#ifdef BP_BYTE_SWAP /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+    val[0] = FPGA_READ(INV_HW_REV_2_ADDR);
+    val[1] = FPGA_READ(INV_HW_REV_1_ADDR);
+#else
     val[0] = FPGA_READ(INV_HW_REV_1_ADDR);
     val[1] = FPGA_READ(INV_HW_REV_2_ADDR);
+#endif
 
     zlog_notice("INVENTORY: HW REV [0x%x]", val[0] | (val[1] << 16));
 #endif
@@ -1671,14 +1888,26 @@ void process_hw_inventory_infos(void)
 #endif
 
 	/* update h/w repair code */
+#ifdef BP_BYTE_SWAP /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+    val[0] = (inv.repair_code & 0xFF) | (inv.repair_code & 0xFF00);
+    FPGA_WRITE(INV_HW_RCODE_2_ADDR, val[0]);
+    val[1] = ((inv.repair_code >> 16) & 0xFF) | ((inv.repair_code >> 16) & 0xFF00);
+    FPGA_WRITE(INV_HW_RCODE_1_ADDR, val[1]);
+#else
     val[0] = (inv.repair_code & 0xFF) | (inv.repair_code & 0xFF00);
     FPGA_WRITE(INV_HW_RCODE_1_ADDR, val[0]);
     val[1] = ((inv.repair_code >> 16) & 0xFF) | ((inv.repair_code >> 16) & 0xFF00);
     FPGA_WRITE(INV_HW_RCODE_2_ADDR, val[1]);
+#endif
 
 #ifdef DEBUG
+#ifdef BP_BYTE_SWAP /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+    val[0] = FPGA_READ(INV_HW_RCODE_2_ADDR);
+    val[1] = FPGA_READ(INV_HW_RCODE_1_ADDR);
+#else
     val[0] = FPGA_READ(INV_HW_RCODE_1_ADDR);
     val[1] = FPGA_READ(INV_HW_RCODE_2_ADDR);
+#endif
 
     zlog_notice("INVENTORY: HW RCODE [0x%x]", val[0] | (val[1] << 16));
 #endif
@@ -2648,9 +2877,11 @@ void process_port_pm_counters(void)
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 void update_KeepAlive(void)
 {
-
+#if 0 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+	/* NOTE : this caused counting in 1 byte(0~255) range. */
 	if(gDB.keepAlive == 0xff)
 		gDB.keepAlive = 1;
+#endif
 	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
 	 *
 	 * WRITE KEEP ALIVE(0x16)
