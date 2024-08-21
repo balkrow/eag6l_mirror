@@ -1,7 +1,10 @@
 #!/bin/bash
 
 #variable
-IMG_DIR="/tftpboot/"
+## [#96] Adding option bit after downloading FPGA, dustin, 2024-08-19
+##       added OWNER to update recent image binary.
+OWNER=`whoami`
+IMG_DIR="/tftpboot/$OWNER/"
 FW_INFO=".pkg_info"
 
 #check image 
