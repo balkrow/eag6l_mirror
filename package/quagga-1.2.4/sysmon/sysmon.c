@@ -1554,6 +1554,72 @@ int rdl_install_package(int bno)
 	return 0;
 }
 
+#if 1 /* [#96] Adding option bit after downloading FPGA, dustin, 2024-08-19 */
+int write_fpga_option_bits(void)
+{
+	char *dev_file="/dev/mtd3";
+	struct mtd_info_user mtd;
+	struct erase_info_user erase;
+	off_t offset;
+	u_int8_t buf[20];	
+	u_int8_t buf_1[1];	
+	u_int8_t opt_bits[] = { 
+		0x0, 0x0, 0xf0, 0x0, 0x0, 0x2, 
+		0xf0, 0x2, 0x0, 0x4, 0xf0, 0x4};	
+	int fd, ret;
+
+	fd = open(dev_file, O_SYNC | O_RDWR);
+	if(fd < 0) {
+		zlog_notice("%s : Cannot open %s. reason[%s].\n", 
+			__func__, strerror(errno));
+		ret = -1;
+		goto __error_return__;
+	}
+
+	if(ioctl(fd, MEMGETINFO, &mtd) < 0) {
+		zlog_notice("%s : Cannot read %s. reason[%s].\n", 
+			__func__, strerror(errno));
+		ret = -1;
+		goto __error_return__;
+	}
+
+	zlog_notice("%s : mtd.size [%d] mtd.erasesize [%x].\n", 
+		__func__, mtd.size, mtd.erasesize);
+
+	/** check option bit**/
+	lseek(fd, 0xe000, SEEK_SET);
+	read(fd, buf, 12);  
+
+	if(! memcmp(buf, opt_bits, 12)) {
+		zlog_notice("%s : Option bits are same.", __func__);
+	}
+	else {
+		offset = lseek(fd, 0x0, SEEK_SET);
+		zlog_notice("%s : Rewriting different Option bits. offset[%x].", 
+			__func__, offset);
+
+		erase.start = 0x10000;	
+		erase.length = mtd.erasesize;
+		if(ioctl(fd, MEMERASE, &erase) < 0) {
+			zlog_notice("%s : Cannot read %s. reason[%s].\n",
+				__func__, strerror(errno));
+			ret = -1;
+			goto __error_return__;
+		}
+		lseek(fd, 0xe000, SEEK_SET);
+		write(fd, opt_bits, 12);  
+		lseek(fd, 0xe080, SEEK_SET);
+		buf_1[0] = 0x4;
+		write(fd, buf_1, 1);  
+	}
+
+__error_return__:
+	if(fd >= 0)
+		close(fd);
+	return 0;
+}
+#endif
+
 int rdl_activate_fpga(uint8_t bno)
 {
 #if 1/* [#76] Adding for processing FPGA F/W, dustin, 2024-07-15 */
@@ -1660,6 +1726,10 @@ int rdl_activate_fpga(uint8_t bno)
 		close(os_fd);
 		os_fd = -1;
 	}
+
+#if 1 /* [#96] Adding option bit after downloading FPGA, dustin, 2024-08-19 */
+	write_fpga_option_bits();
+#endif
 
 #if 0 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
 	/* NOTE : updating here is useless. */
