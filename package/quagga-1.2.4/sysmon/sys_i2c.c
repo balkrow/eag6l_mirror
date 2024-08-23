@@ -3638,7 +3638,7 @@ void init_100g_sfp(void)
 	val |= 0x80;/*set-host-side-fec*/
 
 	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
-		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
+		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
@@ -3647,90 +3647,6 @@ void init_100g_sfp(void)
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
 		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
-		goto __exit__;
-	}
-
-__exit__:
-    close(fd);
-    return;
-}
-#endif
-
-#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
-int set_i2c_100G_laser_control(int portno, int enable)
-{
-	unsigned int chann_mask;
-	int fd, mux_addr, ret;
-	unsigned char val;
-	unsigned char lp_back;
-
-	if(! PORT_STATUS[portno].equip)
-		return;
-
-	fd = i2c_dev_open(1/*bus*/);
-	if(fd < 0) {
-		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
-			__func__, portno, get_eag6L_dport(portno), strerror(errno));
-		goto __exit__;
-	}
-
-	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
-		mux_addr = I2C_MUX;
-		chann_mask = I2C_MUX_100G_MASK;
-	} else {
-		mux_addr = I2C_MUX;
-		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
-	}
-
-	i2c_set_slave_addr(fd, mux_addr, 1);
-
-	// now set target mux.
-	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
-	if(ret < 0) {
-		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
-				__func__, portno, get_eag6L_dport(portno), ret);
-		goto __exit__;
-	}
-
-	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
-
-	/* read power mode */
-	if((ret = i2c_smbus_read_byte_data(fd, 93/*0x5D*/)) < 0) {
-		zlog_notice("%s: Reading port[%d(0/%d)] power mode failed.",
-			__func__, portno, get_eag6L_dport(portno));
-		goto __exit__;
-	}
-	lp_back = ret;
-
-	/* set low power mode */
-	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
-		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
-			__func__, portno, get_eag6L_dport(portno));
-		goto __exit__;
-	}
-
-	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
-	if((ret = i2c_smbus_read_byte_data(fd, 86/*0x56*/)) < 0) {
-		zlog_notice("%s: Reading port[%d(0/%d)] TxDisable failed. ret[%d].",
-			__func__, portno, get_eag6L_dport(portno), ret);
-		goto __exit__;
-	}
-
-	val = ret;
-	val &= ~0xF;
-	val |= enable ? 0x0 : 0xF;/*tx-disable-4-lanes*/
-
-	/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
-	if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
-		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
-			__func__, portno, get_eag6L_dport(portno), ret);
-		goto __exit__;
-	}
-
-	/* recover to high power mode */
-	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, lp_back)) < 0) {
-		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
-			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
 
