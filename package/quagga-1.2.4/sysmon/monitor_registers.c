@@ -690,9 +690,172 @@ uint16_t bankSelect1(uint16_t port, uint16_t val)
 }
 #endif
 
+#if 1 /* [#98] Fixing fw bank env variables for factory initial booting case, dustin, 2024-08-23 */
+int get_bp_os_boot_bank(void)
+{
+	FILE *fn = NULL;
+	char *str = NULL;
+	char buf[200], buf2[20];
+	int bno;
+
+	fn = popen("cat /proc/cmdline", "r");
+	if(fn == NULL) {
+		zlog_notice("%s : Cannot get /proc/cmdline.", __func__);
+		return -1;
+	}
+
+	fread(buf, sizeof(char), 199, fn);
+	str = strstr(buf, "bootbank=");
+	if(str == NULL) {
+		zlog_notice("%s : Cannot get bootbank.", __func__);
+		return -1;
+	}
+
+	if(sscanf(str, "bootbank=%s", buf2) != 1) {
+		zlog_notice("%s : Invalid format [%s].", __func__, str);
+		return -1;
+	}
+
+	if(! strncmp(buf2, "bank1", strlen("bank1")))
+		return RDL_BANK_1;
+	else if(! strncmp(buf2, "bank2", strlen("bank2")))
+		return RDL_BANK_2;
+	else if(! strncmp(buf2, "factory", strlen("factory")))
+		return 0;/*factory-bank*/
+	else {
+		zlog_notice("%s : Invalid bank [%s].", __func__, str);
+		return -1;
+	}
+}
+#endif
+
 #if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
 void update_fpga_bank_status(void)
 {
+#if 1 /* [#98] Fixing fw bank env variables for factory initial booting case, dustin, 2024-08-23 */
+	/* check cpld 0x7000001C for current fpga bank */
+	{
+		int bno, fno;
+		int sts, retry;
+
+		fno = CPLD_READ(CPLD_FW_BANK_SELECT_ADDR);
+		bno = get_bp_os_boot_bank();
+		zlog_notice("%s : Current FPGA bank[%d], BP bank[%d].", 
+			__func__, fno, bno);
+
+		/* if factory booted, then do not set env variables. */
+		if(bno == 0/*factory*/)
+			goto __check_fpga_status__;
+
+		if(fno == 0) {
+			FILE *fn = NULL;
+			char cmd[50];
+			char act_flag, stb_flag, dft_flag, none, invalid;
+
+			act_flag = stb_flag = dft_flag = none = invalid = 0;
+
+			/* get bank from env */
+			fn = popen("fw_printenv -n fw_act_bank", "r");
+			if(fn == NULL) {
+_try_stb_:
+				fn = popen("fw_printenv -n fw_stb_bank", "r");
+				if(fn == NULL) {
+_try_dft_:
+					fn = popen("fw_printenv -n fw_dft_bank", "r");
+					if(fn == NULL) {
+						zlog_notice("%s : Cannot get fpga bank env variable.",
+							__func__);
+						none = 1;
+						goto _next_job_;
+					} else dft_flag = 1;
+				} else stb_flag = 1;
+			} else act_flag = 1;
+
+			if(fn != NULL) {
+				fread(cmd, sizeof(char), 1, fn);
+				pclose(fn);
+
+				if((sscanf(cmd, "%d", &fno) != 1) || 
+					((fno != RDL_BANK_1) && (fno != RDL_BANK_2))) {
+					zlog_notice("%s : Invalid fpga bank env variable[%d].", 
+						__func__, fno);
+					invalid = 1;
+				}
+			}
+
+_next_job_:
+			if(none) {
+				if(bno >= 0)
+					fno = bno;
+				else
+					fno = RDL_BANK_1;
+			} else if(invalid) {
+				if(bno >= 0)
+					fno = bno;
+				else
+					fno = RDL_BANK_1;
+			} else {
+				if(stb_flag)
+					fno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
+			}
+
+			zlog_notice("%s : Update CPLD FPGA bank to [%d].", __func__, bno);
+			/* set fpga active bank */
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, fno);
+
+			/* set env variable */
+			if(act_flag) {
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+			} else if(stb_flag) {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", fno);
+				system(cmd);
+			} else if(dft_flag) {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", fno);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+			} else {
+				sprintf(cmd, "fw_setenv fw_act_bank %d", fno);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
+					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
+				system(cmd);
+				sprintf(cmd, "fw_setenv fw_dft_bank %d", fno);
+				system(cmd);
+			}
+		}
+
+__check_fpga_status__:
+		/* check fpga bank config status. */
+		for(retry = 0; retry < 10; retry++) {
+			sts = CPLD_READ(CPLD_FW_BANK_STATUS_ADDR);
+			if(sts == CPLD_BANK_OK) {
+				zlog_notice("%s : FPGA bank status OK.", __func__);
+				break;
+			}
+			usleep(50000);
+		}
+
+		/* if target bank failed, change to other bank */
+		if(sts == CPLD_BANK_BAD) {
+			/* try standby bank */
+			fno = (fno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
+
+			zlog_notice("%s : Try standby FPGA bank [%d].", __func__, fno);
+			/* set fpga standby bank */
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, fno);
+			goto __check_fpga_status__;
+		} else if(sts == CPLD_BANK_OK) {
+			zlog_notice("%s : Update working FPGA bank to [%d].", 
+				__func__, fno);
+			/* update working bank info. */
+			gRegUpdate(FW_BANK_SELECT_ADDR, 8, 0x700, fno);
+		}
+	}
+#else /*****************************************************************/
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	/* check cpld 0x7000001C for current fpga bank */
 	{
@@ -831,6 +994,7 @@ __retry__:
 #endif
 	}
 #endif
+#endif /* [#98] */
 }
 
 void do_recovery_update_after_fpga_reset(void)
