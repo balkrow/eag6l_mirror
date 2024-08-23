@@ -911,6 +911,13 @@ uint8_t gCpssSDKInit(int args, ...)
 	uint8_t result;
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+	if(gEag6LSDKInitStatus == GT_TRUE) 
+	{
+		result = 0;
+		goto to_sysmon;
+	}
+#endif
 
 	result = cpssInitSystem(38, 1, 0);
 #if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
@@ -931,6 +938,10 @@ uint8_t gCpssSDKInit(int args, ...)
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	syslog(LOG_INFO, "cpssInitSystem result %x", result);
+#endif
+
+#if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
+to_sysmon:
 #endif
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);

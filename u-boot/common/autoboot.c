@@ -255,11 +255,13 @@ static int abortboot_single_key(int bootdelay)
 	/*
 	 * Check if key already pressed
 	 */
+#if 0/*[#82] eag6l board SW Debugging, balkrow, 2024-08-23*/
 	if (tstc()) {	/* we got a key press	*/
 		(void) getc();  /* consume input	*/
 		puts("\b\b\b 0");
 		abort = 1;	/* don't auto boot	*/
 	}
+#endif
 
 	while ((bootdelay > 0) && (!abort)) {
 		--bootdelay;
