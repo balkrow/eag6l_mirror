@@ -96,6 +96,9 @@ extern uint16_t set_flex_tune_reset(uint16_t port, uint16_t enable);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno);
 #endif
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+void update_laser_status(uint16_t portno, uint16_t val);
+#endif
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 void read_port_inventory(int portno, struct module_inventory * mod_inv);
 void read_port_rtwdm_inventory(int portno, struct module_inventory * mod_inv);
@@ -171,6 +174,16 @@ RegMON regMonList [] = {
   { PORT_5_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
   { PORT_6_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
   { PORT_7_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, /*40*/ 
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+	/* port configuration - laser control */
+  { PORT_1_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, update_laser_status }, 
+  { PORT_2_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, update_laser_status }, 
+  { PORT_3_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, update_laser_status }, 
+  { PORT_4_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, update_laser_status }, /*30*/ 
+  { PORT_5_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, update_laser_status }, 
+  { PORT_6_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, update_laser_status }, 
+  { PORT_7_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, update_laser_status }, 
+#endif
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	/* channel number set */
 	/* FIXME : there are no channel table for 100G */
@@ -894,6 +907,31 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 #endif
 
 	return SUCCESS;
+}
+#endif
+
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+void update_laser_status(uint16_t portno, uint16_t val)
+{
+	if(portno >= (PORT_ID_EAG6L_MAX - 1)) {
+		zlog_notice("%s : laser control set to [%s] for port[%d].", 
+			__func__, (val == 0xA5) ? "ON" : "OFF", portno);
+
+		/* call i2c function to set laser on/off for 100G sfp. */
+		set_i2c_100G_laser_control(portno, 
+			(val == 0xA5) ? 1/*on*/ : 0/*off*/);
+	}
+
+	if(val == 0xA5) {
+		zlog_notice("%s : laser status set to [ON] for port[%d].", 
+			__func__, portno);
+		PORT_STATUS[portno].tx_laser_sts = 1/*on*/;
+	} else if(val == 0x5A) {
+		zlog_notice("%s : laser status set to [OFF] for port[%d].", 
+			__func__, portno);
+		PORT_STATUS[portno].tx_laser_sts = 0/*off*/;
+	}
+	return;
 }
 #endif
 
@@ -2518,9 +2556,9 @@ void update_port_sfp_inventory(void)
 
 void process_alarm_info(void)
 {
-	u16 val;
-	u16 masking;
-	u8 portno;
+	uint16_t val;
+	uint16_t masking;
+	uint8_t portno;
 
 	/* update alarm */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
@@ -2542,11 +2580,13 @@ void process_alarm_info(void)
 		else
 			val &= ~(1 << 1);
 
+#if 0 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 		/*FIXME : update LOC (ESMC Loss) */
 		if(PORT_STATUS[portno].esmc_loss)
 			val |= (1 << 2);
 		else
 			val &= ~(1 << 2);
+#endif
 
 		/*FIXME : update RF (Remote Fault) */
 		if(PORT_STATUS[portno].remote_fault)
@@ -2561,14 +2601,20 @@ void process_alarm_info(void)
 			val &= ~(1 << 8);
 
 		/*FIXME : update Laser status */
-		if(! PORT_STATUS[portno].tx_laser_sts)
+		if(! PORT_STATUS[portno].tx_laser_sts) {
 			val |= (1 << 9);
-		else
+if(portno == 7) zlog_notice("----> #1 tx_laser_sts[%d] val[%x].", PORT_STATUS[portno].tx_laser_sts, val);//ZZPP
+		}
+		else{
 			val &= ~(1 << 9);
+if(portno == 7) zlog_notice("----> #2 tx_laser_sts[%d] val[%x].", PORT_STATUS[portno].tx_laser_sts, val);//ZZPP
+		}
 
 		/*FIXME : update rtWDM Loopback */
-		if(PORT_STATUS[portno].rtwdm_lp)
+		if(PORT_STATUS[portno].rtwdm_lp) {
 			val |= (1 << 10);
+if(portno == 7) zlog_notice("----> #1 rtwdm_lp[%d] val[%x].", PORT_STATUS[portno].rtwdm_lp, val);//ZZPP
+		}
 		else
 			val &= ~(1 << 10);
 
@@ -2590,7 +2636,9 @@ void process_alarm_info(void)
 		masking &= 0x10F;
 
 		/* update alarm */
+if(portno == 7) zlog_notice("----> #1 val[%x].", val);//ZZPP
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
+if(portno == 7) zlog_notice("----> #2 val[%x].", val);//ZZPP
 
 		/* update alarm flag */
 		gPortRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, val & masking);
@@ -2617,12 +2665,25 @@ extern int update_flex_tune_status(int portno);
 #endif
 		
 		
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+		/* update tx power */
+		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
+			PORT_STATUS[portno].equip ? 
+			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/)
+			: 0x8999); 
+		/* update rx power */
+		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
+			PORT_STATUS[portno].equip ? 
+			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/)
+			: 0x89999);
+#else
 		/* update tx power */
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/));
 		/* update rx power */
 		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/));
+#endif
 		/* update temperature */
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
 		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
@@ -2649,12 +2710,27 @@ extern int update_flex_tune_status(int portno);
 
 		if(PORT_STATUS[portno].tunable_sfp) {
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+			/* update tx power */
+			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
+			PORT_STATUS[portno].equip ?
+				convert_dbm_float_to_decimal(
+				PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr, 1/*dbm*/)
+				: 0x8999);
+			/* update rx power */
+			FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[portno], 
+			PORT_STATUS[portno].equip ?
+				convert_dbm_float_to_decimal(
+				PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr, 1/*dbm*/)
+				: 0x8999);
+#else
 			/* update tx power */
 			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
 					convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr, 1/*dbm*/));
 			/* update rx power */
 			FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[portno], 
 					convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr, 1/*dbm*/));
+#endif
 			/* update temperature */
 			val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.temp);
 			FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], val);
