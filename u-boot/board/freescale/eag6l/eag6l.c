@@ -327,6 +327,14 @@ int fpga_bank_adjust(void)
 	}
 
 	printf("FPGA Default bank booting..\n"); 
+#if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-26*/
+	{
+		void *buf;
+		buf = map_sysmem(0x60f00000, 2);
+		*((u16 *)buf) = 0 << 8;
+		unmap_sysmem(buf);
+	}
+#endif
 
 	return 0;
 }
