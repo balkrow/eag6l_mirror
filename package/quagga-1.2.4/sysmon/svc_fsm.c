@@ -231,13 +231,15 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	/*read SW version reg*/
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
-
 #if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+#if 0/*[#82] eag6l board SW Debugging, balkrow, 2024-08-26*/
 	{
 		extern void update_fpga_bank_status(void);
 
 		update_fpga_bank_status();
 	}
+#endif
+
 #else /**************************************************************/
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	/* check cpld 0x7000001C for current fpga bank */
