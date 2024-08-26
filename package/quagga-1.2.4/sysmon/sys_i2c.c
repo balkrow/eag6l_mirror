@@ -3583,6 +3583,10 @@ void init_100g_sfp(void)
 	unsigned int chann_mask;
 	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
 	unsigned char val;
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+	uint8_t enable;
+	uint16_t pconf;
+#endif
 
 	if(! PORT_STATUS[portno].equip)
 		return;
@@ -3618,6 +3622,19 @@ void init_100g_sfp(void)
 
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+	/* set low power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* get laser control is off. */
+	pconf = FPGA_PORT_READ(PORT_7_CONF_ADDR);
+	enable = ((pconf & 0xFF00) == 0x5A00) ? 0/*off*/ : 1/*on*/;
+#endif
+
 	/* select page */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3*/)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
@@ -3650,6 +3667,34 @@ void init_100g_sfp(void)
 		goto __exit__;
 	}
 
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+	if((ret = i2c_smbus_read_byte_data(fd, 86/*0x56*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TxDisable failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	val = ret;
+	val &= ~0xF;
+	val |= enable ? 0x0 : 0xF;/*tx-disable-4-lanes*/
+
+	/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+	if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* recover to high power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 
+		enable ? 0x8/*high-power-mode*/ : 0x3/*low-power-mode*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+#endif
+
 __exit__:
     close(fd);
     return;
@@ -3662,7 +3707,9 @@ int set_i2c_100G_laser_control(int portno, int enable)
 	unsigned int chann_mask;
 	int fd, mux_addr, ret;
 	unsigned char val;
+#if 0 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 	unsigned char lp_back;
+#endif
 
 	if(! PORT_STATUS[portno].equip)
 		return;
@@ -3694,6 +3741,7 @@ int set_i2c_100G_laser_control(int portno, int enable)
 
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
+#if 0 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
 	/* read power mode */
@@ -3703,6 +3751,7 @@ int set_i2c_100G_laser_control(int portno, int enable)
 		goto __exit__;
 	}
 	lp_back = ret;
+#endif
 
 	/* set low power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
@@ -3729,12 +3778,22 @@ int set_i2c_100G_laser_control(int portno, int enable)
 		goto __exit__;
 	}
 
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+	/* recover to high power mode or keep low power mode if disabled. */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 
+		enable ? 0x8/*high-power-mode*/ : 0x3/*low-power-mode*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+#else
 	/* recover to high power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, lp_back)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#endif
 
 __exit__:
 	close(fd);
