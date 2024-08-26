@@ -11,6 +11,7 @@ function _clean {
 #[#31]DB-98DX7312-8SFP1QSFP 용 setup.env 추가 및 개발환경 수정
 function _config {
   if [ ${BUILD_BOARD_NAME} == "eag6l" ] ; then
+    automake
 	./configure											\
 		--host=${CROSS_COMPILE_PFX}							\
 		--prefix=$QUAGGA/install \

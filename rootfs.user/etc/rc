@@ -61,6 +61,13 @@ done
 
 ifconfig lo 127.0.0.1 up
 
+#[#82] eag6l sw debugging, by balkrow, 2024-08-26
+if [ -f /mnt/flash/ip.sh ]
+then
+  . /mnt/flash/ip.sh
+fi
+
+
 for i in $( ls -v /etc/rcS.d/S* 2> /dev/null)
 do
     [ ! -f "$i" ] && continue;

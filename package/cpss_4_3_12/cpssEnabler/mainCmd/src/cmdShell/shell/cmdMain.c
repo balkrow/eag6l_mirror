@@ -94,12 +94,16 @@ GT_STATUS luaCLI_LoadConfigurationFile(
 #endif /* CMD_LUA_CLI */
 #ifdef  CMD_FS
 GT_STATUS cmdTFTPDstart(void);
-#if 1/*add by balkrow*/
+#if 0/*[#101] Delete unnecessary files from rootfs, balkrow, 2024-08-23*/
 GT_STATUS eag6lOAMstart(void);
 #endif
 #endif
 #ifdef _WIN32
 IOStreamPTR cmdStreamCreateWin32Console(void);
+#endif
+
+#if 1/*[#101] Delete unnecessary files from rootfs, balkrow, 2024-08-23*/
+GT_STATUS eag6lOAMstart(void);
 #endif
 
 #ifdef CMD_INCLUDE_TCPIP
@@ -302,7 +306,7 @@ GT_STATUS cmdInit
 #endif
 #ifdef  CMD_FS
     cmdFSinit();
-#if 1/*add by balkrow*/
+#if 0/*[#101] Delete unnecessary files from rootfs, balkrow, 2024-08-23*/
     eag6lOAMstart();
 #else
     cmdTFTPDstart();
@@ -310,6 +314,9 @@ GT_STATUS cmdInit
 
 #endif
 #endif /* CMD_INCLUDE_TCPIP */
+#if 1/*[#101] Delete unnecessary files from rootfs, balkrow, 2024-08-23*/
+    eag6lOAMstart();
+#endif
 
     /* Create one single task to handle all services */
     if ((rc = cmdOsTaskCreate(
