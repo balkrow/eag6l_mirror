@@ -118,12 +118,21 @@ extern struct thread_master *master;
 
 RegMON regMonList [] = {
 	/* common control 2 - port speed */
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+  { COMMON_CTRL2_P1_ADDR, 0xF, 0, 0x9, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P2_ADDR, 0xF, 0, 0x9, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P3_ADDR, 0xF, 0, 0x9, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P4_ADDR, 0xF, 0, 0x9, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P5_ADDR, 0xF, 0, 0x9, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+  { COMMON_CTRL2_P6_ADDR, 0xF, 0, 0x9, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+#else
   { COMMON_CTRL2_P1_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portRateSet }, 
   { COMMON_CTRL2_P2_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portRateSet }, 
   { COMMON_CTRL2_P3_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portRateSet }, 
   { COMMON_CTRL2_P4_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portRateSet }, 
   { COMMON_CTRL2_P5_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portRateSet }, 
   { COMMON_CTRL2_P6_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portRateSet }, 
+#endif
 	/* port configuration - esmc */                        
   { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
@@ -305,9 +314,17 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	if(val == 0x9/*25G*/)
+#else
 	if(val == 0x7/*25G*/)
+#endif
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	else if(val == 0x8/*10G*/)
+#else
 	else if(val == 0x6/*10G*/)
+#endif
 		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
 #else
 	if(val == 0x7/*25G*/)
@@ -325,7 +342,11 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 		rc = RT_NOK;
 
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	if((val == 0x9/*25G*/) && (rc != RT_NOK))
+#else
 	if((val == 0x7/*25G*/) && (rc != RT_NOK))
+#endif
 		thread_add_timer(master, pm_clear_fec_counters, port, 2);
 #endif
 
@@ -359,6 +380,29 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 
 	switch(val)
 	{
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+		case 0x01 : 
+			port = 0; 
+			break;
+		case 0x02 : 
+			port = 8; 
+			break;
+		case 0x03 : 
+			port = 16; 
+			break;
+		case 0x04 : 
+			port = 24; 
+			break;
+		case 0x05 : 
+			port = 32; 
+			break;
+		case 0x06 : 
+			port = 40; 
+			break;
+		case 0x07 : 
+			port = 50; 
+			break;
+#else
 		case 0x11 : 
 			port = 0; 
 			break;
@@ -380,6 +424,7 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 		case 0x23 : 
 			port = 50; 
 			break;
+#endif
 		default :
 			port = 0xff; 
 			break;
@@ -399,6 +444,29 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 
 	switch(val)
 	{
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+		case 0x01 : 
+			port = 0; 
+			break;
+		case 0x02 : 
+			port = 8; 
+			break;
+		case 0x03 : 
+			port = 16; 
+			break;
+		case 0x04 : 
+			port = 24; 
+			break;
+		case 0x05 : 
+			port = 32; 
+			break;
+		case 0x06 : 
+			port = 40; 
+			break;
+		case 0x07 : 
+			port = 50; 
+			break;
+#else
 		case 0x11 : 
 			port = 0; 
 			break;
@@ -420,6 +488,7 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 		case 0x23 : 
 			port = 50; 
 			break;
+#endif
 		default :
 			port = 0xff; 
 			break;

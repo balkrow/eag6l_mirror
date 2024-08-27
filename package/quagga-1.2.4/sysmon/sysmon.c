@@ -1081,12 +1081,20 @@ void rdl_update_bank_registers(int bno)
 {
 	const uint32_t magic1_addr[] = { BANK1_MAGIC_NO_1_ADDR,      BANK2_MAGIC_NO_1_ADDR };
 	const uint32_t magic2_addr[] = { BANK1_MAGIC_NO_2_ADDR,      BANK2_MAGIC_NO_2_ADDR };
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	const uint32_t hcrc1_addr[] = { BANK1_HEADER_CRC_1_ADDR,      BANK2_HEADER_CRC_1_ADDR };
+	const uint32_t hcrc2_addr[] = { BANK1_HEADER_CRC_2_ADDR,      BANK2_HEADER_CRC_2_ADDR };
+#endif
 	const uint32_t tcrc1_addr[] = { BANK1_TOTAL_CRC_1_ADDR,      BANK2_TOTAL_CRC_1_ADDR };
 	const uint32_t tcrc2_addr[] = { BANK1_TOTAL_CRC_2_ADDR,      BANK2_TOTAL_CRC_2_ADDR };
 	const uint32_t btime1_addr[] = { BANK1_BUILD_TIME_1_ADDR,    BANK2_BUILD_TIME_1_ADDR };
 	const uint32_t btime2_addr[] = { BANK1_BUILD_TIME_2_ADDR,    BANK2_BUILD_TIME_2_ADDR };
 	const uint32_t tsize1_addr[] = { BANK1_TOTAL_SIZE_1_ADDR,    BANK2_TOTAL_SIZE_1_ADDR };
 	const uint32_t tsize2_addr[] = { BANK1_TOTAL_SIZE_2_ADDR,    BANK2_TOTAL_SIZE_2_ADDR };
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	const uint32_t ctype1_addr[] = { BANK1_CARD_TYPE_1_ADDR,    BANK2_CARD_TYPE_1_ADDR };
+	const uint32_t ctype2_addr[] = { BANK1_CARD_TYPE_2_ADDR,    BANK2_CARD_TYPE_2_ADDR };
+#endif
 	const uint32_t vstr1_addr[] = { BANK1_VER_STR_START_ADDR,    BANK2_VER_STR_START_ADDR };
 	const uint32_t vstr2_addr[] = { BANK1_VER_STR_END_ADDR,      BANK2_VER_STR_END_ADDR };
 	const uint32_t fname1_addr[] = { BANK1_FILE_NAME_START_ADDR, BANK2_FILE_NAME_START_ADDR };
@@ -1117,6 +1125,13 @@ void rdl_update_bank_registers(int bno)
 	DPRAM_WRITE(magic1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(magic2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
 
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	// write header crc.
+	data2 = RDL_OS_HEADER.fih_hcrc;
+	DPRAM_WRITE(hcrc1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
+	DPRAM_WRITE(hcrc2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
+#endif/* [#102] */
+
 	// write total crc.
 	data2 = RDL_OS_HEADER.fih_dcrc;
 	DPRAM_WRITE(tcrc1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
@@ -1131,6 +1146,13 @@ void rdl_update_bank_registers(int bno)
 	data2 = RDL_OS_HEADER.fih_size;
 	DPRAM_WRITE(tsize1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(tsize2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
+
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	// write card type.
+	data2 = RDL_OS_HEADER.fih_card_type;
+	DPRAM_WRITE(ctype1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
+	DPRAM_WRITE(ctype2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
+#endif/* [#102] */
 
 	// write ver string.
     for(ii = 0, addr = vstr1_addr[bno - RDL_BANK_1];
