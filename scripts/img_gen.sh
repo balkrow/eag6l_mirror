@@ -64,6 +64,7 @@ fi
 # create fw_info
 ./mkfwimage -j $MAJOR -i $MINOR -r $REV -X -d $OS_IMG:$FPGA_OS_IMG:
 mv .fw_info $FW_INFO
+PKG_VERSION=${MAJOR}.${MINOR}.${REV}
 
 zip $PRODUCT_NAME-PKG.zip $OS_IMG $FPGA_OS_IMG $FW_INFO
 
