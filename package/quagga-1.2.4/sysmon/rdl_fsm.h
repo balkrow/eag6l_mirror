@@ -28,7 +28,11 @@
 #define RDL_P2_WRITING_DONE_ACK_BIT		0x15
 
 #define RDL_PAGE_READING_DONE_BIT		0x16
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+#define RDL_IMG_INSTALL_DONE_BIT        0x17/*FIXME : it's ok to add this ? */
+#else
 #define RDL_IMG_ACTIVATE_DONE_BIT       0x17/*FIXME : it's ok to add this ? */
+#endif
 
 #define RDL_TOTAL_READING_DONE_BIT		0x0E
 
@@ -47,6 +51,14 @@
 #define RDL_TEMP_ZIP_FILE           "/mnt/flash/.RDL/_pkt_.zip"
 
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+#define RDL_INSTALL1_PATH           "/mnt/flash/bank1/"
+#define RDL_INSTALL2_PATH           "/mnt/flash/bank2/"
+
+#define RDL_INSTALL1_PKG_INFO_FILE  "/mnt/flash/bank1/.pkg_info"
+#define RDL_INSTALL2_PKG_INFO_FILE  "/mnt/flash/bank2/.pkg_info"
+#endif
+
 #define RDL_B1_PATH                 "/media/bank1/"
 #define RDL_B2_PATH                 "/media/bank2/"
 
@@ -115,7 +127,11 @@ typedef enum {
 	ST_RDL_READING_P2,
 	ST_RDL_WRITING_TOTAL,
 	ST_RDL_READING_TOTAL,
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	ST_RDL_INSTALL_DONE,
+#else
 	ST_RDL_ACTIVATE_DONE,
+#endif
 	ST_RDL_RUNNING_CHECK,
 	ST_RDL_TERM,
 	ST_RDL_ST_MAX,
@@ -139,10 +155,15 @@ typedef enum {
 	EVT_RDL_WRITING_ERROR_TOTAL,
 	EVT_RDL_READING_DONE_TOTAL,
 	EVT_RDL_READING_ERROR_TOTAL,
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	EVT_RDL_IMG_INSTALL_SUCCESS,
+	EVT_RDL_IMG_INSTALL_FAIL,
+#else
 	EVT_RDL_IMG_ACTIVE_SUCCESS,
 	EVT_RDL_IMG_ACTIVE_FAIL,
 	EVT_RDL_IMG_RUNNING_SUCCESS,
 	EVT_RDL_IMG_RUNNING_FAIL,
+#endif
 	EVT_RDL_EVT_MAX,
 } RDL_EVT_t;
 

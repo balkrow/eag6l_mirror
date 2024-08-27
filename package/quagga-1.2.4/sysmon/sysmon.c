@@ -67,12 +67,20 @@ extern RDL_FSM_t rdl_fsm_list[];
 extern RDL_INFO_LIST_t rdl_info_list;
 extern int RDL_TRANS_MAX;
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+extern uint16_t RDL_INSTALL_STATE;
+#else
 extern uint16_t RDL_ACTIVATION_STATE;
+#endif
 #endif
 
 uint8_t PAGE_CRC_OK;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+uint8_t IMG_INSTALL_OK;
+#else
 uint8_t IMG_ACTIVATION_OK;
 uint8_t IMG_RUNNING_OK;
+#endif
 uint8_t *RDL_PAGE = NULL;
 RDL_IMG_INFO_t    RDL_INFO;
 #if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
@@ -693,12 +701,14 @@ int get_img_fwheader_info(char *fpath, fw_image_header_t *hdr)
 		return -1;
 	}
 
+#if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// check if magic is present.
 	if(ntohl(hdr->fih_magic) != RDL_IMG_MAGIC) {
 		zlog_notice("%s : Magic not found in %s. [0x%x/0x%x]. FW header not present?",
 			__func__, fpath, ntohl(hdr->fih_magic), RDL_IMG_MAGIC);
 		return -1;
 	}
+#endif
 
 	fclose(fp);
 	return 0;
@@ -1077,7 +1087,11 @@ error_out:
 
 // update rdl registers.
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+void rdl_update_bank_registers(int bno, int erase_flag)
+#else
 void rdl_update_bank_registers(int bno)
+#endif
 {
 	const uint32_t magic1_addr[] = { BANK1_MAGIC_NO_1_ADDR,      BANK2_MAGIC_NO_1_ADDR };
 	const uint32_t magic2_addr[] = { BANK1_MAGIC_NO_2_ADDR,      BANK2_MAGIC_NO_2_ADDR };
@@ -1104,6 +1118,9 @@ void rdl_update_bank_registers(int bno)
 	uint32_t data2, addr;
 	uint16_t data, ii;
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	if(! erase_flag) {
+#endif
 #ifndef RDL_BIN_HEADER/* NOTE : no header for binary image. */
 	if(rdl_collect_img_header_info(bno, RDL_PKG_HEADER.ih_image1_str, 
 		&RDL_OS_HEADER) < 0) {
@@ -1119,37 +1136,59 @@ void rdl_update_bank_registers(int bno)
 		return;
 	}
 #endif
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	}
+#endif
 
 	// write magic.
 	data2 = RDL_OS_HEADER.fih_magic;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	data2 = erase_flag ? 0x0 : data2;
+#endif
+
 	DPRAM_WRITE(magic1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(magic2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
 
 #if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
 	// write header crc.
 	data2 = RDL_OS_HEADER.fih_hcrc;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	data2 = erase_flag ? 0x0 : data2;
+#endif
 	DPRAM_WRITE(hcrc1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(hcrc2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
 #endif/* [#102] */
 
 	// write total crc.
 	data2 = RDL_OS_HEADER.fih_dcrc;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	data2 = erase_flag ? 0x0 : data2;
+#endif
 	DPRAM_WRITE(tcrc1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(tcrc2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
 
 	// write build time.
 	data2 = RDL_OS_HEADER.fih_time;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	data2 = erase_flag ? 0x0 : data2;
+#endif
 	DPRAM_WRITE(btime1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(btime2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
 
 	// write total size.
 	data2 = RDL_OS_HEADER.fih_size;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	data2 = erase_flag ? 0x0 : data2;
+#endif
 	DPRAM_WRITE(tsize1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(tsize2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
 
 #if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
 	// write card type.
 	data2 = RDL_OS_HEADER.fih_card_type;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	data2 = erase_flag ? 0x0 : data2;
+#endif
 	DPRAM_WRITE(ctype1_addr[bno - RDL_BANK_1], (data2 >> 16) & 0xFFFF);
 	DPRAM_WRITE(ctype2_addr[bno - RDL_BANK_1], data2 & 0xFFFF);
 #endif/* [#102] */
@@ -1160,6 +1199,9 @@ void rdl_update_bank_registers(int bno)
 		addr += 2, ii += 2) {
         data  = RDL_OS_HEADER.fih_ver[ii + 1];
         data |= (uint16_t)(RDL_OS_HEADER.fih_ver[ii] << 8);
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+		data = erase_flag ? 0x0 : data;
+#endif
         DPRAM_WRITE(addr, data);
     }
 
@@ -1169,6 +1211,9 @@ void rdl_update_bank_registers(int bno)
 		addr += 2, ii += 2) {
         data  = RDL_OS_HEADER.fih_name[ii + 1];
         data |= (uint16_t)(RDL_OS_HEADER.fih_name[ii] << 8);
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+		data = erase_flag ? 0x0 : data;
+#endif
         DPRAM_WRITE(addr, data);
     }
 	return;
@@ -1390,13 +1435,13 @@ __retry__:
 		zlog_notice("%s : No os1 file ? %s.", __func__, RDL_PKG_HEADER.ih_image1_str);
 	}
 
-	// check if os2 is present.
+	// check if fpga is present.
 	if(strlen(RDL_PKG_HEADER.ih_image2_str)) {
 		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_IMG_PATH, 
 			RDL_PKG_HEADER.ih_image2_str);
 		// check if file is present.
 		if(! syscmd_file_exist(fsrc)) {
-			zlog_notice("%s : Not found os2 img %s.", 
+			zlog_notice("%s : Not found fpga img %s.", 
 				__func__, RDL_PKG_HEADER.ih_image2_str);
 			result = -1;
 			goto __return__;
@@ -1410,7 +1455,7 @@ __retry__:
 		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image2_str, &RDL_OS2_HEADER) < 0)
 #endif
 		{
-			zlog_notice("%s : Collecting header failed for os2 image %s.",
+			zlog_notice("%s : Collecting header failed for fpga image %s.",
 				__func__, RDL_PKG_HEADER.ih_image2_str);
 			result = -1;
 			goto __return__;
@@ -1420,7 +1465,7 @@ __retry__:
 		if(get_img_fwheader_info(fsrc, &RDL_OS2_HEADER) >= 0) {
 			// check img file crc with data crc of header.
 			if(check_img_file_crc(fsrc, &hd, NULL, NULL) < 0) {
-				zlog_notice("%s : Checking crc failed for os2 image %s.",
+				zlog_notice("%s : Checking crc failed for fpga image %s.",
 					__func__, RDL_PKG_HEADER.ih_image2_str);
 				result = -1;
 				goto __return__;
@@ -1431,20 +1476,21 @@ __retry__:
 				RDL_PKG_HEADER.ih_image2_str);
 			restore_img_file(fsrc, fdst);
 
-			// remove os2 with header file, replace with original os2 file.
+			// remove fpga with header file, replace with original fpga file.
 			unlink(fsrc);
 			snprintf(cmd, sizeof(cmd) - 1, "mv %s %s", fdst, fsrc);
 			system(cmd);
 			system("sync");
 		} else {
-			zlog_notice("%s : No fw header for os2 image %s. Leave it.",
+			zlog_notice("%s : No fw header for fpga image %s. Leave it.",
 				__func__, RDL_PKG_HEADER.ih_image2_str);
 		}
 #endif
 	} else {
-		zlog_notice("%s : No os2 file ? %s.", __func__, RDL_PKG_HEADER.ih_image2_str);
+		zlog_notice("%s : No fpga file ? %s.", __func__, RDL_PKG_HEADER.ih_image2_str);
 	}
 
+#if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// check if fpga f/w is present.
 	if(strlen(RDL_PKG_HEADER.ih_image3_str)) {
 		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_IMG_PATH, 
@@ -1501,6 +1547,7 @@ __retry__:
 		zlog_notice("%s : No os3 file ? %s.", __func__, RDL_PKG_HEADER.ih_image3_str);
 #endif
 	}
+#endif /* [#105] */
 
 	result = 0;
 
@@ -1512,6 +1559,63 @@ __return__:
 
 int rdl_install_package(int bno)
 {
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	char cmd[200];
+	char tbuf[100];
+	int ret = 0;
+
+	// clear target bank.
+	snprintf(cmd, sizeof(cmd) - 1, "cd %s; rm *; rm .*", 
+		(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH);
+	ret = system(cmd);
+	if(ret < 0) {
+		zlog_notice("%s : command failed [%s]. reason[%s].",
+			__func__, cmd, strerror(errno));
+		return ret;
+	}
+
+	// move .pkg_info file to target bank.
+	if(syscmd_file_exist(RDL_PKG_INFO_FILE)) {
+		snprintf(cmd, sizeof(cmd) - 1, "mv %s %s", 
+			RDL_PKG_INFO_FILE, 
+			(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH);
+		ret = system(cmd);
+		if(ret < 0) {
+			zlog_notice("%s : command failed [%s]. reason[%s].",
+					__func__, cmd, strerror(errno));
+			return ret;
+		}
+	}
+
+	// move bp os1 to target bank.
+	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, RDL_OS_HEADER.fih_name);
+	if(strlen(RDL_OS_HEADER.fih_name) && syscmd_file_exist(tbuf)) {
+		snprintf(cmd, sizeof(cmd) - 1, "mv %s %s", tbuf,
+			(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH);
+		ret = system(cmd);
+		if(ret < 0) {
+			zlog_notice("%s : command failed [%s]. reason[%s].",
+					__func__, cmd, strerror(errno));
+			return ret;
+		}
+	}
+
+	// move bp os2 to target bank, if os2 is present
+	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, RDL_OS2_HEADER.fih_name);
+	if(strlen(RDL_OS2_HEADER.fih_name) && syscmd_file_exist(tbuf)) {
+		// move bp os2 to target bank.
+		snprintf(cmd, sizeof(cmd) - 1, "mv %s %s", tbuf,
+			(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH);
+		ret = system(cmd);
+		if(ret < 0) {
+			zlog_notice("%s : command failed [%s]. reason[%s].",
+					__func__, cmd, strerror(errno));
+			return ret;
+		}
+	}
+
+	return ret;
+#else /***********************************************************/
 	char cmd[200];
 	char tbuf[100];
 
@@ -1574,6 +1678,7 @@ int rdl_install_package(int bno)
 #endif
 
 	return 0;
+#endif /* [#105] */
 }
 
 #if 1 /* [#96] Adding option bit after downloading FPGA, dustin, 2024-08-19 */
@@ -1646,16 +1751,39 @@ int rdl_activate_fpga(uint8_t bno)
 {
 #if 1/* [#76] Adding for processing FPGA F/W, dustin, 2024-07-15 */
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
     fw_header_t bh;
+#endif
 	int fd = -1;
 	int os_fd = -1;
 	int ret = -1, item;
 	uint32_t len, wcnt;
     char tbuf[100];
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+    char cmd[200];
+#endif
 	unsigned char sbuf[RDL_BUFF_SIZE], dbuf[RDL_BUFF_SIZE];
 	struct stat fs;
 	size_t size, written;
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+    snprintf(tbuf, sizeof(tbuf) - 1, "%s%s",
+		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH, 
+		RDL_PKG_HEADER.ih_image2_str);
+
+	/* copy files from /mnt/flash/bankX to /media/bankX. */
+	snprintf(cmd, sizeof(cmd) - 1, "cp %s%s %s", (bno == RDL_BANK_1) ?
+		RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, 
+		RDL_PKG_HEADER.ih_image2_str, tbuf);
+	ret = system(cmd);
+	if(ret < 0) {
+		zlog_notice("%s : command failed [%s]. reason[%s].",
+			__func__, cmd, strerror(errno));
+		goto __failed__;
+	}
+
+	if(strlen(RDL_PKG_HEADER.ih_image2_str) && syscmd_file_exist(tbuf))
+#else /************************************************************/
     /* read pkg header info. */
     get_pkg_fwheader_info((bno == RDL_BANK_1) ?
     	RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &bh);
@@ -1663,7 +1791,9 @@ int rdl_activate_fpga(uint8_t bno)
     snprintf(tbuf, sizeof(tbuf) - 1, "%s%s",
 		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH, bh.ih_image2_str);
 
-	if(strlen(bh.ih_image2_str) && syscmd_file_exist(tbuf)) {
+	if(strlen(bh.ih_image2_str) && syscmd_file_exist(tbuf))
+#endif
+	{
 		/* FIXME : check fpga os version and new version ? how ?? */
 
 		/* erase before copying. */
@@ -1887,6 +2017,66 @@ __failed__:
 int rdl_activate_bp(int bno)
 {
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	char cmd[200];
+	int ret = 0;
+
+	/* get pkg info */
+	get_pkg_fwheader_info((bno == RDL_BANK_1) ? 
+		RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &RDL_PKG_HEADER);
+
+	/* remove target bank. */
+	snprintf(cmd, sizeof(cmd) - 1, "rm %s*; rm %s.*",
+		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH);
+	ret = system(cmd);
+	if(ret < 0) {
+		zlog_notice("%s : command failed [%s]. reason[%s].",
+			__func__, cmd, strerror(errno));
+		return ret;
+	}
+
+	/* copy .pkg_info from /mnt/flash/bankX to /media/bankX. */
+	snprintf(cmd, sizeof(cmd) - 1, "cp %s %s", 
+		(bno == RDL_BANK_1) ? 
+			RDL_INSTALL1_PKG_INFO_FILE : RDL_INSTALL2_PKG_INFO_FILE,
+		(bno == RDL_BANK_1) ? RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE);
+	ret = system(cmd);
+
+	if(ret < 0) {
+		zlog_notice("%s : command failed [%s]. reason[%s].",
+			__func__, cmd, strerror(errno));
+		return ret;
+	}
+
+	/* copy os from /mnt/flash/bankX to /media/bankX. */
+	snprintf(cmd, sizeof(cmd) - 1, "cp %s%s %s", 
+		(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH,
+		RDL_PKG_HEADER.ih_image1_str, 
+		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH);
+	ret = system(cmd);
+	if(ret < 0) {
+		zlog_notice("%s : command failed [%s]. reason[%s].",
+			__func__, cmd, strerror(errno));
+		return ret;
+	}
+
+	/* create new link. */
+	ret = symlink(RDL_PKG_HEADER.ih_image1_str,
+		(bno == RDL_BANK_1) ? RDL_B1_LINK_PATH : RDL_B2_LINK_PATH);
+	if(ret < 0) {
+		zlog_notice("%s : Linking %s as uImage has failed.",
+			__func__, RDL_PKG_HEADER.ih_image1_str);
+		return ret;
+	}
+
+	system("sync");
+
+	/* update bank env variable for next loading. */
+	sprintf(cmd, "fw_setenv bank %d", bno);
+	system(cmd);
+
+	return 0;
+#else /************************************************************/
 	char cmd[100];
 
 	/* update bank env variable for next loading. */
@@ -1903,6 +2093,7 @@ int rdl_activate_bp(int bno)
 	/*FIXME : auto rebooting ? */
 
 	return 0;
+#endif /* [#105] */
 #else
 	fw_header_t bh;
 	char cmd[200], fname[100];
@@ -1972,11 +2163,21 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 			break;
 
 		case	ST_RDL_START:
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
 			if(sts == RDL_P1_WRITING_BIT)
 				evt = EVT_RDL_WRITING_P1;
 			break;
 
 		case	ST_RDL_WRITING_P1:
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
 			if(sts == RDL_P1_WRITING_DONE_BIT)
 				evt = EVT_RDL_WRITING_DONE_P1;
 			else if(sts == RDL_PAGE_WRITING_ERROR_BIT)
@@ -1984,11 +2185,21 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 			break;
 
 		case	ST_RDL_READING_P1:
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
 			if(sts == RDL_P2_WRITING_BIT)
 				evt = EVT_RDL_WRITING_P2;
 			break;
 
 		case	ST_RDL_WRITING_P2:
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
 			if(sts == RDL_P2_WRITING_DONE_BIT)
 				evt = EVT_RDL_WRITING_DONE_P2;
 			else if(sts == RDL_PAGE_WRITING_ERROR_BIT)
@@ -1996,6 +2207,11 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 			break;
 
 		case	ST_RDL_READING_P2:
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
 			if(PAGE_CRC_OK)
 				evt = EVT_RDL_READING_DONE_P2;
 			else
@@ -2003,6 +2219,11 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 			break;
 
 		case	ST_RDL_WRITING_TOTAL:
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
 			if(sts == RDL_TOTAL_WRITING_DONE_BIT)
 				evt = EVT_RDL_WRITING_DONE_TOTAL;
 			else if(sts == RDL_P1_WRITING_BIT)
@@ -2013,13 +2234,34 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 
 		case	ST_RDL_READING_TOTAL:
 			// check crc for total integrated img file.
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
 			if(rdl_check_total_crc(RDL_INFO.hd.file_name) == RDL_CRC_OK)
 				evt = EVT_RDL_READING_DONE_TOTAL;
 			else
 				evt = EVT_RDL_READING_ERROR_TOTAL;
 			break;
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+		case	ST_RDL_INSTALL_DONE:
+#else
 		case	ST_RDL_ACTIVATE_DONE:
+#endif
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(sts == RDL_START_BIT)
+				evt = EVT_RDL_START;
+			else
+#endif
+			if(RDL_INSTALL_STATE >= 0)
+				evt = EVT_RDL_IMG_INSTALL_SUCCESS;
+			else 
+				evt = EVT_RDL_IMG_INSTALL_FAIL;
+			break;
+#else /*********************************************************/
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 			if(RDL_ACTIVATION_STATE >= 0)
 				evt = EVT_RDL_IMG_ACTIVE_SUCCESS;
@@ -2039,6 +2281,7 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 			else
 				evt = EVT_RDL_IMG_RUNNING_FAIL;
 			break;
+#endif /* [#105] */
 
 		case	ST_RDL_TERM:
 			evt = EVT_RDL_NONE;
@@ -2092,7 +2335,11 @@ int rdl_fsm_func(struct thread *thread)
 {
 	rdl_update_fsm();
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	thread_add_timer_msec (master, rdl_fsm_func, NULL, 50);
+#else
 	thread_add_timer_msec (master, rdl_fsm_func, NULL, 100);
+#endif
 	return 0;
 }
 
@@ -2344,7 +2591,7 @@ int monMCUupdate(struct thread *thread)
 {
 extern void regMonitor(void);
 
-#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+#if 0 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	if(gDB.sdk_init_state != SDK_INIT_DONE) {
 		goto __SKIP_4__;
 	}

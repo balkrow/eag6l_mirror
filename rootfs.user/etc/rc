@@ -28,6 +28,16 @@ then
 mkdir -p /mnt/flash/.RDL
 fi
 
+# [#105] Fixing for RDL install/activation process, dustin, 2024-08-27
+if [ ! -d /mnt/flash/bank1 ]
+then
+mkdir -p /mnt/flash/bank1
+fi
+if [ ! -d /mnt/flash/bank2 ]
+then
+mkdir -p /mnt/flash/bank2
+fi
+
 # #71 EAG6L Board Bring-up, balkrow. 2024-07-03
 #if [ ! -d /etc/dropbear ]
 #then
