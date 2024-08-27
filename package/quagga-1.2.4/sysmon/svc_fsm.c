@@ -485,7 +485,12 @@ SVC_EVT svc_init_done(SVC_ST st) {
 		{
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 			extern fw_header_t RDL_PKG_HEADER;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			extern void rdl_update_bank_registers(int bno, int erase_flag);
+			extern uint16_t RDL_B1_ERASE_FLAG, RDL_B2_ERASE_FLAG;
+#else
 			extern void rdl_update_bank_registers(int bno);
+#endif
 			int bno = get_sw_active_bank_flag();
 
 			/* get pkg info */
@@ -493,7 +498,12 @@ SVC_EVT svc_init_done(SVC_ST st) {
 				RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &RDL_PKG_HEADER);
 
 			// update bp os bank info registers.
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			rdl_update_bank_registers(bno, 
+				(bno == RDL_BANK_1) ? RDL_B1_ERASE_FLAG : RDL_B2_ERASE_FLAG);
+#else
 			rdl_update_bank_registers(bno);
+#endif
 #else
 			extern void rdl_update_bank_registers(void);
 

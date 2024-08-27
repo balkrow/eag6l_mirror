@@ -13,8 +13,10 @@ RDL_INFO_LIST_t rdl_info_list = {0, };
 RDL_INFO_LIST_t emul_info_list = {0, };
 #endif
 extern uint8_t PAGE_CRC_OK;
+#if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 extern uint8_t IMG_ACTIVATION_OK;
 extern uint8_t IMG_RUNNING_OK;
+#endif
 extern uint8_t *RDL_PAGE;
 extern RDL_IMG_INFO_t RDL_INFO;
 
@@ -24,7 +26,11 @@ extern int rdl_save_page_to_img_file(uint32_t size);
 extern long rdl_get_file_size(char *filename);
 extern int rdl_read_img_info(RDL_IMG_INFO_t *pinfo);
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+extern void rdl_update_bank_registers(int bno, int erase_flag);
+#else
 extern void rdl_update_bank_registers(int bno);
+#endif
 #else
 extern void rdl_update_bank_registers(void);
 #endif
@@ -40,7 +46,13 @@ extern int syscmd_file_exist(char *fpath);
 extern uint16_t get_sum(uint16_t *addr, int32_t nleft);
 
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+uint16_t RDL_INSTALL_STATE;
+uint16_t RDL_B1_ERASE_FLAG;
+uint16_t RDL_B2_ERASE_FLAG;
+#else
 uint16_t RDL_ACTIVATION_STATE;
+#endif
 #endif
 
 RDL_ST_t rdl_start(void) //#1
@@ -400,9 +412,17 @@ RDL_ST_t rdl_next_page(void) //#12
 }
 
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+RDL_ST_t rdl_img_install(void) //#13
+#else
 RDL_ST_t rdl_img_activation(void) //#13
+#endif
 {
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+    RDL_ST_t state = ST_RDL_INSTALL_DONE;
+#else
     RDL_ST_t state = ST_RDL_ACTIVATE_DONE;
+#endif
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	struct timeval sss;
 #endif
@@ -439,12 +459,27 @@ RDL_ST_t rdl_img_activation(void) //#13
 		return ST_RDL_IDLE;
 	}
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	// BP install(replace bank files) BP os img to target bank.
+	RDL_INSTALL_STATE = rdl_install_package(bno);
+
+	gettimeofday(&sss, NULL);
+    zlog_notice("%s : ----> RDL end time[%ld sec].", __func__, sss.tv_sec);
+
+	// BP update OS related registers.
+	rdl_update_bank_registers(bno, 
+		(RDL_INSTALL_STATE >= 0) ? 0/*update*/ : 1/*erase*/);
+#else /***********************************************************/
 	// BP install(replace bank files) BP os img to target bank.
 	rdl_install_package(bno);
 
 	// BP copy os img to /flash/boot for activation.
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	RDL_INSTALL_STATE = rdl_install_bp(bno);
+#else
 	RDL_ACTIVATION_STATE = rdl_activate_bp(bno);
+#endif
 #else
 	rdl_activate_bp(bno);
 #endif
@@ -483,6 +518,7 @@ RDL_ST_t rdl_img_activation(void) //#13
 		system("reboot -nf");
 	}
 #endif
+#endif /* [#105] */
 
     rdl_info_list.st = state;
     return state;
@@ -589,7 +625,11 @@ char *RDL_STATE_STR[] = {
 	"ST_RDL_READING_P2",
 	"ST_RDL_WRITING_TOTAL",
 	"ST_RDL_READING_TOTAL",
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	"ST_RDL_INSTALL_DONE",
+#else
 	"ST_RDL_ACTIVATE_DONE",
+#endif
 	"ST_RDL_RUNNING_CHECK",
 	"ST_RDL_TERM",
 	"ST_RDL_ST_MAX",
@@ -613,8 +653,13 @@ char *RDL_EVENT_STR[] = {
 	"EVT_RDL_WRITING_ERROR_TOTAL",
 	"EVT_RDL_READING_DONE_TOTAL",
 	"EVT_RDL_READING_ERROR_TOTAL",
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	"EVT_RDL_IMG_INSTALL_SUCCESS",
+	"EVT_RDL_IMG_INSTALL_FAIL",
+#else
 	"EVT_RDL_IMG_ACTIVE_SUCCESS",
 	"EVT_RDL_IMG_ACTIVE_FAIL",
+#endif
 	"EVT_RDL_IMG_RUNNING_SUCCESS",
 	"EVT_RDL_IMG_RUNNING_FAIL",
 	"EVT_RDL_EVT_MAX",
@@ -642,27 +687,57 @@ RDL_FSM_t rdl_fsm_list[] =
 
 	{ST_RDL_WRITING_P1,			EVT_RDL_WRITING_DONE_P1,        rdl_reading_p1},
 	{ST_RDL_WRITING_P1,         EVT_RDL_WRITING_ERROR,  	    rdl_writing_err_p1},
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_WRITING_P1,         EVT_RDL_START,	                rdl_start},
+#endif
 
 	{ST_RDL_READING_P1,         EVT_RDL_WRITING_P2,             rdl_writing_p2},
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_READING_P1,         EVT_RDL_START,	                rdl_start},
+#endif
 
 	{ST_RDL_WRITING_P2,         EVT_RDL_WRITING_DONE_P2,        rdl_reading_p2},
 	{ST_RDL_WRITING_P2,         EVT_RDL_WRITING_ERROR,		    rdl_writing_err_p2},
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_WRITING_P2,         EVT_RDL_START,	                rdl_start},
+#endif
 
 	{ST_RDL_READING_P2,         EVT_RDL_READING_DONE_P2,        rdl_page_done},
 	{ST_RDL_READING_P2,         EVT_RDL_READING_ERROR,	        rdl_reading_err_p2},
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_READING_P2,         EVT_RDL_START,	                rdl_start},
+#endif
 
 	{ST_RDL_WRITING_TOTAL,      EVT_RDL_WRITING_DONE_TOTAL,     rdl_reading_total},
 	{ST_RDL_WRITING_TOTAL,      EVT_RDL_WRITING_NOT_DONE,       rdl_next_page},
 	{ST_RDL_WRITING_TOTAL,      EVT_RDL_WRITING_ERROR_TOTAL,    rdl_restart},
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_WRITING_TOTAL,      EVT_RDL_START,	                rdl_start},
+#endif
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_DONE_TOTAL,     rdl_img_install},
+#else
 	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_DONE_TOTAL,     rdl_img_activation},
+#endif
 	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_ERROR_TOTAL,    rdl_restart},
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_READING_TOTAL,      EVT_RDL_START,	                rdl_start},
+#endif
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_INSTALL_DONE,       EVT_RDL_IMG_INSTALL_SUCCESS,    rdl_terminate},
+	{ST_RDL_INSTALL_DONE,       EVT_RDL_IMG_INSTALL_FAIL, 	    rdl_terminate},
+#else
 	{ST_RDL_ACTIVATE_DONE,      EVT_RDL_IMG_ACTIVE_SUCCESS,     rdl_sw_reset},
 	{ST_RDL_ACTIVATE_DONE,      EVT_RDL_IMG_ACTIVE_FAIL, 	    rdl_terminate},
 
 	{ST_RDL_RUNNING_CHECK,      EVT_RDL_IMG_RUNNING_SUCCESS, 	rdl_running_success},
 	{ST_RDL_RUNNING_CHECK,      EVT_RDL_IMG_RUNNING_FAIL, 	    rdl_running_fail},
+#endif
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{ST_RDL_INSTALL_DONE,      EVT_RDL_START,	                rdl_start},
+#endif
 
 	{ST_RDL_TERM,               EVT_RDL_NONE, 	                rdl_terminate},
 };

@@ -111,6 +111,11 @@ extern int update_sfp_channel_no(int portno);
 extern int get_tunable_sfp_channel_no(int portno);
 extern int get_flex_tune_status(int portno);
 #endif
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+extern void rdl_update_bank_registers(int bno, int erase_flag);
+extern uint16_t RDL_B1_ERASE_FLAG;
+extern uint16_t RDL_B2_ERASE_FLAG;
+#endif
 
 
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
@@ -905,7 +910,9 @@ __retry__:
 void do_recovery_update_after_fpga_reset(void)
 {
 extern uint16_t sysmonUpdateGetSWVer(void);
+#if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 extern void rdl_update_bank_registers(int bno);
+#endif
 void process_hw_inventory_infos(void);
 
 uint16_t data;
@@ -923,8 +930,13 @@ uint16_t data;
 	process_hw_inventory_infos();
 
 	/* recover bp os bank1/2 header registers. */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	rdl_update_bank_registers(RDL_BANK_1, RDL_B1_ERASE_FLAG);
+	rdl_update_bank_registers(RDL_BANK_2, RDL_B2_ERASE_FLAG);
+#else
 	rdl_update_bank_registers(RDL_BANK_1);
 	rdl_update_bank_registers(RDL_BANK_2);
+#endif
 
 	/* recover initial complete register. */
 	FPGA_WRITE(INIT_COMPLETE_ADDR, 0xAA);
@@ -940,6 +952,37 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 		zlog_notice("%s : MCU set invalid bank no[%d] for FPGA FW.", __func__, val);
 		return -1;
 	}
+
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	{
+		extern uint16_t RDL_B1_ERASE_FLAG;
+		extern uint16_t RDL_B2_ERASE_FLAG;
+		char cmd[100];
+
+		if(rdl_activate_bp(val) < 0) {
+			zlog_notice("Activating os failed.");
+			if(val == RDL_BANK_1)
+				RDL_B1_ERASE_FLAG = 1/*erase*/;
+			else
+				RDL_B2_ERASE_FLAG = 1/*erase*/;
+			rdl_update_bank_registers(val, 1/*erase*/);
+			return -1;
+		}
+
+		if(rdl_activate_fpga(val) < 0) {
+			zlog_notice("Activating fpga fw failed.");
+			if(val == RDL_BANK_1)
+				RDL_B1_ERASE_FLAG = 1/*erase*/;
+			else
+				RDL_B2_ERASE_FLAG = 1/*erase*/;
+			rdl_update_bank_registers(val, 1/*erase*/);
+			return -1;
+		}
+
+		sprintf(cmd, "fw_setenv bank %d", val);
+		system(cmd);
+	}
+#endif
 
 		/* update cpld fpga fw bank select, it will cuase fpga reboot. */
 		CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, val);
