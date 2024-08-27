@@ -86,6 +86,15 @@ typedef struct reg_mon_str
 
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
 typedef enum {
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+	M_PORT1 = 0x01,
+	M_PORT2 = 0x02,
+	M_PORT3 = 0x03,
+	M_PORT4 = 0x04,
+	M_PORT5 = 0x05,
+	M_PORT6 = 0x06,
+	M_PORT7 = 0x07
+#else
 	M_PORT1 = 0x11,
 	M_PORT2 = 0x12,
 	M_PORT3 = 0x13,
@@ -93,6 +102,7 @@ typedef enum {
 	M_PORT5 = 0x21,
 	M_PORT6 = 0x22,
 	M_PORT7 = 0x23
+#endif
 } MCU_SIDE_PORT_NUM;
 
 typedef enum {
@@ -1307,30 +1317,62 @@ typedef enum {
 
 #define BANK1_MAGIC_NO_1_ADDR       0x501100
 #define BANK1_MAGIC_NO_2_ADDR       0x501102
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+#define BANK1_HEADER_CRC_1_ADDR     0x501104
+#define BANK1_HEADER_CRC_2_ADDR     0x501106
+#else
 #define BANK1_TOTAL_CRC_1_ADDR      0x501104
 #define BANK1_TOTAL_CRC_2_ADDR      0x501106
+#endif/* [#102] */
 #define BANK1_BUILD_TIME_1_ADDR     0x501108
 #define BANK1_BUILD_TIME_2_ADDR     0x50110A
 #define BANK1_TOTAL_SIZE_1_ADDR     0x50110C
 #define BANK1_TOTAL_SIZE_2_ADDR     0x50110E
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+#define BANK1_CARD_TYPE_1_ADDR      0x501110
+#define BANK1_CARD_TYPE_2_ADDR      0x501112
+#define BANK1_TOTAL_CRC_1_ADDR      0x501114
+#define BANK1_TOTAL_CRC_2_ADDR      0x501116
+#define BANK1_VER_STR_START_ADDR    0x501118
+#define BANK1_VER_STR_END_ADDR      0x501126
+#define BANK1_FILE_NAME_START_ADDR  0x501128
+#define BANK1_FILE_NAME_END_ADDR    0x501146
+#else
 #define BANK1_VER_STR_START_ADDR    0x501110
 #define BANK1_VER_STR_END_ADDR      0x50111F
 #define BANK1_FILE_NAME_START_ADDR  0x501120
 #define BANK1_FILE_NAME_END_ADDR    0x50113F
+#endif/* [#102] */
 
 
 #define BANK2_MAGIC_NO_1_ADDR       0x502100
 #define BANK2_MAGIC_NO_2_ADDR       0x502102
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+#define BANK2_HEADER_CRC_1_ADDR     0x502104
+#define BANK2_HEADER_CRC_2_ADDR     0x502106
+#else
 #define BANK2_TOTAL_CRC_1_ADDR      0x502104
 #define BANK2_TOTAL_CRC_2_ADDR      0x502106
+#endif/* [#102] */
 #define BANK2_BUILD_TIME_1_ADDR     0x502108
 #define BANK2_BUILD_TIME_2_ADDR     0x50210A
 #define BANK2_TOTAL_SIZE_1_ADDR     0x50210C
 #define BANK2_TOTAL_SIZE_2_ADDR     0x50210E
+#if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
+#define BANK2_CARD_TYPE_1_ADDR      0x502110
+#define BANK2_CARD_TYPE_2_ADDR      0x502112
+#define BANK2_TOTAL_CRC_1_ADDR      0x502114
+#define BANK2_TOTAL_CRC_2_ADDR      0x502116
+#define BANK2_VER_STR_START_ADDR    0x502118
+#define BANK2_VER_STR_END_ADDR      0x502126
+#define BANK2_FILE_NAME_START_ADDR  0x502128
+#define BANK2_FILE_NAME_END_ADDR    0x502146
+#else
 #define BANK2_VER_STR_START_ADDR    0x502110
 #define BANK2_VER_STR_END_ADDR      0x50211F
 #define BANK2_FILE_NAME_START_ADDR  0x502120
 #define BANK2_FILE_NAME_END_ADDR    0x50213F
+#endif/* [#102] */
 #endif/*[#70]*/
 
 
