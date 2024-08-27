@@ -70,15 +70,16 @@ zip $PRODUCT_NAME-PKG.zip $OS_IMG $FPGA_OS_IMG $FW_INFO
 FILESIZE=`du -sb $PRODUCT_NAME-PKG.zip | awk '{print $1}'`
 
 echo "total size = $FILESIZE"
-echo "MAJOR = $MAJOR"
-echo "MINOR = $MINOR"
-echo "EVAL_VERSION = $EVAL_VERSION"
+echo "PKG_VERSION = $PKG_VERSION"
 
 # rename zip to PKG file.
-mv $PRODUCT_NAME-PKG.zip $PRODUCT_NAME-PKG-v$EVAL_VERSION.PKG
+mv $PRODUCT_NAME-PKG.zip $PRODUCT_NAME-PKG-v$PKG_VERSION.PKG
 
 # add header (fw_image_header_t)
-./fwimage -C $BUILD_BOARD_NAME -v $EVAL_VERSION -n $PRODUCT_NAME-PKG-v$EVAL_VERSION.PKG -d $PRODUCT_NAME-PKG-v$EVAL_VERSION.PKG $PRODUCT_NAME-PKG-v$EVAL_VERSION.bin
-mv $PRODUCT_NAME-PKG-v$EVAL_VERSION.bin ..
+./fwimage -C eag6l -v $PKG_VERSION -n hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSION} -d \
+$PRODUCT_NAME-PKG-v$PKG_VERSION.PKG hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSION}.bin
+
+mv hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSION}.bin ..
+ls -al ${TOPDIR}/hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSION}.bin 
 
 exit 0
