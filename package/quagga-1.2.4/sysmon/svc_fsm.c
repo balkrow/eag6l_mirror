@@ -499,8 +499,10 @@ SVC_EVT svc_init_done(SVC_ST st) {
 
 			// update bp os bank info registers.
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
-			rdl_update_bank_registers(bno, 
-				(bno == RDL_BANK_1) ? RDL_B1_ERASE_FLAG : RDL_B2_ERASE_FLAG);
+			if(syscmd_file_exist(RDL_B1_PKG_INFO_FILE))
+				rdl_update_bank_registers(RDL_BANK_1, RDL_B1_ERASE_FLAG);
+			if(syscmd_file_exist(RDL_B2_PKG_INFO_FILE))
+				rdl_update_bank_registers(RDL_BANK_2, RDL_B2_ERASE_FLAG);
 #else
 			rdl_update_bank_registers(bno);
 #endif
