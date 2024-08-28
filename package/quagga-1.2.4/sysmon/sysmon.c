@@ -1006,6 +1006,9 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 	int fd = -1;
 	int ret = -1;
 	int major, minor, rev;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	int len;
+#endif
 	char fpath[200];
 	char *str = NULL;
 	unsigned char *ptr = NULL;
@@ -1055,12 +1058,26 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 
 	str = strstr(fname, "v");
 	if(str) {
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+		if((len = sscanf(str, "v%d.%d.%d", &major, &minor, &rev)) != 3) {
+			if((len = sscanf(str, "v%d.%d", &major, &minor)) != 2) {
+				zlog_notice("%s : Invalid version string [%s].", __func__, str);
+				goto error_out;
+			}
+		}
+
+		if(len == 3)
+			sprintf(hd->fih_ver, "v%d.%d.%d", major, minor, rev);
+		else
+			sprintf(hd->fih_ver, "v%d.%d", major, minor);
+#else
 		if(sscanf(str, "v%d.%d.%d", &major, &minor, &rev) != 3) {
 			zlog_notice("%s : Invalid version string [%s].", __func__, str);
 			goto error_out;
 		}
 
 		sprintf(hd->fih_ver, "v%d.%d.%d", major, minor, rev);
+#endif /* [#105] */
 	} else {
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 		zlog_notice("%s : Cannot find 'v' for version from [%s]. Force v1.0.0.", 

@@ -501,6 +501,12 @@ SVC_EVT svc_init_done(SVC_ST st) {
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 			rdl_update_bank_registers(bno, 
 				(bno == RDL_BANK_1) ? RDL_B1_ERASE_FLAG : RDL_B2_ERASE_FLAG);
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+			if(bno == RDL_BANK_1)
+				rdl_update_bank_registers(RDL_BANK_2, RDL_B2_ERASE_FLAG);
+			else
+				rdl_update_bank_registers(RDL_BANK_1, RDL_B1_ERASE_FLAG);
+#endif /* [#105] */
 #else
 			rdl_update_bank_registers(bno);
 #endif
