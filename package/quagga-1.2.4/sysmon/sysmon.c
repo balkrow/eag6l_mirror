@@ -1006,6 +1006,9 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 	int fd = -1;
 	int ret = -1;
 	int major, minor, rev;
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	int len;
+#endif
 	char fpath[200];
 	char *str = NULL;
 	unsigned char *ptr = NULL;
@@ -1055,12 +1058,26 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 
 	str = strstr(fname, "v");
 	if(str) {
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+		if((len = sscanf(str, "v%d.%d.%d", &major, &minor, &rev)) != 3) {
+			if((len = sscanf(str, "v%d.%d", &major, &minor)) != 2) {
+				zlog_notice("%s : Invalid version string [%s].", __func__, str);
+				goto error_out;
+			}
+		}
+
+		if(len == 3)
+			sprintf(hd->fih_ver, "v%d.%d.%d", major, minor, rev);
+		else
+			sprintf(hd->fih_ver, "v%d.%d", major, minor);
+#else
 		if(sscanf(str, "v%d.%d.%d", &major, &minor, &rev) != 3) {
 			zlog_notice("%s : Invalid version string [%s].", __func__, str);
 			goto error_out;
 		}
 
 		sprintf(hd->fih_ver, "v%d.%d.%d", major, minor, rev);
+#endif /* [#105] */
 	} else {
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 		zlog_notice("%s : Cannot find 'v' for version from [%s]. Force v1.0.0.", 
@@ -1122,6 +1139,12 @@ void rdl_update_bank_registers(int bno)
 	if(! erase_flag) {
 #endif
 #ifndef RDL_BIN_HEADER/* NOTE : no header for binary image. */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+		/* get pkg info */
+		get_pkg_fwheader_info((bno == RDL_BANK_1) ?
+			RDL_B1_PKG_INFO_FILE : RDL_B2_PKG_INFO_FILE, &RDL_PKG_HEADER);
+#endif
+
 	if(rdl_collect_img_header_info(bno, RDL_PKG_HEADER.ih_image1_str, 
 		&RDL_OS_HEADER) < 0) {
 		zlog_notice("%s : Collecting header failed for os1 image %s.",
@@ -1782,6 +1805,10 @@ int rdl_activate_fpga(uint8_t bno)
 		goto __failed__;
 	}
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	system("sync");
+#endif
+
 	if(strlen(RDL_PKG_HEADER.ih_image2_str) && syscmd_file_exist(tbuf))
 #else /************************************************************/
     /* read pkg header info. */
@@ -2048,6 +2075,10 @@ int rdl_activate_bp(int bno)
 		return ret;
 	}
 
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	system("sync");
+#endif
+
 	/* copy os from /mnt/flash/bankX to /media/bankX. */
 	snprintf(cmd, sizeof(cmd) - 1, "cp %s%s %s", 
 		(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH,
@@ -2059,6 +2090,10 @@ int rdl_activate_bp(int bno)
 			__func__, cmd, strerror(errno));
 		return ret;
 	}
+
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	system("sync");
+#endif
 
 	/* create new link. */
 	ret = symlink(RDL_PKG_HEADER.ih_image1_str,
