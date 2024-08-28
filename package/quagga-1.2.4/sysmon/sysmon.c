@@ -1161,6 +1161,8 @@ void rdl_update_bank_registers(int bno)
 #endif
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	}
+	else
+		zlog_notice("%s : Clearing flag is set for bank[%d].", __func__, bno);
 #endif
 
 	// write magic.
@@ -1790,6 +1792,12 @@ int rdl_activate_fpga(uint8_t bno)
 	size_t size, written;
 
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
+	/* NOTE : Do not unnecessary fpga copying process. */
+    snprintf(tbuf, sizeof(tbuf) - 1, "%s%s",
+		(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, 
+		RDL_PKG_HEADER.ih_image2_str);
+#else
     snprintf(tbuf, sizeof(tbuf) - 1, "%s%s",
 		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH, 
 		RDL_PKG_HEADER.ih_image2_str);
@@ -1808,6 +1816,7 @@ int rdl_activate_fpga(uint8_t bno)
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	system("sync");
 #endif
+#endif /* [#105] */
 
 	if(strlen(RDL_PKG_HEADER.ih_image2_str) && syscmd_file_exist(tbuf))
 #else /************************************************************/
