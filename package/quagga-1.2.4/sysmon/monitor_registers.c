@@ -223,10 +223,12 @@ RegMON regMonList [] = {
 #endif
 	/* pm counter clear */
   { PM_COUNT_CLEAR_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, pmClear }, 
+#if 0/*[#99] EAG6L 개발 검증 이슈 F/U, balkrow, 2024-08-29*/
 	/* chip reset */
   { CHIP_RESET_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, chipReset }, 
 	/* board status - sfp cr */
 	/* FIXME : fix entry */
+#endif
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
   { BD_SFP_CR_ADDR,  0x7F, 0, 0x7F, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, boardStatus },
 #else
