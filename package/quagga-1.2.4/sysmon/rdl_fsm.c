@@ -466,9 +466,11 @@ RDL_ST_t rdl_img_activation(void) //#13
 	gettimeofday(&sss, NULL);
     zlog_notice("%s : ----> RDL end time[%ld sec].", __func__, sss.tv_sec);
 
+#if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// BP update OS related registers.
 	rdl_update_bank_registers(bno, 
 		(RDL_INSTALL_STATE >= 0) ? 0/*update*/ : 1/*erase*/);
+#endif
 #else /***********************************************************/
 	// BP install(replace bank files) BP os img to target bank.
 	rdl_install_package(bno);
