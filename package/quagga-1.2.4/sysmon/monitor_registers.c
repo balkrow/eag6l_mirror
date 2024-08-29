@@ -629,6 +629,10 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
 			PORT_STATUS[port].equip = 0;/*not-installed*/
 		} else {/*0-mean-installed*/
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+			/* NOTE : 10G bidi sfp alos need some wait time to access. */
+			sleep(1);
+#endif
 #if 0 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 			/* blocked becaus checking i2c caused unexpected disabling cr event. */
 			/* check if i2c can access 0x50 address */
