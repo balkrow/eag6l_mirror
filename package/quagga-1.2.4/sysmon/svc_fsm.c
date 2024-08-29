@@ -42,6 +42,12 @@ SVC_EVT svc_dpram_check(SVC_ST st);
 SVC_EVT svc_fpga_check(SVC_ST st);
 #endif
 
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+extern int16_t chk_file_from_dir(const char * prefix, uint16_t *fpga_ver, char *img_name);
+extern uint8_t get_fpga_bank(void);
+extern int install_fpga_image(uint8_t bno, const char *img_path);
+#endif
+
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 extern GLOBAL_DB gDB;
 #endif
@@ -231,155 +237,11 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	/*read SW version reg*/
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
-#if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
-#if 0/*[#82] eag6l board SW Debugging, balkrow, 2024-08-26*/
-	{
-		extern void update_fpga_bank_status(void);
 
-		update_fpga_bank_status();
-	}
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+	gDB.os_bank = get_os_bank();
+	CPLD_WRITE(FW_BANK_SELECT_ADDR, (gDB.os_bank << 8) & 0xff00);
 #endif
-
-#else /**************************************************************/
-#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
-	/* check cpld 0x7000001C for current fpga bank */
-	{
-		int bno = CPLD_READ(CPLD_FW_BANK_SELECT_ADDR);
-#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
-		int sts, retry;
-#endif
-
-		zlog_notice("%s : Current FPGA bank [%d].", __func__, bno);
-		if(bno == 0) {
-			FILE *fn = NULL;
-			char cmd[50];
-			char act_flag, stb_flag, dft_flag, none, invalid;
-
-			act_flag = stb_flag = dft_flag = none = invalid = 0;
-
-			/* get bank from env */
-			fn = popen("fw_printenv -n fw_act_bank", "r");
-			if(fn == NULL) {
-_try_stb_:
-				fn = popen("fw_printenv -n fw_stb_bank", "r");
-				if(fn == NULL) {
-_try_dft_:
-					fn = popen("fw_printenv -n fw_dft_bank", "r");
-					if(fn == NULL) {
-						zlog_notice("%s : Cannot get fpga bank env variable.",
-							__func__);
-						none = 1;
-						goto _next_job_;
-					} else dft_flag = 1;
-				} else stb_flag = 1;
-			} else act_flag = 1;
-
-#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
-			if(fn != NULL) {
-				fread(cmd, sizeof(char), 1, fn);
-				pclose(fn);
-
-				if((sscanf(cmd, "%d", &bno) != 1) || 
-					((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
-					zlog_notice("%s : Invalid fpga bank env variable[%d].", 
-						__func__, bno);
-					invalid = 1;
-				}
-			}
-#else
-			fread(cmd, sizeof(char), 1, fn);
-			pclose(fn);
-
-			if((sscanf(cmd, "%d", &bno) != 1) || 
-				((bno != RDL_BANK_1) && (bno != RDL_BANK_2))) {
-				zlog_notice("%s : Invalid fpga bank env variable[%d].", 
-					__func__, bno);
-				invalid = 1;
-			}
-#endif
-
-_next_job_:
-			if(none) {
-				bno = RDL_BANK_1;
-			} else if(invalid) {
-				if(act_flag) {
-					act_flag = invalid = 0;
-					goto _try_stb_;
-				}
-				else if(stb_flag) {
-					stb_flag = invalid = 0;
-					goto _try_dft_;
-				} else if(dft_flag) {
-					dft_flag = 0;
-					bno = RDL_BANK_1;
-				}
-				else
-					bno = RDL_BANK_1;
-			} else {
-				if(stb_flag)
-					bno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
-			}
-
-			zlog_notice("%s : Update FPGA bank to [%d].", __func__, bno);
-			/* set fpga active bank */
-			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
-
-			/* set env variable */
-			if(act_flag) {
-				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
-					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
-				system(cmd);
-			} else if(stb_flag) {
-				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
-				system(cmd);
-			} else if(dft_flag) {
-				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
-				system(cmd);
-				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
-					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
-				system(cmd);
-			} else {
-				sprintf(cmd, "fw_setenv fw_act_bank %d", bno);
-				system(cmd);
-				sprintf(cmd, "fw_setenv fw_stb_bank %d", 
-					(bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1);
-				system(cmd);
-				sprintf(cmd, "fw_setenv fw_dft_bank %d", bno);
-				system(cmd);
-			}
-		}
-
-#if 1 /* [#93] Adding for FPGA FW Bank Select and Error handling, dustin, 2024-08-12 */
-__retry__:
-		/* check fpga bank config status. */
-		for(retry = 0; retry < 10; retry++) {
-			sts = CPLD_READ(CPLD_FW_BANK_STATUS_ADDR);
-			if(sts == CPLD_BANK_OK) {
-				zlog_notice("%s : FPGA bank status OK.", __func__);
-				break;
-			}
-			usleep(50000);
-		}
-
-		/* if target bank failed, change to other bank */
-		if(sts == CPLD_BANK_BAD) {
-			/* try standby bank */
-			bno = (bno == RDL_BANK_1) ? RDL_BANK_2 : RDL_BANK_1;
-
-			zlog_notice("%s : Try standby FPGA bank to [%d].", __func__, bno);
-			/* set fpga standby bank */
-			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, bno);
-			goto __retry__;
-		} else if(sts == CPLD_BANK_OK) {
-			zlog_notice("%s : Update working FPGA bank to [%d].", 
-				__func__, bno);
-			/* update working bank info. */
-			gRegUpdate(FW_BANK_SELECT_ADDR, 8, 0x70, bno);
-		}
-#endif
-	}
-#endif
-#endif /*[#97]*/
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
 	FPGA_WRITE(SYNCE_GCONFIG_ADDR, 0x5a);
@@ -474,6 +336,114 @@ SVC_EVT svc_sdk_init_wait(SVC_ST st) {
 }
 #endif
 
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+SVC_EVT svc_fpga_switch_failure(SVC_ST st) {
+	SVC_EVT evt = SVC_EVT_FPGA_SWITCH_FAIL;
+	/*TODO BP FAIL*/
+	zlog_notice("FPGA Switch.. Failed");
+	return evt;
+}
+
+SVC_EVT svc_fpga_switch_confirm(SVC_ST st) {
+	SVC_EVT evt = SVC_EVT_FPGA_SWITCH_FAIL;
+	uint16_t val;
+	char cmd[25] = {0, };
+
+	val = CPLD_READ(FPGA_SWITCH_CONFIRM);
+	if(val == 0x9)
+	{
+		evt = SVC_EVT_FPGA_SWITCH_SUCCESS;
+		zlog_notice("Sucessfully FPGA Switch.. bank %d -> %d", gDB.fpga_running_bank, gDB.fpga_act_bank);
+		sprintf(cmd, "fw_setenv fw_act_bank %d", gDB.fpga_act_bank);	
+		system(cmd);
+		if(gDB.fpga_running_bank != 0)
+		{
+			sprintf(cmd, "fw_setenv fw_stb_bank %d", gDB.fpga_running_bank);	
+			system(cmd);
+		}
+		gDB.fpga_running_bank = gDB.fpga_act_bank;
+	}
+
+	return evt;
+}
+
+SVC_EVT svc_fpga_switch_wait(SVC_ST st) {
+	SVC_EVT evt = SVC_EVT_FPGA_SWITCH_WAIT;
+	if(gDB.switch_wait_cnt++ > FPGA_MAX_WAIT)
+	{
+		evt = SVC_EVT_FPGA_SWITCH_WAIT_EXP; 
+		gDB.switch_wait_cnt = 0;
+	}
+
+	return evt;
+}
+
+SVC_EVT svc_fpga_switch_bank(SVC_ST st) {
+	SVC_EVT evt = SVC_EVT_FPGA_SWITCH_WAIT;
+	/*FPGA write 0x1c*/	
+	if(gDB.switch_cnt++ < FPGA_SWITCH_MAX) 
+		CPLD_WRITE(FPGA_SWITCH_ADDR, gDB.fpga_act_bank);
+	else
+	{
+		evt = SVC_EVT_FPGA_SWITCH_TRY_EXP;
+	}
+	return evt;
+}
+
+SVC_EVT svc_fpga_update_fail(SVC_ST st) {
+	SVC_EVT evt = SVC_EVT_FPGA_UPDATE_FAIL;
+	zlog_notice("FPGA Update.. Failed");
+	return evt;
+}
+
+SVC_EVT svc_fpga_update(SVC_ST st) {
+	SVC_EVT evt = SVC_EVT_FPGA_UPDATE_SUCCESS;
+	uint16_t fpga_ver = 0;
+	char fpga_img_file[FPGA_IMG_LEN] = {0, };
+	char fpga_img_file_path[64] = {0, };
+	uint8_t bank, switch_bank, ret;
+
+	gDB.fpga_running_bank = get_fpga_bank();
+	gDB.fpga_version = FPGA_READ(FPGA_VER_ADDR); 
+
+	/*check fpga_ver from fpga_image*/
+	if(chk_file_from_dir(FPGA_IMG_PREFIX, &fpga_ver, fpga_img_file) == RT_NOK)
+	{
+		evt = SVC_EVT_FPGA_UPDATE_PASS;
+		zlog_notice("No Update FPGA PASS. ");
+	}
+	else 
+	{
+		uint16_t fw_ver;
+		/* READ FPGA_VER_REG(0xE) */
+		if(gDB.fpga_version == fpga_ver)
+		{
+			evt = SVC_EVT_FPGA_UPDATE_PASS;
+			zlog_notice("Check FPGA version (%x,%x) PASS. ",
+				    gDB.fpga_version, fpga_ver);
+		}
+		else /*mismatch update fpga */
+		{
+			zlog_notice("Check FPGA version (%x,%x) Mismatch. ",
+				    gDB.fpga_version, fpga_ver);
+
+			sprintf(fpga_img_file_path, "%s/%s", FPGA_IMG_DIR, fpga_img_file);		
+
+			if(gDB.fpga_running_bank == 0 || 
+				gDB.fpga_running_bank  == 2)
+				gDB.fpga_act_bank = 1;
+			else if(gDB.fpga_running_bank  == 1)
+				gDB.fpga_act_bank = 2;
+			if(install_fpga_image(gDB.fpga_act_bank , fpga_img_file_path) == -1)
+				evt = SVC_EVT_FPGA_UPDATE_FAIL;
+		}
+
+	}
+
+	return evt;
+}
+#endif
+
 SVC_EVT svc_init_done(SVC_ST st) {
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
@@ -542,7 +512,11 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 
 	case SVC_ST_INIT:
 		if(event == SVC_EVT_IPC_COM_SUCCESS)
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+			ret = SVC_ST_FPGA_UPDATE; 
+#else
 			ret = SVC_ST_SDK_INIT; 
+#endif
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 		else if(event == SVC_EVT_IPC_COM_WAIT)
 			ret = SVC_ST_INIT; 
@@ -559,6 +533,60 @@ SVC_ST transition(SVC_ST state, SVC_EVT event) {
 		}
 #endif
 		break;
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+	case SVC_ST_FPGA_UPDATE:
+
+		if(event == SVC_EVT_FPGA_UPDATE_PASS)
+			ret = SVC_ST_SDK_INIT;
+		else if(event == SVC_EVT_FPGA_UPDATE_SUCCESS)
+			ret = SVC_ST_FPGA_SWITCH;
+		else if(event == SVC_EVT_FPGA_UPDATE_FAIL)
+			ret = SVC_ST_FPGA_UPDATE_FAILURE;
+		else 
+			ret = SVC_ST_SDK_INIT;
+		break;
+	case SVC_ST_FPGA_UPDATE_FAILURE:
+			ret = SVC_ST_SDK_INIT;
+		break;
+	case SVC_ST_FPGA_SWITCH:
+		if(event == SVC_EVT_FPGA_SWITCH_WAIT)
+			ret = SVC_ST_FPGA_SWITCH_WAIT;
+		else if(event == SVC_EVT_FPGA_SWITCH_TRY_EXP)
+			ret = SVC_ST_FPGA_SWITCH_FAILURE;
+		else
+			ret = SVC_ST_SDK_INIT;
+		break;
+	case SVC_ST_FPGA_SWITCH_FAILURE:
+			ret = SVC_ST_SDK_INIT;
+		break;
+
+	case SVC_ST_FPGA_SWITCH_CONFIRM:
+		if(event == SVC_EVT_FPGA_SWITCH_FAIL)
+			ret = SVC_ST_FPGA_SWITCH;
+		else
+			ret = SVC_ST_SDK_INIT;
+		break;
+
+	case SVC_ST_FPGA_SWITCH_WAIT:
+		if(event == SVC_EVT_FPGA_SWITCH_WAIT_EXP)
+			ret = SVC_ST_FPGA_SWITCH_CONFIRM;
+		else
+			ret = SVC_ST_FPGA_SWITCH_WAIT;
+		break;
+#if 0
+	case SVC_ST_FPGA_WAIT:
+		if(event == SVC_EVT_FPGA_SWITCH_WAIT)
+			ret = SVC_ST_FPGA_SWITCH_WAIT;
+		else if(event == SVC_EVT_FPGA_SWITCH_SUCCESS)
+			ret = SVC_ST_SDK_INIT;
+		else if(event == SVC_EVT_FPGA_SWITCH_FAIL)
+			ret = SVC_ST_FPGA_SWITCH_FAILURE;
+		else
+			ret = SVC_ST_SDK_INIT;
+		break;
+#endif
+#endif
+
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 	case SVC_ST_INIT_FAIL:
 		if(event == SVC_EVT_INIT)

@@ -134,6 +134,12 @@ typedef enum {
 #endif
 #endif
 
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+#define FPGA_VER_ADDR			0xe
+#define FPGA_SWITCH_ADDR		0x1c
+#define FPGA_SWITCH_CONFIRM		0x10
+#endif
+
 #if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 #define COMMON_CTRL2_SIG_MASK		0x30
 #define COMMON_CTRL2_SIG_SHIFT		0x4

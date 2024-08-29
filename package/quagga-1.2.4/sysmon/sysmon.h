@@ -115,6 +115,14 @@ define Memory Macro
 #define EAG6L_INVENTORY_FILE        "/mnt/flash/.EAG6L_IDATA"
 #endif
 
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+#define FPGA_IMG_DIR        "/root"
+#define FPGA_IMG_PREFIX        "eag6l_fpga_v"
+#define FPGA_IMG_LEN 32
+#define FPGA_MAX_WAIT 2
+#define FPGA_SWITCH_MAX 2
+#endif
+
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 #define PRI_SRC 1
 #define SEC_SRC 0
@@ -189,6 +197,14 @@ typedef struct globalDB
 #endif
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
 	uint8_t esmcRxCfg[7];
+#endif
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+	uint8_t fpga_running_bank;
+	uint8_t fpga_act_bank;
+	uint8_t switch_wait_cnt;
+	uint8_t switch_cnt;
+	uint8_t fpga_version;
+	uint8_t os_bank;
 #endif
 	SVC_FSM svc_fsm;
 #endif

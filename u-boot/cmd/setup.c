@@ -2327,11 +2327,18 @@ void store_bootimagename( char *name)
 	char *b_tmp = NULL;
 	char *bootver = NULL;
 	char *baudrate = NULL;
-
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+	char *fpga_bank = NULL;
+	fpga_bank = env_get("fpga_bank");
+#endif
 	b_tmp = env_get("bootargs");
 	strncpy(bootargs_tmp, b_tmp, 1024);
 	strcat(bootargs_tmp, " bootbank=");
 	strcat(bootargs_tmp, name);
+#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+	strcat(bootargs_tmp, " fpga_bank=");
+	strcat(bootargs_tmp, fpga_bank);
+#endif
 	env_set("bootargs", bootargs_tmp);
 
 #if 0

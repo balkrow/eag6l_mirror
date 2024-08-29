@@ -36,18 +36,26 @@ extern int rdl_activate_fpga(uint8_t bno);
 extern uint16_t portRateSet (uint16_t port, uint16_t val);
 #endif
 
-#if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
+#if 1/*[#56] register update timer ¿¿, balkrow, 2024-06-13 */
 extern GLOBAL_DB gDB;
 
 const char * gSvcFsmStateStr[SVC_ST_MAX] = {
 	"INIT",
 	"INIT Fail",
+#if 1/*[#99] EAG6L 개발 검증 이슈 F/U, balkrow, 2024-08-29 */
+	"FPGA Update",
+	"FPGA Update Failure",
+	"FPGA Switch",
+	"FPGA Switch Waiting",
+	"FPGA Switch Confirm",
+	"FPGA Switch Failure",
+#endif
 	"APPDemo Shutdown",
 	"Check DPRAM access",
 	"Check FPGA access",
 	"Check DPRAM access",
 	"SDK Init",
-#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2024-07-24 */
 	"Waiting SDK Initial",
 #endif
 	"Get Inventory information",
@@ -77,8 +85,18 @@ const char * gSvcFsmEvtStr[SVC_EVT_MAX] = {
 	"INIT Done",
 	"AppDemo Shutdown",
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
-	"Waiting SDK Initial ",
-	"SYS Init Failure ",
+	"Waiting SDK Initial",
+	"SYS Init Failure",
+#endif
+#if 1/*[#99] EAG6L 개발 검증 이슈 F/U, balkrow, 2024-08-29 */
+	"FPGA Switch Wait",
+	"FPGA Switch Wait Expired",
+	"FPGA Switch Successfully",
+	"FPGA Switch Failed",
+	"FPGA Switch Try Expired",
+	"FPGA Update Successfully",
+	"FPGA Update Passed",
+	"FPGA Update Failed",
 #endif
 	"----"
 };
@@ -232,6 +250,12 @@ DEFUN (show_sysmon_system,
 	vty_out(vty, " Pri interface  : %s%s", port_str , VTY_NEWLINE);
 	getPortStrByCport(gDB.synce_sec_port, port_str);
 	vty_out(vty, " Sec interface  : %s%s", port_str , VTY_NEWLINE);
+#if 1/*[#99] EAG6L 개발 검증 이슈 F/U, balkrow, 2024-08-29 */
+	vty_out(vty, "FPGA  version    : %x%s", gDB.fpga_version, VTY_NEWLINE);
+	vty_out(vty, "FPGA  running bank    : %d%s", gDB.fpga_running_bank, VTY_NEWLINE);
+	vty_out(vty, "FPGA  act bank    : %d%s", gDB.fpga_act_bank, VTY_NEWLINE);
+#endif
+
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
 	for(i = 0; i < PORT_ID_EAG6L_MAX; i++)
 	{
