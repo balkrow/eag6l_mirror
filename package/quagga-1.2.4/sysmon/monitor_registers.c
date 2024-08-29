@@ -139,6 +139,23 @@ RegMON regMonList [] = {
   { COMMON_CTRL2_P6_ADDR, 0x7, 0, 0x7, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portRateSet }, 
 #endif
 	/* port configuration - esmc */                        
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+  { PORT_1_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_2_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_3_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_4_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+  { PORT_5_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portESMCenable }, /* 10 */  
+  { PORT_6_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portESMCenable },
+  { PORT_7_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+	/* port configuration - flex control */
+  { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+  { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+#else /**************************************************************/
   { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_3_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
@@ -164,6 +181,7 @@ RegMON regMonList [] = {
   { PORT_6_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
   { PORT_7_CONF_ADDR,     0x4, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
 #endif
+#endif /* [#107] */
 	/* port configuration - rtwdm loopback */
   { PORT_1_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, /* 20 */ 
   { PORT_2_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
@@ -625,6 +643,11 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			read_port_inventory(port, &(INV_TBL[port]));
 #endif
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-08-19 */
+			/* need some time to access, if 100G sfp. */
+			if(port >= (PORT_ID_EAG6L_MAX - 1))
+				sleep(2);
+#endif
 			/* get private sfp identifier */
 			type = get_private_sfp_identifier(port);
 			/* get wavelength register 2 */
@@ -633,8 +656,12 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			/* update wavelength register 2 */
 			data &= ~0x0F00;
 			data |= (type << 8);
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+			FPGA_PORT_WRITE(__PORT_WL2_ADDR[port], data);
+#else
 			FPGA_PORT_WRITE(__PORT_WL2_ADDR[port], data);
 			gPortRegUpdate(__PORT_WL2_ADDR[port], 8, 0xF00, type);
+#endif
 
 			PORT_STATUS[port].sfp_type = type;
 			PORT_STATUS[port].equip = 1;/*installed*/
@@ -1617,6 +1644,41 @@ unsigned int convert_temperature_float_to_decimal(f32 val)
     vvv |= unit_0;
     return vvv;
 }
+
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+unsigned int convert_hex_to_decimal(unsigned int hval)
+{
+	unsigned int unit_1k, unit_100, unit_10, unit_1, vvv;
+
+	unit_1k = (int)(hval / 1000);
+	hval = hval - (int)(unit_1k * 1000);
+	unit_100 = (int)(hval / 100);
+	hval = hval - (int)(unit_100 * 100);
+	unit_10 = (int)(hval / 10);
+	hval = hval - (int)(unit_10 * 10);
+	unit_1 = (int)(hval / 1);
+
+	vvv = 0;
+	vvv |= ((unit_1k << 12) & 0xF000);
+	vvv |= ((unit_100 << 8) & 0x0F00);
+	vvv |= ((unit_10 << 4)  & 0x00F0);
+	vvv |= (unit_1 & 0xF);
+	return vvv;
+}
+
+unsigned int convert_decimal_to_hex(unsigned int dval)
+{
+	unsigned int unit_1k, unit_100, unit_10, unit_1, vvv;
+
+	unit_1k  = (dval >> 12) & 0xF;
+	unit_100 = (dval >>  8) & 0xF;
+	unit_10  = (dval >>  4) & 0xF;
+	unit_1   = dval & 0xF;
+
+	vvv = (unit_1k * 1000) + (unit_100 * 100) + (unit_10 * 10) + unit_1;
+	return vvv;
+}
+#endif
 
 #if 0/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 void process_port_common_control_register(void)
@@ -2865,12 +2927,22 @@ extern int update_flex_tune_status(int portno);
 			/* update wavelength1/2 */
 			fval = PORT_STATUS[portno].tunable_wavelength;
 			fval = ceil(fval * 100) / 100;/* ceiling example : 1558.347 --> 1558.35 */
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], 
+				convert_hex_to_decimal((int)fval));
+#else
 			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], (int)fval);
+#endif
 
 			fval = (fval - (int)fval) * 100;/* extract value below decimal point */
 			type = PORT_STATUS[portno].sfp_type;
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+			type = (type << 8) | convert_hex_to_decimal((int)fval);
+			FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], type);
+#else
 			gPortRegUpdate(__PORT_WL2_ADDR[portno], 0, 0x0FF, (int)fval);
 			gPortRegUpdate(__PORT_WL2_ADDR[portno], 8, 0xF00, type);
+#endif
 
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 			if(PORT_STATUS[portno].tunable_sfp) {
@@ -2878,13 +2950,28 @@ extern int update_flex_tune_status(int portno);
 				fval = PORT_STATUS[portno].tunable_rtwdm_wavelength;
 				/* ceiling example : 1558.347 --> 1558.35 */
 				fval = ceil(fval * 100) / 100;
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+				FPGA_PORT_WRITE(__PORT_WL1_RTWDM_ADDR[portno], 
+						convert_hex_to_decimal((int)fval));
+#else
 				FPGA_PORT_WRITE(__PORT_WL1_RTWDM_ADDR[portno], (int)fval);
+#endif
 
 				/* extract value below decimal point */
 				fval = (fval - (int)fval) * 100;
 				type = PORT_STATUS[portno].tunable_rtwdm_sfp_type;
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+				type = (type << 8) | convert_hex_to_decimal((int)fval);
+				FPGA_PORT_WRITE(__PORT_WL2_RTWDM_ADDR[portno], type);
+#else
 				gPortRegUpdate(__PORT_WL2_RTWDM_ADDR[portno], 0, 0x0FF, (int)fval);
 				gPortRegUpdate(__PORT_WL2_RTWDM_ADDR[portno], 8, 0xF00, type);
+#endif
+#else
+				gPortRegUpdate(__PORT_WL2_RTWDM_ADDR[portno], 0, 0x0FF, (int)fval);
+				gPortRegUpdate(__PORT_WL2_RTWDM_ADDR[portno], 8, 0xF00, type);
+#endif
 			}
 #endif
 
@@ -2895,10 +2982,17 @@ extern int update_flex_tune_status(int portno);
 			update_flex_tune_status(portno);
 		} else {
 			/* update wavelength1/2 */
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], 
+				convert_hex_to_decimal(INV_TBL[portno].wave));
+			type = (PORT_STATUS[portno].sfp_type << 8);
+			FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], type);
+#else
 			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].wave);
 
 			gPortRegUpdate(__PORT_WL2_ADDR[portno], 0, 0x0FF, 0x0/*default*/);
 			gPortRegUpdate(__PORT_WL2_ADDR[portno], 8, 0xF00, PORT_STATUS[portno].sfp_type);
+#endif
 		}
 	}
 #else
@@ -3289,18 +3383,32 @@ unsigned long __PORT_RX_PWR_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_TX
 		PORT_4_TX_PWR_ADDR, PORT_5_TX_PWR_ADDR,
 		PORT_6_TX_PWR_ADDR, PORT_7_TX_PWR_ADDR };
 #endif
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+unsigned long __PORT_WL1_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_WL1_ADDR,
+		PORT_2_WL1_ADDR, PORT_3_WL1_ADDR, 
+		PORT_4_WL1_ADDR, PORT_5_WL1_ADDR,
+		PORT_6_WL1_ADDR, PORT_7_WL1_ADDR };
+#else
 unsigned long __PORT_WL1_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_WL1_ADDR,
 		PORT_2_WL1_ADDR, PORT_3_WL1_ADDR, 
 		PORT_4_WL1_ADDR, PORT_5_WL1_ADDR,
 		PORT_6_WL1_ADDR, PORT_7_TX_PWR_ADDR };
+#endif
 unsigned long __PORT_WL2_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_WL2_ADDR,
 		PORT_2_WL2_ADDR, PORT_3_WL2_ADDR, 
 		PORT_4_WL2_ADDR, PORT_5_WL2_ADDR,
 		PORT_6_WL2_ADDR, PORT_7_WL2_ADDR };
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+unsigned long __PORT_DIST_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_DIST_ADDR,
+		PORT_2_DIST_ADDR, PORT_3_DIST_ADDR, 
+		PORT_4_DIST_ADDR, PORT_5_DIST_ADDR,
+		PORT_6_DIST_ADDR, PORT_7_DIST_ADDR };
+#else
 unsigned long __PORT_DIST_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_DIST_ADDR,
 		PORT_2_DIST_ADDR, PORT_3_DIST_ADDR, 
 		PORT_4_DIST_ADDR, PORT_5_DIST_ADDR,
 		PORT_6_DIST_ADDR, PORT_7_WL2_ADDR };
+#endif
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 unsigned long __PORT_STSFP_STAT_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_STSFP_STAT_ADDR,
 		PORT_2_STSFP_STAT_ADDR, PORT_3_STSFP_STAT_ADDR, 
@@ -3544,10 +3652,17 @@ unsigned long __PORT_PM_FCS_OK3_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1
 		PM_P2_FCS_OK3_ADDR, PM_P3_FCS_OK3_ADDR, 
 		PM_P4_FCS_OK3_ADDR, PM_P5_FCS_OK3_ADDR,
 		PM_P6_FCS_OK3_ADDR, PM_P7_FCS_OK3_ADDR };
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+unsigned long __PORT_PM_FCS_OK4_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_OK4_ADDR,
+		PM_P2_FCS_OK4_ADDR, PM_P3_FCS_OK4_ADDR, 
+		PM_P4_FCS_OK4_ADDR, PM_P5_FCS_OK4_ADDR,
+		PM_P6_FCS_OK4_ADDR, PM_P7_FCS_OK4_ADDR };
+#else
 unsigned long __PORT_PM_FCS_OK4_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_OK4_ADDR,
 		PM_P2_FCS_OK4_ADDR, PM_P3_FCS_OK4_ADDR, 
 		PM_P4_FCS_OK4_ADDR, PM_P5_FCS_OK4_ADDR,
 		PM_P6_FCS_OK4_ADDR, PM_P7_FCS4_ADDR };
+#endif
 unsigned long __PORT_PM_FCS_NOK1_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_NOK1_ADDR,
 		PM_P2_FCS_NOK1_ADDR, PM_P3_FCS_NOK1_ADDR, 
 		PM_P4_FCS_NOK1_ADDR, PM_P5_FCS_NOK1_ADDR,
@@ -3560,10 +3675,17 @@ unsigned long __PORT_PM_FCS_NOK3_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P
 		PM_P2_FCS_NOK3_ADDR, PM_P3_FCS_NOK3_ADDR, 
 		PM_P4_FCS_NOK3_ADDR, PM_P5_FCS_NOK3_ADDR,
 		PM_P6_FCS_NOK3_ADDR, PM_P7_FCS_NOK3_ADDR };
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+unsigned long __PORT_PM_FCS_NOK4_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_NOK4_ADDR,
+		PM_P2_FCS_NOK4_ADDR, PM_P3_FCS_NOK4_ADDR, 
+		PM_P4_FCS_NOK4_ADDR, PM_P5_FCS_NOK4_ADDR,
+		PM_P6_FCS_NOK4_ADDR, PM_P7_FCS_NOK4_ADDR };
+#else
 unsigned long __PORT_PM_FCS_NOK4_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_NOK4_ADDR,
 		PM_P2_FCS_NOK4_ADDR, PM_P3_FCS_NOK4_ADDR, 
 		PM_P4_FCS_NOK4_ADDR, PM_P5_FCS_NOK4_ADDR,
 		PM_P6_FCS_NOK4_ADDR, PM_P7_FCS4_ADDR };
+#endif
 unsigned long __PORT_CLEI1_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT1_CLEI1_ADDR,
 		PORT2_CLEI1_ADDR, PORT3_CLEI1_ADDR, 
 		PORT4_CLEI1_ADDR, PORT5_CLEI1_ADDR,
