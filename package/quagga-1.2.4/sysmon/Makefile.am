@@ -11,6 +11,9 @@ sbin_PROGRAMS = sysmon
 
 libsysmon_a_SOURCES = \
 	sysmon.c sysmon_zebra.c sys_i2c.c sys_fifo.c svc_fsm.c monitor_registers.c devmem.c sysmon_vty.c sysmon_hw.c rdl_fsm.c
+	
+#[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28
+libsysmon_a_SOURCES += sysmon_util.c
 
 noinst_HEADERS = \
 	sysmon.h

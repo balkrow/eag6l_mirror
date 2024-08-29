@@ -58,6 +58,14 @@ extern SVC_EVT svc_appDemo_shutdown(SVC_ST st);
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
 extern SVC_EVT svc_sdk_init_wait(SVC_ST st); 
 #endif
+#if 1/*[#106] init ¿ FPGA update ¿¿ ¿¿, balkrow, 2024-08-28 */
+SVC_EVT svc_fpga_update(SVC_ST st);
+SVC_EVT svc_fpga_update_fail(SVC_ST st);
+SVC_EVT svc_fpga_switch_confirm(SVC_ST st);
+SVC_EVT svc_fpga_switch_wait(SVC_ST st);
+SVC_EVT svc_fpga_switch_bank(SVC_ST st);
+SVC_EVT svc_fpga_switch_failure(SVC_ST st);
+#endif
 
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 extern char *rdl_get_state_str(int sno);
@@ -198,6 +206,14 @@ void init_svc_fsm(void) {
 	gDB.svc_fsm.cb[SVC_ST_INIT_DONE] = svc_init_done;
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
 	gDB.svc_fsm.cb[SVC_ST_SDK_INIT_CHK] = svc_sdk_init_wait;
+#endif
+#if 1/*[#106] init ¿ FPGA update ¿¿ ¿¿, balkrow, 2024-08-28 */
+	gDB.svc_fsm.cb[SVC_ST_FPGA_UPDATE] = svc_fpga_update;
+	gDB.svc_fsm.cb[SVC_ST_FPGA_UPDATE_FAILURE] = svc_fpga_update_fail;
+	gDB.svc_fsm.cb[SVC_ST_FPGA_SWITCH_CONFIRM] = svc_fpga_switch_confirm;
+	gDB.svc_fsm.cb[SVC_ST_FPGA_SWITCH_WAIT] = svc_fpga_switch_wait;
+	gDB.svc_fsm.cb[SVC_ST_FPGA_SWITCH] = svc_fpga_switch_bank;
+	gDB.svc_fsm.cb[SVC_ST_FPGA_SWITCH_FAILURE] = svc_fpga_switch_failure;
 #endif
 }
 
@@ -1769,6 +1785,113 @@ __error_return__:
 	if(fd >= 0)
 		close(fd);
 	return 0;
+}
+#endif
+
+#if 1/*[#106] init ¿ FPGA update ¿¿ ¿¿, balkrow, 2024-08-28 */
+int install_fpga_image(uint8_t bno, const char *img_path)
+{
+	int fd = -1;
+	int os_fd = -1;
+	int ret = -1, item;
+	uint32_t len, wcnt;
+	unsigned char sbuf[RDL_BUFF_SIZE] = {0, }, dbuf[RDL_BUFF_SIZE] = {0, };
+	struct stat fs;
+	size_t size, written;
+
+	/* erase before copying. */
+	if(fpga_erase_all(bno) < 0) {
+		zlog_err("%s : Cannot erase mtd device %s.", 
+			 __func__, (bno == RDL_BANK_1) ? RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+		goto __failed__;   
+	}
+
+	/* open src file. */
+	fd = open(img_path, O_RDONLY);
+	if(fd < 0) {
+		zlog_err("%s : Cannot open fpag fw file %s. reason[%s].", 
+			 __func__, img_path, strerror(errno));
+		goto __failed__;
+	}
+
+	if(fstat(fd, &fs) < 0) {
+		zlog_err("%s : Cannot fstat fpag fw file %s. reason[%s].", 
+			 __func__, img_path, strerror(errno));
+	}
+
+	/* open device for fpga os. */
+	os_fd = open((bno == RDL_BANK_1) ? 
+		     RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW, O_SYNC | O_RDWR);
+	if(os_fd < 0) {
+		zlog_err("%s : Cannot open fpag fw device %s. reason[%s].", 
+			 __func__, (bno == RDL_BANK_1) ? RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW, 
+			 strerror(errno));
+		goto __failed__;
+	}
+
+	/* read fpga fw file, write to device. */
+	size = fs.st_size;
+	written = 0;
+	item = RDL_BUFF_SIZE;
+	while(size) {
+		if(size < RDL_BUFF_SIZE) item = size;
+
+		len = read(fd, sbuf, item);
+		if(len > 0) {
+			wcnt = write(os_fd, sbuf, len);
+			if(len != wcnt) {
+				zlog_notice("%s : read %u and written %u : fpag fw failed.",
+					    __func__, len, wcnt);
+				goto __failed__;
+			}
+		}
+
+		written += item;
+		size -= item;
+	}
+
+	/* verify file with flash */
+	lseek(fd,    0L, SEEK_SET);
+	lseek(os_fd, 0L, SEEK_SET);
+
+	size = fs.st_size;
+	written = 0;
+	item = RDL_BUFF_SIZE;
+	while(size) {
+		if(size < RDL_BUFF_SIZE) item = size;
+
+		len  = read(fd,    sbuf, item);
+		wcnt = read(os_fd, dbuf, item);
+
+		if((len != wcnt) || memcmp(sbuf, dbuf, len)) {
+			zlog_err("%s : Different size[%u/%u] or content. [%u].", 
+				 __func__, len, wcnt, written);
+			goto __failed__;
+		}
+
+		written += item;
+		size -= item;
+	}
+
+	zlog_notice("%s : Flash writting %u bytes verified.", 
+		    __func__, written);
+
+	close(fd);
+	close(os_fd);
+
+#if 1 /* [#96] Adding option bit after downloading FPGA, dustin, 2024-08-19 */
+	write_fpga_option_bits();
+#endif
+
+	ret = 0;
+
+__failed__:
+	if(fd > 0)
+		close(fd);
+	if(os_fd > 0)
+		close(os_fd);
+
+	return ret;
 }
 #endif
 

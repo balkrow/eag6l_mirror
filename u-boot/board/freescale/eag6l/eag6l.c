@@ -277,9 +277,19 @@ int try_boot_with_confirm(uint16_t bank)
 		if(bank_cfg_result == BANK_CFG_SUCCESS) 
 		{
 			printf("Successfully booted from the bank %d.\n", bank);
+#if 0/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
 			buf = map_sysmem(0x60f00000, 2);
 			*((u16 *)buf) = bank << 8;
 			unmap_sysmem(buf);
+#else
+			if(bank == 1)
+				env_set("fpga_bank", "1");
+			else if(bank == 2)
+				env_set("fpga_bank", "2");
+			else
+				env_set("fpga_bank", "0");
+
+#endif
 			return 1;
 		}
 		else
@@ -327,6 +337,7 @@ int fpga_bank_adjust(void)
 	}
 
 	printf("FPGA Default bank booting..\n"); 
+#if 0/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
 #if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-26*/
 	{
 		void *buf;
@@ -334,6 +345,7 @@ int fpga_bank_adjust(void)
 		*((u16 *)buf) = 0 << 8;
 		unmap_sysmem(buf);
 	}
+#endif
 #endif
 
 	return 0;
