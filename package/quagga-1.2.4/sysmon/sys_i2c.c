@@ -2787,6 +2787,9 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 		wl = (short)raw2->wavelength[0];
 		wl = wl << 8;
 		wl = wl | (short)raw2->wavelength[1];
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+		wl /= 20;/* wavelength = value / 20 in nm. */
+#endif
 
 		mod_inv->wave = wl;
 		mod_inv->dist = raw2->len_smf;
