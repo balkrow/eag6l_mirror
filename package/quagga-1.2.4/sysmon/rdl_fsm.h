@@ -65,6 +65,12 @@
 #define RDL_B1_PKG_INFO_FILE        "/media/bank1/.pkg_info"
 #define RDL_B2_PKG_INFO_FILE        "/media/bank2/.pkg_info"
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+#define RDL_HEADER_FILE             ".img_header"
+#define RDL_B1_HEADER_FILE          "/media/bank1/.img_header"
+#define RDL_B2_HEADER_FILE          "/media/bank2/.img_header"
+#endif
+
 #define RDL_B1_LINK_PATH            "/media/bank1/uImage"
 #define RDL_B2_LINK_PATH            "/media/bank2/uImage"
 

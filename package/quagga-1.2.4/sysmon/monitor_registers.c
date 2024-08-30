@@ -1047,7 +1047,6 @@ uint16_t bankSelect2(uint16_t port, uint16_t val)
 extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 
 	if((val != RDL_BANK_1) && (val != RDL_BANK_2)) {
-		zlog_notice("%s : MCU set invalid bank no[%d] for FPGA FW.", __func__, val);
 		return -1;
 	}
 
@@ -1057,6 +1056,7 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 		extern uint16_t RDL_B2_ERASE_FLAG;
 		char cmd[100];
 
+		zlog_notice("Activation started.");
 		if(rdl_activate_bp(val) < 0) {
 			zlog_notice("Activating os failed.");
 			if(val == RDL_BANK_1)
@@ -1065,7 +1065,8 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 				RDL_B2_ERASE_FLAG = 1/*erase*/;
 			rdl_update_bank_registers(val, 1/*erase*/);
 			return -1;
-		}
+		} else
+			zlog_notice("BP OS has activated.");
 
 		if(rdl_activate_fpga(val) < 0) {
 			zlog_notice("Activating fpga fw failed.");
@@ -1075,7 +1076,8 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 				RDL_B2_ERASE_FLAG = 1/*erase*/;
 			rdl_update_bank_registers(val, 1/*erase*/);
 			return -1;
-		}
+		} else
+			zlog_notice("FPGA F/W has activated.");
 
 		sprintf(cmd, "fw_setenv bank %d", val);
 		system(cmd);
