@@ -588,6 +588,66 @@ uint16_t chipReset(uint16_t port, uint16_t val)
 	return SUCCESS;
 }
 
+#if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
+/* NOTE : this function is called once sfp is installed. */
+void port_scan_sfp(struct thread *thread)
+{
+extern ePrivateSfpId get_private_sfp_identifier(int portno);
+
+	uint8_t type, port = thread->arg;
+	uint16_t data;
+
+	read_port_inventory(port, &(INV_TBL[port]));
+
+	/* get private sfp identifier */
+	type = get_private_sfp_identifier(port);
+	/* get wavelength register 2 */
+	data = FPGA_READ(__PORT_WL2_ADDR[port]);
+
+	/* update wavelength register 2 */
+	data &= ~0x0F00;
+	data |= (type << 8);
+	FPGA_PORT_WRITE(__PORT_WL2_ADDR[port], data);
+
+	PORT_STATUS[port].sfp_type = type;
+	PORT_STATUS[port].equip = 1;/*installed*/
+
+	/* init for 100G DCO sfp. FIXME: need OE spf. */
+	if(! memcmp(INV_TBL[port].part_num, "FTLC3351R3PL1", 
+		sizeof("FTLC3351R3PL1")))
+	{
+		extern void init_100G_sfp(void);
+
+		init_100g_sfp();
+	}
+
+	if(PORT_STATUS[port].tunable_sfp) {
+		/* get inventory */
+		if(PORT_STATUS[port].tunable_sfp) {
+			read_port_rtwdm_inventory(port, &(RTWDM_INV_TBL[port]));
+		}
+
+		/* set flex tune if configured */
+		if(PORT_STATUS[port].cfg_flex_tune)
+			set_flex_tune_control(port, 1/*enable*/);
+
+		/* set smart t-sfp self loopback if configured. */
+		if(PORT_STATUS[port].cfg_smart_tsfp_selfloopback)
+			set_smart_tsfp_self_loopback(port, 1/*enable*/);
+
+		/* set rtwdm loopback if configured. */
+		if(PORT_STATUS[port].cfg_rtwdm_loopback)
+			set_rtwdm_loopback(port, 1/*enable*/);
+	}
+
+	thread_add_timer(master, pm_clear_fec_counters, port, 2);
+
+	update_port_sfp_inventory();
+
+	return;
+}
+#endif /* [#107] */
+
 uint16_t boardStatus(uint16_t port, uint16_t val)
 {
 extern int check_sfp_is_present(int portno);
@@ -630,9 +690,13 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			PORT_STATUS[port].equip = 0;/*not-installed*/
 		} else {/*0-mean-installed*/
 #if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
-			/* NOTE : 10G bidi sfp alos need some wait time to access. */
-			sleep(1);
-#endif
+			thread_add_timer(master, port_scan_sfp, port, 
+				(port >= (PORT_ID_EAG6L_MAX - 1)) ? 3 : 1);
+
+			if(! boardStatusFlag) {
+				boardStatusFlag = 1;
+			}
+#else /**************************************************************/
 #if 0 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 			/* blocked becaus checking i2c caused unexpected disabling cr event. */
 			/* check if i2c can access 0x50 address */
@@ -725,6 +789,7 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 				boardStatusFlag = 1;
 			}
 #endif
+#endif /* [#107] */
 		}
 	}
 	return SUCCESS;
