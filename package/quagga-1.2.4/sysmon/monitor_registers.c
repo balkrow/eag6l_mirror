@@ -767,6 +767,7 @@ uint16_t bankSelect1(uint16_t port, uint16_t val)
 #endif
 
 #if 1 /* [#97] Adding register recovery process after fpga reset, dustin, 2024-08-21 */
+#if 0 /*[#99] EAG6L 개발 검증 이슈 F/U, balkrow, 2024-08-30*/
 void update_fpga_bank_status(void)
 {
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
@@ -908,6 +909,7 @@ __retry__:
 	}
 #endif
 }
+#endif
 
 void do_recovery_update_after_fpga_reset(void)
 {

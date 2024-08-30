@@ -12,3 +12,4 @@ rootfs_cpss
 *.tgz
 setup_internal.env
 !rootfs.user/lib/modules/*
+fpga/*pof*
