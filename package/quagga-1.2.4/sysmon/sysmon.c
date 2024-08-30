@@ -96,6 +96,10 @@ RDL_IMG_INFO_t    EMUL_INFO;
 #endif
 
 fw_header_t       RDL_PKG_HEADER;
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+fw_image_header_t RDL_B1_HEADER;
+fw_image_header_t RDL_B2_HEADER;
+#endif
 fw_image_header_t RDL_OS_HEADER;
 fw_image_header_t RDL_OS2_HEADER;
 fw_image_header_t RDL_FW_HEADER;
@@ -634,7 +638,12 @@ long rdl_get_file_size(char *filename)
 	long size;
 	char temp[150];
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	sprintf(temp, "%s%s", (RDL_INFO.bno == RDL_BANK_1) ?
+		RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, filename);
+#else
 	sprintf(temp, "%s%s", RDL_IMG_PATH, filename);
+#endif
 	fp = fopen(temp, "r");
 	if(fp == NULL) {
 		zlog_notice("%s : Can't open a file %s. reason[%s].",
@@ -654,7 +663,12 @@ int rdl_save_page_to_img_file(uint32_t size)
 	uint32_t ret;
 	char temp[150];
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	sprintf(temp, "%s%s", (RDL_INFO.bno == RDL_BANK_1) ?
+		RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, RDL_INFO.hd.file_name);
+#else
 	sprintf(temp, "%s%s", RDL_IMG_PATH, RDL_INFO.hd.file_name);
+#endif
 
 	fp = fopen(temp, "a");
 	if(fp == NULL) {
@@ -729,26 +743,6 @@ int get_img_fwheader_info(char *fpath, fw_image_header_t *hdr)
 	fclose(fp);
 	return 0;
 }
-
-#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
-int save_img_fwheader_info(char *fpath, fw_image_header_t *hdr)
-{
-	int fd = -1;
-
-	if(fpath == NULL)
-		return -1;
-
-	if((fd = open(fpath, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR)) < 0) {
-		zlog_notice("%s : Cannot open %s failed.", __func__, fpath);
-		return -1;
-	}
-
-	write(fd, hdr, sizeof(fw_image_header_t));
-	close(fd);
-	system("sync");
-	return 0;
-}
-#endif
 
 // check header/data crc against header info.
 int check_img_file_crc(char *fpath, fw_image_header_t *hdr, uint32_t *t_size, uint32_t *t_crc)
@@ -864,7 +858,12 @@ RDL_CRC_t rdl_check_total_crc(char *filename)
 	}
 
 	// open total pkg file and read to calculate CRC.
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", (RDL_INFO.bno == RDL_BANK_1) ?
+		RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, filename);
+#else
 	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, filename);
+#endif
 	if(check_img_file_crc(tbuf, &hd, NULL, NULL) < 0) {
 		zlog_notice("%s : Checking crc failed for pkg file %s.",
 			__func__, tbuf);
@@ -1053,12 +1052,21 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 		return -1;
 
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	if(bno == RDL_BANK_1)
+		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_INSTALL1_PATH, fname);
+	else if(bno == RDL_BANK_2)
+		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_INSTALL2_PATH, fname);
+
+	system("sync");
+#else /****************************************************************/
 	if(bno == RDL_BANK_1)
 		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_B1_PATH, fname);
 	else if(bno == RDL_BANK_2)
 		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_B2_PATH, fname);
 	else
 		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_IMG_PATH, fname);
+#endif
 #else
 	snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_IMG_PATH, fname);
 #endif
@@ -1176,20 +1184,18 @@ void rdl_update_bank_registers(int bno)
 #endif
 #ifndef RDL_BIN_HEADER/* NOTE : no header for binary image. */
 #if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
-		memset(&RDL_OS_HEADER, 0, sizeof(RDL_OS_HEADER));
-
-		if(syscmd_file_exist((bno == RDL_BANK_1) ?
-			RDL_B1_HEADER_FILE : RDL_B2_HEADER_FILE)) {
-
-			// get img header from .img_header file.
-			if(get_img_fwheader_info((bno == RDL_BANK_1) ?
-				RDL_B1_HEADER_FILE : RDL_B2_HEADER_FILE, &RDL_OS_HEADER) < 0) {
-				zlog_notice("%s : Invalid image header for bank[%d].",
-					__func__, bno);
-			}
-		} else 
-			zlog_notice("%s : No image header for bank[%d].", 
-				__func__, bno);
+		/* get img header from pkg file. */
+		if(get_img_fwheader_info((bno == RDL_BANK_1) ?
+			RDL_HEADER1_LINK : RDL_HEADER2_LINK, 
+			(bno == RDL_BANK_1) ? &RDL_B1_HEADER : &RDL_B2_HEADER) < 0) {
+			zlog_notice("%s : No header for pkg file %s.",
+				__func__, (bno == RDL_BANK_1) ?
+				RDL_HEADER1_LINK : RDL_HEADER2_LINK);
+		}
+		
+		/* copy header */
+		RDL_OS_HEADER = (bno == RDL_BANK_1) ?
+			RDL_B1_HEADER : RDL_B2_HEADER;
 #else
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 		/* get pkg info */
@@ -1273,7 +1279,11 @@ void rdl_update_bank_registers(int bno)
 
 	// write ver string.
     for(ii = 0, addr = vstr1_addr[bno - RDL_BANK_1];
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+        addr <= vstr2_addr[bno - RDL_BANK_1]; 
+#else
         addr < vstr2_addr[bno - RDL_BANK_1]; 
+#endif
 		addr += 2, ii += 2) {
         data  = RDL_OS_HEADER.fih_ver[ii + 1];
         data |= (uint16_t)(RDL_OS_HEADER.fih_ver[ii] << 8);
@@ -1285,7 +1295,11 @@ void rdl_update_bank_registers(int bno)
 
 	// write file name.
     for(ii = 0, addr = fname1_addr[bno - RDL_BANK_1];
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+        addr <= fname2_addr[bno - RDL_BANK_1]; 
+#else
         addr < fname2_addr[bno - RDL_BANK_1]; 
+#endif
 		addr += 2, ii += 2) {
         data  = RDL_OS_HEADER.fih_name[ii + 1];
         data |= (uint16_t)(RDL_OS_HEADER.fih_name[ii] << 8);
@@ -1374,20 +1388,40 @@ int rdl_decompress_package_file(char *filename)
 	int result = -1, retry;
 	char cmd[250], fsrc[100], fdst[100];
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", (RDL_INFO.bno == RDL_BANK_1) ? 
+		RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, filename);
+#else
 	snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_IMG_PATH, filename);
+#endif
 
 	// get img header from pkg file.
 	if(get_img_fwheader_info(fsrc, &hd) < 0) {
 		zlog_notice("%s : No fw header for pkg file %s.",
 				__func__, fsrc);
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 		unlink(fsrc);
+#endif
 		goto __return__;
 	}
 
 #if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
-	/* save original header to file. */
-	snprintf(fdst, sizeof(fdst) - 1, "%s%s", RDL_IMG_PATH, RDL_HEADER_FILE);
-	save_img_fwheader_info(fdst, &hd);
+	/* backup header */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		RDL_B1_HEADER = hd;
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		RDL_B2_HEADER = hd;
+
+	/* unlink old one. */
+	unlink((RDL_INFO.bno == RDL_BANK_1) ? 
+		RDL_HEADER1_LINK : RDL_HEADER2_LINK);
+
+	/* make link to pkg file for later reference. */
+	if(symlink(fsrc, (RDL_INFO.bno == RDL_BANK_1) ?
+		RDL_HEADER1_LINK : RDL_HEADER2_LINK) != 0) {
+		zlog_notice("%s : Linking %s as .header_link has failed.",
+			__func__, fsrc);
+	}
 #endif
 
 	// header info must be same as RDL_INFO.
@@ -1395,14 +1429,18 @@ int rdl_decompress_package_file(char *filename)
 	if(htonl(hd.fih_magic) != RDL_INFO.hd.magic) {
 		zlog_notice("%s : Different magic [0x%x/0x%x] ? Or No header present ?",
 			__func__, htonl(hd.fih_magic), RDL_INFO.hd.magic);
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 		unlink(fsrc);
+#endif
 		goto __return__;
 	}
 	if(htonl(hd.fih_size) != (RDL_INFO.hd.total_size - sizeof(fw_image_header_t))) {
 		zlog_notice("%s : Different file size [%u/%u].",
 			__func__, ntohl(hd.fih_size), 
 			(RDL_INFO.hd.total_size - sizeof(fw_image_header_t)));
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 		unlink(fsrc);
+#endif
 		goto __return__;
 	}
 	/*NOTE : fih_dcrc and total_crc comes from diffrent crc calculation. cannot match them. */
@@ -1429,15 +1467,30 @@ int rdl_decompress_package_file(char *filename)
 #endif
 
 	// remove img header and get zipped pkg(os + fw + .pkg_info) file.
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	restore_pkg_file(fsrc, (RDL_INFO.bno == RDL_BANK_1) ?
+		RDL_TEMP1_ZIP_FILE : RDL_TEMP2_ZIP_FILE);
+#else
 	restore_pkg_file(fsrc, RDL_TEMP_ZIP_FILE);
+#endif
 
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 	// remove rdl file, anyway.
 	unlink(fsrc);
+#endif
 
 	// decompress package file info os, fw, and .pkg_info files.
 	retry = 0;
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
+		(RDL_INFO.bno == RDL_BANK_1) ?
+			RDL_TEMP1_ZIP_FILE : RDL_TEMP2_ZIP_FILE, 
+		(RDL_INFO.bno == RDL_BANK_1) ?
+			RDL_INSTALL1_PATH : RDL_INSTALL2_PATH);
+#else
 	snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
 		RDL_TEMP_ZIP_FILE, RDL_IMG_PATH);
+#endif
 
 __retry__:
 	result = system(cmd);
@@ -1450,9 +1503,21 @@ __retry__:
 		goto __return__;
 	}
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	// remove temp zip file.
+	unlink((RDL_INFO.bno == RDL_BANK_1) ?
+        RDL_TEMP1_ZIP_FILE : RDL_TEMP2_ZIP_FILE);
+#else
 	// remove pkg file.
 	unlink(RDL_TEMP_ZIP_FILE);
+#endif
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	// read pkg header info.
+	get_pkg_fwheader_info((RDL_INFO.bno == RDL_BANK_1) ?
+		RDL_INSTALL1_PKG_INFO_FILE : RDL_INSTALL2_PKG_INFO_FILE, 
+		&RDL_PKG_HEADER);
+#else /******************************************************/
 	// now we get bp os, fpga f/w, and .pkg_info files.
 	// check if fw header info file is present.
 	if(! syscmd_file_exist(RDL_PKG_INFO_FILE)) {
@@ -1463,11 +1528,18 @@ __retry__:
 
 	// read pkg header info.
 	get_pkg_fwheader_info(RDL_PKG_INFO_FILE, &RDL_PKG_HEADER);
+#endif
 
 	// check if os1 is present.
 	if(strlen(RDL_PKG_HEADER.ih_image1_str)) {
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", (RDL_INFO.bno == RDL_BANK_1) ?
+			RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, 
+			RDL_PKG_HEADER.ih_image1_str);
+#else
 		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_IMG_PATH, 
 			RDL_PKG_HEADER.ih_image1_str);
+#endif
 		// check if file is present.
 		if(! syscmd_file_exist(fsrc)) {
 			zlog_notice("%s : Not found OS1 img %s.", 
@@ -1478,8 +1550,13 @@ __retry__:
 
 #ifndef RDL_BIN_HEADER// NOTE : no header for binary image.
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+		if(rdl_collect_img_header_info(RDL_INFO.bno,
+			RDL_PKG_HEADER.ih_image1_str, &RDL_OS_HEADER) < 0)
+#else
 		if(rdl_collect_img_header_info(0/*no-bank*/, 
 			RDL_PKG_HEADER.ih_image1_str, &RDL_OS_HEADER) < 0)
+#endif
 #else
 		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image1_str, &RDL_OS_HEADER) < 0)
 #endif
@@ -1521,8 +1598,15 @@ __retry__:
 
 	// check if fpga is present.
 	if(strlen(RDL_PKG_HEADER.ih_image2_str)) {
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", 
+			(RDL_INFO.bno == RDL_BANK_1) ?
+				RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, 
+			RDL_PKG_HEADER.ih_image2_str);
+#else
 		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_IMG_PATH, 
 			RDL_PKG_HEADER.ih_image2_str);
+#endif
 		// check if file is present.
 		if(! syscmd_file_exist(fsrc)) {
 			zlog_notice("%s : Not found fpga img %s.", 
@@ -1533,8 +1617,13 @@ __retry__:
 
 #ifndef RDL_BIN_HEADER// NOTE : no header for binary image.
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+		if(rdl_collect_img_header_info(RDL_INFO.bno,
+			RDL_PKG_HEADER.ih_image2_str, &RDL_OS2_HEADER) < 0)
+#else
 		if(rdl_collect_img_header_info(0/*no-bank*/, 
 			RDL_PKG_HEADER.ih_image2_str, &RDL_OS2_HEADER) < 0)
+#endif
 #else
 		if(rdl_collect_img_header_info(RDL_PKG_HEADER.ih_image2_str, &RDL_OS2_HEADER) < 0)
 #endif
@@ -1648,6 +1737,9 @@ int rdl_install_package(int bno)
 	char tbuf[100];
 	int ret = 0;
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	return ret;
+#else /***********************************************************/
 	// clear target bank.
 	snprintf(cmd, sizeof(cmd) - 1, "cd %s; rm *; rm .*", 
 		(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH);
@@ -1670,22 +1762,6 @@ int rdl_install_package(int bno)
 			return ret;
 		}
 	}
-
-#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
-	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, RDL_HEADER_FILE);
-	// move .img_header file to target bank.
-	if(syscmd_file_exist(tbuf)) {
-		snprintf(cmd, sizeof(cmd) - 1, "mv %s %s", 
-			tbuf,
-			(bno == RDL_BANK_1) ? RDL_INSTALL1_PATH : RDL_INSTALL2_PATH);
-		ret = system(cmd);
-		if(ret < 0) {
-			zlog_notice("%s : command failed [%s]. reason[%s].",
-					__func__, cmd, strerror(errno));
-			return ret;
-		}
-	}
-#endif
 
 	// move bp os1 to target bank.
 	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, RDL_OS_HEADER.fih_name);
@@ -1715,6 +1791,7 @@ int rdl_install_package(int bno)
 	}
 
 	return ret;
+#endif /* [#109] */
 #else /***********************************************************/
 	char cmd[200];
 	char tbuf[100];
@@ -2266,22 +2343,6 @@ int rdl_activate_bp(int bno)
 	}
 
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
-	system("sync");
-#endif
-
-#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
-	snprintf(cmd, sizeof(cmd) - 1, "cp %s%s %s", 
-		(bno == RDL_BANK_1) ? 
-			RDL_INSTALL1_PATH : RDL_INSTALL2_PATH,
-		RDL_HEADER_FILE,
-		(bno == RDL_BANK_1) ? RDL_B1_PATH : RDL_B2_PATH);
-	ret = system(cmd);
-	if(ret < 0) {
-		zlog_notice("%s : command failed [%s]. reason[%s].",
-			__func__, cmd, strerror(errno));
-		return ret;
-	}
-
 	system("sync");
 #endif
 

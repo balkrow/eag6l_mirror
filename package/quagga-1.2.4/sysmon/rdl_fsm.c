@@ -83,6 +83,24 @@ RDL_ST_t rdl_start(void) //#1
 	}
 
 	// check if target file is already present in system.
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	sprintf(temp, "%s%s", (RDL_INFO.bno == RDL_BANK_1) ?
+		RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, RDL_INFO.hd.file_name);
+	if(syscmd_file_exist(temp)) {
+		zlog_err("%s : Already present file[%s]. Removed for start.",
+			__func__, temp);
+		unlink(temp);
+		system("sync");
+	}
+
+	// check free space for rdl. Go idle state if not available.
+	if(statfs((RDL_INFO.bno == RDL_BANK_1) ?
+        RDL_INSTALL1_PATH : RDL_INSTALL2_PATH, &fst) != 0) {
+		zlog_err("%s : Cannot stat for %s. reason[%s]. Go to IDLE.",
+			__func__, temp, strerror(errno));
+		return ST_RDL_IDLE;
+	}
+#else
 	sprintf(temp, "%s%s", RDL_IMG_PATH, RDL_INFO.hd.file_name);
 	if(syscmd_file_exist(temp)) {
 		zlog_err("%s : Already present file[%s]. Removed for start.",
@@ -97,6 +115,7 @@ RDL_ST_t rdl_start(void) //#1
 			__func__, RDL_IMG_PATH, strerror(errno));
 		return ST_RDL_IDLE;
 	}
+#endif /* [#109] */
 
 #if 0//PWY_FIXME need to tune size.
 	if(fst.f_bavail < (100 * 1024)) {
@@ -426,15 +445,18 @@ RDL_ST_t rdl_img_activation(void) //#13
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	struct timeval sss;
 #endif
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 	struct statfs fst;
+#endif
 	int bno = RDL_INFO.bno;
 #ifdef DEBUG
 	//zlog_notice("------> %s : entered.", __func__);
 #endif
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	gettimeofday(&sss, NULL);
-    zlog_notice("%s : ----> Activation start time[%ld sec].", __func__, sss.tv_sec);
+    zlog_notice("%s : ----> Installing start time[%ld sec].", __func__, sss.tv_sec);
 #endif
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 	// BP check if disk space is enough for processing.
 	// check free space for rdl. Go idle state if not available.
 	if(statfs(RDL_IMG_PATH, &fst) != 0) {
@@ -450,6 +472,7 @@ RDL_ST_t rdl_img_activation(void) //#13
 		return ST_RDL_IDLE;
 	}
 #endif //PWY_FIXME
+#endif
 
 	// BP extract FPGA F/W img and BP os img files, and remove integrated img file.
 	if(rdl_decompress_package_file(RDL_INFO.hd.file_name) < 0) {
@@ -466,6 +489,15 @@ RDL_ST_t rdl_img_activation(void) //#13
 	gettimeofday(&sss, NULL);
     zlog_notice("%s : ----> RDL end time[%ld sec].", __func__, sss.tv_sec);
 
+#if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
+	// BP update OS related registers.
+	if(bno == RDL_BANK_1)
+		RDL_B1_ERASE_FLAG = (RDL_INSTALL_STATE >= 0) ? 0/*update*/ : 1/*erase*/;
+	else if(bno == RDL_BANK_2)
+		RDL_B2_ERASE_FLAG = (RDL_INSTALL_STATE >= 0) ? 0/*update*/ : 1/*erase*/;
+	rdl_update_bank_registers(bno, (bno == RDL_BANK_1) ?
+		RDL_B1_ERASE_FLAG : RDL_B2_ERASE_FLAG);
+#endif
 #if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// BP update OS related registers.
 	rdl_update_bank_registers(bno, 

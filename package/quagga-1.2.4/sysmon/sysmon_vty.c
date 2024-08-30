@@ -1271,12 +1271,14 @@ extern uint8_t *RDL_PAGE;
 	int mflag = 0;
 
 	// create directories.
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	snprintf(cmd, sizeof(cmd) - 1, "mkdir %s; mkdir %s; mkdir %s",
 		RDL_IMG_PATH, RDL_B1_PATH, RDL_B2_PATH);
 #else
 	snprintf(cmd, sizeof(cmd) - 1, "mkdir %s; mkdir %s; mkdir %s; mkdir %s",
 		RDL_IMG_PATH, RDL_B1_PATH, RDL_B2_PATH, RDL_BOOT_PATH);
+#endif
 #endif
 	system(cmd);
 

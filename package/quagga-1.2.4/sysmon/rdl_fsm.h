@@ -46,9 +46,11 @@
 #define RDL_IMG_MAGIC               0x48534E38
 
 #define RDL_DFT_PATH                "/mnt/flash/"
+#if 0 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
 #define RDL_IMG_PATH                "/mnt/flash/.RDL/"
 #define RDL_PKG_INFO_FILE           "/mnt/flash/.RDL/.pkg_info"
 #define RDL_TEMP_ZIP_FILE           "/mnt/flash/.RDL/_pkt_.zip"
+#endif
 
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
@@ -66,9 +68,10 @@
 #define RDL_B2_PKG_INFO_FILE        "/media/bank2/.pkg_info"
 
 #if 1 /* [#109] Fixing for updating correct bank registers, dustin, 2024-08-30 */
-#define RDL_HEADER_FILE             ".img_header"
-#define RDL_B1_HEADER_FILE          "/media/bank1/.img_header"
-#define RDL_B2_HEADER_FILE          "/media/bank2/.img_header"
+#define RDL_TEMP1_ZIP_FILE          "/mnt/flash/bank1/_pkt_.zip"
+#define RDL_TEMP2_ZIP_FILE          "/mnt/flash/bank2/_pkt_.zip"
+#define RDL_HEADER1_LINK           "/mnt/flash/bank1/.header_link"
+#define RDL_HEADER2_LINK           "/mnt/flash/bank2/.header_link"
 #endif
 
 #define RDL_B1_LINK_PATH            "/media/bank1/uImage"
