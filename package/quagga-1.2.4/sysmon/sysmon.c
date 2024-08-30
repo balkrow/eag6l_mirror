@@ -2779,7 +2779,7 @@ __SKIP_4__:
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
 uint16_t sysmonUpdateGetSWVer(void)
 {
-#if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 0 /* [#99] EAG6L 真 真 真 F/U, balkrow, 2024-08-30 */
 	FILE *fn = NULL;
 	char buf[10], fname[100], *str = NULL;
 	int bank = RDL_BANK_1, major, minor;
@@ -2824,7 +2824,7 @@ uint16_t sysmonUpdateGetSWVer(void)
 	return 0x10;
 #else
 	/*TODO: real data*/
-	return 0x100;
+	return 0x11;
 #endif
 }
 #endif

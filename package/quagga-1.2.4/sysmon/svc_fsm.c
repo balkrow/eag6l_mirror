@@ -230,7 +230,7 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 
 	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
 	 *
-	 * WRITE UNIT VERSION(0xE)
+	 * WRITE UNIT VERSION(0x0)
 	 * */
 	FPGA_WRITE(SW_VERSION_ADDR, swVer);
 
