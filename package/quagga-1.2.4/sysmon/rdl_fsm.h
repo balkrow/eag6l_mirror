@@ -90,6 +90,10 @@
 #endif //PWY_FIXME
 #endif
 
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-08-30*/
+#define PKG_FILE_PREFIX "hsn8000na-eag6l-us-lfm09-v"
+#endif
+
 #define RDL_ACTIVE_BANK_FLAG        "/mnt/flash/.activate.bank"
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 #define RDL_FPGA_BANK_FLAG          "/media/.fpga.bank"
@@ -100,8 +104,10 @@
 #define RDL_PAGE_SEGMENT_1          1
 #define RDL_PAGE_SEGMENT_2          2
 
+#if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #define RDL_VER_STR_MAX             16/* or 2? */
 #define RDL_FILE_NAME_MAX           32
+#endif
 
 #define RDL_BANK_1                  1
 #define RDL_BANK_2                  2
@@ -196,6 +202,7 @@ typedef struct rdl_info {
 	RDL_IMG_HEADER_t  hd;
 } RDL_IMG_INFO_t;
 
+#if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 typedef struct fw_image_header {
     unsigned int    fih_magic;  /* Image Header Magic Number    */
     unsigned int    fih_hcrc;   /* Image Header CRC Checksum    */
@@ -207,6 +214,7 @@ typedef struct fw_image_header {
     char        fih_name[RDL_FILE_NAME_MAX];    /* Image Name       */
     char        reserv[8];  /* reserv       */
 } fw_image_header_t;
+#endif
 
 typedef struct fwimage_header {
     uint32_t    ih_prg_size;        /* Image Header Magic Number    */

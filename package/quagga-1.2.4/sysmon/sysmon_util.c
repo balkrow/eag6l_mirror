@@ -4,6 +4,129 @@
 #include <dirent.h>
 #include <zebra.h>
 #include "sysmon.h"
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-08-30*/
+#include "bp_regs.h"
+#include "rdl_fsm.h"
+#define SWAP_BYTE(x) x >> 8 & 0xff | (x  << 8) & 0xff00
+
+int8_t get_pkg_header(uint8_t bank, fw_image_header_t *header)
+{
+	int8_t rc = RT_NOK;
+	char pkg_file_path[256] = {0, };
+	char *dir_path;
+	DIR *dir;
+	struct dirent *entry;
+
+	if(bank == RDL_BANK_1)
+	{
+		if((dir = opendir(RDL_INSTALL1_PATH)) == NULL)
+			goto fail;
+		dir_path = RDL_INSTALL1_PATH;
+	}
+	else if(bank == RDL_BANK_2)
+	{
+		if((dir = opendir(RDL_INSTALL2_PATH)) == NULL)
+			goto fail;
+		dir_path = RDL_INSTALL2_PATH;
+	}
+	else
+		goto fail;
+
+	while ((entry = readdir(dir)) != NULL) 
+	{
+		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+			continue;
+		if (entry->d_name[0] == 0) continue;
+
+		if (strstr(entry->d_name, PKG_FILE_PREFIX) !=  NULL)
+		{
+			int fd;
+			char file_name[256] = {0, };
+			sprintf(file_name, "%s%s", dir_path, entry->d_name);
+
+			if((fd = open(file_name, O_RDONLY)) < 0) 
+			{
+				zlog_notice("%s open err %s", file_name, strerror(errno));
+				goto fail;
+			}
+
+			if(read(fd, header, sizeof(fw_image_header_t)) > 0) 
+			{
+				zlog_notice("file name=%s", entry->d_name);
+				close(fd);
+				rc = RT_OK;
+				break;
+			}
+			else
+			{
+				close(fd);
+				goto fail;
+			}
+		}
+	}
+
+
+
+fail: 
+	return rc;
+
+}
+
+int8_t write_pkg_header(uint8_t bank, fw_image_header_t *header)
+{
+	int n;
+	uint16_t msb, lsb;
+	/*Magic Num*/
+	/*LSB*/
+	lsb = (header->fih_magic >> 16) & 0xffff;
+	msb = header->fih_magic & 0xffff;
+	DPRAM_WRITE(BANK1_MAGIC_NO_1_ADDR + ((bank - 1) * 0x1000), SWAP_BYTE(msb));
+	DPRAM_WRITE(BANK1_MAGIC_NO_1_ADDR + 2 + ((bank - 1) * 0x1000), SWAP_BYTE(lsb));
+	/*Header CRC*/
+	lsb = (header->fih_hcrc >> 16) & 0xffff;
+	msb = header->fih_hcrc & 0xffff;
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 4) + ((bank - 1) * 0x1000), SWAP_BYTE(msb));
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 6) + ((bank - 1) * 0x1000), SWAP_BYTE(lsb));
+	/*Build time*/
+	lsb = (header->fih_time >> 16) & 0xffff;
+	msb = header->fih_time & 0xffff;
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 8) + ((bank - 1) * 0x1000), SWAP_BYTE(msb));
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 10) + ((bank - 1) * 0x1000), SWAP_BYTE(lsb));
+	/*total_size*/
+	lsb = (header->fih_size >> 16) & 0xffff;
+	msb = header->fih_size & 0xffff;
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 0xC) + ((bank - 1) * 0x1000), SWAP_BYTE(msb));  
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 0xE) + ((bank - 1) * 0x1000), SWAP_BYTE(lsb));
+	/*Card Type*/
+	lsb = (header->fih_card_type >> 16) & 0xffff;
+	msb = header->fih_card_type & 0xffff;
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 0x10) + ((bank - 1) * 0x1000), SWAP_BYTE(msb)); 
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 0x12) + ((bank - 1) * 0x1000), SWAP_BYTE(lsb));
+	/*Total CRC*/
+	lsb = (header->fih_dcrc >> 16) & 0xffff;
+	msb = header->fih_dcrc & 0xffff;
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 0x14) + ((bank - 1) * 0x1000), SWAP_BYTE(msb)); 
+	DPRAM_WRITE((BANK1_MAGIC_NO_1_ADDR + 0x14) + ((bank - 1) * 0x1000), SWAP_BYTE(lsb));
+
+	/*Version String*/
+	for(n = 0; n < RDL_VER_STR_MAX; n += 2)
+	{
+		uint16_t w_val;
+		w_val = (header->fih_ver[n] << 8) | header->fih_ver[n + 1];
+		DPRAM_WRITE(BANK1_VER_STR_START_ADDR + n, w_val); 
+	}
+
+	/*name String*/
+	for(n = 0; n < RDL_FILE_NAME_MAX; n += 2)
+	{
+		uint16_t w_val;
+		w_val = (header->fih_name[n] << 8) | header->fih_name[n + 1];
+		DPRAM_WRITE(BANK1_FILE_NAME_START_ADDR + n, w_val); 
+	}
+	return RT_OK;
+}
+
+#endif
 
 int16_t chk_file_from_dir(const char * prefix, uint16_t *fpga_ver, char *img_name) 
 {

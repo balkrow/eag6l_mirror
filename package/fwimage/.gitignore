@@ -1,0 +1,5 @@
+*.o
+fwimage
+*-img
+*.bin
+*.MXR

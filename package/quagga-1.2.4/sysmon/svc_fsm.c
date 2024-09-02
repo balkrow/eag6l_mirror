@@ -17,6 +17,11 @@ extern uint16_t sys_cpld_memory_read(uint16_t addr);
 extern uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval);
 #endif
 
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+extern int8_t write_pkg_header(uint8_t bank, fw_image_header_t *header);
+extern int8_t get_pkg_header(uint8_t bank, fw_image_header_t *header);
+#endif
+
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
 #include "sys_fifo.h"
 extern uint8_t gAppDemoIPCstate;
@@ -199,6 +204,8 @@ SVC_EVT svc_dpram_check(SVC_ST st) {
 #else /*! FSM_SIM*/
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 	SVC_EVT rc = SVC_EVT_DPRAM_ACCESS_FAIL;;
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+#endif
 	const char *prog = "appDemo";
 	/*write 0x2 0xaa*/
 	DPRAM_WRITE(DPRAM_RDL_STATE, 0xaa);
@@ -208,6 +215,12 @@ SVC_EVT svc_dpram_check(SVC_ST st) {
 
 	if(!watch_get_pidof(prog))
 		rc = SVC_EVT_APPDEMO_SHUTDOWN;  
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+	if(get_pkg_header(RDL_BANK_1, &(gDB.bank1_header)) == RT_OK)
+		write_pkg_header(RDL_BANK_1, &(gDB.bank1_header));
+	if(get_pkg_header(RDL_BANK_2, &(gDB.bank2_header)) == RT_OK)
+		write_pkg_header(RDL_BANK_2, &(gDB.bank2_header));
+#endif
 
 	return rc; 
 #else /*! 56*/
@@ -451,7 +464,7 @@ SVC_EVT svc_init_done(SVC_ST st) {
 	const char *prog = "appDemo";
 	if(gDB.init_state != SYS_INIT_DONE)
 	{
-#if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
+#if 0/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 		{
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 			extern fw_header_t RDL_PKG_HEADER;
