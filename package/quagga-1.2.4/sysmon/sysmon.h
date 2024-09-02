@@ -179,6 +179,23 @@ typedef struct rsmu_get_sts
 } RSMU_PLL_STATE;
 #endif
 
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+#define RDL_VER_STR_MAX             16/* or 2? */
+#define RDL_FILE_NAME_MAX           32
+
+typedef struct fw_image_header {
+    unsigned int    fih_magic;  /* Image Header Magic Number    */
+    unsigned int    fih_hcrc;   /* Image Header CRC Checksum    */
+    unsigned int    fih_time;   /* Image Creation Timestamp */
+    unsigned int    fih_size;   /* Image Data Size      */
+    unsigned int    fih_card_type;  /* card type        */
+    unsigned int    fih_dcrc;   /* Image Data CRC Checksum  */
+    char        fih_ver[RDL_VER_STR_MAX];    /* Image Version        */
+    char        fih_name[RDL_FILE_NAME_MAX];    /* Image Name       */
+    char        reserv[8];  /* reserv       */
+} fw_image_header_t;
+#endif
+
 typedef struct globalDB
 {
 	uint8_t init_state; /*init state*/
@@ -205,6 +222,10 @@ typedef struct globalDB
 	uint8_t switch_cnt;
 	uint8_t fpga_version;
 	uint8_t os_bank;
+#endif
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+	fw_image_header_t	bank1_header;
+	fw_image_header_t	bank2_header;
 #endif
 	SVC_FSM svc_fsm;
 #endif
@@ -429,8 +450,8 @@ typedef struct _ddm_info_
         f32 vcc;        /* Module Voltage (voltage) */
         f32 tx_bias;    /* Tx bias (mA) */
         f32 temp;       /* Module Temperature(degree) */
-		f32 laser_temp;
-		f32 tec_curr;
+	f32 laser_temp;
+	f32 tec_curr;
         
         u32 cv;         /*CV error counter */
         u32 fcs;        /*FCS error counter */
@@ -449,13 +470,13 @@ typedef struct port_status
         u8  los;
         u8  lof;
         u8  esmc_loss;
-		u8  remote_fault;
+	u8  remote_fault;
 #if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
-		u8  local_fault;
+	u8  local_fault;
 #endif
-		u8  tsfp_self_lp;
-		u8  rtwdm_lp;
-		u8  tx_bias_sts;
+	u8  tsfp_self_lp;
+	u8  rtwdm_lp;
+	u8  tx_bias_sts;
         u8  tx_laser_sts;   /* tx_laser_status 0:On, 1:Off */
         u8  lpbk_sts;       /* line-test loopback status */
         u8  sf_led;         /* Signal fail led status (ON/OFF) */
