@@ -1030,12 +1030,14 @@ uint16_t data;
 	process_hw_inventory_infos();
 
 	/* recover bp os bank1/2 header registers. */
+#if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	rdl_update_bank_registers(RDL_BANK_1, RDL_B1_ERASE_FLAG);
 	rdl_update_bank_registers(RDL_BANK_2, RDL_B2_ERASE_FLAG);
 #else
 	rdl_update_bank_registers(RDL_BANK_1);
 	rdl_update_bank_registers(RDL_BANK_2);
+#endif
 #endif
 
 	/* recover initial complete register. */
@@ -1048,11 +1050,147 @@ uint16_t bankSelect2(uint16_t port, uint16_t val)
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+	char cmd[100] = {0, };
+	int8_t is_pkg;
+#endif
 	if((val != RDL_BANK_1) && (val != RDL_BANK_2)) {
 		zlog_notice("%s : MCU set invalid bank no[%d] for FPGA FW.", __func__, val);
 		return -1;
 	}
 
+	if(!gDB.pkg_is_zip)
+		gDB.pkg_is_zip = is_pkg_zip(val);
+
+	zlog_notice("Bank %d PKG TYPE %d", val, gDB.pkg_is_zip);
+	
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-04*/
+	if(gDB.pkg_is_zip == PKG_NONZIP)
+	{
+		/*os only*/
+		if(activate_os(val) == RT_NOK) 
+		{
+			fw_image_header_t *del;
+			zlog_notice("Activating os failed.");
+			/*
+			clear_bank(val);
+			*/
+			if(val == RDL_BANK_1)
+				del = &gDB.bank1_header;
+			else if(val == RDL_BANK_2)
+				del = &gDB.bank2_header;
+
+			memset(del, 0, sizeof(fw_image_header_t));
+			write_pkg_header(val, del);
+			return -1;
+		}
+		else
+		{
+			/** write OS bank info */
+			sprintf(cmd, "fw_setenv bank %d", val);
+			system(cmd);
+
+			/** OS reboot */
+			memset(cmd, 0, 100);
+			sprintf(cmd, "reboot -nf");
+			system(cmd);
+			
+		}
+
+	}
+	else if(gDB.pkg_is_zip == PKG_ZIP)
+	{
+		if(activate_os(val) == RT_NOK) 
+		{
+			fw_image_header_t *del;
+			zlog_notice("Activating os failed.");
+			/*
+			clear_bank(val);
+			*/
+			if(val == RDL_BANK_1)
+				del = &gDB.bank1_header;
+			else if(val == RDL_BANK_2)
+				del = &gDB.bank2_header;
+
+			memset(del, 0, sizeof(fw_image_header_t));
+			write_pkg_header(val, del);
+			return -1;
+		}
+		else
+		{
+			/** write OS bank info */
+			sprintf(cmd, "fw_setenv bank %d", val);
+			system(cmd);
+			/** write FPGA bank info */
+			if(gDB.fpga_running_bank == 0)
+			{
+				memset(cmd, 0, 100);
+				sprintf(cmd, "fw_setenv fw_act_bank %d", val);
+				system(cmd);
+			} 
+			else 
+			{
+				memset(cmd, 0, 100);
+				sprintf(cmd, "fw_setenv fw_act_bank %d", val);
+				system(cmd);
+				memset(cmd, 0, 100);
+				sprintf(cmd, "fw_setenv fw_stb_bank %d", gDB.fpga_running_bank);
+				system(cmd);
+			}
+
+			/** OS reboot */
+			memset(cmd, 0, 100);
+			sprintf(cmd, "reboot -nf");
+			system(cmd);
+
+		}
+
+#if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-04*/
+		if(rdl_activate_fpga(val) < 0) {
+			fw_image_header_t *del;
+			zlog_notice("Activating fpga fw failed.");
+			clear_bank(val);
+			if(val == RDL_BANK_1)
+				del = &gDB.bank1_header;
+			else if(val == RDL_BANK_2)
+				del = &gDB.bank2_header;
+
+			memset(del, 0, sizeof(fw_image_header_t));
+			write_pkg_header(val, del);
+			return -1;
+		} 
+		else
+		{
+			/* update cpld fpga fw bank select, it will cuase fpga reboot. */
+			extern int check_fpga_status(void);
+			extern int _CHECK_FPGA_STATUS_;
+			extern uint8_t _FPGA_BNO_;
+			CPLD_WRITE(CPLD_FW_BANK_SELECT_ADDR, val);
+
+			/* turn on flag to check fpga status by thread. */
+			_CHECK_FPGA_STATUS_ = 1;
+			_FPGA_BNO_ = val;
+
+			/* give a time to let mcu detect board CR event. */
+			thread_add_timer_msec(master, check_fpga_status, NULL, 500);
+		}
+
+		{
+			fw_image_header_t *new;
+			if(val == RDL_BANK_1)
+				new = &gDB.bank1_header;
+			else if(val == RDL_BANK_2)
+				new = &gDB.bank2_header;
+
+			if(get_pkg_header(val, new) == RT_OK)
+				write_pkg_header(val, new);
+
+			sprintf(cmd, "fw_setenv bank %d", val);
+			system(cmd);
+		}
+#endif
+	}
+#else
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	{
 		extern uint16_t RDL_B1_ERASE_FLAG;
@@ -1109,6 +1247,8 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 		system("reboot -nf");
 #endif
 #endif /* [#97] */
+#endif
+
 #else
 	uint16_t rbank;
 

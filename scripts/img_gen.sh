@@ -17,27 +17,13 @@ else
 fi
 
 OS_IMG=$1
-FPGA_OS_IMG=$2
-FPGA_IMG=$3
-EVAL_VERSION=$4
-PRODUCT_VENDOR=$5
-PRODUCT_CODE=$6
-PRODUCT_NAME=$7
-BUILD_ID=$8
-BUILD_NAME=$9
+FPGA_IMG=$2
 
 echo "OS_IMG = $OS_IMG"
-echo "FPGA_OS_IMG = $FPGA_OS_IMG"
 echo "FPGA_IMG = $FPGA_IMG"
-echo "EVAL_VERSION = $EVAL_VERSION"
-echo "PRODUCT_VENDOR = $PRODUCT_VENDOR"
-echo "PRODUCT_CODE = $PRODUCT_CODE"
-echo "PRODUCT_NAME = $PRODUCT_NAME"
-echo "BUILD_ID = $BUILD_ID"
-echo "BUILD_NAME = $BUILD_NAME"
 
-cp $IMG_DIR$1 .
-cp $IMG_DIR$2 .
+#cp $IMG_DIR$1 .
+#cp $IMG_DIR$2 .
 ###cp $IMG_DIR$3 .
 
 if [ -f "$OS_IMG" ]; then
@@ -47,10 +33,10 @@ else
 	exit 0
 fi
 
-if [ -f "$FPGA_OS_IMG" ]; then
-	echo "$FPGA_OS_IMG file exist"
+if [ -f "$FPGA_IMG" ]; then
+	echo "$FPGA_IMG file exist"
 else
-	echo "$FPGA_OS_IMG not exist"
+	echo "$FPGA_IMG not exist"
 	exit 0
 fi
 
@@ -62,11 +48,12 @@ fi
 ###fi
 
 # create fw_info
-./mkfwimage -j $MAJOR -i $MINOR -r $REV -X -d $OS_IMG:$FPGA_OS_IMG:
-mv .fw_info $FW_INFO
+#./mkfwimage -j $MAJOR -i $MINOR -r $REV -X -d $OS_IMG:$FPGA_OS_IMG:
+#mv .fw_info $FW_INFO
 PKG_VERSION=${MAJOR}.${MINOR}.${REV}
 
-zip $PRODUCT_NAME-PKG.zip $OS_IMG $FPGA_OS_IMG $FW_INFO
+#zip $PRODUCT_NAME-PKG.zip $OS_IMG $FPGA_OS_IMG $FW_INFO
+zip $PRODUCT_NAME-PKG.zip $OS_IMG $FPGA_IMG
 
 FILESIZE=`du -sb $PRODUCT_NAME-PKG.zip | awk '{print $1}'`
 
@@ -82,5 +69,6 @@ $PRODUCT_NAME-PKG-v$PKG_VERSION.PKG hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSIO
 
 mv hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSION}.bin ..
 ls -al ${TOPDIR}/hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSION}.bin 
+cp -avf ${TOPDIR}/hsn8000na-eag6l-us-${IMG_TYPE}-v${PKG_VERSION}.bin $HOME 
 
 exit 0

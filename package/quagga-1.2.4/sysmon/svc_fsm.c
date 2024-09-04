@@ -19,7 +19,7 @@ extern uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval);
 
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 extern int8_t write_pkg_header(uint8_t bank, fw_image_header_t *header);
-extern int8_t get_pkg_header(uint8_t bank, fw_image_header_t *header);
+extern uint8_t get_pkg_header(uint8_t bank, fw_image_header_t *header);
 #endif
 
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
@@ -218,8 +218,13 @@ SVC_EVT svc_dpram_check(SVC_ST st) {
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 	if(get_pkg_header(RDL_BANK_1, &(gDB.bank1_header)) == RT_OK)
 		write_pkg_header(RDL_BANK_1, &(gDB.bank1_header));
+	else
+		zlog_notice("BANK1 pkg header get failed");
+
 	if(get_pkg_header(RDL_BANK_2, &(gDB.bank2_header)) == RT_OK)
 		write_pkg_header(RDL_BANK_2, &(gDB.bank2_header));
+	else
+		zlog_notice("BANK2 pkg header get failed");
 #endif
 
 	return rc; 
@@ -239,6 +244,9 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 #if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 	uint8_t i;
 #endif
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+	uint16_t running_bank;
+#endif
 	uint16_t swVer = sysmonUpdateGetSWVer();
 
 	/* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 
@@ -251,9 +259,11 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
 
-#if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 	gDB.os_bank = get_os_bank();
-	CPLD_WRITE(FW_BANK_SELECT_ADDR, (gDB.os_bank << 8) & 0xff00);
+	running_bank = (gDB.os_bank << 8) & 0xff00;
+	zlog_notice("running os bank %d %x", gDB.os_bank, (gDB.os_bank << 8) & 0xff00);
+	FPGA_WRITE(FW_BANK_SELECT_ADDR, running_bank);
 #endif
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
@@ -263,14 +273,16 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	 *
 	 * WRITE COMMAND CONTROL REG2(SIG SEL, Rate SEL)(0x20)
 	 * */
+#if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 	for(i = 0; i < PORT_ID_EAG6L_PORT6; i++) 
 	{
 		gRegUpdate(COMMON_CTRL2_P1_ADDR + (i*2), COMMON_CTRL2_SIG_SHIFT, 
 			   COMMON_CTRL2_SIG_MASK, 0x1); /*GGE*/
 		gRegUpdate(COMMON_CTRL2_P1_ADDR + (i*2), COMMON_CTRL2_RATE_SHIFT, 
-			   COMMON_CTRL2_RATE_MASK, 0x7);/*25G*/
+			   COMMON_CTRL2_RATE_MASK, 9);/*25G*/
 	}
+#endif
 #endif
 
 	return rc; 

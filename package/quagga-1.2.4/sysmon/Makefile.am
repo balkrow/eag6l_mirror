@@ -21,7 +21,7 @@ noinst_HEADERS = \
 sysmon_SOURCES = \
 	sysmon_main.c $(libsysmon_a_SOURCES)
 
-sysmon_LDADD = ../lib/libzebra.la @LIBCAP@ -lm
+sysmon_LDADD = ../lib/libzebra.la @LIBCAP@ -lm -lpthread
 
 examplesdir = $(exampledir)
 #dist_examples_DATA = ripd.conf.sample

@@ -5,6 +5,9 @@
 #include "thread.h"
 #include "rdl_fsm.h"
 #include <sys/statfs.h>
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/ 
+#include <pthread.h>
+#endif
 
 #define DEBUG
 
@@ -53,6 +56,11 @@ uint16_t RDL_B2_ERASE_FLAG;
 #else
 uint16_t RDL_ACTIVATION_STATE;
 #endif
+#endif
+
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+extern GLOBAL_DB gDB;
+pthread_t thread_t;
 #endif
 
 RDL_ST_t rdl_start(void) //#1
@@ -127,6 +135,19 @@ RDL_ST_t rdl_start(void) //#1
 	// reset current page no and ack for rdl start.
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 0, 0x00FF, 0/*default-page*/);
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_START_ACK_BIT);
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	clear_bank(RDL_INFO.bno);
+	if(RDL_INFO.bno == RDL_BANK_1)
+	{
+		memset(&gDB.bank1_header, 0, sizeof(fw_image_header_t));
+		write_pkg_header(RDL_BANK_1, &(gDB.bank1_header));
+	} 
+	else if(RDL_INFO.bno == RDL_BANK_2)
+	{
+		memset(&gDB.bank2_header, 0, sizeof(fw_image_header_t));
+		write_pkg_header(RDL_BANK_2, &(gDB.bank2_header));
+	}
+#endif
     rdl_info_list.st = state;
     return state;
 }
@@ -411,6 +432,70 @@ RDL_ST_t rdl_next_page(void) //#12
     return state;
 }
 
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-03*/ 
+void move_image_to_bank(void) 
+{
+	struct timeval sss;
+	int bno = RDL_INFO.bno;
+	gettimeofday(&sss, NULL);
+	zlog_notice("%s : ----> Activation start time[%ld sec].", __func__, sss.tv_sec);
+
+	if(rdl_decompress_package_file(RDL_INFO.hd.file_name) < 0) {
+		//FIXME : success or failed, pkg file will be removed anyway.
+		zlog_err("Decompressing pkg file %s has failed. Go to IDLE.",
+			RDL_INFO.hd.file_name);
+		rdl_info_list.st = ST_RDL_IDLE;
+		return;
+	}
+
+	if(gDB.pkg_is_zip == PKG_ZIP)
+	{
+		char fpga_img_file_path[128] = {0, };
+		char *bank_path;
+
+		if(RDL_INFO.bno == RDL_BANK_1)
+			bank_path = RDL_INSTALL1_PATH;
+		else if(RDL_INFO.bno == RDL_BANK_2)
+			bank_path = RDL_INSTALL2_PATH;
+
+		if(get_fpga_filename(FPGA_IMG_PREFIX, bank_path, fpga_img_file_path) == RT_NOK)
+		{
+			zlog_err("fpga image %s not found. Go to IDLE.",
+				 fpga_img_file_path);
+			rdl_info_list.st = ST_RDL_IDLE;
+			return;
+		}
+
+		if(install_fpga_image(RDL_INFO.bno , fpga_img_file_path) == -1)
+		{
+			zlog_err("fpga image %s update failed. Go to IDLE.",
+				 fpga_img_file_path);
+			rdl_info_list.st = ST_RDL_IDLE;
+			return;
+		}
+	}
+	RDL_INSTALL_STATE = 1;
+
+	gettimeofday(&sss, NULL);
+	zlog_notice("%s : ----> RDL end time[%ld sec].", __func__, sss.tv_sec);
+	rdl_info_list.st = ST_RDL_INSTALL_DONE;
+}
+
+RDL_ST_t rdl_img_move(void) //#13
+{
+    RDL_ST_t state = ST_RDL_BANK_MOVE_WAIT;
+    pthread_create(&thread_t, NULL, move_image_to_bank, NULL);
+    rdl_info_list.st = state;
+
+}
+
+RDL_ST_t wait_rdl_move(void) //#13
+{
+    RDL_ST_t state = ST_RDL_BANK_MOVE_WAIT;
+    rdl_info_list.st = state;
+
+}
+#endif
 
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 RDL_ST_t rdl_img_install(void) //#13
@@ -437,34 +522,38 @@ RDL_ST_t rdl_img_activation(void) //#13
 #endif
 	// BP check if disk space is enough for processing.
 	// check free space for rdl. Go idle state if not available.
+#if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/ 
 	if(statfs(RDL_IMG_PATH, &fst) != 0) {
 		zlog_err("%s : Cannot stat for %s. reason[%s]. Go to IDLE.",
 			__func__, RDL_IMG_PATH, strerror(errno));
 		return ST_RDL_IDLE;
 	}
-
-#if 0//PWY_FIXME
-	if(fst.f_bavail < (65 * 1024)) {
-		zlog_err("%s : Not enough sapce in %s. Free space %u. Go to IDLE.",
-			__func__, RDL_IMG_PATH, fst.f_bavail);
-		return ST_RDL_IDLE;
-	}
-#endif //PWY_FIXME
+#endif
 
 	// BP extract FPGA F/W img and BP os img files, and remove integrated img file.
 	if(rdl_decompress_package_file(RDL_INFO.hd.file_name) < 0) {
 		//FIXME : success or failed, pkg file will be removed anyway.
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/ 
+		zlog_err("Decompressing pkg file %s has failed. Go to IDLE.",
+			RDL_INFO.hd.file_name);
+		rdl_info_list.st = state;
+#else	
 		zlog_err("%s : Decompressing pkg file %s has failed. Go to IDLE.",
 			__func__, RDL_INFO.hd.file_name);
+#endif
 		return ST_RDL_IDLE;
 	}
 
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// BP install(replace bank files) BP os img to target bank.
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/ 
+	RDL_INSTALL_STATE = 1;
+#else
 	RDL_INSTALL_STATE = rdl_install_package(bno);
+#endif
 
 	gettimeofday(&sss, NULL);
-    zlog_notice("%s : ----> RDL end time[%ld sec].", __func__, sss.tv_sec);
+	zlog_notice("%s : ----> RDL end time[%ld sec].", __func__, sss.tv_sec);
 
 #if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// BP update OS related registers.
@@ -717,10 +806,10 @@ RDL_FSM_t rdl_fsm_list[] =
 	{ST_RDL_WRITING_TOTAL,      EVT_RDL_START,	                rdl_start},
 #endif
 
-#if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
-	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_DONE_TOTAL,     rdl_img_install},
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_DONE_TOTAL,     rdl_img_move},
 #else
-	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_DONE_TOTAL,     rdl_img_activation},
+	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_DONE_TOTAL,     rdl_img_install},
 #endif
 	{ST_RDL_READING_TOTAL,      EVT_RDL_READING_ERROR_TOTAL,    rdl_restart},
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
@@ -738,7 +827,7 @@ RDL_FSM_t rdl_fsm_list[] =
 	{ST_RDL_RUNNING_CHECK,      EVT_RDL_IMG_RUNNING_FAIL, 	    rdl_running_fail},
 #endif
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
-	{ST_RDL_INSTALL_DONE,      EVT_RDL_START,	                rdl_start},
+	{ST_RDL_BANK_MOVE_WAIT,     EVT_RDL_WAIT_MOVE_IMG_TO_BANK, wait_rdl_move},
 #endif
 
 	{ST_RDL_TERM,               EVT_RDL_NONE, 	                rdl_terminate},
