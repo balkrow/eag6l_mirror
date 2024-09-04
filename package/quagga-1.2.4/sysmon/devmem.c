@@ -405,7 +405,9 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 	}
 	return 0xFFFF;
 #else
+#ifdef DEBUG
 	zlog_debug("[fpga]  reg=%x, writeval=%x", addr, writeval);
+#endif
 	return writeval;
 #endif/*[#65]*/
 #else
@@ -419,6 +421,11 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
 #else /*! 56*/
         fpgamemory.addr = addr;
 #endif /*End 56 */
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+#ifdef DEBUG
+	zlog_debug("[fpga] reg=%x, writeval=%x", addr, writeval);
+#endif
+#endif
 	fpgamemory.value = writeval;
         ioctl(g_hdrv_fd, HDRIVER_IOCS_FPGA_WRITE_MEMORY, &fpgamemory);
 
@@ -459,6 +466,11 @@ uint16_t sys_cpld_memory_write(uint16_t addr, uint16_t writeval) {
 	cpldmemory.addr = addr;
 #endif
 	cpldmemory.value = writeval;
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+#ifdef DEBUG
+	zlog_debug("[cpld] reg=%x, writeval=%x", addr, writeval);
+#endif
+#endif
 	ioctl(g_hdrv_fd, HDRIVER_IOCS_CPLD_WRITE_MEMORY, &cpldmemory);
 
 	return cpldmemory.value;
@@ -605,6 +617,11 @@ uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t writeval)
 
         dprammemory.addr = addr;
 	dprammemory.value = writeval;
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+#ifdef DEBUG
+	zlog_debug("[dpram] reg=%x, writeval=%x", addr, writeval);
+#endif
+#endif
         ioctl(g_hdrv_fd, HDRIVER_IOCS_DPRAM_WRITE_MEMORY, &dprammemory);
 
         return dprammemory.value;

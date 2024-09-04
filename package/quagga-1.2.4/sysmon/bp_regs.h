@@ -143,7 +143,9 @@ typedef enum {
 #if 1 /*[#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 #define COMMON_CTRL2_SIG_MASK		0x30
 #define COMMON_CTRL2_SIG_SHIFT		0x4
-#define COMMON_CTRL2_RATE_MASK		0x7
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+#define COMMON_CTRL2_RATE_MASK		0xf
+#endif
 #define COMMON_CTRL2_RATE_SHIFT		0x0
 #endif
 #define COMMON_CTRL2_P1_ADDR		0x20

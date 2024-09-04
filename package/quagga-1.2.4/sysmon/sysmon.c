@@ -634,7 +634,14 @@ long rdl_get_file_size(char *filename)
 	long size;
 	char temp[150];
 
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		sprintf(temp, "%s%s", RDL_INSTALL1_PATH , RDL_INFO.hd.file_name);
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		sprintf(temp, "%s%s", RDL_INSTALL2_PATH , RDL_INFO.hd.file_name);
+#else
 	sprintf(temp, "%s%s", RDL_IMG_PATH, filename);
+#endif
 	fp = fopen(temp, "r");
 	if(fp == NULL) {
 		zlog_notice("%s : Can't open a file %s. reason[%s].",
@@ -654,7 +661,14 @@ int rdl_save_page_to_img_file(uint32_t size)
 	uint32_t ret;
 	char temp[150];
 
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		sprintf(temp, "%s%s", RDL_INSTALL1_PATH , RDL_INFO.hd.file_name);
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		sprintf(temp, "%s%s", RDL_INSTALL2_PATH , RDL_INFO.hd.file_name);
+#else
 	sprintf(temp, "%s%s", RDL_IMG_PATH, RDL_INFO.hd.file_name);
+#endif
 
 	fp = fopen(temp, "a");
 	if(fp == NULL) {
@@ -844,7 +858,14 @@ RDL_CRC_t rdl_check_total_crc(char *filename)
 	}
 
 	// open total pkg file and read to calculate CRC.
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_INSTALL1_PATH , filename);
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_INSTALL2_PATH , filename);
+#else
 	snprintf(tbuf, sizeof(tbuf) - 1, "%s%s", RDL_IMG_PATH, filename);
+#endif
 	if(check_img_file_crc(tbuf, &hd, NULL, NULL) < 0) {
 		zlog_notice("%s : Checking crc failed for pkg file %s.",
 			__func__, tbuf);
@@ -924,16 +945,63 @@ int get_fpga_fw_active_bank_flag(void)
 }
 #endif
 
-// copy/restore original img file from file with fw header.
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+/**
+ * return value 
+ *	1 : ZIPFILE, 2 : NOT ZIP_FILE, -1 : ERROR  
+ * */
+#endif
 int restore_pkg_file(char *src, char *dst)
 {
 	int in, out, nread, total_sum = 0;
-	char block[RDL_BUFF_SIZE];
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	char block[RDL_BUFF_SIZE] = {0, };
+	char file_magic[4] = {0, };
+	const char zip_magic[4] = {0x50, 0x4B, 0x03, 0x04};
+#endif
 	fw_image_header_t hd;
 
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	if((in = open(src, O_RDONLY)) <= 0)
+		return -1;
+#else
 	in = open(src, O_RDONLY);
 	out = open(dst, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
+#endif
 
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	lseek(in, sizeof(fw_image_header_t), SEEK_SET);
+	read(in, file_magic, 4);	
+
+	if(memcmp(file_magic, zip_magic, 4))
+	{
+		zlog_notice("img file is not Zipp file");		
+		close(in); 
+		return PKG_NONZIP; 
+	}
+
+	zlog_notice("%s is Zipp file", src);		
+
+	if((out = open(dst, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR)) <= 0) 
+	{
+		close(in); 
+		zlog_notice("%s create failed %s", dst, strerror(errno));		
+		return -1;
+	}
+	else
+		zlog_notice("%s created", dst);		
+
+	lseek(in, sizeof(fw_image_header_t), SEEK_SET);
+	// read/write to file and calculate crc.
+	while ((nread = read(in, block, RDL_BUFF_SIZE)) > 0) {
+		total_sum += get_sum((uint16_t *)block, nread);
+		write(out, block, nread);
+	}
+
+	close(in); 
+	close(out);
+
+#else
 	// read pkg header to skip it.
 	if((nread = read(in, &hd, sizeof(fw_image_header_t))) <= 0)
 		return -1;
@@ -953,7 +1021,7 @@ int restore_pkg_file(char *src, char *dst)
 		write(out, block, nread);
 	}
 
-	close(in); close(out);
+#endif
 
 #if 0 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	/*NOTE : fih_dcrc and total_crc comes from different crc calculation. cannot match them. */
@@ -963,7 +1031,7 @@ int restore_pkg_file(char *src, char *dst)
 	}
 #endif
 
-	return 0;
+	return PKG_ZIP;
 }
 
 int restore_img_file(char *src, char *dst)
@@ -1034,9 +1102,9 @@ int rdl_collect_img_header_info(char *fname, fw_image_header_t *hd)
 
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	if(bno == RDL_BANK_1)
-		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_B1_PATH, fname);
+		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_INSTALL1_PATH , fname);
 	else if(bno == RDL_BANK_2)
-		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_B2_PATH, fname);
+		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_INSTALL2_PATH , fname);
 	else
 		snprintf(fpath, sizeof(fpath) - 1, "%s%s", RDL_IMG_PATH, fname);
 #else
@@ -1118,6 +1186,7 @@ error_out:
 	return ret;
 }
 
+#if 0
 // update rdl registers.
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
@@ -1329,6 +1398,7 @@ void rdl_update_bank_registers(void)
 	return;
 }
 #endif
+#endif
 
 // decompress pkg file into original bp os & fpga f/w img files.
 int rdl_decompress_package_file(char *filename)
@@ -1336,8 +1406,18 @@ int rdl_decompress_package_file(char *filename)
 	fw_image_header_t hd;
 	int result = -1, retry;
 	char cmd[250], fsrc[100], fdst[100];
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	uint8_t isZipFile;
+#endif
 
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_INSTALL1_PATH , filename);
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_INSTALL2_PATH , filename);
+#else
 	snprintf(fsrc, sizeof(fsrc) - 1, "%s%s", RDL_IMG_PATH, filename);
+#endif
 
 	// get img header from pkg file.
 	if(get_img_fwheader_info(fsrc, &hd) < 0) {
@@ -1348,54 +1428,76 @@ int rdl_decompress_package_file(char *filename)
 	}
 
 	// header info must be same as RDL_INFO.
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	if(htonl(hd.fih_magic) != RDL_INFO.hd.magic) {
-		zlog_notice("%s : Different magic [0x%x/0x%x] ? Or No header present ?",
-			__func__, htonl(hd.fih_magic), RDL_INFO.hd.magic);
+		zlog_notice("Different magic [0x%x/0x%x] ? Or No header present ?",
+			htonl(hd.fih_magic), RDL_INFO.hd.magic);
 		unlink(fsrc);
 		goto __return__;
 	}
 	if(htonl(hd.fih_size) != (RDL_INFO.hd.total_size - sizeof(fw_image_header_t))) {
-		zlog_notice("%s : Different file size [%u/%u].",
-			__func__, ntohl(hd.fih_size), 
+		zlog_notice("Different file size [%u/%u].",
+			ntohl(hd.fih_size), 
 			(RDL_INFO.hd.total_size - sizeof(fw_image_header_t)));
-		unlink(fsrc);
-		goto __return__;
-	}
-	/*NOTE : fih_dcrc and total_crc comes from diffrent crc calculation. cannot match them. */
-#else
-	if(ntohl(hd.fih_magic) != ntohl(RDL_INFO.hd.magic)) {
-		zlog_notice("%s : Different magic [0x%x/0x%x] ? Or No header present ?",
-			__func__, ntohl(hd.fih_magic), ntohl(RDL_INFO.hd.magic));
-		unlink(fsrc);
-		goto __return__;
-	}
-	if(ntohl(hd.fih_size) != (RDL_INFO.hd.total_size - sizeof(fw_image_header_t))) {
-		zlog_notice("%s : Different file size [%u/%u].",
-			__func__, ntohl(hd.fih_size), 
-			(RDL_INFO.hd.total_size - sizeof(fw_image_header_t)));
-		unlink(fsrc);
-		goto __return__;
-	}
-	if(ntohl(hd.fih_dcrc) != RDL_INFO.hd.total_crc) {
-		zlog_notice("%s : Different crc [0x%x/0x%x].",
-			__func__, ntohl(hd.fih_dcrc), RDL_INFO.hd.total_crc);
 		unlink(fsrc);
 		goto __return__;
 	}
 #endif
+#endif
+	/*check zip file*/
 
 	// remove img header and get zipped pkg(os + fw + .pkg_info) file.
-	restore_pkg_file(fsrc, RDL_TEMP_ZIP_FILE);
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	if((isZipFile = restore_pkg_file(fsrc, RDL_TEMP_ZIP_FILE)) == PKG_ERROR)
+	{
+		goto __return__;
+	}
 
+	if(isZipFile == PKG_NONZIP)
+	{
+		gDB.pkg_is_zip = PKG_NONZIP;
+		return 0; 
+	}
+	else
+		gDB.pkg_is_zip = PKG_ZIP;
+#endif
+
+#if 0 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
 	// remove rdl file, anyway.
 	unlink(fsrc);
+#endif
 
 	// decompress package file info os, fw, and .pkg_info files.
 	retry = 0;
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
+		RDL_TEMP_ZIP_FILE, RDL_INSTALL1_PATH);
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
+		RDL_TEMP_ZIP_FILE, RDL_INSTALL2_PATH);
+	else
+	{
+		zlog_notice("Bank %d unzip not excuted.", RDL_INFO.bno);
+		goto __return__;
+	}
+
+#else
 	snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
 		RDL_TEMP_ZIP_FILE, RDL_IMG_PATH);
+#endif
 
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+	result = system(cmd);
+	if(result != 0) {
+		zlog_notice("Decompress failed. reason[%s].", 
+					strerror(errno));
+		unlink(RDL_TEMP_ZIP_FILE);
+		result = -1;
+		goto __return__;
+	}
+#else
 __retry__:
 	result = system(cmd);
 	if(result != 0) {
@@ -1406,8 +1508,27 @@ __retry__:
 		result = -1;
 		goto __return__;
 	}
+#endif
+
+
+	/*bank write*/
+	switch(RDL_INFO.bno)
+	{
+		case RDL_BANK_1:
+			if(get_pkg_header(RDL_BANK_1, &(gDB.bank1_header)) == RT_OK)
+				write_pkg_header(RDL_BANK_1, &(gDB.bank1_header));
+			break;
+		case RDL_BANK_2:
+			if(get_pkg_header(RDL_BANK_2, &(gDB.bank2_header)) == RT_OK)
+				write_pkg_header(RDL_BANK_2, &(gDB.bank2_header));
+			break;
+		default: 
+			break;
+	}
+	unlink(RDL_TEMP_ZIP_FILE);
 
 	// remove pkg file.
+#if 0 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
 	unlink(RDL_TEMP_ZIP_FILE);
 
 	// now we get bp os, fpga f/w, and .pkg_info files.
@@ -1530,6 +1651,7 @@ __retry__:
 	} else {
 		zlog_notice("%s : No fpga file ? %s.", __func__, RDL_PKG_HEADER.ih_image2_str);
 	}
+#endif
 
 #if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// check if fpga f/w is present.
@@ -2449,6 +2571,10 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 				evt = EVT_RDL_IMG_RUNNING_FAIL;
 			break;
 #endif /* [#105] */
+#if 1/*[#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-03*/ 
+		case	ST_RDL_BANK_MOVE_WAIT:
+			break;
+#endif
 
 		case	ST_RDL_TERM:
 			evt = EVT_RDL_NONE;

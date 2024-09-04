@@ -337,6 +337,9 @@ int fpga_bank_adjust(void)
 	}
 
 	printf("FPGA Default bank booting..\n"); 
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-03*/
+	env_set("fpga_bank", "0");
+#endif
 #if 0/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
 #if 1/*[#82] eag6l board SW Debugging, balkrow, 2024-08-26*/
 	{

@@ -182,6 +182,10 @@ typedef struct rsmu_get_sts
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #define RDL_VER_STR_MAX             16/* or 2? */
 #define RDL_FILE_NAME_MAX           32
+#define PKG_ZIP 1
+#define PKG_NONZIP 2
+#define PKG_ERROR -1
+#define OS_IMG_PREFIX "eag6l-os-v"
 
 typedef struct fw_image_header {
     unsigned int    fih_magic;  /* Image Header Magic Number    */
@@ -224,6 +228,7 @@ typedef struct globalDB
 	uint8_t os_bank;
 #endif
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
+	uint8_t pkg_is_zip;
 	fw_image_header_t	bank1_header;
 	fw_image_header_t	bank2_header;
 #endif

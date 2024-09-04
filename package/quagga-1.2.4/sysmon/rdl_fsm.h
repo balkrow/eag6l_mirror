@@ -139,6 +139,9 @@ typedef enum {
 	ST_RDL_ACTIVATE_DONE,
 #endif
 	ST_RDL_RUNNING_CHECK,
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-03 */
+	ST_RDL_BANK_MOVE_WAIT,
+#endif
 	ST_RDL_TERM,
 	ST_RDL_ST_MAX,
 } RDL_ST_t;
@@ -169,6 +172,9 @@ typedef enum {
 	EVT_RDL_IMG_ACTIVE_FAIL,
 	EVT_RDL_IMG_RUNNING_SUCCESS,
 	EVT_RDL_IMG_RUNNING_FAIL,
+#endif
+#if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-03*/ 
+	EVT_RDL_WAIT_MOVE_IMG_TO_BANK,
 #endif
 	EVT_RDL_EVT_MAX,
 } RDL_EVT_t;
