@@ -1404,6 +1404,9 @@ typedef enum {
 #define CPLD_BANK_OK                0x09
 #endif
 #endif
+#if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
+#define FPGA_RESET_BY_BP 0x20
+#endif
 
 
 extern unsigned long __COMMON_CTRL2_ADDR[PORT_ID_EAG6L_MAX];

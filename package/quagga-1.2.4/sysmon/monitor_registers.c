@@ -1061,8 +1061,9 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 
 	if(!gDB.pkg_is_zip)
 		gDB.pkg_is_zip = is_pkg_zip(val);
-
-	zlog_notice("Bank %d PKG TYPE %d", val, gDB.pkg_is_zip);
+#if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
+	zlog_notice("Bank %d PKG TYPE %s", val, gDB.pkg_is_zip == PKG_ZIP ? "ZIP":"Normal");
+#endif
 	
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-04*/
 	if(gDB.pkg_is_zip == PKG_NONZIP)
@@ -1091,6 +1092,10 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 			system(cmd);
 
 			/** OS reboot */
+#if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
+			CPLD_WRITE(FPGA_RESET_BY_BP, 0xa5a5);
+			CPLD_WRITE(FPGA_RESET_BY_BP, 0);
+#endif
 			memset(cmd, 0, 100);
 			sprintf(cmd, "reboot -nf");
 			system(cmd);
@@ -1139,6 +1144,10 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 			}
 
 			/** OS reboot */
+#if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
+			CPLD_WRITE(FPGA_RESET_BY_BP, 0xa5a5);
+			CPLD_WRITE(FPGA_RESET_BY_BP, 0);
+#endif
 			memset(cmd, 0, 100);
 			sprintf(cmd, "reboot -nf");
 			system(cmd);
