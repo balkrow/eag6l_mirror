@@ -5,7 +5,7 @@ FPGA_IMAGE=$2
 
 echo "OS_IMG = $OS_IMG"
 echo "FPGA_IMG = $FPGA_IMAGE"
-PKG_VERSION=${MAJOR}.${MINOR}.${REV}
+#PKG_VERSION=${MAJOR}.${MINOR}.${REV}
 
 
 if ! [ -f "$OS_IMG" ]; then
