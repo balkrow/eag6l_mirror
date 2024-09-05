@@ -975,8 +975,40 @@ int restore_pkg_file(char *src, char *dst)
 
 	if(memcmp(file_magic, zip_magic, 4))
 	{
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-05 */
+		fw_image_header_t header;
+		char os_image_name[256] = {0, };
 		zlog_notice("img file is not Zipp file");		
+		lseek(in, 0, SEEK_SET);
+		read(in, &header, sizeof(fw_image_header_t));	
+
+		if(RDL_INFO.bno == RDL_BANK_1)
+		{
+			sprintf(os_image_name, "%s%s%s.bin", RDL_INSTALL1_PATH, "eag6l-os-v", header.fih_ver);
+		}
+		else if(RDL_INFO.bno == RDL_BANK_1)
+		{
+			sprintf(os_image_name, "%s%s%s.bin", RDL_INSTALL2_PATH, "eag6l-os-v", header.fih_ver);
+		}
+
+		if((out = open(os_image_name, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR)) <= 0) 
+		{
+			close(in); 
+			zlog_notice("%s create failed %s", dst, strerror(errno));		
+			return -1;
+		}
+		else
+			zlog_notice("%s created", os_image_name);		
+
+		lseek(in, sizeof(fw_image_header_t), SEEK_SET);
+		// read/write to file and calculate crc.
+		while ((nread = read(in, block, RDL_BUFF_SIZE)) > 0) {
+			total_sum += get_sum((uint16_t *)block, nread);
+			write(out, block, nread);
+		}
 		close(in); 
+		close(out);
+#endif
 		return PKG_NONZIP; 
 	}
 
@@ -1448,66 +1480,38 @@ int rdl_decompress_package_file(char *filename)
 	/*check zip file*/
 
 	// remove img header and get zipped pkg(os + fw + .pkg_info) file.
-#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-05 */
 	if((isZipFile = restore_pkg_file(fsrc, RDL_TEMP_ZIP_FILE)) == PKG_ERROR)
 	{
 		goto __return__;
 	}
 
-	if(isZipFile == PKG_NONZIP)
+	if(isZipFile == PKG_ZIP)
 	{
-		gDB.pkg_is_zip = PKG_NONZIP;
-		return 0; 
-	}
-	else
 		gDB.pkg_is_zip = PKG_ZIP;
-#endif
+		if(RDL_INFO.bno == RDL_BANK_1)
+			snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
+				 RDL_TEMP_ZIP_FILE, RDL_INSTALL1_PATH);
+		else if(RDL_INFO.bno == RDL_BANK_2)
+			snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
+				 RDL_TEMP_ZIP_FILE, RDL_INSTALL2_PATH);
+		else
+		{
+			zlog_notice("Bank %d unzip not excuted.", RDL_INFO.bno);
+			goto __return__;
+		}
 
-#if 0 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
-	// remove rdl file, anyway.
-	unlink(fsrc);
-#endif
-
-	// decompress package file info os, fw, and .pkg_info files.
-	retry = 0;
-#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
-	if(RDL_INFO.bno == RDL_BANK_1)
-		snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
-		RDL_TEMP_ZIP_FILE, RDL_INSTALL1_PATH);
-	else if(RDL_INFO.bno == RDL_BANK_2)
-		snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
-		RDL_TEMP_ZIP_FILE, RDL_INSTALL2_PATH);
+		result = system(cmd);
+		if(result != 0) {
+			zlog_notice("Decompress failed. reason[%s].", 
+				    strerror(errno));
+			unlink(RDL_TEMP_ZIP_FILE);
+			result = -1;
+			goto __return__;
+		}
+	}
 	else
-	{
-		zlog_notice("Bank %d unzip not excuted.", RDL_INFO.bno);
-		goto __return__;
-	}
-
-#else
-	snprintf(cmd, sizeof(cmd) - 1, "unzip -o -q %s -d %s", 
-		RDL_TEMP_ZIP_FILE, RDL_IMG_PATH);
-#endif
-
-#if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
-	result = system(cmd);
-	if(result != 0) {
-		zlog_notice("Decompress failed. reason[%s].", 
-					strerror(errno));
-		unlink(RDL_TEMP_ZIP_FILE);
-		result = -1;
-		goto __return__;
-	}
-#else
-__retry__:
-	result = system(cmd);
-	if(result != 0) {
-		if(retry++ < 3)	goto __retry__;
-
-		zlog_notice("%s : Decompress failed. reason[%s].", 
-			__func__, strerror(errno));
-		result = -1;
-		goto __return__;
-	}
+		gDB.pkg_is_zip = PKG_NONZIP;
 #endif
 
 
