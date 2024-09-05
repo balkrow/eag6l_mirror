@@ -7,4 +7,5 @@ else
 rm $FPGA_DIR/eag6l_fpga_v${FPGA_VER}.bin
 echo "$FPGA_DIR/$FPGA_POF_FILE ->  $FPGA_DIR/eag6l_fpga_v${FPGA_VER}.bin" 
 dd if=$FPGA_DIR/${FPGA_POF_FILE} of=$FPGA_DIR/eag6l_fpga_v${FPGA_VER}.bin bs=1 skip=2097295 count=$FPGA_IMG_SIZE
+cp -avf $FPGA_DIR/eag6l_fpga_v${FPGA_VER}.bin $TOPDIR/scripts
 fi
