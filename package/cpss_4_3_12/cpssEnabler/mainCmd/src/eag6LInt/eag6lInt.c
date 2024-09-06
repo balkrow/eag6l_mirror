@@ -62,6 +62,10 @@ extern void initFaultFsmList (void);
 #if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
 extern uint8_t EAG6LJumboFrameEnable (void);
 #endif
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+int8_t gLocalQL = 0;
+int8_t gSecSendQL = 0;
+#endif
 
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 extern uint8_t eag6LPortlist [];
@@ -781,7 +785,11 @@ static void RxPktReceive
 	/*
 	   T_port_ext_ql_tlv_data parsed_ext_ql_tlv_data;
 	   */
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+	T_esmc_network_option net_opt = 0;
+#else
 	T_esmc_network_option net_opt = E_esmc_network_option_1;
+#endif
 	T_esmc_pdu *msg;
 
 
@@ -791,6 +799,12 @@ static void RxPktReceive
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
 	if((esmcRxPort & (1 << getSPortByCport(toCpu->interface.portNum))) == 0)
 		return;
+#endif
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+	if(gLocalQL)
+		net_opt = gLocalQL;
+	else
+		net_opt = E_esmc_network_option_1;
 #endif
 
 	msg = (T_esmc_pdu *)*packetBuffs;
@@ -1937,6 +1951,70 @@ uint8_t gCpssPortPMFECClear(int args, ...)
 }
 #endif
 
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+uint8_t gCpssNone(int args, ...)
+{
+	args = args;
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssPortSendQL(int args, ...)
+{
+	uint8_t ret = GT_OK;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+#ifdef DEBUG
+	syslog(LOG_INFO, "called %s args=%d", __func__, args);
+#endif
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] val[%d].", 
+	       __func__, gPortSendQL, msg->type, msg->portid);
+
+	syslog(LOG_INFO, ">>> gCpssPortSendQL DONE ret[%x] <<<", ret);
+
+	msg->result = ret;
+
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssLocalQL(int args, ...)
+{
+	uint8_t ret = GT_OK;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+#ifdef DEBUG
+	syslog(LOG_INFO, "called %s args=%d", __func__, args);
+#endif
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] val[%d].", 
+	       __func__, gPortLocalQL, msg->type, msg->portid);
+
+	if(((msg->portid >> 4) & 0xf) == 0x1)
+		gLocalQL = E_esmc_network_option_1;
+	else if(((msg->portid >> 4) & 0xf) == 0x2)
+		gLocalQL = E_esmc_network_option_2;
+	else
+		ret = GT_FAIL;
+
+	syslog(LOG_INFO, ">>> gCpssSecSendQL[%x] DONE ret[%x] <<<", gLocalQL, ret);
+
+	msg->result = ret;
+
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 {
 	gCpssSDKInit,
@@ -1959,6 +2037,11 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #endif
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
 	gCpssPortPMFECClear,
+#endif
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+	gCpssNone,
+	gCpssPortSendQL,
+	gCpssLocalQL,
 #endif
 };
 

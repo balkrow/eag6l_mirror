@@ -409,6 +409,64 @@ uint8_t gCpssPortPMFECClear(int args, ...)
 	return IPC_CMD_SUCCESS;
 }
 #endif
+#if 1/*[#118] Sync-e option2 ¿¿, balkrow, 2024-09-06*/
+uint8_t gCpssNone(int args, ...)
+{
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssPortSendQL(int args, ...)
+{
+	va_list argP;
+	sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+	if(args != 1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	memset(&msg, 0, sizeof msg);
+	va_start(argP, args);
+	msg.portid = va_arg(argP, uint32_t);
+	va_end(argP);
+	msg.type = gPortSendQL;
+
+	if(send_to_sysmon_slave(&msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gCpssLocalQL(int args, ...)
+{
+	va_list argP;
+	sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+	if(args != 1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	memset(&msg, 0, sizeof msg);
+	va_start(argP, args);
+	msg.portid = va_arg(argP, uint32_t);
+	va_end(argP);
+	msg.type = gPortLocalQL;
+
+	if(send_to_sysmon_slave(&msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
+	return IPC_CMD_SUCCESS;
+}
+#endif
 
 
 cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
@@ -436,6 +494,11 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 #endif
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
 	gCpssPortPMFECClear,
+#endif
+#if 1/*[#118] Sync-e option2 ¿¿, balkrow, 2024-09-06*/
+	gCpssNone,
+	gCpssPortSendQL,
+	gCpssLocalQL,
 #endif
 };
 
