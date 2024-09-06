@@ -77,6 +77,10 @@ uint16_t boardStatus(uint16_t port, uint16_t val);
 uint16_t bankSelect1(uint16_t port, uint16_t val);
 uint16_t bankSelect2(uint16_t port, uint16_t val);
 #endif
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+uint16_t syncePortSendQL(uint16_t port, uint16_t val);
+uint16_t synceLocalQL(uint16_t port, uint16_t val);
+#endif
 void update_port_sfp_inventory(void);
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
@@ -228,6 +232,10 @@ RegMON regMonList [] = {
 #endif
 	/* synce global control */
   { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceEnableSet }, 
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+  { SYNCE_ESMC_LQL_ADDR,  0xFF00, 8, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, syncePortSendQL }, 
+  { SYNCE_ESMC_LQL_ADDR,   0xFF, 0, 0x12, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceLocalQL }, 
+#endif
 	/* synce interface select */
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
@@ -397,6 +405,23 @@ uint16_t synceEnableSet(uint16_t port, uint16_t val)
 #endif
 
 #endif
+
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+uint16_t syncePortSendQL(uint16_t port, uint16_t val)
+{
+	uint16_t rc = RT_OK;
+	rc = gSysmonToCpssFuncs[gPortSendQL](1, val);
+	return rc;
+}
+
+uint16_t synceLocalQL(uint16_t port, uint16_t val)
+{
+	uint16_t rc = RT_OK;
+	rc = gSysmonToCpssFuncs[gPortLocalQL](1, val);
+	zlog_notice("Local QL %x", val);
+	return rc;
+}
+#endif /* [#118] */
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
@@ -1344,7 +1369,7 @@ void regMonitor(void)
 		val = (val >> regMonList[i].shift) & regMonList[i].mask;
 #endif
 
-#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#if 0/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
 		/* delay other port-dependent register callbacks after boardStatus is called. */
 		if(! boardStatusFlag && 
 			((regMonList[i].reg != BD_SFP_CR_ADDR) &&
@@ -1361,7 +1386,7 @@ void regMonitor(void)
 #else
 			regMonList[i].cb(val);
 #endif
-#if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
+#if 0/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
 			if(ret == RT_OK) {
 				regMonList[i].rollback_val = regMonList[i].val;
 				regMonList[i].rb_thread = thread_add_timer(master, rollback_reg, (void *)&i, 2);

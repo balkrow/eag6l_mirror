@@ -52,6 +52,10 @@ enum sysmon_cmd_fifo_type
 	gPortESMCQLupdate,
 #endif
 #endif
+#if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
+	gPortSendQL,
+	gPortLocalQL,
+#endif
 };
 
 enum sysmon_cmd_result_type
