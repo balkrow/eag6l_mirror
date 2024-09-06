@@ -154,10 +154,18 @@ SVC_EVT svc_init_fail(SVC_ST st) {
 		 * WRITE INIT COMPLETE (0x18)
 		 * WRITE CPU FAIL (0x12)
 		 * */
+#if 1/*[#111] SDK INIT FAIL 시에도 INIT_DONE 설정 그리고 BP FAIL SET, balkrow, 2024-09-06*/
+		gRegUpdate(INIT_COMPLETE_ADDR, 0, INIT_COMPLETE_ADDR_MASK, SYS_INIT_DONE);
+		if(gDB.svc_fsm.evt == SVC_EVT_SDK_INIT_FAIL) 
+			gRegUpdate(CPU_FAIL_ADDR, 8, CPU_FAIL_MASK, 1);
+		gDB.init_state = SYS_INIT_DONE;  
+
+#else
 		gRegUpdate(INIT_COMPLETE_ADDR, 0, INIT_COMPLETE_ADDR_MASK, 0);
 		gRegUpdate(CPU_FAIL_ADDR, 8, CPU_FAIL_MASK, 1);
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 		gDB.init_state = SYS_INIT_FAIL;  
+#endif
 #endif
 	}
 
