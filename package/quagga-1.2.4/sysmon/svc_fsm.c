@@ -220,6 +220,10 @@ SVC_EVT svc_dpram_check(SVC_ST st) {
 	/*READ 0x2*/
 	if(DPRAM_READ(DPRAM_RDL_STATE) == 0xaa)
 		rc = SVC_EVT_DPRAM_ACCESS_SUCCESS;
+#if 1 /*[#123] BP Debug register, balkrow, 2024-09-09*/
+	else
+		gRegUpdate(CPU_FAIL_ADDR, 0x15, 0x8000, 0x1); 
+#endif
 
 	if(!watch_get_pidof(prog))
 		rc = SVC_EVT_APPDEMO_SHUTDOWN;  
@@ -266,6 +270,10 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	/*read SW version reg*/
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
+#if 1 /*[#123] BP Debug register, balkrow, 2024-09-09*/
+	else
+		gRegUpdate(CPU_FAIL_ADDR, 0x14, 0x4000, 0x1); 
+#endif
 
 #if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
 	gDB.localQL = ESMC_LOCAL_QL;
@@ -428,6 +436,10 @@ SVC_EVT svc_fpga_switch_bank(SVC_ST st) {
 
 SVC_EVT svc_fpga_update_fail(SVC_ST st) {
 	SVC_EVT evt = SVC_EVT_FPGA_UPDATE_FAIL;
+#if 1 /*[#123] BP Debug register, balkrow, 2024-09-09*/
+	if(gDB.fpga_running_bank == 0) 
+		gRegUpdate(CPU_FAIL_ADDR, 0x13, 0x2000, 0x1); 
+#endif
 	zlog_notice("FPGA Update.. Failed");
 	return evt;
 }
@@ -446,6 +458,10 @@ SVC_EVT svc_fpga_update(SVC_ST st) {
 	if(chk_file_from_dir(FPGA_IMG_PREFIX, &fpga_ver, fpga_img_file) == RT_NOK)
 	{
 		evt = SVC_EVT_FPGA_UPDATE_PASS;
+#if 1 /*[#123] BP Debug register, balkrow, 2024-09-09*/
+		if(gDB.fpga_running_bank == 0) 
+			gRegUpdate(CPU_FAIL_ADDR, 0x13, 0x2000, 0x1); 
+#endif
 		zlog_notice("No Update FPGA PASS. ");
 	}
 	else 
