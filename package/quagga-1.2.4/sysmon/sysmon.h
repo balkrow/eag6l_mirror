@@ -232,12 +232,18 @@ typedef struct globalDB
 	fw_image_header_t	bank1_header;
 	fw_image_header_t	bank2_header;
 #endif
+#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
+	uint8_t localQL;
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;
 
 #define RSMU_MAGIC   '?'
 #define RSMU_GET_STATE                      _IOR(RSMU_MAGIC, 2, struct rsmu_get_state)
+#endif
+#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
+#define ESMC_LOCAL_QL 0x12
 #endif
 /* 
  * type definitions

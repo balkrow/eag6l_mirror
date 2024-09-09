@@ -267,6 +267,9 @@ SVC_EVT svc_fpga_check(SVC_ST st) {
 	if(FPGA_READ(SW_VERSION_ADDR) == swVer)
 		rc = SVC_EVT_FPGA_ACCESS_SUCCESS;
 
+#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
+	gDB.localQL = ESMC_LOCAL_QL;
+#endif
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 	gDB.os_bank = get_os_bank();
 	running_bank = (gDB.os_bank << 8) & 0xff00;
