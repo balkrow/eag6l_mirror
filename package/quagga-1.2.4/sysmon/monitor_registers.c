@@ -418,6 +418,9 @@ uint16_t synceLocalQL(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 	rc = gSysmonToCpssFuncs[gPortLocalQL](1, val);
+#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
+	gDB.localQL = val;
+#endif
 	zlog_notice("Local QL %x", val);
 	return rc;
 }
@@ -480,8 +483,13 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 			break;
 	}
 
+#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
 	if(port != 0xff)
+	{
 		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
+		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL);
+	}
+#endif
 	else
 		rc = RT_NOK;
 
@@ -544,8 +552,13 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 			break;
 	}
 
+#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
 	if(port != 0xff)
+	{
 		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
+		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
+	}
+#endif
 	else
 		rc = RT_NOK;
 
@@ -1063,6 +1076,9 @@ uint16_t data;
 	rdl_update_bank_registers(RDL_BANK_1);
 	rdl_update_bank_registers(RDL_BANK_2);
 #endif
+#endif
+#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
+	gDB.localQL = ESMC_LOCAL_QL;
 #endif
 
 	/* recover initial complete register. */
