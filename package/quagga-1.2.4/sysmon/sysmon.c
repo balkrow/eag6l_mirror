@@ -41,6 +41,9 @@ char* progname;
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
 int i2c_in_use_flag;
 #endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+int i2c_in_use_flag_backup;
+#endif
 
 #if 1/*[#26] system managent FSM ¿¿, balkrow, 2024-05-20*/
 extern  SVC_ST transition(SVC_ST state, SVC_EVT event);

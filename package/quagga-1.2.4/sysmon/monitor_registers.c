@@ -53,6 +53,10 @@ extern int8_t rsmuGetPLLState(void);
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 #endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+extern int i2c_in_use_flag;
+extern int i2c_in_use_flag_backup;
+#endif
 
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 uint16_t portESMCenable (uint16_t port, uint16_t val);
@@ -221,6 +225,17 @@ RegMON regMonList [] = {
   { PORT_7_CONF_ADDR,     0xFF00, 8, 0x5A, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, update_laser_status }, 
 #endif
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	/* channel number set */
+	/* FIXME : there are no channel table for 100G */
+  { PORT_1_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_2_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_3_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_4_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_5_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_6_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+  { PORT_7_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+#else
 	/* channel number set */
 	/* FIXME : there are no channel table for 100G */
   { PORT_1_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
@@ -229,6 +244,7 @@ RegMON regMonList [] = {
   { PORT_4_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
   { PORT_5_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
   { PORT_6_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+#endif /* [#125] */
 #endif
 	/* synce global control */
   { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceEnableSet }, 
@@ -727,6 +743,10 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
 			PORT_STATUS[port].equip = 0;/*not-installed*/
 		} else {/*0-mean-installed*/
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+			i2c_in_use_flag_backup = i2c_in_use_flag;
+			i2c_in_use_flag = 1;
+#endif
 #if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
 			thread_add_timer(master, port_scan_sfp, port, 
 				(port >= (PORT_ID_EAG6L_MAX - 1)) ? 3 : 1);
@@ -828,6 +848,9 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			}
 #endif
 #endif /* [#107] */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+			i2c_in_use_flag = i2c_in_use_flag_backup;
+#endif
 		}
 	}
 	return SUCCESS;
@@ -1840,7 +1863,11 @@ u32 MCU_KEEP_ALIVE_RETRY_COUNT;
 
 // convert to decimal format value from float dbm value
 // float -17.5 will be presented as -175 in integer.
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+unsigned int convert_dbm_float_to_decimal(f32 val, int dbm_flag, int tx_flag)
+#else
 unsigned int convert_dbm_float_to_decimal(f32 val, int dbm_flag)
+#endif /* [#125] */
 {
 	unsigned int unit_10, unit_1, unit_0, vvv, minus_flag;
 	f32 temp;
@@ -1848,8 +1875,21 @@ unsigned int convert_dbm_float_to_decimal(f32 val, int dbm_flag)
 	if(dbm_flag) {
 		if(val > 10.0)
 			return 0x100;
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+		/* NOTE : rx/tx power have different min value. */
+		if(tx_flag) {
+			if(val < -15.0)
+				return 0x8150;
+		} else {
+			if(val < -39.0)
+				return 0x8535;
+		}
+#else
+		if(val > 10.0)
+			return 0x100;
 		if(val < -15.0)
 			return 0x8150;
+#endif /* [#125] */
 	}
 
 	// save original value and minus flag and turn into positive.
@@ -3095,6 +3135,18 @@ extern int update_flex_tune_status(int portno);
 		
 		
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+		/* update tx power */
+		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
+			PORT_STATUS[portno].equip ? 
+			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/, 1/*tx*/)
+			: 0x8999); 
+		/* update rx power */
+		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
+			PORT_STATUS[portno].equip ? 
+			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/, 0/*rx*/)
+			: 0x89999);
+#else /*********************************************************************/
 		/* update tx power */
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
 			PORT_STATUS[portno].equip ? 
@@ -3105,6 +3157,7 @@ extern int update_flex_tune_status(int portno);
 			PORT_STATUS[portno].equip ? 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/)
 			: 0x89999);
+#endif /* [#125] */
 #else
 		/* update tx power */
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
@@ -3117,7 +3170,11 @@ extern int update_flex_tune_status(int portno);
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
 		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
 		/* update voltage */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/, 0/*no-use*/);
+#else
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/);
+#endif /* [#125] */
 		FPGA_PORT_WRITE(__PORT_VOLT_ADDR[portno], val);
 		/* update tx bias */
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tx_bias);
@@ -3127,7 +3184,11 @@ extern int update_flex_tune_status(int portno);
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].laser_temp);
 		FPGA_PORT_WRITE(__PORT_LTEMP_ADDR[portno], val);
 		/* update TEC current */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].tec_curr, 0/*not-dbm*/, 0/*no-use*/);
+#else
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].tec_curr, 0/*not-dbm*/);
+#endif /* [#125] */
 		FPGA_PORT_WRITE(__PORT_TCURR_ADDR[portno], val);
 #else
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
@@ -3140,6 +3201,20 @@ extern int update_flex_tune_status(int portno);
 		if(PORT_STATUS[portno].tunable_sfp) {
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+			/* update tx power */
+			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
+			PORT_STATUS[portno].equip ?
+				convert_dbm_float_to_decimal(
+				PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr, 1/*dbm*/, 1/*tx*/)
+				: 0x8999);
+			/* update rx power */
+			FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[portno], 
+			PORT_STATUS[portno].equip ?
+				convert_dbm_float_to_decimal(
+				PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr, 1/*dbm*/, 0/*rx*/)
+				: 0x8999);
+#else /*******************************************************************/
 			/* update tx power */
 			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
 			PORT_STATUS[portno].equip ?
@@ -3152,6 +3227,7 @@ extern int update_flex_tune_status(int portno);
 				convert_dbm_float_to_decimal(
 				PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr, 1/*dbm*/)
 				: 0x8999);
+#endif /* [#125] */
 #else
 			/* update tx power */
 			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
@@ -3164,7 +3240,11 @@ extern int update_flex_tune_status(int portno);
 			val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.temp);
 			FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], val);
 			/* update voltage */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+			val = convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.vcc, 0/*not-dbm*/, 0/*no-use*/);
+#else
 			val = convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.vcc, 0/*not-dbm*/);
+#endif /* [#125] */
 			FPGA_PORT_WRITE(__PORT_VOLT_RTWDM_ADDR[portno], val);
 			/* update tx bias */
 			val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.tx_bias);
@@ -3174,7 +3254,11 @@ extern int update_flex_tune_status(int portno);
 			val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.laser_temp);
 			FPGA_PORT_WRITE(__PORT_LTEMP_RTWDM_ADDR[portno], val);
 			/* update TEC current */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+			val = convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.tec_curr, 0/*not-dbm*/, 0/*no-use*/);
+#else
 			val = convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.tec_curr, 0/*not-dbm*/);
+#endif /* [#125] */
 			FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[portno], val);
 #else
 			val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.laser_temp);
@@ -3247,6 +3331,10 @@ extern int update_flex_tune_status(int portno);
 			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], 
 				convert_hex_to_decimal(INV_TBL[portno].wave));
 			type = (PORT_STATUS[portno].sfp_type << 8);
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+			/* NOTE : hfr sfp providers have decimal value in reserved field. */
+			type |= INV_TBL[portno].wave_decimal;
+#endif
 			FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], type);
 #else
 			FPGA_PORT_WRITE(__PORT_WL1_ADDR[portno], INV_TBL[portno].wave);

@@ -1714,9 +1714,15 @@ int get_tunable_sfp_channel_no(int portno)
 		return;
 #endif
 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	/* do nothing for 100G port */
+	if(portno >= (PORT_ID_EAG6L_MAX - 1))
+		return SUCCESS;
+#else
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return SUCCESS;
+#endif
 
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
@@ -2004,21 +2010,37 @@ int update_sfp_channel_no(int portno)
 uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 {
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	int fd, mux_addr, ret = SUCCESS;
+	unsigned int chann_mask;
+#else
 	double wval;
 	int fd, mux_addr, ret = SUCCESS;
 	unsigned char val;
 	unsigned int chann_mask, data;
+#endif /* [#125] */
 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	if(chno > MAX_CHANNEL_NO) {
+		zlog_notice("%s: Invalid channel no[%d] for port[%d(0/%d)]", 
+			__func__, chno, portno, get_eag6L_dport(portno));
+		return ERR_INVALID_PARAM;
+	}
+#else
 	if((0 >= chno) || (chno > MAX_CHANNEL_NO)) {
 		zlog_notice("%s: Invalid channel no[%d] for port[%d(0/%d)]", 
 			__func__, chno, portno, get_eag6L_dport(portno));
 		return ERR_INVALID_PARAM;
 	}
+#endif
 
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return SUCCESS;
 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	/* NOTE : set as chno, not as wavelength. no need to map to wavelength. */
+#else /**********************************************************************/
 	if(PORT_STATUS[portno].speed == PORT_IF_25G_KR)
 		wval = WAVELENGTH_25G_TBL[chno - 1];
 	else if(PORT_STATUS[portno].sfp_type == SFP_ID_SMART_BIDI_TSFP_COT)
@@ -2032,6 +2054,7 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 
 	/* get writable data for wavelength */
 	data = (unsigned int)(wval / 0.05);
+#endif /* [#125] */
 
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
@@ -2083,6 +2106,21 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 
 	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	/* write chno msb. */
+	if((ret = i2c_smbus_write_byte_data(fd, 144/*0x90*/, (chno >> 8) & 0xFF)) < 0) {
+		zlog_notice("%s : Writing port[%d(0/%d)] channel no. msb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* write chno lsb. */
+	if((ret = i2c_smbus_write_byte_data(fd, 145/*0x91*/, chno & 0xFF)) < 0) {
+		zlog_notice("%s : Writing port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+#else /**********************************************************************/
 	/* write wavelength msb. */
 	if((ret = i2c_smbus_write_byte_data(fd, 146/*0x92*/, (data >> 8) & 0xFF)) < 0) {
 		zlog_notice("%s : Writing port[%d(0/%d)] wavelength msb failed. ret[%d].",
@@ -2096,6 +2134,7 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 				__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
+#endif /* [#125] */
 
 __exit__:
 	close(fd);
@@ -2812,6 +2851,9 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 		wl = wl | (short)raw->wavelength[1];
 
 		mod_inv->wave = wl;
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+		mod_inv->wave_decimal = raw->resv4;
+#endif
 		mod_inv->dist = raw->length_km;
 		mod_inv->max_rate = raw->br_nominal;
 		memcpy( &mod_inv->date_code, &raw->date_code[0], 8 );
@@ -2982,6 +3024,9 @@ void  get_sfp_rtwdm_info(int portno, struct module_inventory * mod_inv)
 	wl = wl | (short)raw->wavelength[1];
 
 	mod_inv->wave = wl;
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	mod_inv->wave_decimal = raw->resv4;
+#endif
 	mod_inv->dist = raw->length_km;
 	mod_inv->max_rate = raw->br_nominal;
 	memcpy( &mod_inv->date_code, &raw->date_code[0], 8 );
@@ -3153,6 +3198,9 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 {
 	int	bus = 1;
 	RawGbicDiagInfo *raw_diag = NULL;
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	RawQsfpLowerPage0 *raw_diag1 = NULL;
+#endif
 
 	double tx_db, rx_db;
 	double tx_pwr_slope, tx_pwr_offset, temp_slope, temp_offset, vcc_slope, vcc_offset, bias_slope, bias_offset;
@@ -3162,20 +3210,63 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	double tx_pwrad, temp_ad, vcc_ad, bias_ad;
 	double temp, vcc, bias, ltemp, tcurr;
 
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	/* do nothing for 100G port. */
 	if(portno >= (PORT_ID_EAG6L_MAX - 1))
 		return SUCCESS;
+#endif
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	filling_sfp_data_realtime(bus, 
+		(portno >= (PORT_ID_EAG6L_MAX - 1)) ? 
+			SFP_IIC_ADDR : DIAG_SFP_IIC_ADDR, portno, 0, HZ_I2C_SFP_DIAG,
+			&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START]);
+#else
 	filling_sfp_data_realtime(bus, DIAG_SFP_IIC_ADDR, portno, 0, HZ_I2C_SFP_DIAG,
 			&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START]);
+#endif /* [#125] */
 #else
 	filling_sfp_data_realtime(bus, DIAG_SFP_IIC_ADDR, portno, HZ_I2C_SFP_DIAG_START, HZ_I2C_SFP_DIAG,
 			&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START]);
 #endif
 
 	raw_diag = (RawGbicDiagInfo *)&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START];
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	raw_diag1 = (RawQsfpLowerPage0 *)&slot_sfp_info.data[portno][HZ_I2C_SFP_DIAG_START];
 
+	if(portno >= (PORT_ID_EAG6L_MAX - 1)) {
+		/* Temperature */
+		temp = (double)((raw_diag1->fs_dev_monitor[0] << 8) | 
+				raw_diag1->fs_dev_monitor[1]);
+		temp *= (((double)1 / (double)256)/*unit*/);
+
+		/* VCC */
+		vcc = (double)((raw_diag1->fs_dev_monitor[4] << 8) | 
+				raw_diag1->fs_dev_monitor[5]);
+		vcc *= ((double)100/*uV-unit*/ / (double)1000000/*convert-to-V*/);
+
+		/* TX Bias */
+		bias = (double)((raw_diag1->chann_monitor[8] << 8) | 
+				raw_diag1->chann_monitor[9]);
+		bias *= ((double)2/*uA-unit*/ / (double)1000000/*convert-to-A*/);
+
+		/* TX Power */
+		tx_db = (double)((raw_diag1->chann_monitor[16] << 8) | 
+				raw_diag1->chann_monitor[17]);
+		tx_db *= (0.1/*uW-unit*/ * 48.2/*dBm*/ / (double)6553.5/*uW*/);
+
+		/* RX Power */
+		rx_db = (double)((raw_diag1->chann_monitor[0] << 8) | 
+				raw_diag1->chann_monitor[1]);
+		rx_db *= (0.1/*uW-unit*/ * 48.2/*dBm*/ / 6553.5/*uW*/);
+
+		/* Laser Temperature */
+		ltemp = 0;
+
+		/* TEC Current */
+		tcurr = 0;
+	} else {
 	// Temperature.
 	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
 	sfp_get_slope(raw_diag->ext_cal_constants[28], raw_diag->ext_cal_constants[29], &temp_slope);
@@ -3244,6 +3335,77 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_offset(raw_diag->ext_cal_constants[34], raw_diag->ext_cal_constants[35], &vcc_offset);
 	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
 #endif
+	}
+#else /********************************************************************/
+	// Temperature.
+	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
+	sfp_get_slope(raw_diag->ext_cal_constants[28], raw_diag->ext_cal_constants[29], &temp_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[30], raw_diag->ext_cal_constants[31], &temp_offset);
+	sfp_get_temp(temp_ad, temp_slope, temp_offset, &temp);
+
+	// VCC
+	sfp_get_ad(raw_diag->diagnostics[2], raw_diag->diagnostics[3], &vcc_ad);
+	sfp_get_slope(raw_diag->ext_cal_constants[32], raw_diag->ext_cal_constants[33], &vcc_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[34], raw_diag->ext_cal_constants[35], &vcc_offset);
+	sfp_get_vcc(vcc_ad, vcc_slope, vcc_offset, &vcc);
+
+	// TX Bias
+	sfp_get_ad(raw_diag->diagnostics[4], raw_diag->diagnostics[5], &bias_ad);
+	sfp_get_slope(raw_diag->ext_cal_constants[20], raw_diag->ext_cal_constants[21], &bias_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[22], raw_diag->ext_cal_constants[23], &bias_offset);
+	sfp_get_bias(bias_ad, bias_slope, bias_offset, &bias);
+
+	// Tx Power
+	sfp_get_ad(raw_diag->diagnostics[6], raw_diag->diagnostics[7], &tx_pwrad);
+	sfp_get_slope(raw_diag->ext_cal_constants[24], raw_diag->ext_cal_constants[25], &tx_pwr_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[26], raw_diag->ext_cal_constants[27], &tx_pwr_offset);
+	sfp_get_tx_power(tx_pwrad, tx_pwr_slope, tx_pwr_offset, &tx_db);
+
+	// RX Power
+	sfp_get_ad_us(raw_diag->diagnostics[8], raw_diag->diagnostics[9], &rx_pwrad_us);
+	sfp_get_float(raw_diag->ext_cal_constants[0],
+			raw_diag->ext_cal_constants[1],
+			raw_diag->ext_cal_constants[2],
+			raw_diag->ext_cal_constants[3],
+			&rx_pwr4);
+	sfp_get_float(raw_diag->ext_cal_constants[4],
+			raw_diag->ext_cal_constants[5],
+			raw_diag->ext_cal_constants[6],
+			raw_diag->ext_cal_constants[7],
+			&rx_pwr3);
+	sfp_get_float(raw_diag->ext_cal_constants[8],
+			raw_diag->ext_cal_constants[9],
+			raw_diag->ext_cal_constants[10],
+			raw_diag->ext_cal_constants[11],
+			&rx_pwr2);
+	sfp_get_float(raw_diag->ext_cal_constants[12],
+			raw_diag->ext_cal_constants[13],
+			raw_diag->ext_cal_constants[14],
+			raw_diag->ext_cal_constants[15],
+			&rx_pwr1);
+	sfp_get_float(raw_diag->ext_cal_constants[16],
+			raw_diag->ext_cal_constants[17],
+			raw_diag->ext_cal_constants[18],
+			raw_diag->ext_cal_constants[19],
+			&rx_pwr0);
+	sfp_get_rx_power(rx_pwrad_us, rx_pwr0, rx_pwr1, rx_pwr2, rx_pwr3, rx_pwr4, &rx_db);
+
+	// Laser temperature
+	sfp_get_ad(raw_diag->optional_diag[0], raw_diag->optional_diag[1], &ltemp);
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	sfp_get_slope(raw_diag->ext_cal_constants[28], raw_diag->ext_cal_constants[29], &temp_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[30], raw_diag->ext_cal_constants[31], &temp_offset);
+	sfp_get_temp(ltemp, temp_slope, temp_offset, &ltemp);
+#endif
+
+	// TEC Current
+	sfp_get_ad(raw_diag->optional_diag[2], raw_diag->optional_diag[3], &tcurr);
+#if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+	sfp_get_slope(raw_diag->ext_cal_constants[32], raw_diag->ext_cal_constants[33], &vcc_slope);
+	sfp_get_offset(raw_diag->ext_cal_constants[34], raw_diag->ext_cal_constants[35], &vcc_offset);
+	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
+#endif
+#endif /* [#125] */
 
 #if 0
 	cprintf("bias:%+14.4f ", bias);

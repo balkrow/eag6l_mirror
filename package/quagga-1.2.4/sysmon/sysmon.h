@@ -448,6 +448,9 @@ extern void print_console(const char *fmt, ...);
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-25 */
         i8 date_code[10];
 #endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+		u8 wave_decimal;
+#endif
     };
 
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
