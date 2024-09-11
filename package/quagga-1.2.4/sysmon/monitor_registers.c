@@ -1133,7 +1133,7 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 			system(cmd);
 
 			/** OS reboot */
-#if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
+#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-11*/
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0xa5a5);
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0);
 #endif
@@ -1185,7 +1185,7 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 			}
 
 			/** OS reboot */
-#if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
+#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-11*/
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0xa5a5);
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0);
 #endif
