@@ -306,6 +306,15 @@ int fpga_bank_adjust(void)
 	uint16_t try_cnt;
 	char *act_bank_str = env_get("fw_act_bank");
 	char *std_bank_str = env_get("fw_stb_bank");
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-11*/
+	buf = map_sysmem(0x70000020, 2);
+	*((u16 *)buf) = 0xa5a5;
+	unmap_sysmem(buf);
+	udelay(100000);
+	buf = map_sysmem(0x70000020, 2);
+	*((u16 *)buf) = 0x0;
+	unmap_sysmem(buf);
+#endif
 
 	buf = map_sysmem(0x7000001c, 2);
 	/*check active bank*/
