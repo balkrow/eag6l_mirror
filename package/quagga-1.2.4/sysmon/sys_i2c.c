@@ -3288,6 +3288,9 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_slope(raw_diag->ext_cal_constants[32], raw_diag->ext_cal_constants[33], &vcc_slope);
 	sfp_get_offset(raw_diag->ext_cal_constants[34], raw_diag->ext_cal_constants[35], &vcc_offset);
 	sfp_get_vcc(vcc_ad, vcc_slope, vcc_offset, &vcc);
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	vcc *= 0.1;/*convert mV to V*/
+#endif
 
 	// TX Bias
 	sfp_get_ad(raw_diag->diagnostics[4], raw_diag->diagnostics[5], &bias_ad);
@@ -3680,6 +3683,9 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_slope(raw_diag0->ext_cal_constants[32], raw_diag0->ext_cal_constants[33], &vcc_slope);
 	sfp_get_offset(raw_diag0->ext_cal_constants[34], raw_diag0->ext_cal_constants[35], &vcc_offset);
 	sfp_get_vcc(vcc_ad, vcc_slope, vcc_offset, &vcc);
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	vcc *= 0.1;/*convert mV to V*/
+#endif
 
 	// TX Bias
 	sfp_get_ad(raw_diag->diagnostics[4], raw_diag->diagnostics[5], &bias_ad);
