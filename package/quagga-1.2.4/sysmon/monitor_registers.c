@@ -1914,8 +1914,43 @@ unsigned int convert_dbm_float_to_decimal(f32 val, int dbm_flag)
 	vvv |= ((unit_10 << 8) & 0xf00);
 	vvv |= ((unit_1 << 4) & 0xf0);
 	vvv |= unit_0;
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	if(vvv == 0)
+		vvv = 0x8000;
+#endif
 	return vvv;
 }
+
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+unsigned int convert_vcc_float_to_decimal(f32 val)
+{
+	unsigned int unit_10, unit_1, unit_0, unit_02, vvv, minus_flag;
+	f32 temp;
+
+	// save original value and minus flag and turn into positive.
+	minus_flag = (val < 0) ? 1 : 0;
+	if(minus_flag)
+		temp = 0 - val;
+	else
+		temp = val;
+	unit_10 = (int)(temp / 10);
+	temp = temp - (int)(unit_10 * 10);
+	unit_1 = (int)(temp / 1);
+	temp = temp - (int)(unit_1 * 1);
+	unit_0 = (int)(temp * 10);
+	temp = temp - (f32)(unit_0 * 0.1);
+	unit_02 = (int)(temp * 100);
+
+	vvv = 0;
+	if(minus_flag || (val == 0))
+		vvv |= (1 << 15);
+	vvv |= ((unit_10 << 12) & 0xf000);
+	vvv |= ((unit_1 << 8) & 0xf00);
+	vvv |= ((unit_0 << 4) & 0xf0);
+	vvv |= unit_02 & 0xf;
+	return vvv;
+}
+#endif
 
 unsigned int convert_temperature_float_to_decimal(f32 val)
 {
@@ -3145,7 +3180,7 @@ extern int update_flex_tune_status(int portno);
 		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
 			PORT_STATUS[portno].equip ? 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/, 0/*rx*/)
-			: 0x89999);
+			: 0x8999);
 #else /*********************************************************************/
 		/* update tx power */
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
@@ -3171,7 +3206,7 @@ extern int update_flex_tune_status(int portno);
 		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
 		/* update voltage */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
-		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/, 0/*no-use*/);
+		val = convert_vcc_float_to_decimal(PORT_STATUS[portno].vcc);
 #else
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/);
 #endif /* [#125] */
@@ -3241,7 +3276,7 @@ extern int update_flex_tune_status(int portno);
 			FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], val);
 			/* update voltage */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
-			val = convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.vcc, 0/*not-dbm*/, 0/*no-use*/);
+			val = convert_vcc_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.vcc);
 #else
 			val = convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.vcc, 0/*not-dbm*/);
 #endif /* [#125] */
@@ -3333,7 +3368,7 @@ extern int update_flex_tune_status(int portno);
 			type = (PORT_STATUS[portno].sfp_type << 8);
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 			/* NOTE : hfr sfp providers have decimal value in reserved field. */
-			type |= INV_TBL[portno].wave_decimal;
+			type |= convert_hex_to_decimal(INV_TBL[portno].wave_decimal);
 #endif
 			FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], type);
 #else
