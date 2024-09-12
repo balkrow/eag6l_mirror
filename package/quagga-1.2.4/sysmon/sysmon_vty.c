@@ -281,6 +281,9 @@ extern struct module_inventory RTWDM_INV_TBL[PORT_ID_EAG6L_MAX];
 #endif
 extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 extern int i2c_in_use_flag;
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-08-19 */
+int i2c_in_use_flag_set = 0;
+#endif
 
 
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
@@ -328,6 +331,41 @@ static void print_sfp_inventory_info(struct vty *vty, int portno)
 	mod_inv = &(INV_TBL[portno]);
 	mod_inv2 = &(RTWDM_INV_TBL[portno]);
 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	vty_out(vty, "[%d] sfp[%s]\n"
+		"    vendor[%-20s] part-no[%-31s] seria-no[%-31s] wavelength[%-5d/%2d] distance[%-3d] datecode[%-10s]\n",
+		portno,
+		((ps->sfp_type == SFP_ID_SMART_DUPLEX_TSFP) ? "Smart Duplex T-SFP" : 
+			(ps->sfp_type == SFP_ID_CU_SFP) ? "CuSFP" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) ? "Smart BiDi TSFP(COT)" :
+			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_RT) ? "Smart BiDi TSFP(RT)" :
+			(ps->sfp_type == SFP_ID_VCSEL_BIDI) ? "VCSEL BIDI" :
+			(ps->sfp_type == SFP_ID_6WL) ? "6WL" :
+			(ps->sfp_type == SFP_ID_HSFP_HIGH) ? "HSFP (HIGH)" :
+			(ps->sfp_type == SFP_ID_HSFP_LOW) ? "HSFP (LOW)" :
+			(ps->sfp_type == SFP_ID_CWDM) ? "CWDM" :
+			(ps->sfp_type == SFP_ID_DWDM) ? "DWDM" :
+			(ps->sfp_type == SFP_ID_VCSEL) ? "VCSEL" :
+			(ps->sfp_type == SFP_ID_DWDM_TUNABLE) ? "DWDN Tunable" : "Unknown"),
+		mod_inv->vendor, 
+		mod_inv->part_num, 
+		mod_inv->serial_num, 
+		mod_inv->wave, 
+		mod_inv->wave_decimal,
+		mod_inv->dist, 
+		mod_inv->date_code);
+	if(ps->tunable_sfp) {
+		vty_out(vty, 
+			"    vendor[%-20s] part-no[%-31s] seria-no[%-31s] wavelength[%-5d/%2d] distance[%-3d] datecode[%-10s]\n",
+			mod_inv2->vendor, 
+			mod_inv2->part_num, 
+			mod_inv2->serial_num, 
+			mod_inv2->wave, 
+			mod_inv2->wave_decimal, 
+			mod_inv2->dist, 
+			mod_inv2->date_code);
+	}
+#else /********************************************************************/
 	vty_out(vty, "[%d] sfp[%s]\n"
 		"    vendor[%s] part-no[%s] seria-no[%s] wavelength[%d] distance[%d] datecode[%s]\n",
 		portno,
@@ -359,6 +397,7 @@ static void print_sfp_inventory_info(struct vty *vty, int portno)
 			mod_inv2->dist, 
 			mod_inv2->date_code);
 	}
+#endif /* [#125] */
 	return;
 }
 
@@ -374,7 +413,7 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 	}
 #endif
 
-	vty_out(vty, "[%d] vcc[%5.2f] temp[%4.1f] tx_bias[%5.2f] laser[%5.2f] tec_curr[%5.2f] tx_pwr[%5.2f] rx_pwr[%5.2f]\n",
+	vty_out(vty, "[%d] vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f]\n",
 		portno,
 		ps->vcc,
 		ps->temp,
@@ -384,7 +423,7 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 		ps->tx_pwr,
 		ps->rx_pwr);
 	if(ps->tunable_sfp) {
-		vty_out(vty, "    vcc[%5.2f] temp[%4.1f] tx_bias[%5.2f] laser[%5.2f] tec_curr[%5.2f] tx_pwr[%5.2f] rx_pwr[%5.2f]\n",
+		vty_out(vty, "    vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f]\n",
 			ps->rtwdm_ddm_info.vcc,
 			ps->rtwdm_ddm_info.temp,
 			ps->rtwdm_ddm_info.tx_bias,
@@ -610,9 +649,13 @@ DEFUN (set_port_flex_tune,
 {
 	int portno = atoi(argv[0]);
 
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 1;
+#endif
 	set_flex_tune_control(portno, 1/*enable*/);
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 0;
+#endif
 	PORT_STATUS[portno].cfg_flex_tune = 1;
 	return CMD_SUCCESS;
 }
@@ -627,9 +670,13 @@ DEFUN (no_set_port_flex_tune,
 {
     int portno = atoi(argv[0]);
 
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 1;
+#endif
     set_flex_tune_control(portno, 0/*disable*/);
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 0;
+#endif
 	PORT_STATUS[portno].cfg_flex_tune = 0;
 	return CMD_SUCCESS;
 }
@@ -643,9 +690,13 @@ DEFUN (set_port_tsfp_self_loopback,
 {
 	int portno = atoi(argv[0]);
 
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 1;
+#endif
 	set_smart_tsfp_self_loopback(portno, 1/*enable*/);
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 0;
+#endif
 	PORT_STATUS[portno].cfg_smart_tsfp_selfloopback = 1;
 	return CMD_SUCCESS;
 }
@@ -660,9 +711,13 @@ DEFUN (no_set_port_tsfp_self_loopback,
 {
 	int portno = atoi(argv[0]);
 
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 1;
+#endif
 	set_smart_tsfp_self_loopback(portno, 0/*disable*/);
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 0;
+#endif
 	PORT_STATUS[portno].cfg_smart_tsfp_selfloopback = 0;
 	return CMD_SUCCESS;
 }
@@ -676,9 +731,13 @@ DEFUN (set_port_rtwdm_loopback,
 {
     int portno = atoi(argv[0]);
 
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 1;
+#endif
     set_rtwdm_loopback(portno, 1/*enable*/);
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 0;
+#endif
 	PORT_STATUS[portno].cfg_rtwdm_loopback = 1;
     return CMD_SUCCESS;
 }
@@ -693,9 +752,13 @@ DEFUN (no_set_port_rtwdm_loopback,
 {
     int portno = atoi(argv[0]);
 
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 1;
+#endif
     set_rtwdm_loopback(portno, 0/*disable*/);
+#if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	i2c_in_use_flag = 0;
+#endif
 	PORT_STATUS[portno].cfg_rtwdm_loopback = 0;
     return CMD_SUCCESS;
 }
@@ -1380,6 +1443,73 @@ extern int EMUL_TRIGGERED;
 #endif
 #endif
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-08-19 */
+DEFUN (i2c_block,
+       i2c_block_cmd,
+       "block-i2c",
+       "Disable i2c related interval scan.\n")
+{
+	if(! i2c_in_use_flag_set) {
+		i2c_in_use_flag = 1;
+		i2c_in_use_flag_set = 1;
+	}
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_i2c_block,
+       no_i2c_block_cmd,
+       "no block-i2c",
+       NO_STR
+       "Enable i2c realted interval scan.\n")
+{
+	if(i2c_in_use_flag_set) {
+		i2c_in_use_flag = 0;
+		i2c_in_use_flag_set = 0;
+	}
+	return CMD_SUCCESS;
+}
+
+DEFUN (cr_deinstall,
+       cr_deinstall_cmd,
+       "cr-deinstall port <1-7>",
+       "Emulate sfp deinstall.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+extern uint16_t boardStatus(uint16_t port, uint16_t val);
+
+	int portno = atoi(argv[0]);
+	uint16_t data;
+
+	data = FPGA_READ(BD_SFP_CR_ADDR);
+	data &= (1 << (portno - 1));
+	data |= (1 << (portno - 1));
+	boardStatus(portno, data);
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (cr_install,
+       cr_install_cmd,
+       "cr-install port <1-7>",
+       "Emulate sfp install.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+extern uint16_t boardStatus(uint16_t port, uint16_t val);
+
+	int portno = atoi(argv[0]);
+	uint16_t data;
+
+	data = FPGA_READ(BD_SFP_CR_ADDR);
+	data &= (1 << (portno - 1));
+	data &= ~(1 << (portno - 1));
+	boardStatus(portno, data);
+
+	return CMD_SUCCESS;
+}
+#endif /* [#94] */
+
 void
 sysmon_vty_init (void)
 {
@@ -1427,5 +1557,11 @@ sysmon_vty_init (void)
 
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
   install_element (VIEW_NODE, &synce_enable_cmd);
+#endif
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-08-19 */
+  install_element (ENABLE_NODE, &i2c_block_cmd);
+  install_element (ENABLE_NODE, &no_i2c_block_cmd);
+  install_element (ENABLE_NODE, &cr_deinstall_cmd);
+  install_element (ENABLE_NODE, &cr_install_cmd);
 #endif
 }
