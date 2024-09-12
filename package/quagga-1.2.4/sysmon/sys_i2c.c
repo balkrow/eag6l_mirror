@@ -2107,6 +2107,16 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
 
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x2/*page-2*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
 	/* write chno msb. */
 	if((ret = i2c_smbus_write_byte_data(fd, 144/*0x90*/, (chno >> 8) & 0xFF)) < 0) {
 		zlog_notice("%s : Writing port[%d(0/%d)] channel no. msb failed. ret[%d].",
