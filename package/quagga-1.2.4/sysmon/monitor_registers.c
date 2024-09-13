@@ -1425,11 +1425,8 @@ void regMonitor(void)
 #else
 			regMonList[i].cb(val);
 #endif
-#if 0/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
-			if(ret == RT_OK) {
-				regMonList[i].rollback_val = regMonList[i].val;
-				regMonList[i].rb_thread = thread_add_timer(master, rollback_reg, (void *)&i, 2);
-			}
+#ifdef DEBUG
+			zlog_notice("%s: reg=%x prv %x, cur %x", __func__, regMonList[i].reg, regMonList[i].val, val);
 #endif
 			regMonList[i].val = val;
 		}
@@ -1539,6 +1536,10 @@ int8_t rsmu_pll_update(void)
 		case PLL_LOCK :
 			wr_val = 0x13;
 			break;
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
+		case LOCK_RECOVERY  :
+			break;
+#endif
 		default :
 			wr_val = 0x11;
 			val = UNKNOWN; 
@@ -1548,6 +1549,32 @@ int8_t rsmu_pll_update(void)
 		zlog_notice("change pll state %x -> %x", gDB.pll_state, val);
 
 		gDB.pll_state = val;
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
+		if(gDB.pll_state == PLL_LOCK)
+		{	
+			uint8_t pri_port, sec_port;
+
+			if(gDB.synce_pri_port != NOT_DEFINED && 
+			   PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].link)
+			{
+				if(gDB.synce_oper_port != NOT_DEFINED && 
+				   (gDB.synce_oper_port == getMPortByCport(gDB.synce_sec_port)))
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(gDB.synce_oper_port), 0);
+
+				gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, (getMPortByCport(gDB.synce_pri_port))); 
+				gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
+				gDB.synce_oper_port = getMPortByCport(gDB.synce_pri_port); 
+			}
+			else if(gDB.synce_sec_port != NOT_DEFINED && 
+			   PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].link)
+			{
+				gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, (getMPortByCport(gDB.synce_sec_port))); 
+				gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
+				gDB.synce_oper_port = getMPortByCport(gDB.synce_sec_port); 
+			}
+			zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+		}
+#endif
 
 		if(wr_val)
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, SYNCE_SRC_STAT_ADDR_MASK, wr_val)

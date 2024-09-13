@@ -56,6 +56,9 @@ enum sysmon_cmd_fifo_type
 	gPortSendQL,
 	gPortLocalQL,
 #endif
+#if 1/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-11*/
+	gPortSyncePortConf,
+#endif
 };
 
 enum sysmon_cmd_result_type

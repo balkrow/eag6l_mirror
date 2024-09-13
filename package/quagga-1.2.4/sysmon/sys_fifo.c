@@ -37,6 +37,7 @@ extern uint16_t getIdxFromRegMonList (uint16_t reg);
 #undef DEBUG
 #endif
 
+
 extern struct thread_master *master;
 extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
 extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
@@ -151,6 +152,41 @@ uint8_t gCpssSynceDisable(int args, ...)
 }
 #endif
 
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-12*/
+uint8_t gCpssSynceIfConf(int args, ...)
+{
+	va_list argP;
+	uint32_t src, inf, conf;
+	sysmon_fifo_msg_t msg;
+
+#ifdef DEBUG
+	zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+	if(args != 3)
+		return IPC_CMD_FAIL;
+
+	memset(&msg, 0, sizeof msg);
+	va_start(argP, args);
+	src = va_arg(argP, uint32_t);	
+	inf = va_arg(argP, uint32_t);	
+	conf = va_arg(argP, uint32_t);	
+	va_end(argP);
+
+	msg.type = gPortSyncePortConf;
+	msg.mode = src;
+	msg.portid = inf;
+	msg.portid2 = conf;
+
+	if(send_to_sysmon_slave(&msg) == 0) {
+		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 #if 1/*[#24] Verifying syncE register update, dustin, 2024-05-28 */
 
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
@@ -178,22 +214,35 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	msg.mode = pri_src;
 	msg.portid = port;
 
-#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
+#if 1/*[#80] eag6l board SW bring-up, balkrow, 2024-07-24 */
 	if(msg.mode == PRI_SRC)
 	{
 		if(gDB.synce_pri_port != port)
 		{
 			uint16_t val, wr_val;
 			gDB.synce_pri_port = port;
-			val = sys_fpga_memory_read(SYNCE_SRC_STAT_ADDR, PORT_NOREG);
-			val = (val & ~(0xff00));
-			wr_val = (getMPortByCport(port) << 8) | val; 
-			sys_fpga_memory_write(SYNCE_SRC_STAT_ADDR, wr_val, PORT_NOREG);
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
+			if(gDB.synce_oper_port != NOT_DEFINED && 
+			   (gDB.synce_oper_port == getMPortByCport(gDB.synce_sec_port)) && 
+			    gDB.synce_oper_port != getMPortByCport(port))
+				gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(gDB.synce_oper_port), 0);
+
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0x8, 0xff00, (getMPortByCport(port))); 
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, 0x11); 
+#endif
 		}
 	}
 	else if(msg.mode == SEC_SRC)
 	{
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
+		if(gDB.synce_pri_port == NOT_DEFINED && gDB.synce_sec_port != port)
+		{
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0x8, 0xff00, (getMPortByCport(port))); 
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, 0x11); 
+		}
 		gDB.synce_sec_port = port;
+			
+#endif
 	}
 #endif
 
@@ -500,6 +549,9 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 	gCpssPortSendQL,
 	gCpssLocalQL,
 #endif
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-12*/
+	gCpssSynceIfConf,
+#endif
 };
 
 const uint32_t funcsListLen = sizeof(gSysmonToCpssFuncs) / sizeof(cSysmonToCPSSFuncs);
@@ -681,6 +733,7 @@ uint8_t gReplySynceEnable(int args, ...)
 
 	/* process for result. */
 #if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+#if 0/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
 	if(msg->result == FIFO_CMD_SUCCESS)
 	{
 		uint16_t idx;
@@ -691,6 +744,7 @@ uint8_t gReplySynceEnable(int args, ...)
 			regMonList[idx].rb_thread = NULL;
 		}
 	}
+#endif
 
 	zlog_notice("%s  result=%x", __func__, msg->result);
 #endif
@@ -718,6 +772,7 @@ uint8_t gReplySynceDisable(int args, ...)
 
 	/* process for result. */
 #if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+#if 0/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
 	if(msg->result == FIFO_CMD_SUCCESS)
 	{
 		uint16_t idx;
@@ -728,13 +783,20 @@ uint8_t gReplySynceDisable(int args, ...)
 			regMonList[idx].rb_thread = NULL;
 		}
 	}
-
+#endif
 	zlog_notice("%s  result=%x", __func__, msg->result);
 #endif
 
 	return ret;
 }
 
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
+int8_t synce_sec_port_config (void)
+{
+	gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(gDB.synce_oper_port), 1);
+	return 0;
+}
+#endif
 uint8_t gReplySynceIfSelect(int args, ...)
 {
 	uint8_t ret = IPC_CMD_SUCCESS;
@@ -757,7 +819,12 @@ uint8_t gReplySynceIfSelect(int args, ...)
 	/*FIXME*/
 #if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-18*/
 	if(msg->portid != 0xff)
+	{
 		gDB.synce_pri_port = msg->portid;
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
+		thread_add_timer(master, synce_sec_port_config, NULL, 2);
+#endif
+	}
 	else if(msg->portid2 != 0xff)
 		gDB.synce_sec_port = msg->portid2;
 #endif
@@ -822,6 +889,7 @@ uint8_t gReplyPortSetRate(int args, ...)
 	PORT_STATUS[msg->portid].ifmode = msg->mode;
 
 #if 1 /* [#62] SFP eeprom ¿ register update ¿¿ ¿¿ ¿¿ ¿ ¿¿¿, balkrow, 2024-06-21 */ 
+#if 0/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
 	if(msg->result == FIFO_CMD_SUCCESS)
 	{
 		uint16_t idx;
@@ -836,6 +904,7 @@ uint8_t gReplyPortSetRate(int args, ...)
 			regMonList[idx].rb_thread = NULL;
 		}
 	}
+#endif
 
 	zlog_notice("%s  result=%x for port[%d].", __func__, msg->result, msg->portid);
 #endif
@@ -869,6 +938,17 @@ uint8_t gReplyPortESMCEnable(int args, ...)
 	return ret;
 }
 
+#if 0/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
+void link_change_notifier(int8_t port, int8_t status)
+{
+	/*Check Sync-e operation interface*/
+	if(gDB.synce_oper_port == port)
+	{
+
+	}
+}
+#endif
+
 uint8_t gReplyPortAlarm(int args, ...)
 {
 	uint8_t portno, ret = IPC_CMD_SUCCESS;
@@ -889,6 +969,10 @@ uint8_t gReplyPortAlarm(int args, ...)
 
 	/* process for result. */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 0/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11 TODO:*/
+		if(PORT_STATUS[portno].link != msg->port_sts[portno].link)
+			link_change_notifier(port_no, msg->port_sts[portno].link);
+#endif
 		PORT_STATUS[portno].link = msg->port_sts[portno].link;
 #if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 		PORT_STATUS[portno].speed = msg->port_sts[portno].speed;
@@ -1099,6 +1183,79 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 }
 #endif
 
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-12*/
+uint8_t gReplyNone(int args, ...)
+{
+	args = args;
+	return IPC_CMD_SUCCESS;
+}
+
+uint8_t gReplyPortSendQL(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	zlog_notice("%s  result=%x", __func__, msg->result);
+	return ret;
+}
+uint8_t gReplyLocalQL(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	zlog_notice("%s  result=%x", __func__, msg->result);
+	return ret;
+}
+
+uint8_t gReplySynceIfConf(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args !=  1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	zlog_notice("%s  result=%x", __func__, msg->result);
+	return ret;
+}
+#endif
+
 cSysmonReplyFuncs gSysmonReplyFuncs[] =
 {
 	gReplySDKInit,
@@ -1121,6 +1278,12 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 #endif
 #if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-17*/
 	gReplyPortESMCQLupdate,
+#endif
+#if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-12*/
+	gReplyNone,
+	gReplyPortSendQL,
+	gReplyLocalQL,
+	gReplySynceIfConf,
 #endif
 };
 

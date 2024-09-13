@@ -235,6 +235,9 @@ typedef struct globalDB
 #if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
 	uint8_t localQL;
 #endif
+#if 1/*[#127] SYNCE current interface 수정, balkrow, 2024-09-11*/
+	uint8_t synce_oper_port;
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;

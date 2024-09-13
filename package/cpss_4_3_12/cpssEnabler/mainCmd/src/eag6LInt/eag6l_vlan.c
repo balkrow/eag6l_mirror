@@ -314,12 +314,17 @@ uint8_t EAG6L25Gto100GFwdSet (void)
 	uint8_t rc = 0, i;
 	GT_U8 devNum = 0x0;
 	GT_BOOL enable = true, trunk = false;
+	/*
 	GT_HW_DEV_NUM dstHwDev = 16;	
+	*/
+	GT_HW_DEV_NUM dstHwDev;
+	rc = cpssDxChCfgHwDevNumGet(0, &dstHwDev);
+	syslog(LOG_NOTICE, "cpssDxChCfgHwDevNumGet=%x", dstHwDev);
 
 	rc = cpssDxChBrgPrvEdgeVlanEnable(devNum, enable); 
 	for(i = 0; i < eag6L25GPortArrSize; i++)
 	{	
-		cpssDxChBrgPrvEdgeVlanPortEnable(devNum, eag6L25GPortlist[i], enable,
+		rc += cpssDxChBrgPrvEdgeVlanPortEnable(devNum, eag6L25GPortlist[i], enable,
 						 EAG6L_WDM_PORT, dstHwDev, trunk);
 						 
 	}
@@ -337,7 +342,7 @@ uint8_t EAG6LJumboFrameEnable (void)
 
 	for(i = 0; i < eag6LPortArrSize; i++)
 	{
-		 rc = cpssDxChPortMruSet(devNum, eag6LPortlist[i], mruSize);
+		 rc += cpssDxChPortMruSet(devNum, eag6LPortlist[i], mruSize);
 		 rc += cpssDxChBrgVlanMruProfileValueSet(devNum, mruIndex, mruSize);
 		 rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, 1, mruIndex);
 	}
@@ -367,10 +372,10 @@ uint8_t EAG6LVlanInit (void)
 
 	for(i = 0; i < eag6LPortArrSize; i++)
 	{
-		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, eag6LPortlist[i] , CPSS_VLAN_ETHERTYPE0_E, isDefaultProfile, profile);
-		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, eag6LPortlist[i] , CPSS_VLAN_ETHERTYPE1_E, isDefaultProfile, profile);
-		rc = cpssDxChBrgVlanIngressTpidProfileSet(devNum, profile, CPSS_VLAN_ETHERTYPE0_E, tpidBmp);
-		rc = cpssDxChBrgVlanIngressTpidProfileSet(devNum, profile, CPSS_VLAN_ETHERTYPE1_E, tpidBmp);
+		rc += cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, eag6LPortlist[i] , CPSS_VLAN_ETHERTYPE0_E, isDefaultProfile, profile);
+		rc += cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, eag6LPortlist[i] , CPSS_VLAN_ETHERTYPE1_E, isDefaultProfile, profile);
+		rc += cpssDxChBrgVlanIngressTpidProfileSet(devNum, profile, CPSS_VLAN_ETHERTYPE0_E, tpidBmp);
+		rc += cpssDxChBrgVlanIngressTpidProfileSet(devNum, profile, CPSS_VLAN_ETHERTYPE1_E, tpidBmp);
 	}
 	return  rc;
 }
