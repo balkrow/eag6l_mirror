@@ -2790,6 +2790,9 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 	unsigned char buf[ 256 ];
 	int len_sm_1, len_mm_1, len_mm_2;
 	unsigned short  wl;
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	double wl2;
+#endif
 	int sonet;  // 0 = not sonet, 1 = oc3, 2 = oc12, 3 = oc48
 	int is_zr = 0;
 	int	bus;
@@ -2833,6 +2836,13 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 
 #if 1/*[#25] I2C related register update, dustin, 2024-05-28 */
 	if(portno >= (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+		wl2 = (double)((raw2->wavelength[0] << 8) | raw2->wavelength[1]);
+		wl2 /= 20;/* wavelength = value / 20 in nm. */
+
+		mod_inv->wave = (u32)wl2;
+		mod_inv->wave_decimal = (u8)ceil((wl2 - mod_inv->wave) * 100);
+#else /**********************************************************************/
 		wl = (short)raw2->wavelength[0];
 		wl = wl << 8;
 		wl = wl | (short)raw2->wavelength[1];
@@ -2841,6 +2851,7 @@ void  get_sfp_info(int portno, struct module_inventory * mod_inv)
 #endif
 
 		mod_inv->wave = wl;
+#endif /* [#125] */
 		mod_inv->dist = raw2->len_smf;
 		if(mod_inv->dist == 0)
 			mod_inv->dist = raw2->len_om3_50um;/*unit-of-2m*/
@@ -3265,11 +3276,17 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		tx_db = (double)((raw_diag1->chann_monitor[16] << 8) | 
 				raw_diag1->chann_monitor[17]);
 		tx_db *= (0.1/*uW-unit*/ * 48.2/*dBm*/ / (double)6553.5/*uW*/);
+		if(tx_db == 0)
+			tx_db = 0.0001;
+		tx_db = 10 * log10(tx_db);
 
 		/* RX Power */
 		rx_db = (double)((raw_diag1->chann_monitor[0] << 8) | 
 				raw_diag1->chann_monitor[1]);
-		rx_db *= (0.1/*uW-unit*/ * 48.2/*dBm*/ / 6553.5/*uW*/);
+		rx_db *= (0.1/*uW-unit*/ * 48.2/*dBm*/ / (double)6553.5/*uW*/);
+		if(rx_db == 0)
+			rx_db = 0.0001;
+		rx_db = 10 * log10(rx_db);
 
 		/* Laser Temperature */
 		ltemp = 0;
@@ -3340,6 +3357,10 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_offset(raw_diag->ext_cal_constants[30], raw_diag->ext_cal_constants[31], &temp_offset);
 	sfp_get_temp(ltemp, temp_slope, temp_offset, &ltemp);
 #endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	if((ltemp < (double)-128) || ((double)128 < ltemp))
+		ltemp = 0;
+#endif
 
 	// TEC Current
 	sfp_get_ad(raw_diag->optional_diag[2], raw_diag->optional_diag[3], &tcurr);
@@ -3347,6 +3368,10 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_slope(raw_diag->ext_cal_constants[32], raw_diag->ext_cal_constants[33], &vcc_slope);
 	sfp_get_offset(raw_diag->ext_cal_constants[34], raw_diag->ext_cal_constants[35], &vcc_offset);
 	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
+#endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	if((tcurr < (double)0) || ((double)65.54 >= tcurr))
+		tcurr = 0;
 #endif
 	}
 #else /********************************************************************/
@@ -3735,6 +3760,10 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_offset(raw_diag0->ext_cal_constants[30], raw_diag0->ext_cal_constants[31], &temp_offset);
 	sfp_get_temp(ltemp, temp_slope, temp_offset, &ltemp);
 #endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	if((ltemp < (double)-128) || ((double)128 < ltemp))
+		ltemp = 0;
+#endif
 
 	// TEC Current
 	sfp_get_ad(raw_diag->optional_diag[2], raw_diag->optional_diag[3], &tcurr);
@@ -3742,6 +3771,10 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_slope(raw_diag0->ext_cal_constants[32], raw_diag0->ext_cal_constants[33], &vcc_slope);
 	sfp_get_offset(raw_diag0->ext_cal_constants[34], raw_diag0->ext_cal_constants[35], &vcc_offset);
 	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
+#endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	if((tcurr < (double)0) || ((double)65.54 >= tcurr))
+		tcurr = 0;
 #endif
 
 	port_sts->rtwdm_ddm_info.rx_pwr = (float)rx_db;
