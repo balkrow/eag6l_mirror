@@ -295,11 +295,20 @@ static void print_port_info(struct vty *vty, int portno)
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	vty_out(vty, "[%d] equip[%s] link[%4s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
+#else
 	vty_out(vty, "[%d] equip[%s] link[%s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
+#endif
 		portno, 
 		(ps->equip ? "O" : "x"),
 		(ps->link ? "Up" : "Dn"), 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),
+#else
+		(ps->speed == PORT_IF_10G_KR ? "10G" :
+			(portno == (PORT_ID_EAG6L_MAX - 1)) ? "100G" : "25G"),
+#endif
 		ps->tunable_sfp,
 		ps->tunable_chno, 
 		ps->tunable_wavelength, ps->tunable_rtwdm_wavelength,
