@@ -60,6 +60,9 @@ extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 extern u8 get_eag6L_dport(u8 lport);
 #endif
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
+#endif
 
 typedef struct __raw_gbic_info__
 {
@@ -241,6 +244,160 @@ typedef struct _slot_sfp_info_t           /* Maybe used to get SFP information i
 static struct _slot_sfp_info_t slot_sfp_info;
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+static const uint32_t wave_info[] =
+{
+    //DWDM
+    //COT-SHUB0
+    152955, //D600  196.00  1529.553 nm
+    152994, //D595  195.95  1529.944 nm
+    153033, //D590  195.90  1530.334 nm
+    153073, //D585  195.85  1530.725 nm
+    153112, //D580  195.80  1531.116 nm
+    153151, //D575  195.75  1531.507 nm
+    153190, //D570  195.70  1531.898 nm
+    153229, //D565  195.65  1532.290 nm
+    153268, //D560  195.60  1532.681 nm
+    153307, //D555  195.55  1533.073 nm
+    153347, //D550  195.50  1533.465 nm
+    153386, //D545  195.45  1533.858 nm
+    153425, //D540  195.40  1534.250 nm
+    153464, //D535  195.35  1534.643 nm
+    153504, //D530  195.30  1535.036 nm
+    153543, //D525  195.25  1535.429 nm
+    153582, //D520  195.20  1535.822 nm
+    153622, //D515  195.15  1536.216 nm
+    153661, //D510  195.10  1536.609 nm
+    153700, //D505  195.05  1537.003 nm
+    153740, //D500  195.00  1537.397 nm
+    153779, //D495  194.95  1537.792 nm
+    153819, //D490  194.90  1538.186 nm
+    153858, //D485  194.85  1538.581 nm
+    153898, //D480  194.80  1538.976 nm
+    153937, //D475  194.75  1539.371 nm
+    153977, //D470  194.70  1539.766 nm
+    154016, //D465  194.65  1540.162 nm
+
+    154056, //D460  1540.56 nm
+    154095, //D455  1540.95 nm
+    154135, //D450  1541.35 nm
+    154175, //D445  1541.75 nm
+    154214, //D440  1542.14 nm
+    154254, //D435  1542.54 nm
+    154294, //D430  1542.94 nm
+    154333, //D425  1543.33 nm
+
+    //COT-MHUB
+    154373, //D420  194.20  1543.730 nm
+    154413, //D415  194.15  1544.128 nm
+    154453, //D410  194.10  1544.526 nm
+    154492, //D405  194.05  1544.924 nm
+    154532, //D400  194.00  1545.322 nm
+    154572, //D395  193.95  1545.720 nm
+    154612, //D390  193.90  1546.119 nm
+    154652, //D385  193.85  1546.518 nm
+    154692, //D380  193.80  1546.917 nm
+    154732, //D375  193.75  1547.316 nm
+    154772, //D370  193.70  1547.715 nm
+    154812, //D365  193.65  1548.115 nm
+    154852, //D360  193.60  1548.515 nm
+    154892, //D355  193.55  1548.915 nm
+
+    154932, //D350  1549.32 nm
+    154972, //D345  1549.72 nm
+
+    //COT-SHUB1
+    155012, //D340  193.40  1550.116 nm
+    155052, //D335  193.35  1550.517 nm
+    155092, //D330  193.30  1550.918 nm
+    155132, //D325  193.25  1551.319 nm
+    155172, //D320  193.20  1551.721 nm
+    155212, //D315  193.15  1552.122 nm
+    155252, //D310  193.10  1552.524 nm
+    155293, //D305  193.05  1552.926 nm
+    155333, //D300  193.00  1553.329 nm
+    155373, //D295  192.95  1553.731 nm
+    155413, //D290  192.90  1554.134 nm
+    155454, //D285  192.85  1554.537 nm
+    155494, //D280  192.80  1554.940 nm
+    155534, //D275  192.75  1555.343 nm
+    155575, //D270  192.70  1555.747 nm
+    155615, //D265  192.65  1556.151 nm
+    155656, //D260  192.60  1556.555 nm
+    155696, //D255  192.55  1556.959 nm
+    155736, //D250  192.50  1557.363 nm
+    155777, //D245  192.45  1557.768 nm
+    155817, //D240  192.40  1558.173 nm
+    155858, //D235  192.35  1558.578 nm
+    155898, //D230  192.30  1558.983 nm
+    155939, //D225  192.25  1559.389 nm
+    155979, //D220  192.20  1559.794 nm
+    156020, //D215  192.15  1560.200 nm
+    156061, //D210  192.10  1560.606 nm
+    156101, //D205  192.05  1561.013 nm
+
+    //CWDM
+    127000, //C27  1270 nm
+    129000, //C29  1290 nm
+    131000, //C31  1310 nm
+    133000, //C33  1330 nm
+    135000, //C35  1350 nm
+    141000, //C41  1410 nm
+    143000, //C43  1430 nm
+    145000, //C45  1450 nm
+    147000, //C47  1470 nm
+    149000, //C49  1490 nm
+    151000, //C51  1510 nm (need exception)
+    153000, //C53  1530 nm
+    155000, //C55  1550 nm
+    157000, //C57  1570 nm
+    159000, //C59  1590 nm (need exception)
+    161000, //C61  1610 nm
+
+    //Smart Bi-Di Tunable SFP 
+	156077,	//D21A	192.08	1560.769 nm    1
+	155996,	//D22A	192.18	1559.957 nm    2
+	155915,	//D23A	192.28	1559.145 nm    3
+	155834,	//D24A	192.38	1558.335 nm    4
+	155753,	//D25A	192.48	1557.525 nm    5
+	155672,	//D26A	192.58	1556.716 nm    6
+	155591,	//D27A	192.68	1555.909 nm    7
+	155510,	//D28A	192.78	1555.101 nm    8
+	155430,	//D29A	192.88	1554.295 nm    9
+	155349,	//D30A	193.98	1553.490 nm   10
+	155269,	//D31A	193.08	1552.685 nm   11
+	155188,	//D32A	193.18	1551.881 nm   12
+	155108,	//D33A	193.28	1551.079 nm   13
+	155028,	//D34A	193.38	1550.276 nm   14
+	154948,	//D35A	193.48	1549.475 nm   15
+	154868,	//D36A	193.58	1548.675 nm   16
+	154788,	//D37A	193.68	1547.875 nm   17
+    154708, //D38A  193.78  1547.076 nm   18  ...
+    154628, //D39A  193.88  1546.278 nm   19  ...
+    154548, //D40A  194.98  1545.481 nm   20  ...
+    154468, //D41A  194,08  1544.6849 nm   21  ...
+    154389, //D42A  194,18  1543.889 nm   22  ...
+    154310, //D43A  194,28  1543.095 nm   23  ...
+    154230, //D44A  194,38  1542.301 nm   24  ...
+	154151,	//D45A	194,48	1541.508 nm   25
+    154072, //D46A  194,58  1540.716 nm   26 ...
+	153992,	//D47A	194,68	1539.924 nm   27
+	153913,	//D48A	194,78	1539.134 nm   28
+	153834,	//D49A	194,88	1538.344 nm   29
+	153755,	//D50A	195,98	1537.5549 nm   30
+	153677,	//D51A	195,08	1536.767 nm   31
+	153598,	//D52A	195,18	1535.979 nm   32
+	153519,	//D53A	195,28	1535.193 nm   33
+	153441,	//D54A	195,38	1534.407 nm   34
+	153362,	//D55A	195,48	1533.622 nm   35
+	153284,	//D56A	195,58	1532.838 nm   36
+	153205,	//D57A	195,68	1532.0546 nm   37
+	153127,	//D58A	195,78	1531.272 nm   38
+	153049,	//D59A	195,88	1530.490 nm   39
+	152971,	//D60A	196,98	1529.709 nm   40
+};
+#define MAX_CHANNEL_NO		(sizeof(wave_info)/sizeof(uint32_t))
+#else /*********************************************************************/
 #define MAX_CHANNEL_NO		40
 double WAVELENGTH_25G_TBL[MAX_CHANNEL_NO] = 
 {
@@ -277,6 +434,7 @@ double RT_WAVELENGTH_10G_TBL[MAX_CHANNEL_NO] =
 	1536.452, 0,/*0x20*/ 1534.878, 1534.093, 1533.308,
 	1532.525, 1531.742, 1530.959, 1530.178, 1529.397,
 };
+#endif /* [#125] */
 #endif
 
 void HX_I2C_DBG_U(const char *format, ...)
@@ -1811,6 +1969,43 @@ int get_tunable_sfp_channel_no(int portno)
 	}
 
 	/* scan wavelength for channel no */
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	/* read chno msb. */
+	if((val = i2c_smbus_read_byte_data(fd, 144/*0x90*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] chno msb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), val);
+		goto __exit_1__;
+	}
+
+	data = ((unsigned int)val << 8);
+
+	/* read chno lsb. */
+	if((val = i2c_smbus_read_byte_data(fd, 145/*0x91*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] chno lsb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), val);
+		goto __exit_1__;
+	}
+
+	data |= val;
+
+	for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
+		if(! wave_info[ii])
+			continue;
+		tval = (double)wave_info[ii] / (double)5000;
+		if((((double)wave_info[ii] - tval) <= (uint32_t)(wval * 100)) &&
+				((uint32_t)(wval * 100) <= ((double)wave_info[ii] + tval)))
+			break;
+	}
+
+	if(ii >= MAX_CHANNEL_NO) {
+		zlog_notice("%s: not found channel for wavelength[%7.2f] for port[%d(0/%d)].",
+			__func__, wval, portno, get_eag6L_dport(portno));
+		goto __exit_1__;
+	}
+
+	PORT_STATUS[portno].tunable_wavelength = wval;
+	PORT_STATUS[portno].tunable_chno = data;
+#else /********************************************************************/
 	if(PORT_STATUS[portno].sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) {
 		for(ii = 0; ii < MAX_CHANNEL_NO; ii++) {
 			if(! COT_WAVELENGTH_10G_TBL[ii])
@@ -1877,6 +2072,7 @@ int get_tunable_sfp_channel_no(int portno)
 
 	PORT_STATUS[portno].tunable_wavelength = wval;
 	PORT_STATUS[portno].tunable_chno = ii + 1;
+#endif /* [#125] */
 
 __exit_1__:
 	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
@@ -2241,6 +2437,17 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 	unsigned int retry;
 #endif
 
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	/* NOTE : this is for only SFP, not for QSFP. */
+	if(portno >= (PORT_ID_EAG6L_MAX - 1)) {
+		if(! memcmp(INV_TBL[portno].part_num, "FTLC3351R3PL1",
+			sizeof("FTLC3351R3PL1")))
+			return SFP_ID_DWDM_TUNABLE;
+		else
+			return SFP_ID_CWDM;
+	}
+#endif
+
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
@@ -2457,6 +2664,10 @@ __exit_1__:
 
 __exit_2__:
 	close(fd);
+#if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+	if((type == SFP_ID_CWDM) && (INV_TBL[portno].wave == 1537))
+		type = SFP_ID_DWDM;
+#endif
 	return type;
 #else
 	unsigned char val1, val2, val3, val4, val5;
