@@ -1126,6 +1126,51 @@ uint8_t gCpssSynceDisable(int args, ...)
 	return IPC_CMD_SUCCESS;
 }
 
+#if 1/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
+uint8_t gCpssSynceIfconf(int args, ...)
+{
+	uint8_t ret = 0;
+	uint8_t devNum = 0, config;
+	uint32_t clock_src, portNum;
+	GT_BOOL enable = false;
+	CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_TYPE_ENT recoveryClkType;
+
+	va_list argP;
+	sysmon_fifo_msg_t *msg;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	clock_src = msg->mode;
+	portNum = msg->portid;
+	config = msg->portid2;
+	va_end(argP);
+
+	if(config) 
+		enable = true;
+
+	if(clock_src == PRI_SRC)
+		recoveryClkType = CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E;
+	else
+		recoveryClkType = CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E;
+
+	ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+							recoveryClkType,
+							enable,
+							portNum,
+							0);
+
+	syslog(LOG_NOTICE, "%s : clock src %x recoveryClkType %x portNum %x %x %x", __func__, clock_src, recoveryClkType, portNum, config, ret);
+
+	if(!ret)
+		msg->result = FIFO_CMD_SUCCESS;
+	else
+		msg->result = FIFO_CMD_FAIL;
+
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 uint8_t gCpssSynceIfSelect(int args, ...)
 {
 	uint8_t ret = 0;
@@ -1162,6 +1207,7 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
 		}
 
+#if 0/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
 		if(gSynceSecInf != 0xff && gSynceSecInf == portNum)
 		{
 			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
@@ -1175,6 +1221,7 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
 
 		}
+#endif
 	}
 	else if(clock_src == SEC_SRC)
 	{
@@ -1193,6 +1240,7 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
 		}
 
+#if 0/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
 		if(gSyncePriInf != 0xff && gSyncePriInf == portNum)
 		{
 			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
@@ -1206,13 +1254,13 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
 
 		}
+#endif
 	}
 	else
 		goto fail_return;
 
 
 
-	syslog(LOG_NOTICE, "%s : clock src %x portNum %x", __func__, clock_src, portNum);
 
 	ret += cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
 					  recoveryClkType,
@@ -1220,10 +1268,12 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 					  portNum,
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
 					  0);
+	syslog(LOG_NOTICE, "%s : clock src %x portNum %x recoveryClkType %x enable %x ret %x", __func__, clock_src, portNum, recoveryClkType, enable, ret);
 
 	ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
 #endif
 
+	syslog(LOG_NOTICE, "%s : clock src %x portNum %x recoveryClkType %x ret %x", __func__, clock_src, portNum, recoveryClkType, ret);
 	if(!ret)
 	{
 		msg->result = FIFO_CMD_SUCCESS;
@@ -2042,6 +2092,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 	gCpssNone,
 	gCpssPortSendQL,
 	gCpssLocalQL,
+#endif
+#if 1/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
+	gCpssSynceIfconf,
 #endif
 };
 
