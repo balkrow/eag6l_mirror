@@ -382,6 +382,9 @@ int board_init(void)
 #if 0/*debug print */
 	print_ifc_regs();
 #endif
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-19*/
+	fpga_bank_adjust();
+#endif
 	return 0;
 }
 
@@ -410,7 +413,7 @@ int misc_init_r(void)
 	device_disable(devdis_tbl, ARRAY_SIZE(devdis_tbl));
 #endif
 
-#if 1/*[#92] uboot에서 FPGA bank 보정작업, balkrow, 2024-08-14*/
+#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-19*/
 	fpga_bank_adjust();
 #endif
 
