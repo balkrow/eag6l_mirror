@@ -106,6 +106,14 @@ fw_image_header_t RDL_FW_HEADER;
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 extern int check_fifo_hello(struct thread *thread);
 #endif
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+struct timeval ktt1;
+struct timeval ktt2;
+struct timeval ktt3;
+struct timeval ktt4;
+uint8_t zone1, zone2, zone3, zone4; /* flags for timeout zones. */
+uint16_t mcu_keepalive;
+#endif
 
 #if 0
 SVC_FSM svc_fsm;
@@ -474,7 +482,11 @@ RDL_CRC_t rdl_check_page_crc(void)
 	RDL_INFO.pcrc = DPRAM_READ(RDL_PAGE_CRC_ADDR);
 
 	// get current page length.
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	left = (RDL_INFO.hd.fih_size + sizeof(fw_image_header_t)) % RDL_PAGE_SIZE;
+#else
 	left = RDL_INFO.hd.total_size % RDL_PAGE_SIZE;
+#endif
 	plen = (RDL_INFO.pno < RDL_INFO.total_pno) ? RDL_PAGE_SIZE :
 		   (left ? left : RDL_PAGE_SIZE);
 
@@ -522,6 +534,9 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
 		__func__, pinfo->bno, pinfo->total_pno);
 #endif
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	/* NOTE : confirmed not to use rdl fw image header. */
+#else /**************************************************************/
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
     pinfo->hd.magic = DPRAM_READ(RDL_MAGIC_NO_2_ADDR);
     pinfo->hd.magic |= DPRAM_READ(RDL_MAGIC_NO_1_ADDR) << 16;
@@ -626,6 +641,7 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
 #ifdef DEBUG
 	zlog_notice("%s : Image File Name [%s].", __func__, pinfo->hd.file_name);
 #endif
+#endif /* [#124] */
 
 	return 0;
 }
@@ -638,10 +654,17 @@ long rdl_get_file_size(char *filename)
 	char temp[150];
 
 #if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		sprintf(temp, "%s%s", RDL_INSTALL1_PATH , RDL_INFO.hd.fih_name);
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		sprintf(temp, "%s%s", RDL_INSTALL2_PATH , RDL_INFO.hd.fih_name);
+#else
 	if(RDL_INFO.bno == RDL_BANK_1)
 		sprintf(temp, "%s%s", RDL_INSTALL1_PATH , RDL_INFO.hd.file_name);
 	else if(RDL_INFO.bno == RDL_BANK_2)
 		sprintf(temp, "%s%s", RDL_INSTALL2_PATH , RDL_INFO.hd.file_name);
+#endif
 #else
 	sprintf(temp, "%s%s", RDL_IMG_PATH, filename);
 #endif
@@ -665,10 +688,17 @@ int rdl_save_page_to_img_file(uint32_t size)
 	char temp[150];
 
 #if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	if(RDL_INFO.bno == RDL_BANK_1)
+		sprintf(temp, "%s%s", RDL_INSTALL1_PATH , RDL_INFO.hd.fih_name);
+	else if(RDL_INFO.bno == RDL_BANK_2)
+		sprintf(temp, "%s%s", RDL_INSTALL2_PATH , RDL_INFO.hd.fih_name);
+#else
 	if(RDL_INFO.bno == RDL_BANK_1)
 		sprintf(temp, "%s%s", RDL_INSTALL1_PATH , RDL_INFO.hd.file_name);
 	else if(RDL_INFO.bno == RDL_BANK_2)
 		sprintf(temp, "%s%s", RDL_INSTALL2_PATH , RDL_INFO.hd.file_name);
+#endif
 #else
 	sprintf(temp, "%s%s", RDL_IMG_PATH, RDL_INFO.hd.file_name);
 #endif
@@ -1465,6 +1495,21 @@ int rdl_decompress_package_file(char *filename)
 	// header info must be same as RDL_INFO.
 #if 1 /* [#110] RDL function Debugging ¿ ¿¿, balkrow, 2024-09-02 */
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	if(htonl(hd.fih_magic) != RDL_INFO.hd.fih_magic) {
+		zlog_notice("Different magic [0x%x/0x%x] ? Or No header present ?",
+			htonl(hd.fih_magic), RDL_INFO.hd.fih_magic);
+		unlink(fsrc);
+		goto __return__;
+	}
+	if(htonl(hd.fih_size) != (RDL_INFO.hd.fih_size)) {
+		zlog_notice("Different file size [%u/%u].",
+			ntohl(hd.fih_size), 
+			RDL_INFO.hd.fih_size);
+		unlink(fsrc);
+		goto __return__;
+	}
+#else /**************************************************************/
 	if(htonl(hd.fih_magic) != RDL_INFO.hd.magic) {
 		zlog_notice("Different magic [0x%x/0x%x] ? Or No header present ?",
 			htonl(hd.fih_magic), RDL_INFO.hd.magic);
@@ -1478,6 +1523,7 @@ int rdl_decompress_package_file(char *filename)
 		unlink(fsrc);
 		goto __return__;
 	}
+#endif /* [#124] */
 #endif
 #endif
 	/*check zip file*/
@@ -2445,11 +2491,22 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 {
 	RDL_EVT_t evt = EVT_RDL_EVT_MAX;
 	uint16_t hw_val, sts, pno;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	struct timeval RDL_EVT_UPDATE_TIME2 = { 0, 0 };
+	static struct timeval RDL_EVT_UPDATE_TIME1 = { 0, 0 };
+	static uint16_t       RDL_EVT_PREV_VAL = 0;
+#endif
 
 	hw_val = DPRAM_READ(RDL_STATE_REQ_ADDR);
 	sts    = (hw_val & 0xFF00) >> 8;
 	pno    = (hw_val & 0xFF);
 //zlog_notice("---> %s : read val[0x%x] sts[0x%x] pno[%u].", __func__, hw_val, sts, pno);//ZZPP
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	if(hw_val != RDL_EVT_PREV_VAL) {
+		gettimeofday(&RDL_EVT_UPDATE_TIME1, NULL);
+		RDL_EVT_PREV_VAL = hw_val;
+	}
+#endif
 
 	switch(state)	
 	{
@@ -2466,6 +2523,11 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(sts == RDL_P1_WRITING_BIT)
 				evt = EVT_RDL_WRITING_P1;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			/* for over 3-times page reading error or canceling rld. */
+			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR_TOTAL;
+#endif
 			break;
 
 		case	ST_RDL_WRITING_P1:
@@ -2476,8 +2538,14 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(sts == RDL_P1_WRITING_DONE_BIT)
 				evt = EVT_RDL_WRITING_DONE_P1;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			/* for over 3-times page reading error or canceling rld. */
+			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR;
+#else
 			else if(sts == RDL_PAGE_WRITING_ERROR_BIT)
 				evt = EVT_RDL_WRITING_ERROR;
+#endif /* [#124] */
 			break;
 
 		case	ST_RDL_READING_P1:
@@ -2488,6 +2556,11 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(sts == RDL_P2_WRITING_BIT)
 				evt = EVT_RDL_WRITING_P2;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			/* for over 3-times page reading error or canceling rld. */
+			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR_TOTAL;
+#endif
 			break;
 
 		case	ST_RDL_WRITING_P2:
@@ -2498,8 +2571,16 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(sts == RDL_P2_WRITING_DONE_BIT)
 				evt = EVT_RDL_WRITING_DONE_P2;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			/* for over 3-times page reading error or canceling rld. */
+			if(sts == RDL_PAGE_WRITING_DONE_BIT)
+				evt = EVT_RDL_PAGE_WRITING_DONE;
+			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR;
+#else
 			else if(sts == RDL_PAGE_WRITING_ERROR_BIT)
 				evt = EVT_RDL_WRITING_ERROR;
+#endif /* [#124] */
 			break;
 
 		case	ST_RDL_READING_P2:
@@ -2510,6 +2591,11 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(PAGE_CRC_OK)
 				evt = EVT_RDL_READING_DONE_P2;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			/* for over 3-times page reading error or canceling rld. */
+			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR_TOTAL;
+#endif
 			else
 				evt = EVT_RDL_READING_ERROR;
 			break;
@@ -2524,6 +2610,7 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 				evt = EVT_RDL_WRITING_DONE_TOTAL;
 			else if(sts == RDL_P1_WRITING_BIT)
 				evt = EVT_RDL_WRITING_NOT_DONE;
+			/* for over 3-times page reading error or canceling rld. */
 			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
 				evt = EVT_RDL_WRITING_ERROR_TOTAL;
 			break;
@@ -2535,10 +2622,20 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 				evt = EVT_RDL_START;
 			else
 #endif
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			if(rdl_check_total_crc(RDL_INFO.hd.fih_name) == RDL_CRC_OK)
+				evt = EVT_RDL_READING_DONE_TOTAL;
+			/* for over 3-times page reading error or canceling rld. */
+			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR_TOTAL;
+			else
+				evt = EVT_RDL_READING_ERROR_TOTAL;
+#else
 			if(rdl_check_total_crc(RDL_INFO.hd.file_name) == RDL_CRC_OK)
 				evt = EVT_RDL_READING_DONE_TOTAL;
 			else
 				evt = EVT_RDL_READING_ERROR_TOTAL;
+#endif
 			break;
 
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
@@ -2554,6 +2651,11 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(RDL_INSTALL_STATE >= 0)
 				evt = EVT_RDL_IMG_INSTALL_SUCCESS;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			/* for over 3-times page reading error or canceling rld. */
+			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR_TOTAL;
+#endif
 			else 
 				evt = EVT_RDL_IMG_INSTALL_FAIL;
 			break;
@@ -2596,6 +2698,11 @@ RDL_ST_t rdl_update_fsm(void)
 	RDL_EVT_t evt;
 	uint8_t offset;
 	uint8_t n, ret = 0;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	struct timeval now;
+	static uint8_t mtry = 0;
+	uint16_t mval;
+#endif
 	
 	if(st == ST_RDL_TERM)
 		st = ST_RDL_IDLE;
@@ -2605,6 +2712,9 @@ RDL_ST_t rdl_update_fsm(void)
 		evt = rdl_get_evt(st);
 		if(evt == EVT_RDL_EVT_MAX)
 			goto next_turn;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+		gettimeofday(&now, NULL);
+#endif /* [#124] */
 #ifdef DEBUG
 //		zlog_notice("%s : new evt[%s].", 
 //			__func__, rdl_get_event_str(evt));//ZZPP
@@ -2619,6 +2729,51 @@ RDL_ST_t rdl_update_fsm(void)
 				zlog_notice("%s : new state[%s].", 
 					__func__, rdl_get_state_str(st));//ZZPP
 #endif
+
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+				if(zone1 && 
+					((now.tv_sec - ktt1.tv_sec) > RDL_TIMEOUT_1)) {
+					zlog_notice("Timeout at zone1. Go to IDLE.");
+					return ST_RDL_TERM;
+				} else if(zone2 && 
+					((now.tv_sec - ktt2.tv_sec) > RDL_TIMEOUT_2)) {
+					zlog_notice("Timeout at zone2. Go to IDLE.");
+					return ST_RDL_TERM;
+				} else if(zone3 && 
+					((now.tv_sec - ktt3.tv_sec) > RDL_TIMEOUT_3)) {
+					zlog_notice("Timeout at zone3. Go to IDLE.");
+					return ST_RDL_TERM;
+				} else if(zone4 && 
+					((now.tv_sec - ktt4.tv_sec) > RDL_TIMEOUT_4)) {
+					zlog_notice("Timeout at zone4. Go to IDLE.");
+					return ST_RDL_TERM;
+				}
+
+				/* check mcu fail status or mcu keepalive counter. */
+				mval = FPGA_READ(CPU_FAIL_ADDR);
+				if(mval & 0x1/*mcu-fail-bit*/) {
+					if(mtry++ > RDL_MAX_FAIL_TRY) {
+						zlog_notice("MCU failed ?? Go to IDLE.");
+						return ST_RDL_TERM;
+					} else 
+						zlog_notice("MCU failed ?? trying[%d].", mtry);
+				} else
+					mtry = 0;
+				/* check mcu keepalive. activate if mcu started once. */
+				mval = FPGA_READ(HW_KEEP_ALIVE_1_ADDR);
+				if(mval) {
+					if(mcu_keepalive == mval) {
+						if(mtry++ > RDL_MAX_FAIL_TRY) {
+							zlog_notice("MCU stopped ?? Go to IDLE.");
+							return ST_RDL_TERM;
+						} else 
+							zlog_notice("MCU failed ?? trying[%d].", mtry);
+					} else {
+						mcu_keepalive = mval;
+						mtry = 0;
+					}
+				}
+#endif /* [#124] */
 				goto next_turn;
 			}
 		}
@@ -2643,6 +2798,9 @@ int rdl_fsm_func(struct thread *thread)
 	return 0;
 }
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+    /* NOTE : no more use below emul functions. */
+#else /**************************************************************/
 #if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
 extern RDL_ST_t emul_trigger(void);
 
@@ -2779,6 +2937,7 @@ int rdl_mcu_emul_func(struct thread *thread)
 	return 0;
 }
 #endif
+#endif /* [#124] */
 #endif
 
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
@@ -3038,9 +3197,13 @@ void sysmon_thread_init (void)
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 	thread_add_timer (master, rdl_fsm_func, NULL, 5);
 #endif
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+    /* NOTE : no more use below emul functions. */
+#else /**************************************************************/
 #if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
 	thread_add_timer (master, rdl_mcu_emul_func, NULL, 5);
 #endif
+#endif /* [#124] */
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 	thread_add_timer(master, check_fifo_hello, NULL, 10/*sec*/);
 #endif

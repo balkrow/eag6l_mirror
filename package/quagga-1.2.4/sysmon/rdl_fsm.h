@@ -10,11 +10,17 @@
 
 #define RDL_P2_WRITING_BIT				0x04
 #define RDL_P2_WRITING_DONE_BIT			0x05
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+#define RDL_PAGE_WRITING_DONE_BIT		0x06
+#define RDL_TOTAL_WRITING_DONE_BIT		0x07
 
+#define RDL_TOTAL_WRITING_ERROR_BIT		0xCC
+#else /**************************************************************/
 #define RDL_PAGE_WRITING_ERROR_BIT		0x81
 	
 #define RDL_TOTAL_WRITING_DONE_BIT		0x0C
 #define RDL_TOTAL_WRITING_ERROR_BIT		0xA1
+#endif /* [#124] */
 
 /*====================================================
 *       BP RDL RESP STATE
@@ -29,11 +35,15 @@
 
 #define RDL_PAGE_READING_DONE_BIT		0x16
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
-#define RDL_IMG_INSTALL_DONE_BIT        0x17/*FIXME : it's ok to add this ? */
+#define RDL_IMG_INSTALL_DONE_BIT        0x17	/* TOTAL RDL DONE */
 #else
 #define RDL_IMG_ACTIVATE_DONE_BIT       0x17/*FIXME : it's ok to add this ? */
 #endif
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+#define RDL_PAGE_READING_ERROR_BIT      0x86
+#define RDL_TOTAL_FW_CRC_ERROR_BIT      0x87
+#else
 #define RDL_TOTAL_READING_DONE_BIT		0x0E
 
 #define RDL_PAGE_READING_ERROR_BIT		0x82
@@ -41,6 +51,7 @@
 
 #define RDL_TOTAL_READING_ERROR_BIT		0xA2
 #define RDL_TOTAL_WRITING_ERROR_ACK_BIT	0xB1
+#endif /* [#124] */
 
 
 #define RDL_IMG_MAGIC               0x48534E38
@@ -115,6 +126,15 @@
 #define two_bcd2dec(v)  ((v&0xF) + ((v&0xF0)>>4)*10 + ((v&0xF00)>>8)*100) + (((v&0xF000)>>12)*1000)
 #define one_bcd2dec(v)  ((v & 0xF) + ((v & 0xF0) >> 4)*10)
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+#define RDL_TIMEOUT_1				3
+#define RDL_TIMEOUT_2				3
+#define RDL_TIMEOUT_3				10
+#define RDL_TIMEOUT_4				31
+
+#define RDL_MAX_FAIL_TRY			5
+#endif
+
 
 typedef enum {
 	RDL_CRC_FAIL,
@@ -159,6 +179,9 @@ typedef enum {
 	EVT_RDL_WRITING_ERROR,
 	EVT_RDL_READING_DONE_P2,
 	EVT_RDL_READING_ERROR,
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	EVT_RDL_PAGE_WRITING_DONE,
+#endif
 	EVT_RDL_WRITING_DONE_TOTAL,
 	EVT_RDL_WRITING_NOT_DONE,
 	EVT_RDL_WRITING_ERROR_TOTAL,
@@ -190,6 +213,7 @@ typedef struct rdl_fsm {
     RDL_ST_t (* func)(void);
 } RDL_FSM_t;
 
+#if 0 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 typedef struct rdl_img_header {
 	uint32_t           magic;/* 0x48534E38 (HSN8) */
 	uint32_t           total_crc;
@@ -198,6 +222,7 @@ typedef struct rdl_img_header {
 	uint8_t            ver_str[RDL_VER_STR_MAX];
 	uint8_t            file_name[RDL_FILE_NAME_MAX];
 } RDL_IMG_HEADER_t;
+#endif
 
 typedef struct rdl_info {
 	uint8_t           bno;/* target bank no */
@@ -205,7 +230,11 @@ typedef struct rdl_info {
 	uint8_t           total_pno;/* total page no */
 	uint16_t          pcrc;/* current page crc */
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	fw_image_header_t hd;
+#else
 	RDL_IMG_HEADER_t  hd;
+#endif
 } RDL_IMG_INFO_t;
 
 #if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/

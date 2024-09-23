@@ -1377,6 +1377,9 @@ extern uint8_t *RDL_PAGE;
 		// init rdl registers.
 		// rdl start and emulate states.
 	} else if(! strncmp(argv[0], "decompress", strlen("decompress"))) {
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+		/* NOTE : not available. do not use this. */
+#else /**************************************************************/
 		// init RDL_INFO.
 		memset(&RDL_INFO, 0, sizeof(RDL_INFO));
 		RDL_INFO.bno           = RDL_BANK_1;
@@ -1400,6 +1403,7 @@ extern uint8_t *RDL_PAGE;
 
        	vty_out(vty, "[RDL] Decompressing pkg file %s has DONE.",
        		RDL_INFO.hd.file_name);
+#endif /* [#124] */
 	} else if(! strncmp(argv[0], "install-1", strlen("install-1"))) {
 		rdl_install_package(RDL_BANK_1);
 	} else if(! strncmp(argv[0], "install-2", strlen("install-2"))) {
@@ -1424,6 +1428,9 @@ extern uint8_t *RDL_PAGE;
 	return CMD_SUCCESS;
 }
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+    /* NOTE : no more use below emul functions. */
+#else /**************************************************************/
 #if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
 DEFUN (rdl_emu_test,
        rdl_emu_test_cmd,
@@ -1450,6 +1457,7 @@ extern int EMUL_TRIGGERED;
 	return CMD_SUCCESS;
 }
 #endif
+#endif /* [#124] */
 #endif
 
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-08-19 */
@@ -1559,9 +1567,13 @@ sysmon_vty_init (void)
 #endif
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
   install_element (ENABLE_NODE, &rdl_test_cmd);
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+    /* NOTE : no more use below emul functions. */
+#else /**************************************************************/
 #if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
   install_element (ENABLE_NODE, &rdl_emu_test_cmd);
 #endif
+#endif /* [#124] */
 #endif
 
 #if 1/*[#59] Synce configuration 연동 기능 추가, balkrow, 2024-06-19 */
