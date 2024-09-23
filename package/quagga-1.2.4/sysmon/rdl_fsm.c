@@ -48,6 +48,14 @@ extern uint16_t chipReset(uint16_t port, uint16_t val);
 extern int syscmd_file_exist(char *fpath);
 extern uint16_t get_sum(uint16_t *addr, int32_t nleft);
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+extern struct timeval ktt1;
+extern struct timeval ktt2;
+extern struct timeval ktt3;
+extern struct timeval ktt4;
+extern uint8_t zone1, zone2, zone3, zone4; /* flags for timeout zones. */
+#endif
+
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 uint16_t RDL_INSTALL_STATE;
@@ -78,6 +86,11 @@ RDL_ST_t rdl_start(void) //#1
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	gettimeofday(&sss, NULL);
     zlog_notice("%s : ----> RDL Start time[%ld sec].", __func__, sss.tv_sec);
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	ktt1 = sss;
+	zone1 = 1;
+	zone2 = zone3 = zone4 = 0;
+#endif /* [#124] */
 #endif
 	// RDL start ack
 	// MCU start RDL, BP read img header info registers, init page buff, 
@@ -90,6 +103,9 @@ RDL_ST_t rdl_start(void) //#1
 		return ST_RDL_IDLE;
 	}
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	/* NOTE : hd is not available in this moment, so do it later. */
+#else /**************************************************************/
 	// check if target file is already present in system.
 	sprintf(temp, "%s%s", RDL_IMG_PATH, RDL_INFO.hd.file_name);
 	if(syscmd_file_exist(temp)) {
@@ -98,6 +114,7 @@ RDL_ST_t rdl_start(void) //#1
 		unlink(temp);
 		system("sync");
 	}
+#endif
 
 	// check free space for rdl. Go idle state if not available.
 	if(statfs(RDL_IMG_PATH, &fst) != 0) {
@@ -106,16 +123,14 @@ RDL_ST_t rdl_start(void) //#1
 		return ST_RDL_IDLE;
 	}
 
-#if 0//PWY_FIXME need to tune size.
-	if(fst.f_bavail < (100 * 1024)) {
+	if(fst.f_bavail < (40 * 1024)) {
 		zlog_err("%s : Not enough sapce in %s. Free space %u. Go to IDLE.",
 			__func__, RDL_IMG_PATH, fst.f_bavail);
 		return ST_RDL_IDLE;
 	}
 #ifdef DEBUG
-	//zlog_notice("------> %s : Free space[%u].", __func__, fst.f_bavail);
+	zlog_notice("%s : Free space[%u].", __func__, fst.f_bavail);
 #endif
-#endif //PWY_FIXME
 
 	// get temp page buffer.
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
@@ -171,6 +186,13 @@ RDL_ST_t rdl_writing_p1(void) //#2
 	// ack writing p-1.
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_P1_WRITING_ACK_BIT);
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	if(! zone1) {
+		gettimeofday(&ktt1, NULL);
+		zone1 = 1;
+	}
+#endif /* [#124] */
+
 	rdl_info_list.st = state;
 	return state;
 }
@@ -180,6 +202,9 @@ RDL_ST_t rdl_reading_p1(void) //#3
 {
     RDL_ST_t state = ST_RDL_READING_P1;
 	pid_t pid;
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	struct timeval now;
+#endif
 
 #ifdef DEBUG
 	//zlog_notice("------> %s : entered.", __func__);
@@ -190,6 +215,47 @@ RDL_ST_t rdl_reading_p1(void) //#3
 
 	// copy P-1 to buffer.
 	rdl_copy_page_segment_to_buffer(RDL_PAGE_SEGMENT_1);
+
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	/* read fw_image_header_t from 1st page head part. */
+	if(RDL_INFO.pno == 1) {
+		char temp[100];
+
+		/* copy fw_image_header_t area. */
+		memcpy(&RDL_INFO.hd, RDL_PAGE, sizeof(fw_image_header_t));
+		RDL_INFO.hd.fih_magic = ntohl(RDL_INFO.hd.fih_magic);
+		RDL_INFO.hd.fih_hcrc = ntohl(RDL_INFO.hd.fih_hcrc);
+		RDL_INFO.hd.fih_dcrc = ntohl(RDL_INFO.hd.fih_dcrc);
+		RDL_INFO.hd.fih_time = ntohl(RDL_INFO.hd.fih_time);
+		RDL_INFO.hd.fih_size = ntohl(RDL_INFO.hd.fih_size);
+#ifdef DEBUG
+		zlog_notice("%s : Magic Number [0x%x].", __func__, RDL_INFO.hd.fih_magic);
+		zlog_notice("%s : Header CRC [0x%x].", __func__, RDL_INFO.hd.fih_hcrc);
+		zlog_notice("%s : Data CRC [0x%x].", __func__, RDL_INFO.hd.fih_dcrc);
+		zlog_notice("%s : Build Time [0x%x].", __func__, RDL_INFO.hd.fih_time);
+		zlog_notice("%s : Total Size [%u].", __func__, RDL_INFO.hd.fih_size);
+		zlog_notice("%s : Version [%s].", __func__, RDL_INFO.hd.fih_ver);
+		zlog_notice("%s : File Name [%s].", __func__, RDL_INFO.hd.fih_name);
+#endif
+		// check if target file is already present in system.
+		sprintf(temp, "%s%s", RDL_IMG_PATH, RDL_INFO.hd.fih_name);
+		if(syscmd_file_exist(temp)) {
+			zlog_err("%s : Already present file[%s]. Removed for start.",
+				__func__, temp);
+			unlink(temp);
+			system("sync");
+		}
+	}
+
+	gettimeofday(&now, NULL);
+	now.tv_sec -= ktt1.tv_sec;
+	if(now.tv_sec > RDL_TIMEOUT_1) {
+		zlog_notice("Timeout [%d] sec at zone1. Go to IDLE.", now.tv_sec);
+    	rdl_info_list.st = ST_RDL_IDLE;
+		return ST_RDL_IDLE;
+	}
+	zone1 = 0;
+#endif /* [#124] */
 
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_P1_WRITING_DONE_ACK_BIT);
     rdl_info_list.st = state;
@@ -238,7 +304,11 @@ RDL_ST_t rdl_writing_err_p1(void) //#4
 #endif
 	// page writing error ack
 	// MCU go to rdl start state, BP just waiting state change.
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_PAGE_READING_ERROR_BIT);
+#else
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_PAGE_WRITING_ERROR_ACK_BIT);
+#endif /* [#124] */
     rdl_info_list.st = state;
     return state;
 }
@@ -266,7 +336,12 @@ RDL_ST_t rdl_reading_p2(void) //#7
 	uint32_t left;
 #endif
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	/* keep current state for waiting page write done (0x6) from mcu. */
+    RDL_ST_t state = ST_RDL_WRITING_P2;
+#else
     RDL_ST_t state = ST_RDL_READING_P2;
+#endif
 #ifdef DEBUG
 	//zlog_notice("------> %s : entered.", __func__);
 #endif
@@ -276,7 +351,13 @@ RDL_ST_t rdl_reading_p2(void) //#7
 
 	// ack for p2 writing done.
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_P2_WRITING_DONE_ACK_BIT);
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	gettimeofday(&ktt3, NULL);
+	zone3 = 1;
 
+	rdl_info_list.st = state;
+	return state;
+#else /**************************************************************/
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	// get current page length.
 	left = RDL_INFO.hd.total_size % RDL_PAGE_SIZE;
@@ -350,8 +431,62 @@ RDL_ST_t rdl_reading_p2(void) //#7
 		rdl_info_list.st = state;
 		return state;
 	}
+#endif /* [#124] */
 }
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+RDL_ST_t rdl_check_page_done(void)
+{
+	uint32_t total_size, page_size;
+	uint32_t left;
+	RDL_ST_t state = ST_RDL_READING_P2;
+#ifdef DEBUG
+	//zlog_notice("------> %s : entered.", __func__);
+#endif
+	// get current page length.
+	left = (RDL_INFO.hd.fih_size + sizeof(fw_image_header_t)) % RDL_PAGE_SIZE;
+	if((RDL_INFO.pno < RDL_INFO.total_pno) || 
+	   (left >= RDL_PAGE_SEGMENT_SIZE)) {
+		// copy P-2 to buffer.
+		rdl_copy_page_segment_to_buffer(RDL_PAGE_SEGMENT_2);
+	}
+
+	// check page data.
+	PAGE_CRC_OK = rdl_check_page_crc();
+	if(1/*PAGE_CRC_OK*/) {
+		// get total size.
+		total_size = RDL_INFO.hd.fih_size + sizeof(fw_image_header_t);
+
+		// get the size of current page.
+		if(RDL_INFO.pno < RDL_INFO.total_pno)
+			page_size = RDL_PAGE_SIZE;
+		else
+			page_size = total_size % RDL_PAGE_SIZE;
+		if(! page_size)
+			page_size = RDL_PAGE_SIZE;
+#ifdef DEBUG
+//		zlog_notice("%s : total_size[%u] pno[%u] page_size[%u]",
+//			__func__, total_size, RDL_INFO.pno, page_size);
+#endif
+		// save page data to img file.
+		rdl_save_page_to_img_file(page_size);
+
+		rdl_info_list.st = state;
+		return state;
+	} else {
+		// nack for page reading.
+		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_TOTAL_FW_CRC_ERROR_BIT);
+
+		//FIXME : necessary to clear page buffer?
+
+		rdl_info_list.st = state;
+		return state;
+	}
+
+	rdl_info_list.st = state;
+	return state;
+}
+#endif /* [#124] */
 
 RDL_ST_t rdl_writing_err_p2(void) //#8
 {
@@ -361,7 +496,11 @@ RDL_ST_t rdl_writing_err_p2(void) //#8
 #endif
 	// RDL page writing error ack
 	// MCU go to rdl start state
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_PAGE_READING_ERROR_BIT);
+#else
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_PAGE_WRITING_ERROR_ACK_BIT);
+#endif /* [#124] */
     rdl_info_list.st = state;
     return state;
 }
@@ -376,6 +515,19 @@ RDL_ST_t rdl_page_done(void) //#9
 	// page reading done
 	// MCU go next page writing P-1, or total writing done
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_PAGE_READING_DONE_BIT);
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	{
+		struct timeval now;
+		gettimeofday(&now, NULL);
+		now.tv_sec -= ktt3.tv_sec;
+		if(now.tv_sec > RDL_TIMEOUT_3) {
+			zlog_notice("Timeout [%d] sec at zone3. Go to IDLE.", now.tv_sec);
+			rdl_info_list.st = ST_RDL_IDLE;
+			return ST_RDL_IDLE;
+		}
+		zone3 = 0;
+	}
+#endif /* [#124] */
     rdl_info_list.st = state;
     return state;
 }
@@ -405,6 +557,20 @@ RDL_ST_t rdl_reading_total(void) //#11
 	// rdl reading total
 	// BP check file size.
 	// check file size with total size.
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	gettimeofday(&ktt4, NULL);
+	zone4 = 1;
+
+	file_size = rdl_get_file_size(RDL_INFO.hd.fih_name);
+	if(file_size != (RDL_INFO.hd.fih_size + sizeof(fw_image_header_t))) {
+		zlog_notice("%s : Different file size [%u vs %u]. Go to IDLE.",
+			__func__, file_size, RDL_INFO.hd.fih_size + 
+			sizeof(fw_image_header_t));
+
+		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_TOTAL_FW_CRC_ERROR_BIT);
+		return ST_RDL_IDLE;
+	}
+#else
 	file_size = rdl_get_file_size(RDL_INFO.hd.file_name);
 	if(file_size != RDL_INFO.hd.total_size) {
 		zlog_notice("%s : Different file size [%u vs %u]. Go to IDLE.",
@@ -415,6 +581,7 @@ RDL_ST_t rdl_reading_total(void) //#11
 	}
 
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_TOTAL_READING_DONE_BIT);
+#endif
     rdl_info_list.st = state;
     return state;
 }
@@ -440,6 +607,15 @@ void move_image_to_bank(void)
 	gettimeofday(&sss, NULL);
 	zlog_notice("%s : ----> Activation start time[%ld sec].", __func__, sss.tv_sec);
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	if(rdl_decompress_package_file(RDL_INFO.hd.fih_name) < 0) {
+		//FIXME : success or failed, pkg file will be removed anyway.
+		zlog_err("Decompressing pkg file %s has failed. Go to IDLE.",
+			RDL_INFO.hd.fih_name);
+		rdl_info_list.st = ST_RDL_IDLE;
+		return;
+	}
+#else
 	if(rdl_decompress_package_file(RDL_INFO.hd.file_name) < 0) {
 		//FIXME : success or failed, pkg file will be removed anyway.
 		zlog_err("Decompressing pkg file %s has failed. Go to IDLE.",
@@ -447,6 +623,7 @@ void move_image_to_bank(void)
 		rdl_info_list.st = ST_RDL_IDLE;
 		return;
 	}
+#endif
 
 	if(gDB.pkg_is_zip == PKG_ZIP)
 	{
@@ -474,6 +651,23 @@ void move_image_to_bank(void)
 			return;
 		}
 	}
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	{
+		struct timeval now;
+		/* notify rdl done to mcu. */
+		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_IMG_INSTALL_DONE_BIT);
+
+		gettimeofday(&now, NULL);
+		now.tv_sec -= ktt4.tv_sec;
+		if(now.tv_sec > RDL_TIMEOUT_4) {
+			zlog_notice("Timeout [%d] sec at zone4. Go to IDLE.", now.tv_sec);
+			rdl_info_list.st = ST_RDL_IDLE;
+			return;
+		}
+		zone4 = 0;
+	}
+#endif /* [#124] */
+
 	RDL_INSTALL_STATE = 1;
 
 	gettimeofday(&sss, NULL);
@@ -518,7 +712,7 @@ RDL_ST_t rdl_img_activation(void) //#13
 #endif
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	gettimeofday(&sss, NULL);
-    zlog_notice("%s : ----> Activation start time[%ld sec].", __func__, sss.tv_sec);
+    zlog_notice("%s : ----> Installing start time[%ld sec].", __func__, sss.tv_sec);
 #endif
 	// BP check if disk space is enough for processing.
 	// check free space for rdl. Go idle state if not available.
@@ -531,6 +725,14 @@ RDL_ST_t rdl_img_activation(void) //#13
 #endif
 
 	// BP extract FPGA F/W img and BP os img files, and remove integrated img file.
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	if(rdl_decompress_package_file(RDL_INFO.hd.fih_name) < 0) {
+		zlog_err("Decompressing pkg file %s has failed. Go to IDLE.",
+			RDL_INFO.hd.fih_name);
+		rdl_info_list.st = state;
+		return ST_RDL_IDLE;
+	}
+#else /**************************************************************/
 	if(rdl_decompress_package_file(RDL_INFO.hd.file_name) < 0) {
 		//FIXME : success or failed, pkg file will be removed anyway.
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/ 
@@ -543,6 +745,7 @@ RDL_ST_t rdl_img_activation(void) //#13
 #endif
 		return ST_RDL_IDLE;
 	}
+#endif /* [#124] */
 
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	// BP install(replace bank files) BP os img to target bank.
@@ -694,6 +897,16 @@ RDL_ST_t rdl_terminate(void) //#18
 	// terminate state.
 	// rdl done anyway (success or failure)
 	// FIXME : clean-up buffer? remove temp image file? reset rdl registers?
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	{
+		static int keep_time;
+
+		/* keep last state for 5 interval times to let mcu be notified. */
+		if(keep_time++ < RDL_MAX_FAIL_TRY) {
+			return (rdl_info_list.st);
+		}
+	}
+#endif
 
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	/* reset rdl state response register. */
@@ -788,6 +1001,9 @@ RDL_FSM_t rdl_fsm_list[] =
 #endif
 
 	{ST_RDL_WRITING_P2,         EVT_RDL_WRITING_DONE_P2,        rdl_reading_p2},
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	{ST_RDL_WRITING_P2,         EVT_RDL_PAGE_WRITING_DONE,      rdl_check_page_done},
+#endif
 	{ST_RDL_WRITING_P2,         EVT_RDL_WRITING_ERROR,		    rdl_writing_err_p2},
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	{ST_RDL_WRITING_P2,         EVT_RDL_START,	                rdl_start},
@@ -836,6 +1052,9 @@ RDL_FSM_t rdl_fsm_list[] =
 int RDL_TRANS_MAX = sizeof(rdl_fsm_list) / sizeof(RDL_FSM_t);
 
 
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+	/* NOTE : no more use below emul functions. */
+#else /**************************************************************/
 #if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
 extern RDL_IMG_INFO_t EMUL_INFO;
 extern uint8_t __CACHE_RDL_PAGE[RDL_PAGE_ADDR_SIZE];
@@ -983,8 +1202,13 @@ RDL_ST_t emul_writing_p1(void)
 			zlog_notice("%s : Reading to P-1 failed. pno[%u/%u].",
 				__func__, EMUL_INFO.pno, EMUL_INFO.total_pno);
 			// MCU set page writing error.
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+			gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, 
+				RDL_TOTAL_WRITING_ERROR_BIT);
+#else
 			gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00, 
 				RDL_PAGE_WRITING_ERROR_BIT);
+#endif /* [#124] */
 			emul_info_list.st = ST_RDL_TRIGGER;
 		}
 		EMUL_FILE_END = 1;
@@ -1049,8 +1273,13 @@ RDL_ST_t emul_writing_p2(void)
 				zlog_notice("%s : Reading to p-2 failed. pno[%u/%u].",
 					__func__, EMUL_INFO.pno, EMUL_INFO.total_pno);
 				// MCU set page writing error.
+#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+				gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00,
+					RDL_TOTAL_WRITING_ERROR_BIT);
+#else
 				gDPRAMRegUpdate(RDL_STATE_REQ_ADDR, 8, 0xFF00,
 					RDL_PAGE_WRITING_ERROR_BIT);
+#endif /* [#124] */
 				emul_info_list.st = ST_RDL_TRIGGER;
 			}
 			EMUL_FILE_END = 1;
@@ -1243,3 +1472,4 @@ RDL_FSM_t emul_fsm_list[] =
 
 int EMUL_TRANS_MAX = sizeof(emul_fsm_list) / sizeof(RDL_FSM_t);
 #endif
+#endif /* [#124] */
