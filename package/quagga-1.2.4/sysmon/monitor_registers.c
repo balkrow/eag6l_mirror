@@ -684,14 +684,26 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 		/* set flex tune if configured */
 		if(PORT_STATUS[port].cfg_flex_tune)
 			set_flex_tune_control(port, 1/*enable*/);
+#if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
+		else
+			set_flex_tune_control(port, 0/*disable*/);
+#endif /* [#125] */
 
 		/* set smart t-sfp self loopback if configured. */
 		if(PORT_STATUS[port].cfg_smart_tsfp_selfloopback)
 			set_smart_tsfp_self_loopback(port, 1/*enable*/);
+#if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
+		else
+			set_smart_tsfp_self_loopback(port, 0/*disable*/);
+#endif /* [#125] */
 
 		/* set rtwdm loopback if configured. */
 		if(PORT_STATUS[port].cfg_rtwdm_loopback)
 			set_rtwdm_loopback(port, 1/*enable*/);
+#if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
+		else
+			set_rtwdm_loopback(port, 0/*disable*/);
+#endif /* [#125] */
 	}
 
 	thread_add_timer(master, pm_clear_fec_counters, port, 2);
