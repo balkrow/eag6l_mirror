@@ -382,7 +382,7 @@ int board_init(void)
 #if 0/*debug print */
 	print_ifc_regs();
 #endif
-#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-19*/
+#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-24*/
 	fpga_bank_adjust();
 #endif
 	return 0;
@@ -413,7 +413,7 @@ int misc_init_r(void)
 	device_disable(devdis_tbl, ARRAY_SIZE(devdis_tbl));
 #endif
 
-#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-19*/
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-24*/
 	fpga_bank_adjust();
 #endif
 
