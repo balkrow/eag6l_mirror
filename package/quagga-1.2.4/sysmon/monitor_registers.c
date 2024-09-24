@@ -704,6 +704,11 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 		else
 			set_rtwdm_loopback(port, 0/*disable*/);
 #endif /* [#125] */
+
+#if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
+		if(PORT_STATUS[port].tunable_chno)
+			set_tunable_sfp_channel_no(port, PORT_STATUS[port].tunable_chno);
+#endif /* [#125] */
 	}
 
 	thread_add_timer(master, pm_clear_fec_counters, port, 2);

@@ -2326,6 +2326,10 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 				__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
+
+#if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
+	PORT_STATUS[portno].tunable_chno = chno;
+#endif
 #else /**********************************************************************/
 	/* write wavelength msb. */
 	if((ret = i2c_smbus_write_byte_data(fd, 146/*0x92*/, (data >> 8) & 0xFF)) < 0) {
