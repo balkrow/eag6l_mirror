@@ -317,6 +317,10 @@ SVC_EVT svc_cpld_check(SVC_ST st) {
 	return SVC_EVT_CPLD_ACCESS_SUCCESS;
 #else
 	/* check cpld access*/
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+	CPLD_WRITE(0x20, 0xa5a5);
+	CPLD_WRITE(0x20, 0);
+#endif
 	return SVC_EVT_CPLD_ACCESS_SUCCESS;
 #endif
 }

@@ -306,7 +306,7 @@ int fpga_bank_adjust(void)
 	uint16_t try_cnt;
 	char *act_bank_str = env_get("fw_act_bank");
 	char *std_bank_str = env_get("fw_stb_bank");
-#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-11*/
+#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
 	buf = map_sysmem(0x70000020, 2);
 	*((u16 *)buf) = 0xa5a5;
 	unmap_sysmem(buf);
@@ -317,6 +317,10 @@ int fpga_bank_adjust(void)
 #endif
 
 	buf = map_sysmem(0x7000001c, 2);
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+	running_bank = *(volatile uint16_t *)buf;
+	unmap_sysmem(buf);
+#endif
 	/*check active bank*/
 	if(act_bank_str != NULL)
 		str_to_16bitInt(act_bank_str, &act_bank);
@@ -326,6 +330,15 @@ int fpga_bank_adjust(void)
 	if(std_bank_str != NULL)
 		str_to_16bitInt(std_bank_str, &std_bank);
 	printf("FPGA standby bank %d\n", std_bank);
+
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+	if(running_bank == act_bank)
+	{
+
+		printf("FPGA running_bank %d, act_bank %d is same\n", running_bank, act_bank);
+		return 0;
+	}
+#endif
 
 	if(act_bank != 0) 
 	{
@@ -345,6 +358,10 @@ int fpga_bank_adjust(void)
 
 	}
 
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+	if(act_bank != 0 || std_bank != 0) 
+		try_boot_with_confirm(0);
+#endif
 	printf("FPGA Default bank booting..\n"); 
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-03*/
 	env_set("fpga_bank", "0");
@@ -382,7 +399,7 @@ int board_init(void)
 #if 0/*debug print */
 	print_ifc_regs();
 #endif
-#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-19*/
+#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-24*/
 	fpga_bank_adjust();
 #endif
 	return 0;
@@ -413,7 +430,7 @@ int misc_init_r(void)
 	device_disable(devdis_tbl, ARRAY_SIZE(devdis_tbl));
 #endif
 
-#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-19*/
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-24*/
 	fpga_bank_adjust();
 #endif
 
