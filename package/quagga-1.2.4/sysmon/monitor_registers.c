@@ -3494,6 +3494,16 @@ void process_port_pm_counters(void)
 
     /* update pm tx byte */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+        val = (PM_TBL[portno].tx_byte >> 48) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE2_ADDR[portno], val);
+        val = (PM_TBL[portno].tx_byte >> 32) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE1_ADDR[portno], val);
+        val = (PM_TBL[portno].tx_byte >> 16) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE4_ADDR[portno], val);
+        val = (PM_TBL[portno].tx_byte >>  0) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_BYTE3_ADDR[portno], val);
+#else
         val = (PM_TBL[portno].tx_byte >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_TX_BYTE1_ADDR[portno], val);
         val = (PM_TBL[portno].tx_byte >> 32) & 0xFFFF;
@@ -3502,10 +3512,21 @@ void process_port_pm_counters(void)
         FPGA_PORT_WRITE(__PORT_PM_TX_BYTE3_ADDR[portno], val);
         val = (PM_TBL[portno].tx_byte >>  0) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_TX_BYTE4_ADDR[portno], val);
+#endif
     }
 
     /* update pm rx byte */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+        val = (PM_TBL[portno].rx_byte >> 48) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE2_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_byte >> 32) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE1_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_byte >> 16) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE4_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_byte >>  0) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_BYTE3_ADDR[portno], val);
+#else
         val = (PM_TBL[portno].rx_byte >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_RX_BYTE1_ADDR[portno], val);
         val = (PM_TBL[portno].rx_byte >> 32) & 0xFFFF;
@@ -3514,10 +3535,21 @@ void process_port_pm_counters(void)
         FPGA_PORT_WRITE(__PORT_PM_RX_BYTE3_ADDR[portno], val);
         val = (PM_TBL[portno].rx_byte >>  0) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_RX_BYTE4_ADDR[portno], val);
+#endif
     }
 
     /* update pm tx frame */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+        val = (PM_TBL[portno].tx_frame >> 48) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME2_ADDR[portno], val);
+        val = (PM_TBL[portno].tx_frame >> 32) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME1_ADDR[portno], val);
+        val = (PM_TBL[portno].tx_frame >> 16) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME4_ADDR[portno], val);
+        val = (PM_TBL[portno].tx_frame >>  0) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_TX_FRAME3_ADDR[portno], val);
+#else
         val = (PM_TBL[portno].tx_frame >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_TX_FRAME1_ADDR[portno], val);
         val = (PM_TBL[portno].tx_frame >> 32) & 0xFFFF;
@@ -3526,10 +3558,21 @@ void process_port_pm_counters(void)
         FPGA_PORT_WRITE(__PORT_PM_TX_FRAME3_ADDR[portno], val);
         val = (PM_TBL[portno].tx_frame >>  0) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_TX_FRAME4_ADDR[portno], val);
+#endif
     }
 
     /* update pm rx frame */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+        val = (PM_TBL[portno].rx_frame >> 48) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME2_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_frame >> 32) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME1_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_frame >> 16) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME4_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_frame >>  0) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_RX_FRAME3_ADDR[portno], val);
+#else
         val = (PM_TBL[portno].rx_frame >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_RX_FRAME1_ADDR[portno], val);
         val = (PM_TBL[portno].rx_frame >> 32) & 0xFFFF;
@@ -3538,10 +3581,21 @@ void process_port_pm_counters(void)
         FPGA_PORT_WRITE(__PORT_PM_RX_FRAME3_ADDR[portno], val);
         val = (PM_TBL[portno].rx_frame >>  0) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_RX_FRAME4_ADDR[portno], val);
+#endif
     }
 
     /* update pm fcs */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+        val = (PM_TBL[portno].rx_fcs >> 48) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS2_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_fcs >> 32) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS1_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_fcs >> 16) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS4_ADDR[portno], val);
+        val = (PM_TBL[portno].rx_fcs >>  0) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS3_ADDR[portno], val);
+#else
         val = (PM_TBL[portno].rx_fcs >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS1_ADDR[portno], val);
         val = (PM_TBL[portno].rx_fcs >> 32) & 0xFFFF;
@@ -3550,10 +3604,21 @@ void process_port_pm_counters(void)
         FPGA_PORT_WRITE(__PORT_PM_FCS3_ADDR[portno], val);
         val = (PM_TBL[portno].rx_fcs >>  0) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS4_ADDR[portno], val);
+#endif
     }
 
     /* update pm fcs corrected error */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+        val = (PM_TBL[portno].fcs_ok >> 48) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK2_ADDR[portno], val);
+        val = (PM_TBL[portno].fcs_ok >> 32) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK1_ADDR[portno], val);
+        val = (PM_TBL[portno].fcs_ok >> 16) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK4_ADDR[portno], val);
+        val = (PM_TBL[portno].fcs_ok >>  0) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_OK3_ADDR[portno], val);
+#else
         val = (PM_TBL[portno].fcs_ok >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_OK1_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_ok >> 32) & 0xFFFF;
@@ -3562,10 +3627,21 @@ void process_port_pm_counters(void)
         FPGA_PORT_WRITE(__PORT_PM_FCS_OK3_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_ok >>  0) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_OK4_ADDR[portno], val);
+#endif
     }
 
     /* update pm fcs uncorrected error */
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+        val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK2_ADDR[portno], val);
+        val = (PM_TBL[portno].fcs_nok >> 32) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK1_ADDR[portno], val);
+        val = (PM_TBL[portno].fcs_nok >> 16) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK4_ADDR[portno], val);
+        val = (PM_TBL[portno].fcs_nok >>  0) & 0xFFFF;
+        FPGA_PORT_WRITE(__PORT_PM_FCS_NOK3_ADDR[portno], val);
+#else
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_NOK1_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
@@ -3574,6 +3650,7 @@ void process_port_pm_counters(void)
         FPGA_PORT_WRITE(__PORT_PM_FCS_NOK3_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_NOK4_ADDR[portno], val);
+#endif
     }
 
 	return;
