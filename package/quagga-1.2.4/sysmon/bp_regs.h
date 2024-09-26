@@ -880,6 +880,231 @@ typedef enum {
 
 #define PM_COUNT_CLEAR_ADDR			0x100	
 
+#if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
+#define PM_P1_TX_BYTE1_ADDR		0x800
+#define PM_P2_TX_BYTE1_ADDR		0x850
+#define PM_P3_TX_BYTE1_ADDR		0x8A0
+#define PM_P4_TX_BYTE1_ADDR		0x8F0
+#define PM_P5_TX_BYTE1_ADDR		0x940
+#define PM_P6_TX_BYTE1_ADDR		0x990
+#define PM_P7_TX_BYTE1_ADDR		0x9E0
+
+#define PM_P1_TX_BYTE2_ADDR		0x802
+#define PM_P2_TX_BYTE2_ADDR		0x852
+#define PM_P3_TX_BYTE2_ADDR		0x8A2
+#define PM_P4_TX_BYTE2_ADDR		0x8F2
+#define PM_P5_TX_BYTE2_ADDR		0x942
+#define PM_P6_TX_BYTE2_ADDR		0x992
+#define PM_P7_TX_BYTE2_ADDR		0x9E2
+
+#define PM_P1_TX_BYTE3_ADDR		0x804
+#define PM_P2_TX_BYTE3_ADDR		0x854
+#define PM_P3_TX_BYTE3_ADDR		0x8A4
+#define PM_P4_TX_BYTE3_ADDR		0x8F4
+#define PM_P5_TX_BYTE3_ADDR		0x944
+#define PM_P6_TX_BYTE3_ADDR		0x994
+#define PM_P7_TX_BYTE3_ADDR		0x9E4
+
+#define PM_P1_TX_BYTE4_ADDR		0x806
+#define PM_P2_TX_BYTE4_ADDR		0x856
+#define PM_P3_TX_BYTE4_ADDR		0x8A6
+#define PM_P4_TX_BYTE4_ADDR		0x8F6
+#define PM_P5_TX_BYTE4_ADDR		0x946
+#define PM_P6_TX_BYTE4_ADDR		0x996
+#define PM_P7_TX_BYTE4_ADDR		0x9E6
+
+#define PM_P1_RX_BYTE1_ADDR		0x808
+#define PM_P2_RX_BYTE1_ADDR		0x858
+#define PM_P3_RX_BYTE1_ADDR		0x8A8
+#define PM_P4_RX_BYTE1_ADDR		0x8F8
+#define PM_P5_RX_BYTE1_ADDR		0x948
+#define PM_P6_RX_BYTE1_ADDR		0x998
+#define PM_P7_RX_BYTE1_ADDR		0x9E8
+
+#define PM_P1_RX_BYTE2_ADDR		0x80A
+#define PM_P2_RX_BYTE2_ADDR		0x85A
+#define PM_P3_RX_BYTE2_ADDR		0x8AA
+#define PM_P4_RX_BYTE2_ADDR		0x8FA
+#define PM_P5_RX_BYTE2_ADDR		0x94A
+#define PM_P6_RX_BYTE2_ADDR		0x99A
+#define PM_P7_RX_BYTE2_ADDR		0x9EA
+
+#define PM_P1_RX_BYTE3_ADDR		0x80C
+#define PM_P2_RX_BYTE3_ADDR		0x85C
+#define PM_P3_RX_BYTE3_ADDR		0x8AC
+#define PM_P4_RX_BYTE3_ADDR		0x8FC
+#define PM_P5_RX_BYTE3_ADDR		0x94C
+#define PM_P6_RX_BYTE3_ADDR		0x99C
+#define PM_P7_RX_BYTE3_ADDR		0x9EC
+
+#define PM_P1_RX_BYTE4_ADDR		0x80E
+#define PM_P2_RX_BYTE4_ADDR		0x85E
+#define PM_P3_RX_BYTE4_ADDR		0x8AE
+#define PM_P4_RX_BYTE4_ADDR		0x8FE
+#define PM_P5_RX_BYTE4_ADDR		0x94E
+#define PM_P6_RX_BYTE4_ADDR		0x99E
+#define PM_P7_RX_BYTE4_ADDR		0x9EE
+
+#define PM_P1_TX_FRAME1_ADDR       0x810
+#define PM_P2_TX_FRAME1_ADDR       0x860
+#define PM_P3_TX_FRAME1_ADDR       0x8B0
+#define PM_P4_TX_FRAME1_ADDR       0x900
+#define PM_P5_TX_FRAME1_ADDR       0x950
+#define PM_P6_TX_FRAME1_ADDR       0x9A0
+#define PM_P7_TX_FRAME1_ADDR       0x9F0
+
+#define PM_P1_TX_FRAME2_ADDR       0x812
+#define PM_P2_TX_FRAME2_ADDR       0x862
+#define PM_P3_TX_FRAME2_ADDR       0x8B2
+#define PM_P4_TX_FRAME2_ADDR       0x902
+#define PM_P5_TX_FRAME2_ADDR       0x952
+#define PM_P6_TX_FRAME2_ADDR       0x9A2
+#define PM_P7_TX_FRAME2_ADDR       0x9F2
+
+#define PM_P1_TX_FRAME3_ADDR       0x814
+#define PM_P2_TX_FRAME3_ADDR       0x864
+#define PM_P3_TX_FRAME3_ADDR       0x8B4
+#define PM_P4_TX_FRAME3_ADDR       0x904
+#define PM_P5_TX_FRAME3_ADDR       0x954
+#define PM_P6_TX_FRAME3_ADDR       0x9A4
+#define PM_P7_TX_FRAME3_ADDR       0x9F4
+
+#define PM_P1_TX_FRAME4_ADDR       0x816
+#define PM_P2_TX_FRAME4_ADDR       0x866
+#define PM_P3_TX_FRAME4_ADDR       0x8B6
+#define PM_P4_TX_FRAME4_ADDR       0x906
+#define PM_P5_TX_FRAME4_ADDR       0x956
+#define PM_P6_TX_FRAME4_ADDR       0x9A6
+#define PM_P7_TX_FRAME4_ADDR       0x9F6
+
+#define PM_P1_RX_FRAME1_ADDR       0x818
+#define PM_P2_RX_FRAME1_ADDR       0x868
+#define PM_P3_RX_FRAME1_ADDR       0x8B8
+#define PM_P4_RX_FRAME1_ADDR       0x908
+#define PM_P5_RX_FRAME1_ADDR       0x958
+#define PM_P6_RX_FRAME1_ADDR       0x9A8
+#define PM_P7_RX_FRAME1_ADDR       0x9F8
+
+#define PM_P1_RX_FRAME2_ADDR       0x81A
+#define PM_P2_RX_FRAME2_ADDR       0x86A
+#define PM_P3_RX_FRAME2_ADDR       0x8BA
+#define PM_P4_RX_FRAME2_ADDR       0x90A
+#define PM_P5_RX_FRAME2_ADDR       0x95A
+#define PM_P6_RX_FRAME2_ADDR       0x9AA
+#define PM_P7_RX_FRAME2_ADDR       0x9FA
+
+#define PM_P1_RX_FRAME3_ADDR       0x81C
+#define PM_P2_RX_FRAME3_ADDR       0x86C
+#define PM_P3_RX_FRAME3_ADDR       0x8BC
+#define PM_P4_RX_FRAME3_ADDR       0x90C
+#define PM_P5_RX_FRAME3_ADDR       0x95C
+#define PM_P6_RX_FRAME3_ADDR       0x9AC
+#define PM_P7_RX_FRAME3_ADDR       0x9FC
+
+#define PM_P1_RX_FRAME4_ADDR       0x81E
+#define PM_P2_RX_FRAME4_ADDR       0x86E
+#define PM_P3_RX_FRAME4_ADDR       0x8BE
+#define PM_P4_RX_FRAME4_ADDR       0x90E
+#define PM_P5_RX_FRAME4_ADDR       0x95E
+#define PM_P6_RX_FRAME4_ADDR       0x9AE
+#define PM_P7_RX_FRAME4_ADDR       0x9FE
+
+#define PM_P1_FCS1_ADDR		0x820
+#define PM_P2_FCS1_ADDR		0x870
+#define PM_P3_FCS1_ADDR		0x8C0
+#define PM_P4_FCS1_ADDR		0x910
+#define PM_P5_FCS1_ADDR		0x960
+#define PM_P6_FCS1_ADDR		0x9B0
+#define PM_P7_FCS1_ADDR		0xA00
+
+#define PM_P1_FCS2_ADDR		0x822
+#define PM_P2_FCS2_ADDR		0x872
+#define PM_P3_FCS2_ADDR		0x8C2
+#define PM_P4_FCS2_ADDR		0x912
+#define PM_P5_FCS2_ADDR		0x962
+#define PM_P6_FCS2_ADDR		0x9B2
+#define PM_P7_FCS2_ADDR		0xA02
+
+#define PM_P1_FCS3_ADDR		0x824
+#define PM_P2_FCS3_ADDR		0x874
+#define PM_P3_FCS3_ADDR		0x8C4
+#define PM_P4_FCS3_ADDR		0x914
+#define PM_P5_FCS3_ADDR		0x964
+#define PM_P6_FCS3_ADDR		0x9B4
+#define PM_P7_FCS3_ADDR		0xA04
+
+#define PM_P1_FCS4_ADDR		0x826
+#define PM_P2_FCS4_ADDR		0x876
+#define PM_P3_FCS4_ADDR		0x8C6
+#define PM_P4_FCS4_ADDR		0x916
+#define PM_P5_FCS4_ADDR		0x966
+#define PM_P6_FCS4_ADDR		0x9B6
+#define PM_P7_FCS4_ADDR		0xA06
+
+#define PM_P1_FCS_OK1_ADDR     0x830
+#define PM_P2_FCS_OK1_ADDR     0x880
+#define PM_P3_FCS_OK1_ADDR     0x8D0
+#define PM_P4_FCS_OK1_ADDR     0x920
+#define PM_P5_FCS_OK1_ADDR     0x970
+#define PM_P6_FCS_OK1_ADDR     0x9C0
+#define PM_P7_FCS_OK1_ADDR     0xA10
+
+#define PM_P1_FCS_OK2_ADDR     0x832
+#define PM_P2_FCS_OK2_ADDR     0x882
+#define PM_P3_FCS_OK2_ADDR     0x8D2
+#define PM_P4_FCS_OK2_ADDR     0x922
+#define PM_P5_FCS_OK2_ADDR     0x972
+#define PM_P6_FCS_OK2_ADDR     0x9C2
+#define PM_P7_FCS_OK2_ADDR     0xA12
+
+#define PM_P1_FCS_OK3_ADDR     0x834
+#define PM_P2_FCS_OK3_ADDR     0x884
+#define PM_P3_FCS_OK3_ADDR     0x8D4
+#define PM_P4_FCS_OK3_ADDR     0x924
+#define PM_P5_FCS_OK3_ADDR     0x974
+#define PM_P6_FCS_OK3_ADDR     0x9C4
+#define PM_P7_FCS_OK3_ADDR     0xA14
+
+#define PM_P1_FCS_OK4_ADDR     0x836
+#define PM_P2_FCS_OK4_ADDR     0x886
+#define PM_P3_FCS_OK4_ADDR     0x8D6
+#define PM_P4_FCS_OK4_ADDR     0x926
+#define PM_P5_FCS_OK4_ADDR     0x976
+#define PM_P6_FCS_OK4_ADDR     0x9C6
+#define PM_P7_FCS_OK4_ADDR     0xA16
+
+#define PM_P1_FCS_NOK1_ADDR    0x838
+#define PM_P2_FCS_NOK1_ADDR    0x888
+#define PM_P3_FCS_NOK1_ADDR    0x8D8
+#define PM_P4_FCS_NOK1_ADDR    0x928
+#define PM_P5_FCS_NOK1_ADDR    0x978
+#define PM_P6_FCS_NOK1_ADDR    0x9C8
+#define PM_P7_FCS_NOK1_ADDR    0xA18
+
+#define PM_P1_FCS_NOK2_ADDR    0x83A
+#define PM_P2_FCS_NOK2_ADDR    0x88A
+#define PM_P3_FCS_NOK2_ADDR    0x8DA
+#define PM_P4_FCS_NOK2_ADDR    0x92A
+#define PM_P5_FCS_NOK2_ADDR    0x97A
+#define PM_P6_FCS_NOK2_ADDR    0x9CA
+#define PM_P7_FCS_NOK2_ADDR    0xA1A
+
+#define PM_P1_FCS_NOK3_ADDR    0x83C
+#define PM_P2_FCS_NOK3_ADDR    0x88C
+#define PM_P3_FCS_NOK3_ADDR    0x8DC
+#define PM_P4_FCS_NOK3_ADDR    0x92C
+#define PM_P5_FCS_NOK3_ADDR    0x97C
+#define PM_P6_FCS_NOK3_ADDR    0x9CC
+#define PM_P7_FCS_NOK3_ADDR    0xA1C
+
+#define PM_P1_FCS_NOK4_ADDR    0x83E
+#define PM_P2_FCS_NOK4_ADDR    0x88E
+#define PM_P3_FCS_NOK4_ADDR    0x8DE
+#define PM_P4_FCS_NOK4_ADDR    0x92E
+#define PM_P5_FCS_NOK4_ADDR    0x97E
+#define PM_P6_FCS_NOK4_ADDR    0x9CE
+#define PM_P7_FCS_NOK4_ADDR    0xA1E
+#else /************************************************************/
 #define PM_P1_TX_BYTE1_ADDR			0x700	
 #define PM_P2_TX_BYTE1_ADDR			0x750	
 #define PM_P3_TX_BYTE1_ADDR			0x7A0	
@@ -1103,6 +1328,7 @@ typedef enum {
 #define PM_P5_FCS_NOK4_ADDR  	0x87E	
 #define PM_P6_FCS_NOK4_ADDR  	0x8CE	
 #define PM_P7_FCS_NOK4_ADDR  	0x91E	
+#endif /* [#133] */
 
 
 /****************************
