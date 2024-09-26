@@ -86,6 +86,9 @@ extern uint16_t RDL_ACTIVATION_STATE;
 #endif
 
 uint8_t PAGE_CRC_OK;
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+uint8_t RDL_TOTAL_CRC;
+#endif /* [#129] */
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 uint8_t IMG_INSTALL_OK;
 #else
@@ -107,11 +110,13 @@ fw_image_header_t RDL_FW_HEADER;
 extern int check_fifo_hello(struct thread *thread);
 #endif
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 struct timeval ktt1;
 struct timeval ktt2;
 struct timeval ktt3;
 struct timeval ktt4;
 uint8_t zone1, zone2, zone3, zone4; /* flags for timeout zones. */
+#endif /* [#129] */
 uint16_t mcu_keepalive;
 #endif
 
@@ -515,7 +520,11 @@ int rdl_read_img_info(RDL_IMG_INFO_t *pinfo)
     // read rdl img info.
     data = DPRAM_READ(RDL_TARGET_BANK_ADDR);
     pinfo->bno = (data >> 8) & 0xFF;
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+    pinfo->total_pno = (data & 0xFF) - 1;
+#else
     pinfo->total_pno = data & 0xFF;
+#endif
 	if((pinfo->bno != 1) && (pinfo->bno != 2)) {
 #ifdef DEBUG
 		zlog_notice("%s : Invalid Bank Number [%d].", 
@@ -2538,6 +2547,10 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(sts == RDL_P1_WRITING_DONE_BIT)
 				evt = EVT_RDL_WRITING_DONE_P1;
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+			else if(sts == RDL_PAGE_WRITING_DONE_BIT)
+				evt = EVT_RDL_PAGE_WRITING_DONE;
+#endif
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 			/* for over 3-times page reading error or canceling rld. */
 			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
@@ -2556,6 +2569,10 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 #endif
 			if(sts == RDL_P2_WRITING_BIT)
 				evt = EVT_RDL_WRITING_P2;
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+			else if(sts == RDL_PAGE_WRITING_DONE_BIT)
+				evt = EVT_RDL_PAGE_WRITING_DONE;
+#endif
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 			/* for over 3-times page reading error or canceling rld. */
 			else if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
@@ -2622,6 +2639,15 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 				evt = EVT_RDL_START;
 			else
 #endif
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+			/* for over 3-times page reading error or canceling rld. */
+			if(sts == RDL_TOTAL_WRITING_ERROR_BIT)
+				evt = EVT_RDL_WRITING_ERROR_TOTAL;
+			else if(RDL_TOTAL_CRC == RDL_CRC_OK)
+				evt = EVT_RDL_READING_DONE_TOTAL;
+			else
+				evt = EVT_RDL_READING_ERROR_TOTAL;
+#else
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 			if(rdl_check_total_crc(RDL_INFO.hd.fih_name) == RDL_CRC_OK)
 				evt = EVT_RDL_READING_DONE_TOTAL;
@@ -2635,6 +2661,7 @@ RDL_EVT_t rdl_get_evt(RDL_ST_t state)
 				evt = EVT_RDL_READING_DONE_TOTAL;
 			else
 				evt = EVT_RDL_READING_ERROR_TOTAL;
+#endif
 #endif
 			break;
 
@@ -2731,6 +2758,7 @@ RDL_ST_t rdl_update_fsm(void)
 #endif
 
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 				if(zone1 && 
 					((now.tv_sec - ktt1.tv_sec) > RDL_TIMEOUT_1)) {
 					zlog_notice("Timeout at zone1. Go to IDLE.");
@@ -2748,6 +2776,7 @@ RDL_ST_t rdl_update_fsm(void)
 					zlog_notice("Timeout at zone4. Go to IDLE.");
 					return ST_RDL_TERM;
 				}
+#endif /* [#129] */
 
 				/* check mcu fail status or mcu keepalive counter. */
 				mval = FPGA_READ(CPU_FAIL_ADDR);
@@ -2791,7 +2820,7 @@ int rdl_fsm_func(struct thread *thread)
 	rdl_update_fsm();
 
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
-	thread_add_timer_msec (master, rdl_fsm_func, NULL, 50);
+	thread_add_timer_msec (master, rdl_fsm_func, NULL, 10);
 #else
 	thread_add_timer_msec (master, rdl_fsm_func, NULL, 100);
 #endif
