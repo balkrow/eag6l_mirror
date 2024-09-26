@@ -217,7 +217,7 @@ SVC_EVT svc_dpram_check(SVC_ST st) {
 	const char *prog = "appDemo";
 
 	/* NOTE : balkrow moved code for fixing fpga reset issue. */
-#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+#if 0/*[#135] fpga register reset 위치 수정, balkrow, 2024-09-26*/
 	CPLD_WRITE(0x20, 0xa5a5);
 	zlog_notice("clear fpga register!!");
 	CPLD_WRITE(0x20, 0);
