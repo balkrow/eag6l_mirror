@@ -16,6 +16,9 @@ RDL_INFO_LIST_t rdl_info_list = {0, };
 RDL_INFO_LIST_t emul_info_list = {0, };
 #endif
 extern uint8_t PAGE_CRC_OK;
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+extern uint8_t RDL_TOTAL_CRC;
+#endif /* [#129] */
 #if 0 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 extern uint8_t IMG_ACTIVATION_OK;
 extern uint8_t IMG_RUNNING_OK;
@@ -48,6 +51,7 @@ extern uint16_t chipReset(uint16_t port, uint16_t val);
 extern int syscmd_file_exist(char *fpath);
 extern uint16_t get_sum(uint16_t *addr, int32_t nleft);
 
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 extern struct timeval ktt1;
 extern struct timeval ktt2;
@@ -55,6 +59,7 @@ extern struct timeval ktt3;
 extern struct timeval ktt4;
 extern uint8_t zone1, zone2, zone3, zone4; /* flags for timeout zones. */
 #endif
+#endif /* [#129] */
 
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
@@ -86,11 +91,13 @@ RDL_ST_t rdl_start(void) //#1
 #if 1 /* [#89] Fixing for RDL changes on Target system, dustin, 2024-08-02 */
 	gettimeofday(&sss, NULL);
     zlog_notice("%s : ----> RDL Start time[%ld sec].", __func__, sss.tv_sec);
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 	ktt1 = sss;
 	zone1 = 1;
 	zone2 = zone3 = zone4 = 0;
 #endif /* [#124] */
+#endif /* [#129] */
 #endif
 	// RDL start ack
 	// MCU start RDL, BP read img header info registers, init page buff, 
@@ -186,12 +193,14 @@ RDL_ST_t rdl_writing_p1(void) //#2
 	// ack writing p-1.
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_P1_WRITING_ACK_BIT);
 
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 	if(! zone1) {
 		gettimeofday(&ktt1, NULL);
 		zone1 = 1;
 	}
 #endif /* [#124] */
+#endif /* [#129] */
 
 	rdl_info_list.st = state;
 	return state;
@@ -218,7 +227,12 @@ RDL_ST_t rdl_reading_p1(void) //#3
 
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 	/* read fw_image_header_t from 1st page head part. */
-	if(RDL_INFO.pno == 1) {
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+	if(RDL_INFO.pno == 0)
+#else
+	if(RDL_INFO.pno == 1)
+#endif
+	{
 		char temp[100];
 
 		/* copy fw_image_header_t area. */
@@ -247,6 +261,7 @@ RDL_ST_t rdl_reading_p1(void) //#3
 		}
 	}
 
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 	gettimeofday(&now, NULL);
 	now.tv_sec -= ktt1.tv_sec;
 	if(now.tv_sec > RDL_TIMEOUT_1) {
@@ -255,6 +270,7 @@ RDL_ST_t rdl_reading_p1(void) //#3
 		return ST_RDL_IDLE;
 	}
 	zone1 = 0;
+#endif /* [#129] */
 #endif /* [#124] */
 
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_P1_WRITING_DONE_ACK_BIT);
@@ -352,8 +368,10 @@ RDL_ST_t rdl_reading_p2(void) //#7
 	// ack for p2 writing done.
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_P2_WRITING_DONE_ACK_BIT);
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 	gettimeofday(&ktt3, NULL);
 	zone3 = 1;
+#endif /* [#129] */
 
 	rdl_info_list.st = state;
 	return state;
@@ -515,6 +533,7 @@ RDL_ST_t rdl_page_done(void) //#9
 	// page reading done
 	// MCU go next page writing P-1, or total writing done
 	gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_PAGE_READING_DONE_BIT);
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
 	{
 		struct timeval now;
@@ -528,6 +547,7 @@ RDL_ST_t rdl_page_done(void) //#9
 		zone3 = 0;
 	}
 #endif /* [#124] */
+#endif /* [#129] */
     rdl_info_list.st = state;
     return state;
 }
@@ -558,8 +578,10 @@ RDL_ST_t rdl_reading_total(void) //#11
 	// BP check file size.
 	// check file size with total size.
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 	gettimeofday(&ktt4, NULL);
 	zone4 = 1;
+#endif /* [#129] */
 
 	file_size = rdl_get_file_size(RDL_INFO.hd.fih_name);
 	if(file_size != (RDL_INFO.hd.fih_size + sizeof(fw_image_header_t))) {
@@ -570,6 +592,14 @@ RDL_ST_t rdl_reading_total(void) //#11
 		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_TOTAL_FW_CRC_ERROR_BIT);
 		return ST_RDL_IDLE;
 	}
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+	if(rdl_check_total_crc(RDL_INFO.hd.fih_name) != RDL_CRC_OK) {
+		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_TOTAL_FW_CRC_ERROR_BIT);
+		RDL_TOTAL_CRC = RDL_CRC_FAIL;
+	}
+
+	RDL_TOTAL_CRC = RDL_CRC_OK;
+#endif /* [#129] */
 #else
 	file_size = rdl_get_file_size(RDL_INFO.hd.file_name);
 	if(file_size != RDL_INFO.hd.total_size) {
@@ -657,6 +687,7 @@ void move_image_to_bank(void)
 		/* notify rdl done to mcu. */
 		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_IMG_INSTALL_DONE_BIT);
 
+#if 0 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
 		gettimeofday(&now, NULL);
 		now.tv_sec -= ktt4.tv_sec;
 		if(now.tv_sec > RDL_TIMEOUT_4) {
@@ -665,6 +696,7 @@ void move_image_to_bank(void)
 			return;
 		}
 		zone4 = 0;
+#endif /* [#129] */
 	}
 #endif /* [#124] */
 
@@ -991,11 +1023,17 @@ RDL_FSM_t rdl_fsm_list[] =
 
 	{ST_RDL_WRITING_P1,			EVT_RDL_WRITING_DONE_P1,        rdl_reading_p1},
 	{ST_RDL_WRITING_P1,         EVT_RDL_WRITING_ERROR,  	    rdl_writing_err_p1},
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+	{ST_RDL_WRITING_P1,         EVT_RDL_PAGE_WRITING_DONE,      rdl_check_page_done},
+#endif
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	{ST_RDL_WRITING_P1,         EVT_RDL_START,	                rdl_start},
 #endif
 
 	{ST_RDL_READING_P1,         EVT_RDL_WRITING_P2,             rdl_writing_p2},
+#if 1 /* [#129] Fixing for RDL interoperating test, dustin, 2024-09-25 */
+	{ST_RDL_READING_P1,         EVT_RDL_PAGE_WRITING_DONE,      rdl_check_page_done},
+#endif
 #if 1 /* [#105] Fixing for RDL install/activation process, dustin, 2024-08-27 */
 	{ST_RDL_READING_P1,         EVT_RDL_START,	                rdl_start},
 #endif

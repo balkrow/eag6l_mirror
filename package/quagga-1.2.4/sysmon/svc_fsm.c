@@ -215,6 +215,13 @@ SVC_EVT svc_dpram_check(SVC_ST st) {
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #endif
 	const char *prog = "appDemo";
+
+	/* NOTE : balkrow moved code for fixing fpga reset issue. */
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+	CPLD_WRITE(0x20, 0xa5a5);
+	zlog_notice("clear fpga register!!");
+	CPLD_WRITE(0x20, 0);
+#endif
 	/*write 0x2 0xaa*/
 	DPRAM_WRITE(DPRAM_RDL_STATE, 0xaa);
 	/*READ 0x2*/
@@ -317,10 +324,6 @@ SVC_EVT svc_cpld_check(SVC_ST st) {
 	return SVC_EVT_CPLD_ACCESS_SUCCESS;
 #else
 	/* check cpld access*/
-#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
-	CPLD_WRITE(0x20, 0xa5a5);
-	CPLD_WRITE(0x20, 0);
-#endif
 	return SVC_EVT_CPLD_ACCESS_SUCCESS;
 #endif
 }
