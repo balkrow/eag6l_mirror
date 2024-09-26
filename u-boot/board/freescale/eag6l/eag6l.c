@@ -293,7 +293,7 @@ int try_boot_with_confirm(uint16_t bank)
 			return 1;
 		}
 		else
-			printf("retry bank result=%x\n", bank_cfg_result);
+			printf("retry bank %d result=%x\n", bank, bank_cfg_result);
 
 		udelay(10000);
 	}
@@ -334,9 +334,18 @@ int fpga_bank_adjust(void)
 #if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
 	if(running_bank == act_bank)
 	{
+#if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+		uint16_t status;
+		buf = map_sysmem(0x70000010, 2);
+		status = *(volatile uint16_t *)buf;
+		unmap_sysmem(buf);
 
-		printf("FPGA running_bank %d, act_bank %d is same\n", running_bank, act_bank);
-		return 0;
+		if(status == 0x9)
+		{
+			printf("FPGA running_bank %d, act_bank %d is same\n", running_bank, act_bank);
+			return 0;
+		}
+#endif
 	}
 #endif
 
@@ -360,7 +369,10 @@ int fpga_bank_adjust(void)
 
 #if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
 	if(act_bank != 0 || std_bank != 0) 
+	{
+		printf("Attempt to boot from the default bank..\n");
 		try_boot_with_confirm(0);
+	}
 #endif
 	printf("FPGA Default bank booting..\n"); 
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-03*/
