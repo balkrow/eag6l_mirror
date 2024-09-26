@@ -1038,7 +1038,9 @@ int restore_pkg_file(char *src, char *dst)
 		if((out = open(os_image_name, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR)) <= 0) 
 		{
 			close(in); 
-			zlog_notice("%s create failed %s", dst, strerror(errno));		
+#if 1 /*[#134] embeded FPGA image only bank1 install ¿¿, balkrow, 2024-09-26*/
+			zlog_notice("%s create failed %s", os_image_name, strerror(errno));		
+#endif
 			return -1;
 		}
 		else
