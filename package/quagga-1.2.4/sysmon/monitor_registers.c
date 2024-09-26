@@ -1173,8 +1173,9 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 			system(cmd);
 
 			/** OS reboot */
-#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-11*/
+#if 1/*[#135] fpga register reset 위치 수정, balkrow, 2024-09-26*/
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0xa5a5);
+			zlog_notice("clear fpga register!!");
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0);
 #endif
 			memset(cmd, 0, 100);
