@@ -1028,10 +1028,12 @@ int restore_pkg_file(char *src, char *dst)
 		{
 			sprintf(os_image_name, "%s%s%s.bin", RDL_INSTALL1_PATH, "eag6l-os-v", header.fih_ver);
 		}
-		else if(RDL_INFO.bno == RDL_BANK_1)
+#if 1 /*[#134] embeded FPGA image only bank1 install ¿¿, balkrow, 2024-09-26*/
+		else if(RDL_INFO.bno == RDL_BANK_2)
 		{
 			sprintf(os_image_name, "%s%s%s.bin", RDL_INSTALL2_PATH, "eag6l-os-v", header.fih_ver);
 		}
+#endif
 
 		if((out = open(os_image_name, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR)) <= 0) 
 		{
