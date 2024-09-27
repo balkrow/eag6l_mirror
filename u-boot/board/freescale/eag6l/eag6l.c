@@ -320,6 +320,9 @@ int fpga_bank_adjust(void)
 #if 1/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
 	running_bank = *(volatile uint16_t *)buf;
 	unmap_sysmem(buf);
+#if 1/*[#137] u-boot fpga default booting 관련 수정, balkrow, 2024-09-27*/
+	printf("FPGA running bank %d\n", running_bank);
+#endif
 #endif
 	/*check active bank*/
 	if(act_bank_str != NULL)
@@ -343,6 +346,9 @@ int fpga_bank_adjust(void)
 		if(status == 0x9)
 		{
 			printf("FPGA running_bank %d, act_bank %d is same\n", running_bank, act_bank);
+#if 1/*[#137] u-boot fpga default booting 관련 수정, balkrow, 2024-09-27*/
+			env_set("fpga_bank", act_bank);
+#endif
 			return 0;
 		}
 #endif
@@ -373,6 +379,13 @@ int fpga_bank_adjust(void)
 		printf("Attempt to boot from the default bank..\n");
 		try_boot_with_confirm(0);
 	}
+#if 1/*[#137] u-boot fpga default booting 관련 수정, balkrow, 2024-09-27*/
+	else if(act_bank == 0 && running_bank != act_bank)
+	{
+		printf("Attempt to boot from the default bank..\n");
+		try_boot_with_confirm(0);
+	}
+#endif
 #endif
 	printf("FPGA Default bank booting..\n"); 
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-03*/
