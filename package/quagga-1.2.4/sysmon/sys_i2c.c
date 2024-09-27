@@ -3485,12 +3485,20 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		/* TX Bias */
 		bias = (double)((raw_diag1->chann_monitor[8] << 8) | 
 				raw_diag1->chann_monitor[9]);
+#if 1 /* [#138] Fixing for 100G DCO DDM, dustin, 2024-09-27 */
+		bias *= ((double)2/*uA-unit*/ / (double)1000/*convert-to-mA*/);
+#else
 		bias *= ((double)2/*uA-unit*/ / (double)1000000/*convert-to-A*/);
+#endif
 
 		/* TX Power */
 		tx_db = (double)((raw_diag1->chann_monitor[16] << 8) | 
 				raw_diag1->chann_monitor[17]);
+#if 1 /* [#138] Fixing for 100G DCO DDM, dustin, 2024-09-27 */
+		tx_db *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+#else
 		tx_db *= (0.1/*uW-unit*/ * 48.2/*dBm*/ / (double)6553.5/*uW*/);
+#endif
 		if(tx_db == 0)
 			tx_db = 0.0001;
 		tx_db = 10 * log10(tx_db);
@@ -3498,7 +3506,11 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		/* RX Power */
 		rx_db = (double)((raw_diag1->chann_monitor[0] << 8) | 
 				raw_diag1->chann_monitor[1]);
+#if 1 /* [#138] Fixing for 100G DCO DDM, dustin, 2024-09-27 */
+		rx_db *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+#else
 		rx_db *= (0.1/*uW-unit*/ * 48.2/*dBm*/ / (double)6553.5/*uW*/);
+#endif
 		if(rx_db == 0)
 			rx_db = 0.0001;
 		rx_db = 10 * log10(rx_db);
