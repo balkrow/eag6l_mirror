@@ -2431,6 +2431,293 @@ int update_flex_tune_status(int portno)
 }
 #endif
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+typedef struct _dco_ch_wave_ 
+{
+	uint16_t	ch_name;
+	uint32_t	ch_wave;
+	uint16_t	ch_data;
+	uint16_t	ch_no;
+} dco_ch_wave_t;
+
+static const dco_ch_wave_t dco_tbl[] = {
+	{ 0xD205, 156101, 0xFFEB, 80 },
+	{ 0xD210, 156061, 0xFFEC, 79 },
+	{ 0xD215, 156020, 0xFFED, 78 },
+	{ 0xD220, 156979, 0xFFEE, 77 },
+	{ 0xD225, 156939, 0xFFEF, 76 },
+	{ 0xD230, 156898, 0xFFF0, 75 },
+	{ 0xD235, 156858, 0xFFF1, 74 },
+	{ 0xD240, 156817, 0xFFF2, 73 },
+	{ 0xD245, 156777, 0xFFF3, 72 },
+	{ 0xD250, 156736, 0xFFF4, 71 },
+	{ 0xD255, 156696, 0xFFF5, 70 },
+	{ 0xD260, 156655, 0xFFF6, 69 },
+	{ 0xD265, 156615, 0xFFF7, 68 },
+	{ 0xD270, 156575, 0xFFF8, 67 },
+	{ 0xD275, 156534, 0xFFF9, 66 },
+	{ 0xD280, 156494, 0xFFFA, 65 },
+	{ 0xD285, 156454, 0xFFFB, 64 },
+	{ 0xD290, 156413, 0xFFFC, 63 },
+	{ 0xD295, 156373, 0xFFFD, 62 },
+	{ 0xD300, 156333, 0xFFFE, 61 },
+	{ 0xD305, 156293, 0xFFFF, 60 },
+	{ 0xD310, 156252, 0x0000, 59 },
+	{ 0xD315, 156212, 0x0001, 58 },
+	{ 0xD320, 156172, 0x0002, 57 },
+	{ 0xD325, 156132, 0x0003, 56 },
+	{ 0xD330, 156092, 0x0004, 55 },
+	{ 0xD335, 156052, 0x0005, 54 },
+	{ 0xD340, 156012, 0x0006, 53 },
+	{ 0xD345, 156972, 0x0007, 52 },
+	{ 0xD350, 156932, 0x0008, 51 },
+	{ 0xD355, 156891, 0x0009, 50 },
+	{ 0xD360, 156851, 0x000A, 49 },
+	{ 0xD365, 156811, 0x000B, 48 },
+	{ 0xD370, 156772, 0x000C, 47 },
+	{ 0xD375, 156732, 0x000D, 46 },
+	{ 0xD380, 156692, 0x000E, 45 },
+	{ 0xD385, 156652, 0x000F, 44 },
+	{ 0xD390, 156612, 0x0010, 43 },
+	{ 0xD395, 156572, 0x0011, 42 },
+	{ 0xD400, 156532, 0x0012, 41 },
+	{ 0xD405, 156492, 0x0013, 40 },
+	{ 0xD410, 156453, 0x0014, 39 },
+	{ 0xD415, 156413, 0x0015, 38 },
+	{ 0xD420, 156373, 0x0016, 37 },
+	{ 0xD425, 156333, 0x0017, 36 },
+	{ 0xD430, 156294, 0x0018, 35 },
+	{ 0xD435, 156254, 0x0019, 34 },
+	{ 0xD440, 156214, 0x001A, 33 },
+	{ 0xD445, 156175, 0x001B, 32 },
+	{ 0xD450, 156135, 0x001C, 31 },
+	{ 0xD455, 156095, 0x001D, 30 },
+	{ 0xD460, 156056, 0x001E, 29 },
+	{ 0xD465, 156016, 0x001F, 28 },
+	{ 0xD470, 156977, 0x0020, 27 },
+	{ 0xD475, 156937, 0x0021, 26 },
+	{ 0xD480, 156898, 0x0022, 25 },
+	{ 0xD485, 156858, 0x0023, 24 },
+	{ 0xD490, 156819, 0x0024, 23 },
+	{ 0xD495, 156779, 0x0025, 22 },
+	{ 0xD500, 156740, 0x0026, 21 },
+	{ 0xD505, 156700, 0x0027, 20 },
+	{ 0xD510, 156661, 0x0028, 19 },
+	{ 0xD515, 156622, 0x0029, 18 },
+	{ 0xD520, 156582, 0x002A, 17 },
+	{ 0xD525, 156543, 0x002B, 16 },
+	{ 0xD530, 156504, 0x002C, 15 },
+	{ 0xD535, 156464, 0x002D, 14 },
+	{ 0xD540, 156425, 0x002E, 13 },
+	{ 0xD545, 156386, 0x002F, 12 },
+	{ 0xD550, 156347, 0x0030, 11 },
+	{ 0xD555, 156307, 0x0031, 10 },
+	{ 0xD560, 156268, 0x0032, 9 },
+	{ 0xD565, 156229, 0x0033, 8 },
+	{ 0xD570, 156190, 0x0034, 7 },
+	{ 0xD575, 156151, 0x0035, 6 },
+	{ 0xD580, 156112, 0x0036, 5 },
+	{ 0xD585, 156072, 0x0037, 4 },
+	{ 0xD590, 156033, 0x0038, 3 },
+	{ 0xD595, 156994, 0x0039, 2 },
+	{ 0xD600, 156955, 0x003A, 1 },
+};
+#define MAX_DCO_CH_NO	(sizeof(dco_tbl) / sizeof(dco_ch_wave_t))
+
+uint16_t get_dco_sfp_channel_no(uint16_t portno)
+{
+	int fd, mux_addr, ret = SUCCESS;
+	unsigned int chann_mask;
+	uint16_t data, chno, ii;
+
+	/* do nothing for non-tunable sfp */
+	if(! PORT_STATUS[portno].tunable_sfp)
+		return SUCCESS;
+
+	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		return ERR_NOT_FOUND;
+	}
+
+	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		mux_addr = I2C_MUX;
+		chann_mask = I2C_MUX_100G_MASK;
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	/* now set target mux. */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-12h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* read chno msb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 136/*0x88*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] channel no. msb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = (ret << 8);
+
+	/* read chno lsb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 137/*0x89*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF);
+
+	/* recover page to default */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* scan table and get real chno. */
+	for(chno = 0xFF, ii = 0; ii < MAX_DCO_CH_NO; ii++) {
+		if(dco_tbl[ii].ch_data != data) 
+			continue;
+
+		//FIXME chno = dco_tbl[ii].ch_name;
+		chno = dco_tbl[ii].ch_no;
+		break;
+	}
+
+	if(ii >= MAX_DCO_CH_NO) 
+		zlog_notice("%s : Invalid DCO chno. data[%x].", __func__, data);
+	PORT_STATUS[portno].tunable_chno = chno;
+
+__exit__:
+	close(fd);
+	return ret;
+}
+
+uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
+{
+	int fd, mux_addr, ret = SUCCESS;
+	unsigned int chann_mask;
+	uint16_t data, ii;
+
+	/* do nothing for non-tunable sfp */
+	if(! PORT_STATUS[portno].tunable_sfp)
+		return SUCCESS;
+
+	/* scan table and get chno data. */
+	for(ii = 0; ii < MAX_DCO_CH_NO; ii++) {
+		if(dco_tbl[ii].ch_no != chno) 
+			continue;
+
+		data = dco_tbl[ii].ch_data;
+		break;
+	}
+
+	if(chno) {
+		if(ii >= MAX_DCO_CH_NO) {
+			zlog_notice("%s : Invalid DCO chno[%d(0x%x)].", __func__, chno, chno);
+			return ERR_NOT_FOUND;
+		}
+	} else
+		data = 0x0006;/*default-ch-data*/
+
+	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		return ERR_NOT_FOUND;
+	}
+
+	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		mux_addr = I2C_MUX;
+		chann_mask = I2C_MUX_100G_MASK;
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	/* now set target mux. */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : Enabling mux for port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	/* set low power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-12h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* write chno msb. */
+	if((ret = i2c_smbus_write_byte_data(fd, 136/*0x88*/, (data >> 8) & 0xFF)) < 0) {
+		zlog_notice("%s : Writing port[%d(0/%d)] channel no. msb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* write chno lsb. */
+	if((ret = i2c_smbus_write_byte_data(fd, 137/*0x89*/, data & 0xFF)) < 0) {
+		zlog_notice("%s : Writing port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* recover page to default */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* recover to high power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8/*high-power-mode*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] high power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	PORT_STATUS[portno].tunable_chno = chno;
+
+__exit__:
+	close(fd);
+	return ret;
+}
+#endif
+
 ePrivateSfpId get_private_sfp_identifier(int portno)
 {
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
@@ -2446,7 +2733,14 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 	if(portno >= (PORT_ID_EAG6L_MAX - 1)) {
 		if(! memcmp(INV_TBL[portno].part_num, "FTLC3351R3PL1",
 			sizeof("FTLC3351R3PL1")))
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		{
+			PORT_STATUS[portno].tunable_sfp = 1;
 			return SFP_ID_DWDM_TUNABLE;
+		}
+#else
+			return SFP_ID_DWDM_TUNABLE;
+#endif
 		else
 			return SFP_ID_CWDM;
 	}
@@ -4093,7 +4387,13 @@ void init_100g_sfp(void)
 	}
 	val = ret;
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* NOTE : host-side (bit 7 : 1(enable), 0(disable) */
+	/*      : media-side(bit 6 : 0(enable), 1(disable) */
+	val |= 0x00;/*set-host-side-fec-disable, media-side-fec-enable. */
+#else
 	val |= 0x80;/*set-host-side-fec*/
+#endif
 
 	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
@@ -4122,7 +4422,7 @@ void init_100g_sfp(void)
 
 	/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
 	if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
-		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
+		zlog_notice("%s: Writing port[%d(0/%d)] txDisable failed. ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
@@ -4194,12 +4494,18 @@ int set_i2c_100G_laser_control(int portno, int enable)
 	lp_back = ret;
 #endif
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	if(PORT_STATUS[portno].tunable_sfp) {
+#endif
 	/* set low power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	}
+#endif
 
 	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
 	if((ret = i2c_smbus_read_byte_data(fd, 86/*0x56*/)) < 0) {
@@ -4219,6 +4525,9 @@ int set_i2c_100G_laser_control(int portno, int enable)
 		goto __exit__;
 	}
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	if(PORT_STATUS[portno].tunable_sfp) {
+#endif
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 	/* recover to high power mode or keep low power mode if disabled. */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 
@@ -4235,6 +4544,463 @@ int set_i2c_100G_laser_control(int portno, int enable)
 		goto __exit__;
 	}
 #endif
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	}
+#endif
+
+__exit__:
+	close(fd);
+	return;
+}
+#endif
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+int set_i2c_dco_reset(void)
+{
+	unsigned int chann_mask;
+	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
+	unsigned char val;
+
+	if(! PORT_STATUS[portno].equip)
+		return;
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	mux_addr = I2C_MUX;
+	chann_mask = I2C_MUX_100G_MASK;
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	/* Page 00h Byte 221 bit 0 for implementation indicator. */
+	if((ret = i2c_smbus_read_byte_data(fd, 221/*0xDD*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] sw reset support failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+	if(! (val & 0x1)) {
+		zlog_notice("DCO SW Reset is NOT supported.");
+		goto __exit__;
+	}
+
+#if 0//PWY_FIXME
+	if(PORT_STATUS[portno].tunable_sfp) {
+		/* set low power mode */
+		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+					__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+	}
+#endif //PWY_FIXME
+
+	/* set sw reset (Page 00h Bytes 93 Bit 7) */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x80)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] sw reset failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* NOTE : sfp reset, so no need to set high power mode. */
+
+__exit__:
+	close(fd);
+	return;
+}
+
+int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
+{
+	unsigned int chann_mask;
+	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
+	unsigned char val;
+
+	if(! PORT_STATUS[portno].equip)
+		return;
+
+	if(! ((hs_flag == 0xA5) || (hs_flag == 0x5A) ||
+	     (ms_flag == 0xA5) || (ms_flag == 0x5A))) {
+		zlog_notice("%s : Invalid FEC enable value. host/media[0x%x/0x%x].",
+			__func__, hs_flag, ms_flag);
+		return;
+	}
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	mux_addr = I2C_MUX;
+	chann_mask = I2C_MUX_100G_MASK;
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	if(PORT_STATUS[portno].tunable_sfp) {
+		/* set low power mode */
+		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+	}
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* get fec byte. (Page 03h Bytes 230 Bit 7) */
+	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+
+	if(hs_flag == 0xA5)
+		val |= 0x80;/*set-host-side-fec*/
+	else if(hs_flag == 0x5A)
+		val &= ~0x80;/*reset-host-side-fec*/
+
+	if(ms_flag == 0xA5)
+		val |= 0x40;/*set-media-side-fec*/
+	else if(ms_flag == 0x5A)
+		val &= ~0x40;/*reset-media-side-fec*/
+
+	/* update fec byte. (Page 03h Bytes 230 Bit 7) */
+	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* recover page to default */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	if(PORT_STATUS[portno].tunable_sfp) {
+		/* recover to high power mode or keep low power mode if disabled. */
+		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+	}
+
+__exit__:
+	close(fd);
+	return;
+}
+
+int set_i2c_dco_count_reset(void)
+{
+	unsigned int chann_mask;
+	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
+	unsigned char val;
+
+	if(! PORT_STATUS[portno].equip)
+		return;
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	mux_addr = I2C_MUX;
+	chann_mask = I2C_MUX_100G_MASK;
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	if(PORT_STATUS[portno].tunable_sfp) {
+		/* set low power mode */
+		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+	}
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x20/*page-20h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* get error reset byte. (Page 20h Bytes 250 Bit 7) */
+	if((ret = i2c_smbus_read_byte_data(fd, 250/*0xFA*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] error reset failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+
+	val |= 0x80;/*error-reset*/
+
+	/* update error reset byte. (Page 20h Bytes 250 Bit 7) */
+	if((ret = i2c_smbus_write_byte_data(fd, 250/*0xFA*/, val)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] error reset failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* recover page to default */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	if(PORT_STATUS[portno].tunable_sfp) {
+		/* recover to high power mode or keep low power mode if disabled. */
+		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+	}
+
+__exit__:
+	close(fd);
+	return;
+}
+
+int read_i2c_dco_status(dco_status_t *pdco)
+{
+	unsigned int chann_mask;
+	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
+	unsigned char val;
+	uint16_t data;
+
+	if(! PORT_STATUS[portno].equip)
+		return;
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	mux_addr = I2C_MUX;
+	chann_mask = I2C_MUX_100G_MASK;
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	/* get page 00h byte 2 for IntL/DataNotReady */
+	if((ret = i2c_smbus_read_byte_data(fd, 2/*0x2*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] IntL/DataNotReady failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+	pdco->dco_DataNotReady = (val & 0x1) ? 1 : 0;
+	pdco->dco_IntL = (val & 0x2) ? 1 : 0;
+
+	/* get page 00h byte 3 for TxLos/RxLos */
+	if((ret = i2c_smbus_read_byte_data(fd, 3/*0x3*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TxLos/RxLos failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+	pdco->dco_TxLosMask = (val >> 4) & 0xF;
+	pdco->dco_RxLos = (val & 0xF) ? 1 : 0;
+
+	/* get page 00h byte 5 for TxLoL/RxLoL */
+	if((ret = i2c_smbus_read_byte_data(fd, 5/*0x5*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TxLoL/RxLoL failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+	pdco->dco_TxLoLMask = (val >> 4) & 0xF;
+	pdco->dco_RxLoL = (val & 0xF) ? 1 : 0;
+
+	/* get page 00h byte 6 for TCReadyFlag/InitComplete */
+	if((ret = i2c_smbus_read_byte_data(fd, 6/*0x6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TCReady/InitComplete failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+	pdco->dco_InitComplete = (val & 0x1) ? 1 : 0;
+	pdco->dco_TCReadyFlag = (val & 0x2) ? 1 : 0;
+	pdco->dco_TempHA = (val & 0x80) ? 1 : 0;
+	pdco->dco_TempLA = (val & 0x40) ? 1 : 0;
+	pdco->dco_TempHWA = (val & 0x20) ? 1 : 0;
+	pdco->dco_TempLWA = (val & 0x10) ? 1 : 0;
+	if(pdco->dco_InitComplete)
+		zlog_notice("100G InitComplete flag~!", 1);
+	if(pdco->dco_TCReadyFlag)
+		zlog_notice("100G TC Ready flag~!", 1);
+
+	/* get page 00h byte 9 for OpticHA/OpticLA */
+	if((ret = i2c_smbus_read_byte_data(fd, 9/*0x9*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] OpticHA/OpticLA failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = ret;
+
+	/* get page 00h byte 10 for OpticHA/OpticLA */
+	if((ret = i2c_smbus_read_byte_data(fd, 10/*0xA*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] OpticHA/OpticLA failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF) << 8;
+
+	pdco->dco_OpticHA = (data & 0x8888) ? 1 : 0;
+	pdco->dco_OpticLA = (data & 0x4444) ? 1 : 0;
+
+	/* get page 00h byte 13 for OpticHA/OpticLA */
+	if((ret = i2c_smbus_read_byte_data(fd, 13/*0xD*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] OpticHWA/OpticLWA failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = ret;
+
+	/* get page 00h byte 14 for OpticHA/OpticLA */
+	if((ret = i2c_smbus_read_byte_data(fd, 14/*0xE*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] OpticHWA/OpticLWA failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF) << 8;
+
+	pdco->dco_OpticHWA = (data & 0x8888) ? 1 : 0;
+	pdco->dco_OpticLWA = (data & 0x4444) ? 1 : 0;
+
+	/* get power mode */
+	if((ret = i2c_smbus_read_byte_data(fd, 93/*0x5D*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+	pdco->dco_power_mode = ret;
+
+	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+	if((ret = i2c_smbus_read_byte_data(fd, 86/*0x56*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TxDisable failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	pdco->dco_tx_disable = ret & 0xF;
+ 
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* get host/media side fec modes. */
+	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = ret;
+	pdco->dco_host_fec = (data & 0x80) ? 1 : 0;
+	pdco->dco_media_fec = (data & 0x40) ? 1 : 0;
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-12h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* read chno msb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 136/*0x88*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] channel no. msb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = (ret << 8);
+
+	/* read chno lsb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 137/*0x89*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF);
+	pdco->dco_ch_data = data;
+
+	/* recover page to default */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
 
 __exit__:
 	close(fd);
