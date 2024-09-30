@@ -129,7 +129,6 @@ extern uint16_t RDL_B1_ERASE_FLAG;
 extern uint16_t RDL_B2_ERASE_FLAG;
 #endif
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
-uint16_t portFECEnable(uint16_t portno, uint16_t enable);
 uint16_t DcoReset(uint16_t val);
 uint16_t DcoCountReset(uint16_t val);
 uint16_t DcoFECEnable(uint16_t val);
@@ -266,7 +265,6 @@ RegMON regMonList [] = {
   { PORT_6_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
 #endif /* [#125] */
 #endif
-
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
   { QSFP28_RESET_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoReset },
   { QSFP28_FEC_ENABLE_ADDR,  0xFFFF, 0, 0x5AA5, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoFECEnable },
@@ -3300,6 +3298,9 @@ extern int update_flex_tune_status(int portno);
 #endif
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 		if(portno == (PORT_ID_EAG6L_MAX - 1)) {
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+			if(PORT_STATUS[portno].tunable_sfp) {
+#endif /* [#94] */
 			val = (DCO_STAT.dco_IntL << 12) | 
 			      (DCO_STAT.dco_DataNotReady << 8) |
 			      (DCO_STAT.dco_TCReadyFlag << 4) | 
@@ -3323,6 +3324,9 @@ extern int update_flex_tune_status(int portno);
 			FPGA_WRITE(QSFP28_STATUS3_ADDR, (uint16_t)val);
 
 			/*PWY_FIXME : add QSFP28_PRE_FEC_BER_ADDR / QSFP28_FER_ADDR */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+			}
+#endif /* [#94] */
 		}
 #endif
 
@@ -3391,6 +3395,9 @@ extern int update_flex_tune_status(int portno);
 #endif
 
 		if(PORT_STATUS[portno].tunable_sfp) {
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+			if(portno < (PORT_ID_EAG6L_MAX - 1)) {
+#endif /* [#94] */
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
@@ -3460,6 +3467,9 @@ extern int update_flex_tune_status(int portno);
 			FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[portno], val);
 #endif
 #endif
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+			}
+#endif /* [#94] */
 
 			/* update wavelength1/2 */
 			fval = PORT_STATUS[portno].tunable_wavelength;
@@ -3480,6 +3490,14 @@ extern int update_flex_tune_status(int portno);
 			gPortRegUpdate(__PORT_WL2_ADDR[portno], 0, 0x0FF, (int)fval);
 			gPortRegUpdate(__PORT_WL2_ADDR[portno], 8, 0xF00, type);
 #endif
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+			if(portno < (PORT_ID_EAG6L_MAX - 1)) {
+				/* update sfp channel no. */
+				update_sfp_channel_no(portno);
+				continue;
+			}
+#endif /* [#94] */
 
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 			if(PORT_STATUS[portno].tunable_sfp) {
