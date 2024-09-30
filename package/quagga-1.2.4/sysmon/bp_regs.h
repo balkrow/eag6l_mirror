@@ -330,6 +330,16 @@ typedef enum {
 #define PORT_6_DIST_ADDR		0xCC	
 #define PORT_7_DIST_ADDR		0xEC	
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#define PORT_1_RS_FEC_ADDR		0x102	/* D[15:8] port 1 */
+#define PORT_2_RS_FEC_ADDR		0x102	/* D[7:0]  port 2 */
+#define PORT_3_RS_FEC_ADDR		0x104	/* D[15:8] port 3 */
+#define PORT_4_RS_FEC_ADDR		0x104	/* D[7:0]  port 4 */
+#define PORT_5_RS_FEC_ADDR		0x106	/* D[15:8] port 6 */
+#define PORT_6_RS_FEC_ADDR		0x106	/* D[7:0]  port 5 */
+#define PORT_7_RS_FEC_ADDR		0x108	/* D[15:8] port 7 */
+#endif /* [#94] */
+
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 #define PORT_1_TX_PWR_RTWDM_ADDR		0x120	
 #define PORT_2_TX_PWR_RTWDM_ADDR		0x140	
@@ -1485,6 +1495,16 @@ typedef enum {
 #define PORT6_USI13_ADDR 			0xCB8	
 #define PORT7_USI13_ADDR 			0xCD8	
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#define QSFP28_RESET_ADDR			0xD00
+#define QSFP28_STATUS1_ADDR			0xD02
+#define QSFP28_STATUS2_ADDR			0xD04
+#define QSFP28_STATUS3_ADDR			0xD06
+#define QSFP28_FEC_ENABLE_ADDR		0xD08
+#define QSFP28_COUNT_RESET_ADDR		0xD0A
+#define QSFP28_PRE_FEC_BER_ADDR		0xD0C
+#define QSFP28_FER_ADDR				0xD0E
+#endif /* [#94] */
 
 /* 
  * Port Alarm Field Mask 

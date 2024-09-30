@@ -295,20 +295,29 @@ static void print_port_info(struct vty *vty, int portno)
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
+#else /*********************************************************/
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	vty_out(vty, "[%d] equip[%s] link[%4s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
 #else
 	vty_out(vty, "[%d] equip[%s] link[%s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
 #endif
+#endif /* [#94] */
 		portno, 
 		(ps->equip ? "O" : "x"),
 		(ps->link ? "Up" : "Dn"), 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		(ps->speed == PORT_IF_10G_KR ? "10G" :
+			(portno == (PORT_ID_EAG6L_MAX - 1)) ? "100G" : "25G"),
+#else /**********************************************************/
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),
 #else
 		(ps->speed == PORT_IF_10G_KR ? "10G" :
 			(portno == (PORT_ID_EAG6L_MAX - 1)) ? "100G" : "25G"),
 #endif
+#endif /* [#94] */
 		ps->tunable_sfp,
 		ps->tunable_chno, 
 		ps->tunable_wavelength, ps->tunable_rtwdm_wavelength,
@@ -363,7 +372,12 @@ static void print_sfp_inventory_info(struct vty *vty, int portno)
 		mod_inv->wave_decimal,
 		mod_inv->dist, 
 		mod_inv->date_code);
-	if(ps->tunable_sfp) {
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	if((portno < (PORT_ID_EAG6L_MAX - 1)) && ps->tunable_sfp)
+#else
+	if(ps->tunable_sfp)
+#endif /* [#94] */
+	{
 		vty_out(vty, 
 			"    vendor[%-20s] part-no[%-31s] seria-no[%-31s] wavelength[%-5d/%2d] distance[%-3d] datecode[%-10s]\n",
 			mod_inv2->vendor, 
@@ -431,7 +445,12 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 		ps->tec_curr,
 		ps->tx_pwr,
 		ps->rx_pwr);
-	if(ps->tunable_sfp) {
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	if((portno < (PORT_ID_EAG6L_MAX - 1)) && ps->tunable_sfp)
+#else
+	if(ps->tunable_sfp)
+#endif
+	{
 		vty_out(vty, "    vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f]\n",
 			ps->rtwdm_ddm_info.vcc,
 			ps->rtwdm_ddm_info.temp,
@@ -1525,6 +1544,113 @@ extern uint16_t boardStatus(uint16_t port, uint16_t val);
 
 	return CMD_SUCCESS;
 }
+
+DEFUN (show_dco,
+       show_dco_cmd,
+       "show dco",
+       SHOW_STR
+       "100G DCO status/count\n")
+{
+extern dco_status_t DCO_STAT;
+extern dco_count_t  DCO_COUNT;
+
+	dco_status_t *pdco = &DCO_STAT;
+	dco_count_t *pcnt = &DCO_COUNT;
+
+	vty_out(vty, "\n\t100G/DCO Information\n\n");
+	vty_out(vty, "Power-mode [0x%x]     host-fec     [%d]      media-fec  [%d]     tx_disable   [0x%x]     CH/Data  [%2d(0x%x)/0x%04x]\n" \
+	           "\nIntL       [%d]       DataNotReady [%d]      TCReady    [%d]     InitComplete [%d]" \
+		       "\nTxLos      [0x%x]     RxLos        [0x%x]    TxLoL      [0x%x]   RxLoL        [0x%x]" \
+		       "\nTempHA     [%d]       TempLA       [%d]      TempHWA    [%d]     tempLWA      [%d]" \
+		       "\nRxOpticHA  [%d]       RxOpticLA    [%d]      RxOpticHWA [%d]     RxOpticLWA   [%d]\n\n",
+		pdco->dco_power_mode, pdco->dco_host_fec, 
+		pdco->dco_media_fec, pdco->dco_tx_disable, 
+		PORT_STATUS[PORT_ID_EAG6L_PORT7].tunable_chno, 
+		PORT_STATUS[PORT_ID_EAG6L_PORT7].tunable_chno, pdco->dco_ch_data,
+		pdco->dco_IntL, pdco->dco_DataNotReady, pdco->dco_TCReadyFlag,
+        pdco->dco_InitComplete, pdco->dco_TxLosMask, pdco->dco_RxLos, 
+		pdco->dco_TxLoLMask, pdco->dco_RxLoL, pdco->dco_TempHA, 
+		pdco->dco_TempLA, pdco->dco_TempHWA, pdco->dco_TempLWA, 
+		pdco->dco_OpticHA, pdco->dco_OpticLA, pdco->dco_OpticHWA, 
+		pdco->dco_OpticLWA);
+	vty_out(vty, "BER[0x%04x / %e (%7.2f)]\nFER[0x%04x / %e (%7.2f)]\n\n",
+		pcnt->ber_count, pcnt->fer_count);
+    return CMD_SUCCESS;
+}
+
+DEFUN (dco_reset,
+       dco_reset_cmd,
+       "dco-reset-sfp",
+       "Reset DCO SFP.\n")
+{
+extern uint16_t DcoReset(uint16_t val);
+
+    DcoReset(0xA5);
+
+    return CMD_SUCCESS;
+}
+
+DEFUN (dco_host_fec_enable,
+       dco_host_fec_enable_cmd,
+       "dco-host-fec-enable",
+       "Enable DCO Host side FEC.\n")
+{
+extern uint16_t DcoFECEnable(uint16_t val);
+
+    DcoFECEnable(0xA500);
+
+    return CMD_SUCCESS;
+}
+
+DEFUN (no_dco_host_fec_enable,
+       no_dco_host_fec_enable_cmd,
+       "no dco-host-fec-enable",
+       NO_STR
+       "Disable DCO Host side FEC.\n")
+{
+extern uint16_t DcoFECEnable(uint16_t val);
+
+    DcoFECEnable(0x5A00);
+
+    return CMD_SUCCESS;
+}
+
+DEFUN (dco_media_fec_enable,
+       dco_media_fec_enable_cmd,
+       "dco-media-fec-enable",
+       "Enable DCO Media side FEC.\n")
+{
+extern uint16_t DcoFECEnable(uint16_t val);
+
+	DcoFECEnable(0x00A5);
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_dco_media_fec_enable,
+       no_dco_media_fec_enable_cmd,
+       "no dco-media-fec-enable",
+       NO_STR
+       "Disable DCO Media side FEC.\n")
+{
+extern uint16_t DcoFECEnable(uint16_t val);
+
+	DcoFECEnable(0x005A);
+
+	return CMD_SUCCESS;
+}
+
+DEFUN (dco_count_reset,
+       dco_count_reset_cmd,
+       "dco-reset-count",
+       "Reset DCO count.\n")
+{
+extern uint16_t DcoCountReset(uint16_t val);
+
+    DcoCountReset(0xA5);
+
+    return CMD_SUCCESS;
+}
 #endif /* [#94] */
 
 void
@@ -1584,5 +1710,13 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &no_i2c_block_cmd);
   install_element (ENABLE_NODE, &cr_deinstall_cmd);
   install_element (ENABLE_NODE, &cr_install_cmd);
+
+  install_element (ENABLE_NODE, &dco_host_fec_enable_cmd);
+  install_element (ENABLE_NODE, &no_dco_host_fec_enable_cmd);
+  install_element (ENABLE_NODE, &dco_media_fec_enable_cmd);
+  install_element (ENABLE_NODE, &no_dco_media_fec_enable_cmd);
+  install_element (ENABLE_NODE, &dco_reset_cmd);
+  install_element (ENABLE_NODE, &dco_count_reset_cmd);
+  install_element (VIEW_NODE, &show_dco_cmd);
 #endif
 }

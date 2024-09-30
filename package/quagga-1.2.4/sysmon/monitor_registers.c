@@ -38,6 +38,10 @@ port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 uint16_t boardStatusFlag = 0;
 #endif
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+dco_status_t DCO_STAT;
+dco_count_t  DCO_COUNT;
+#endif
 
 
 extern int synce_config_set_admin(int enable);
@@ -123,6 +127,19 @@ extern int get_flex_tune_status(int portno);
 extern void rdl_update_bank_registers(int bno, int erase_flag);
 extern uint16_t RDL_B1_ERASE_FLAG;
 extern uint16_t RDL_B2_ERASE_FLAG;
+#endif
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+uint16_t portFECEnable(uint16_t portno, uint16_t enable);
+uint16_t DcoReset(uint16_t val);
+uint16_t DcoCountReset(uint16_t val);
+uint16_t DcoFECEnable(uint16_t val);
+
+extern int set_i2c_dco_reset(void);
+extern int set_i2c_dco_fec_enable(int hs_flag, int ms_flag);
+extern int set_i2c_dco_count_reset(void);
+extern int get_i2c_dco_status(void);
+
+extern uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno);
 #endif
 
 
@@ -227,14 +244,17 @@ RegMON regMonList [] = {
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	/* channel number set */
-	/* FIXME : there are no channel table for 100G */
   { PORT_1_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
   { PORT_2_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
   { PORT_3_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
   { PORT_4_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
   { PORT_5_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
   { PORT_6_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+  { PORT_7_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_dco_sfp_channel_no },
+#else
   { PORT_7_SET_CH_NUM_ADDR,  0xFFFF, 0, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
+#endif
 #else
 	/* channel number set */
 	/* FIXME : there are no channel table for 100G */
@@ -246,6 +266,12 @@ RegMON regMonList [] = {
   { PORT_6_SET_CH_NUM_ADDR,  0x0, 0, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_tunable_sfp_channel_no },
 #endif /* [#125] */
 #endif
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+  { QSFP28_RESET_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoReset },
+  { QSFP28_FEC_ENABLE_ADDR,  0xFFFF, 0, 0x5AA5, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoFECEnable },
+  { QSFP28_COUNT_RESET_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoCountReset },
+#endif /* [#94] */
 	/* synce global control */
   { SYNCE_GCONFIG_ADDR,   0xFF, 0, 0x5A, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, synceEnableSet }, 
 #if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
@@ -675,6 +701,18 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 		init_100g_sfp();
 	}
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	if(port >= (PORT_ID_EAG6L_MAX - 1)) {
+		/* read ch no register */
+		if(PORT_STATUS[port].tunable_sfp) {
+			PORT_STATUS[port].tunable_chno = FPGA_PORT_READ(PORT_7_SET_CH_NUM_ADDR);
+
+			/* set 100G DCO chno. */
+			if(PORT_STATUS[port].tunable_chno)
+				set_dco_sfp_channel_no(port, PORT_STATUS[port].tunable_chno);
+		}
+	} else
+#endif /* [#94] */
 	if(PORT_STATUS[port].tunable_sfp) {
 		/* get inventory */
 		if(PORT_STATUS[port].tunable_sfp) {
@@ -687,7 +725,7 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 #if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
 		else
 			set_flex_tune_control(port, 0/*disable*/);
-#endif /* [#125] */
+#endif /* [#132] */
 
 		/* set smart t-sfp self loopback if configured. */
 		if(PORT_STATUS[port].cfg_smart_tsfp_selfloopback)
@@ -695,7 +733,7 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 #if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
 		else
 			set_smart_tsfp_self_loopback(port, 0/*disable*/);
-#endif /* [#125] */
+#endif /* [#132] */
 
 		/* set rtwdm loopback if configured. */
 		if(PORT_STATUS[port].cfg_rtwdm_loopback)
@@ -703,12 +741,12 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 #if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
 		else
 			set_rtwdm_loopback(port, 0/*disable*/);
-#endif /* [#125] */
+#endif /* [#132] */
 
 #if 1 /* [#132] Fixing for tunable sfp ch no., dustin, 2024-09-24 */
 		if(PORT_STATUS[port].tunable_chno)
 			set_tunable_sfp_channel_no(port, PORT_STATUS[port].tunable_chno);
-#endif /* [#125] */
+#endif /* [#132] */
 	}
 
 	thread_add_timer(master, pm_clear_fec_counters, port, 2);
@@ -1084,6 +1122,38 @@ __retry__:
 #endif
 }
 #endif
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+uint16_t DcoReset(uint16_t val)
+{
+	if(val == 0xA5) {
+		set_i2c_dco_reset();
+
+		/* FIXME : correct action ? */
+		thread_add_timer(master, port_scan_sfp, PORT_ID_EAG6L_PORT7, 3);
+	}
+	return SUCCESS;
+}
+
+uint16_t DcoFECEnable(uint16_t val)
+{
+	uint8_t hs_flag, ms_flag;
+
+	hs_flag = (val >> 8) & 0xFF;
+	ms_flag = (val & 0xFF);
+	if((hs_flag == 0xA5) || (hs_flag == 0x5A) || 
+	   (ms_flag == 0xA5) || (ms_flag == 0x5A))
+		set_i2c_dco_fec_enable(hs_flag, ms_flag);
+	return SUCCESS;
+}
+
+uint16_t DcoCountReset(uint16_t val)
+{
+	if(val == 0xA5)
+		set_i2c_dco_count_reset();
+	return SUCCESS;
+}
+#endif /* [#94] */
 
 void do_recovery_update_after_fpga_reset(void)
 {
@@ -1862,6 +1932,22 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 		/* NOTE : move to boardStatus() for one time action. */
 		read_port_inventory(portno, &(INV_TBL[portno]));
+#endif
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		if((portno >= (PORT_ID_EAG6L_MAX - 1))) {
+			extern int read_i2c_dco_status(dco_status_t *pdco);
+			extern uint16_t get_dco_sfp_channel_no(uint16_t portno);
+
+			if(PORT_STATUS[portno].tunable_sfp) {
+				/* get 100G DCO channel no. */
+				get_dco_sfp_channel_no(portno);
+			}
+
+			read_i2c_dco_status(&DCO_STAT);
+
+			/* NOTE : below is not for 100G. */
+			continue;
+		}
 #endif
 
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
@@ -3212,8 +3298,34 @@ extern int update_flex_tune_status(int portno);
 		if(!PORT_STATUS[portno].equip)
 			continue;
 #endif
-		
-		
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		if(portno == (PORT_ID_EAG6L_MAX - 1)) {
+			val = (DCO_STAT.dco_IntL << 12) | 
+			      (DCO_STAT.dco_DataNotReady << 8) |
+			      (DCO_STAT.dco_TCReadyFlag << 4) | 
+			       DCO_STAT.dco_InitComplete;
+			FPGA_WRITE(QSFP28_STATUS1_ADDR, (uint16_t)val);
+
+			val = (DCO_STAT.dco_TxLosMask << 12) |
+			      (DCO_STAT.dco_RxLos << 8) |
+			      (DCO_STAT.dco_TxLoLMask << 4) |
+			       DCO_STAT.dco_RxLoL;
+			FPGA_WRITE(QSFP28_STATUS2_ADDR, (uint16_t)val);
+
+			val = (DCO_STAT.dco_TempHA << 15) |
+			      (DCO_STAT.dco_TempLA << 14) | 
+			      (DCO_STAT.dco_TempLWA << 13) | 
+			      (DCO_STAT.dco_TempLWA << 12) | 
+			      (DCO_STAT.dco_OpticHA << 11) | 
+			      (DCO_STAT.dco_OpticLA << 10) | 
+			      (DCO_STAT.dco_OpticHWA << 9) | 
+			      (DCO_STAT.dco_OpticLWA << 8);
+			FPGA_WRITE(QSFP28_STATUS3_ADDR, (uint16_t)val);
+
+			/*PWY_FIXME : add QSFP28_PRE_FEC_BER_ADDR / QSFP28_FER_ADDR */
+		}
+#endif
+
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 		/* update tx power */

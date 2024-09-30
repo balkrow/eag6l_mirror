@@ -542,4 +542,40 @@ typedef struct port_status
 #endif
    } port_status_t;
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+typedef struct dco_status
+	{
+		/* dco status */
+		u8  dco_IntL;
+		u8  dco_DataNotReady;
+		u8  dco_TCReadyFlag;
+		u8  dco_InitComplete;
+		u8  dco_TxLosMask;
+		u8  dco_RxLos;
+		u8  dco_TxLoLMask;
+		u8  dco_RxLoL;
+		u8  dco_TempHA;
+		u8  dco_TempLA;
+		u8  dco_TempHWA;
+		u8  dco_TempLWA;
+		u8  dco_OpticHA;
+		u8  dco_OpticLA;
+		u8  dco_OpticHWA;
+		u8  dco_OpticLWA;
+
+		u8  dco_power_mode;
+		u8  dco_tx_disable;
+		u8  dco_host_fec;
+		u8  dco_media_fec;
+
+		u16 dco_ch_data;
+	} dco_status_t;
+
+typedef struct dco_count
+	{
+		u32  ber_count;/* Pre-BER (Bit Error Ratio) */
+		u32  fer_count;/* FER (Frame Error Rate) */
+	} dco_count_t;
+#endif
+
 #endif/*_SYSMON_H_*/
