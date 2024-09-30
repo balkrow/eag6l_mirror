@@ -2191,9 +2191,11 @@ __exit_2__:
 
 int update_sfp_channel_no(int portno)
 {
+#if 0 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	/* do nothing for 100G port. */
 	if(portno >= (PORT_ID_EAG6L_MAX - 1))
 		return SUCCESS;
+#endif
 
 	/* update tunable sfp channel no. */
 	if(PORT_STATUS[portno].tunable_sfp)
@@ -2441,86 +2443,130 @@ typedef struct _dco_ch_wave_
 } dco_ch_wave_t;
 
 static const dco_ch_wave_t dco_tbl[] = {
-	{ 0xD205, 156101, 0xFFEB, 80 },
-	{ 0xD210, 156061, 0xFFEC, 79 },
-	{ 0xD215, 156020, 0xFFED, 78 },
-	{ 0xD220, 156979, 0xFFEE, 77 },
-	{ 0xD225, 156939, 0xFFEF, 76 },
-	{ 0xD230, 156898, 0xFFF0, 75 },
-	{ 0xD235, 156858, 0xFFF1, 74 },
-	{ 0xD240, 156817, 0xFFF2, 73 },
-	{ 0xD245, 156777, 0xFFF3, 72 },
-	{ 0xD250, 156736, 0xFFF4, 71 },
-	{ 0xD255, 156696, 0xFFF5, 70 },
-	{ 0xD260, 156655, 0xFFF6, 69 },
-	{ 0xD265, 156615, 0xFFF7, 68 },
-	{ 0xD270, 156575, 0xFFF8, 67 },
-	{ 0xD275, 156534, 0xFFF9, 66 },
-	{ 0xD280, 156494, 0xFFFA, 65 },
-	{ 0xD285, 156454, 0xFFFB, 64 },
-	{ 0xD290, 156413, 0xFFFC, 63 },
-	{ 0xD295, 156373, 0xFFFD, 62 },
-	{ 0xD300, 156333, 0xFFFE, 61 },
-	{ 0xD305, 156293, 0xFFFF, 60 },
-	{ 0xD310, 156252, 0x0000, 59 },
-	{ 0xD315, 156212, 0x0001, 58 },
-	{ 0xD320, 156172, 0x0002, 57 },
-	{ 0xD325, 156132, 0x0003, 56 },
-	{ 0xD330, 156092, 0x0004, 55 },
-	{ 0xD335, 156052, 0x0005, 54 },
-	{ 0xD340, 156012, 0x0006, 53 },
-	{ 0xD345, 156972, 0x0007, 52 },
-	{ 0xD350, 156932, 0x0008, 51 },
-	{ 0xD355, 156891, 0x0009, 50 },
-	{ 0xD360, 156851, 0x000A, 49 },
-	{ 0xD365, 156811, 0x000B, 48 },
-	{ 0xD370, 156772, 0x000C, 47 },
-	{ 0xD375, 156732, 0x000D, 46 },
-	{ 0xD380, 156692, 0x000E, 45 },
-	{ 0xD385, 156652, 0x000F, 44 },
-	{ 0xD390, 156612, 0x0010, 43 },
-	{ 0xD395, 156572, 0x0011, 42 },
-	{ 0xD400, 156532, 0x0012, 41 },
-	{ 0xD405, 156492, 0x0013, 40 },
-	{ 0xD410, 156453, 0x0014, 39 },
-	{ 0xD415, 156413, 0x0015, 38 },
-	{ 0xD420, 156373, 0x0016, 37 },
-	{ 0xD425, 156333, 0x0017, 36 },
-	{ 0xD430, 156294, 0x0018, 35 },
-	{ 0xD435, 156254, 0x0019, 34 },
-	{ 0xD440, 156214, 0x001A, 33 },
-	{ 0xD445, 156175, 0x001B, 32 },
-	{ 0xD450, 156135, 0x001C, 31 },
-	{ 0xD455, 156095, 0x001D, 30 },
-	{ 0xD460, 156056, 0x001E, 29 },
-	{ 0xD465, 156016, 0x001F, 28 },
-	{ 0xD470, 156977, 0x0020, 27 },
-	{ 0xD475, 156937, 0x0021, 26 },
-	{ 0xD480, 156898, 0x0022, 25 },
-	{ 0xD485, 156858, 0x0023, 24 },
-	{ 0xD490, 156819, 0x0024, 23 },
-	{ 0xD495, 156779, 0x0025, 22 },
-	{ 0xD500, 156740, 0x0026, 21 },
-	{ 0xD505, 156700, 0x0027, 20 },
-	{ 0xD510, 156661, 0x0028, 19 },
-	{ 0xD515, 156622, 0x0029, 18 },
-	{ 0xD520, 156582, 0x002A, 17 },
-	{ 0xD525, 156543, 0x002B, 16 },
-	{ 0xD530, 156504, 0x002C, 15 },
-	{ 0xD535, 156464, 0x002D, 14 },
-	{ 0xD540, 156425, 0x002E, 13 },
-	{ 0xD545, 156386, 0x002F, 12 },
-	{ 0xD550, 156347, 0x0030, 11 },
-	{ 0xD555, 156307, 0x0031, 10 },
-	{ 0xD560, 156268, 0x0032, 9 },
-	{ 0xD565, 156229, 0x0033, 8 },
-	{ 0xD570, 156190, 0x0034, 7 },
-	{ 0xD575, 156151, 0x0035, 6 },
-	{ 0xD580, 156112, 0x0036, 5 },
-	{ 0xD585, 156072, 0x0037, 4 },
-	{ 0xD590, 156033, 0x0038, 3 },
-	{ 0xD595, 156994, 0x0039, 2 },
-	{ 0xD600, 156955, 0x003A, 1 },
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* NOTE : below is for old mcu, for demo version only. */
+	{ 0xD210, 156061, 0xFFEC, 1 },
+	{ 0xD220, 155979, 0xFFEE, 2 },
+	{ 0xD230, 155898, 0xFFF0, 3 },
+	{ 0xD240, 155817, 0xFFF2, 4 },
+	{ 0xD250, 155736, 0xFFF4, 5 },
+	{ 0xD260, 155655, 0xFFF6, 6 },
+	{ 0xD270, 155575, 0xFFF8, 7 },
+	{ 0xD280, 155494, 0xFFFA, 8 },
+	{ 0xD290, 155413, 0xFFFC, 9 },
+	{ 0xD300, 155333, 0xFFFE, 10 },
+	{ 0xD310, 155252, 0x0000, 11 },
+	{ 0xD320, 155172, 0x0002, 12 },
+	{ 0xD330, 155092, 0x0004, 13 },
+	{ 0xD340, 155012, 0x0006, 14 },
+	{ 0xD350, 154932, 0x0008, 15 },
+	{ 0xD360, 154851, 0x000A, 16 },
+	{ 0xD370, 154772, 0x000C, 17 },
+	{ 0xD380, 154692, 0x000E, 18 },
+	{ 0xD390, 154612, 0x0010, 19 },
+	{ 0xD400, 154532, 0x0012, 20 },
+	{ 0xD410, 154453, 0x0014, 21 },
+	{ 0xD420, 154373, 0x0016, 22 },
+	{ 0xD430, 154294, 0x0018, 23 },
+	{ 0xD440, 154214, 0x001A, 24 },
+	{ 0xD450, 154135, 0x001C, 25 },
+	{ 0xD460, 154056, 0x001E, 26 },
+	{ 0xD470, 153977, 0x0020, 27 },
+	{ 0xD480, 153898, 0x0022, 28 },
+	{ 0xD490, 153819, 0x0024, 29 },
+	{ 0xD500, 153740, 0x0026, 30 },
+	{ 0xD510, 153661, 0x0028, 31 },
+	{ 0xD520, 153582, 0x002A, 32 },
+	{ 0xD530, 153504, 0x002C, 33 },
+	{ 0xD540, 153425, 0x002E, 34 },
+	{ 0xD550, 153347, 0x0030, 35 },
+	{ 0xD560, 153268, 0x0032, 36 },
+	{ 0xD570, 153190, 0x0034, 37 },
+	{ 0xD580, 151112, 0x0036, 38 },
+	{ 0xD590, 153033, 0x0038, 39 },
+	{ 0xD600, 152955, 0x003A, 40 },
+#else /**********************************************************/
+	{ 0xD205, 156101, 0xFFEB, 1 },
+	{ 0xD210, 156061, 0xFFEC, 2 },
+	{ 0xD215, 156020, 0xFFED, 3 },
+	{ 0xD220, 155979, 0xFFEE, 4 },
+	{ 0xD225, 155939, 0xFFEF, 5 },
+	{ 0xD230, 155898, 0xFFF0, 6 },
+	{ 0xD235, 155858, 0xFFF1, 7 },
+	{ 0xD240, 155817, 0xFFF2, 8 },
+	{ 0xD245, 155777, 0xFFF3, 9 },
+	{ 0xD250, 155736, 0xFFF4, 10 },
+	{ 0xD255, 155696, 0xFFF5, 11 },
+	{ 0xD260, 155655, 0xFFF6, 12 },
+	{ 0xD265, 155615, 0xFFF7, 13 },
+	{ 0xD270, 155575, 0xFFF8, 14 },
+	{ 0xD275, 155534, 0xFFF9, 15 },
+	{ 0xD280, 155494, 0xFFFA, 16 },
+	{ 0xD285, 155454, 0xFFFB, 17 },
+	{ 0xD290, 155413, 0xFFFC, 18 },
+	{ 0xD295, 155373, 0xFFFD, 19 },
+	{ 0xD300, 155333, 0xFFFE, 20 },
+	{ 0xD305, 155293, 0xFFFF, 21 },
+	{ 0xD310, 155252, 0x0000, 22 },
+	{ 0xD315, 155212, 0x0001, 23 },
+	{ 0xD320, 155172, 0x0002, 24 },
+	{ 0xD325, 155132, 0x0003, 25 },
+	{ 0xD330, 155092, 0x0004, 26 },
+	{ 0xD335, 155052, 0x0005, 27 },
+	{ 0xD340, 155012, 0x0006, 28 },
+	{ 0xD345, 154972, 0x0007, 29 },
+	{ 0xD350, 154932, 0x0008, 30 },
+	{ 0xD355, 154891, 0x0009, 31 },
+	{ 0xD360, 154851, 0x000A, 32 },
+	{ 0xD365, 154811, 0x000B, 33 },
+	{ 0xD370, 154772, 0x000C, 34 },
+	{ 0xD375, 154732, 0x000D, 35 },
+	{ 0xD380, 154692, 0x000E, 36 },
+	{ 0xD385, 154652, 0x000F, 37 },
+	{ 0xD390, 154612, 0x0010, 38 },
+	{ 0xD395, 154572, 0x0011, 39 },
+	{ 0xD400, 154532, 0x0012, 40 },
+	{ 0xD405, 154492, 0x0013, 41 },
+	{ 0xD410, 154453, 0x0014, 42 },
+	{ 0xD415, 154413, 0x0015, 43 },
+	{ 0xD420, 154373, 0x0016, 44 },
+	{ 0xD425, 154333, 0x0017, 45 },
+	{ 0xD430, 154294, 0x0018, 46 },
+	{ 0xD435, 154254, 0x0019, 47 },
+	{ 0xD440, 154214, 0x001A, 48 },
+	{ 0xD445, 154175, 0x001B, 49 },
+	{ 0xD450, 154135, 0x001C, 50 },
+	{ 0xD455, 154095, 0x001D, 51 },
+	{ 0xD460, 154056, 0x001E, 52 },
+	{ 0xD465, 154016, 0x001F, 53 },
+	{ 0xD470, 153977, 0x0020, 54 },
+	{ 0xD475, 153937, 0x0021, 55 },
+	{ 0xD480, 153898, 0x0022, 56 },
+	{ 0xD485, 153858, 0x0023, 57 },
+	{ 0xD490, 153819, 0x0024, 58 },
+	{ 0xD495, 153779, 0x0025, 59 },
+	{ 0xD500, 153740, 0x0026, 60 },
+	{ 0xD505, 153700, 0x0027, 61 },
+	{ 0xD510, 153661, 0x0028, 62 },
+	{ 0xD515, 153622, 0x0029, 63 },
+	{ 0xD520, 153582, 0x002A, 64 },
+	{ 0xD525, 153543, 0x002B, 65 },
+	{ 0xD530, 153504, 0x002C, 66 },
+	{ 0xD535, 153464, 0x002D, 67 },
+	{ 0xD540, 153425, 0x002E, 68 },
+	{ 0xD545, 153386, 0x002F, 69 },
+	{ 0xD550, 153347, 0x0030, 70 },
+	{ 0xD555, 153307, 0x0031, 71 },
+	{ 0xD560, 153268, 0x0032, 72 },
+	{ 0xD565, 153229, 0x0033, 73 },
+	{ 0xD570, 153190, 0x0034, 74 },
+	{ 0xD575, 153151, 0x0035, 75 },
+	{ 0xD580, 153112, 0x0036, 76 },
+	{ 0xD585, 153072, 0x0037, 77 },
+	{ 0xD590, 153033, 0x0038, 78 },
+	{ 0xD595, 152994, 0x0039, 79 },
+	{ 0xD600, 152955, 0x003A, 80 },
+#endif /* [#94] */
 };
 #define MAX_DCO_CH_NO	(sizeof(dco_tbl) / sizeof(dco_ch_wave_t))
 
@@ -2529,6 +2575,7 @@ uint16_t get_dco_sfp_channel_no(uint16_t portno)
 	int fd, mux_addr, ret = SUCCESS;
 	unsigned int chann_mask;
 	uint16_t data, chno, ii;
+	double wval;
 
 	/* do nothing for non-tunable sfp */
 	if(! PORT_STATUS[portno].tunable_sfp)
@@ -2607,6 +2654,33 @@ uint16_t get_dco_sfp_channel_no(uint16_t portno)
 		zlog_notice("%s : Invalid DCO chno. data[%x].", __func__, data);
 	PORT_STATUS[portno].tunable_chno = chno;
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* read nominal wavelength msb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 186/*0xBA*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] nominal wavelength msb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = (ret << 8);
+
+	/* read nominal wavelength lsb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 187/*0xBB*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] nominal wavelength lsb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF);
+
+	/* get real wavelength in float */
+	wval = (double)(0.05 * data);
+	if(wval == 0) {
+		zlog_notice("%s: invalid wavelength[%7.2f] data[%d].", __func__, wval, data);
+		return -1;
+	}
+
+	PORT_STATUS[portno].tunable_wavelength = wval;
+#endif
+
 __exit__:
 	close(fd);
 	return ret;
@@ -2665,12 +2739,14 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
+#if 0 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	/* set low power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#endif /* [#94] */
 
 	/* select page */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-12h*/)) < 0) {
@@ -2681,6 +2757,24 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 
 	/* wait for updating selected page */
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* read channel grid. */
+	if((ret = i2c_smbus_read_byte_data(fd, 128/*0x80*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] ch. grid failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	if(ret != 0x40/*50G-spacing*/) {
+		/* write channel grid. */
+		if((ret = i2c_smbus_write_byte_data(fd, 128/*0x80*/, 0x40/*50G-spacing*/)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] ch. grid failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __exit__;
+		}
+	}
+#endif /* [#94] */
 
 	/* write chno msb. */
 	if((ret = i2c_smbus_write_byte_data(fd, 136/*0x88*/, (data >> 8) & 0xFF)) < 0) {
@@ -2696,12 +2790,51 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 		goto __exit__;
 	}
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0xB0/*page-B0h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* read live update for nominal wavelength. */
+	if((ret = i2c_smbus_read_byte_data(fd, 129/*0x81*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] live update failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	if(ret != 0x01/*live-update-for-nominal-wavelength*/) {
+		/* write live update for nominal wavelength. */
+		if((ret = i2c_smbus_write_byte_data(fd, 129/*0x81*/, 0x01)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] live update failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __exit__;
+		}
+	}
+#endif /* [#94] */
+
 	/* recover page to default */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
 		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* set low power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif /* [#94] */
 
 	/* recover to high power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8/*high-power-mode*/)) < 0) {
@@ -4358,12 +4491,14 @@ void init_100g_sfp(void)
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+#if 0 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	/* set low power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#endif /* [#94] */
 
 	/* get laser control is off. */
 	pconf = FPGA_PORT_READ(PORT_7_CONF_ADDR);
@@ -4390,7 +4525,7 @@ void init_100g_sfp(void)
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	/* NOTE : host-side (bit 7 : 1(enable), 0(disable) */
 	/*      : media-side(bit 6 : 0(enable), 1(disable) */
-	val |= 0x00;/*set-host-side-fec-disable, media-side-fec-enable. */
+	val |= 0x80;/*set-host-side-fec-enable, media-side-fec-enable. */
 #else
 	val |= 0x80;/*set-host-side-fec*/
 #endif
@@ -4426,6 +4561,16 @@ void init_100g_sfp(void)
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* set low power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif /* [#94] */
 
 	/* recover to high power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 
@@ -4494,6 +4639,7 @@ int set_i2c_100G_laser_control(int portno, int enable)
 	lp_back = ret;
 #endif
 
+#if 0 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	if(PORT_STATUS[portno].tunable_sfp) {
 #endif
@@ -4506,6 +4652,7 @@ int set_i2c_100G_laser_control(int portno, int enable)
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	}
 #endif
+#endif /* [#94] */
 
 	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
 	if((ret = i2c_smbus_read_byte_data(fd, 86/*0x56*/)) < 0) {
@@ -4529,6 +4676,16 @@ int set_i2c_100G_laser_control(int portno, int enable)
 	if(PORT_STATUS[portno].tunable_sfp) {
 #endif
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* set low power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif /* [#94] */
+
 	/* recover to high power mode or keep low power mode if disabled. */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 
 		enable ? 0x8/*high-power-mode*/ : 0x3/*low-power-mode*/)) < 0) {
@@ -4661,6 +4818,7 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
+#if 0 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	if(PORT_STATUS[portno].tunable_sfp) {
 		/* set low power mode */
 		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
@@ -4669,6 +4827,7 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 			goto __exit__;
 		}
 	}
+#endif /* [#94] */
 
 	/* select page */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3*/)) < 0) {
@@ -4713,6 +4872,16 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 	}
 
 	if(PORT_STATUS[portno].tunable_sfp) {
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		/* set low power mode */
+		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+		usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif /* [#94] */
+
 		/* recover to high power mode or keep low power mode if disabled. */
 		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8)) < 0) {
 			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
@@ -4757,6 +4926,7 @@ int set_i2c_dco_count_reset(void)
 
 	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
 
+#if 0 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	if(PORT_STATUS[portno].tunable_sfp) {
 		/* set low power mode */
 		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
@@ -4765,6 +4935,7 @@ int set_i2c_dco_count_reset(void)
 			goto __exit__;
 		}
 	}
+#endif /* [#94] */
 
 	/* select page */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x20/*page-20h*/)) < 0) {
@@ -4801,6 +4972,16 @@ int set_i2c_dco_count_reset(void)
 	}
 
 	if(PORT_STATUS[portno].tunable_sfp) {
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		/* set low power mode */
+		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+		usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif /* [#94] */
+
 		/* recover to high power mode or keep low power mode if disabled. */
 		if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8)) < 0) {
 			zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
