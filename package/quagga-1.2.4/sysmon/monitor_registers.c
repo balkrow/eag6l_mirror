@@ -793,6 +793,37 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
 #endif
 
+#if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+			/* clear not equip sfp registers. */
+			if(port >= (PORT_ID_EAG6L_MAX - 1)) {
+				FPGA_WRITE(QSFP28_STATUS1_ADDR, 0x0);
+				FPGA_WRITE(QSFP28_STATUS2_ADDR, 0x0);
+				FPGA_WRITE(QSFP28_STATUS3_ADDR, 0x0);
+			} else {
+				FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_VOLT_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_TX_BIAS_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_LTEMP_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_WL1_RTWDM_ADDR[port], 0x0);
+				FPGA_PORT_WRITE(__PORT_WL2_RTWDM_ADDR[port], 0x0);
+			}
+
+			FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[port], 0x8999);
+			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[port], 0x8999);
+			FPGA_PORT_WRITE(__PORT_TEMP_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VOLT_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_TX_BIAS_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_LTEMP_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_TCURR_ADDR[port], 0x0);
+
+			FPGA_PORT_WRITE(__PORT_WL1_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_WL2_ADDR[port],  0x0);
+			FPGA_PORT_WRITE(__PORT_GET_CH_NUM_ADDR[port], 0x0);
+#endif /* [#139] */
+
 			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
 			PORT_STATUS[port].equip = 0;/*not-installed*/
 		} else {/*0-mean-installed*/
@@ -3335,6 +3366,14 @@ extern int update_flex_tune_status(int portno);
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/, 1/*tx*/)
 			: 0x8999); 
 		/* update rx power */
+#if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+		if(PORT_STATUS[portno].los) {
+			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 0x8600);
+		} else  {
+			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
+				convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/, 0/*rx*/));
+		}
+#else /*******************************************************/
 		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
 			PORT_STATUS[portno].equip ? 
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
@@ -3345,6 +3384,7 @@ extern int update_flex_tune_status(int portno);
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/, 0/*rx*/)
 #endif /* [#139] */
 			: 0x8999);
+#endif /* [#139] */
 #else /*********************************************************************/
 		/* update tx power */
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
