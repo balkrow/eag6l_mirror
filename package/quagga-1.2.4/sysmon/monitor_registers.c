@@ -3337,7 +3337,13 @@ extern int update_flex_tune_status(int portno);
 		/* update rx power */
 		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
 			PORT_STATUS[portno].equip ? 
+#if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+			(PORT_STATUS[portno].los ? 
+				0x8600/*LOS*/ : 
+				convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/, 0/*rx*/))
+#else /*******************************************************/
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/, 0/*rx*/)
+#endif /* [#139] */
 			: 0x8999);
 #else /*********************************************************************/
 		/* update tx power */

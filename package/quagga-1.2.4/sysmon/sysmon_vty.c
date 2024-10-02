@@ -436,6 +436,18 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 	}
 #endif
 
+#if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+	vty_out(vty, "[%d] vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f] rx_Los[%d]\n",
+		portno,
+		ps->vcc,
+		ps->temp,
+		ps->tx_bias,
+		ps->laser_temp,
+		ps->tec_curr,
+		ps->tx_pwr,
+		ps->rx_pwr,
+		ps->los);
+#else
 	vty_out(vty, "[%d] vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f]\n",
 		portno,
 		ps->vcc,
@@ -445,6 +457,7 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 		ps->tec_curr,
 		ps->tx_pwr,
 		ps->rx_pwr);
+#endif /* [#139] */
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	if((portno < (PORT_ID_EAG6L_MAX - 1)) && ps->tunable_sfp)
 #else
