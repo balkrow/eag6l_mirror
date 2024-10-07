@@ -4027,6 +4027,9 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	if((tcurr < (double)0) || ((double)65.54 >= tcurr))
 		tcurr = 0;
 #endif
+#if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+		PORT_STATUS[portno].los = (raw_diag->status_control & 0x2) ? 1 : 0;
+#endif /* [#139] */
 	}
 #else /********************************************************************/
 	// Temperature.
@@ -5056,6 +5059,10 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	val = ret;
 	pdco->dco_TxLoLMask = (val >> 4) & 0xF;
 	pdco->dco_RxLoL = (val & 0xF) ? 1 : 0;
+
+#if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+	PORT_STATUS[portno].los = pdco->dco_RxLos ? 1 : 0;
+#endif /* [#139] */
 
 	/* get page 00h byte 6 for TCReadyFlag/InitComplete */
 	if((ret = i2c_smbus_read_byte_data(fd, 6/*0x6*/)) < 0) {
