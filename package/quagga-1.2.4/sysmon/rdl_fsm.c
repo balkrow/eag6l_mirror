@@ -471,7 +471,12 @@ RDL_ST_t rdl_check_page_done(void)
 
 	// check page data.
 	PAGE_CRC_OK = rdl_check_page_crc();
-	if(1/*PAGE_CRC_OK*/) {
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+	if(PAGE_CRC_OK == RDL_CRC_OK)
+#else
+	if(1/*PAGE_CRC_OK*/)
+#endif
+	{
 		// get total size.
 		total_size = RDL_INFO.hd.fih_size + sizeof(fw_image_header_t);
 
@@ -493,7 +498,11 @@ RDL_ST_t rdl_check_page_done(void)
 		return state;
 	} else {
 		// nack for page reading.
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_PAGE_READING_ERROR_BIT);
+#else
 		gDPRAMRegUpdate(RDL_STATE_RESP_ADDR, 8, 0xFF00, RDL_TOTAL_FW_CRC_ERROR_BIT);
+#endif
 
 		//FIXME : necessary to clear page buffer?
 

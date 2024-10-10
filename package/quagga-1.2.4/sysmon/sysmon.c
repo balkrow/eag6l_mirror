@@ -441,6 +441,9 @@ int fpga_erase_all(int bno)
 	if(ioctl(mtd_fd, MEMGETINFO, &mtd) < 0) {
 		zlog_notice("%s : Cannot get mtd info %s.", __func__,
 			(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+		close(mtd_fd);
+#endif
 		return -1;
 	}
 
@@ -465,11 +468,17 @@ int fpga_erase_all(int bno)
 				(unsigned int)erase.start, 
 				(unsigned int)(erase.start + erase.length), 
 				(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+			close(mtd_fd);
+#endif
 			return -1;
 		}
 		erase.start += mtd.erasesize;
 	}
 
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+	close(mtd_fd);
+#endif
 	zlog_notice("%s : erased done (100%%) for %s.",
 		__func__, 
 		(bno == RDL_BANK_1) ?  RDL_DEV1_FPGA_FW : RDL_DEV2_FPGA_FW);
@@ -686,6 +695,10 @@ long rdl_get_file_size(char *filename)
 
 	fseek(fp, 0, SEEK_END);
 	size = ftell(fp);
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+	if(fp)
+		fclose(fp);
+#endif
 	return size;
 }
 
@@ -1123,9 +1136,18 @@ int restore_img_file(char *src, char *dst)
 
 	// read pkg header to skip it.
 	if((nread = read(in, &hd, sizeof(fw_image_header_t))) <= 0)
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+	{
+		close(in);
+		close(out);
+	}
+	else
+		total_sum += get_sum((uint16_t *)&hd, nread);
+#else
 		return -1;
 	else
 		total_sum += get_sum((uint16_t *)&hd, nread);
+#endif
 
 #ifdef DEBUG
 	zlog_notice("RDL] ----- IMG Information");
@@ -2788,8 +2810,7 @@ RDL_ST_t rdl_update_fsm(void)
 					if(mtry++ > RDL_MAX_FAIL_TRY) {
 						zlog_notice("MCU failed ?? Go to IDLE.");
 						return ST_RDL_TERM;
-					} else 
-						zlog_notice("MCU failed ?? trying[%d].", mtry);
+					}
 				} else
 					mtry = 0;
 				/* check mcu keepalive. activate if mcu started once. */
@@ -2799,8 +2820,7 @@ RDL_ST_t rdl_update_fsm(void)
 						if(mtry++ > RDL_MAX_FAIL_TRY) {
 							zlog_notice("MCU stopped ?? Go to IDLE.");
 							return ST_RDL_TERM;
-						} else 
-							zlog_notice("MCU failed ?? trying[%d].", mtry);
+						}
 					} else {
 						mcu_keepalive = mval;
 						mtry = 0;
@@ -2815,6 +2835,9 @@ RDL_ST_t rdl_update_fsm(void)
 			break;
 	}
 next_turn :
+#if 1 /* [#143] Fixing for RDL error handling, dustin, 2024-10-10 */
+	rdl_info_list.st = st;
+#endif
 	return st;
 
 }
