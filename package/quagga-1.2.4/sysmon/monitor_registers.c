@@ -140,6 +140,9 @@ extern int get_i2c_dco_status(void);
 
 extern uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno);
 #endif
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+uint16_t swModeSet(uint16_t sw_mode);
+#endif
 
 
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
@@ -311,6 +314,9 @@ RegMON regMonList [] = {
 #endif
 	/* dco register */
 	/* FIXME : add entry */
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+  { SWITCH_MODE_ADDR,  0x3, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, swModeSet },
+#endif
 };
 #endif /*End 62*/
 #endif
@@ -1183,6 +1189,17 @@ uint16_t DcoCountReset(uint16_t val)
 	return SUCCESS;
 }
 #endif /* [#94] */
+
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+uint16_t swModeSet(uint16_t sw_mode)
+{
+	if(sw_mode == SW_TRANSPARENT_MODE)
+		gSysmonToCpssFuncs[gSwitchModeSet](1, SW_TRANSPARENT_MODE);
+	else if(sw_mode == SW_AGGREGATION_MODE)
+		gSysmonToCpssFuncs[gSwitchModeSet](1, SW_AGGREGATION_MODE);
+	return SUCCESS;
+}
+#endif
 
 void do_recovery_update_after_fpga_reset(void)
 {

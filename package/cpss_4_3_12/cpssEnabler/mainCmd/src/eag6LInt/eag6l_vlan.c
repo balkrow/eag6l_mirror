@@ -33,6 +33,9 @@
 #include "eag6l_fsm.h"
 #include <gtOs/gtEnvDep.h>
 #endif
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+#include "sys_fifo.h"
+#endif
 
 #define DEBUG
 
@@ -362,6 +365,45 @@ uint8_t EAG6LFecInit (void)
 	return rc;
 }
 
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+uint8_t EAG6LVlanInit (uint8_t mode)
+{
+	uint8_t rc = 0;
+	int8_t i;
+	uint8_t devNum = 0x0;
+	GT_BOOL isDefaultProfile = GT_TRUE;
+	uint32_t profile = 0x1, tpidBmp = 0;
+
+	/* init for 25g ports. */
+	for(i = 0; i < eag6L25GPortArrSize; i++)
+	{
+		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, eag6L25GPortlist[i], 
+				CPSS_VLAN_ETHERTYPE0_E, isDefaultProfile, profile);
+		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, eag6L25GPortlist[i], 
+				CPSS_VLAN_ETHERTYPE1_E, isDefaultProfile, profile);
+	}
+
+	/* init for 100g port for aggregation/transparent switch mode. */
+	if(mode == SW_AGGREGATION_MODE) {
+		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, EAG6L_WDM_PORT, 
+			CPSS_VLAN_ETHERTYPE0_E, isDefaultProfile, profile);
+		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, EAG6L_WDM_PORT,
+			CPSS_VLAN_ETHERTYPE1_E, isDefaultProfile, profile);
+	} else { /* SW_TRANSPARENT_MODE */
+		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, EAG6L_WDM_PORT, 
+			CPSS_VLAN_ETHERTYPE0_E, isDefaultProfile, 0x0/*reset*/);
+		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, EAG6L_WDM_PORT,
+			CPSS_VLAN_ETHERTYPE1_E, isDefaultProfile, 0x0/*reset*/);
+	}
+
+	/* init vlan ingress tpid profile. */
+	rc = cpssDxChBrgVlanIngressTpidProfileSet(devNum, profile, 
+			CPSS_VLAN_ETHERTYPE0_E, tpidBmp);
+	rc = cpssDxChBrgVlanIngressTpidProfileSet(devNum, profile, 
+			CPSS_VLAN_ETHERTYPE1_E, tpidBmp);
+	return  rc;
+}
+#else /********************************************************************/
 uint8_t EAG6LVlanInit (void)
 {
 	uint8_t rc = 0;
@@ -379,6 +421,7 @@ uint8_t EAG6LVlanInit (void)
 	}
 	return  rc;
 }
+#endif /* [#142] */
 
 #if 0
 uint32_t EAG6LVlanTestCaseCfg 
@@ -425,3 +468,187 @@ uint8_t ut_vlan_config_case1
 {
 }
 #endif
+
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+uint8_t EAG6LEmptyVlanAdd (GT_U16 vlanId)
+{
+	GT_STATUS   rc = GT_OK;
+ 	GT_U8       devNum = 0;
+    GT_BOOL     status = true;
+	CPSS_PORTS_BMP_STC  portsMembers;
+	CPSS_PORTS_BMP_STC  portsTagging;
+	CPSS_DXCH_BRG_VLAN_INFO_STC  cpssVlanInfo;   /* cpss vlan info format    */
+	CPSS_DXCH_BRG_VLAN_PORTS_TAG_CMD_STC portsTaggingCmd; /* ports tagging command */
+
+	CPSS_PORTS_BMP_PORT_CLEAR_ALL_MAC(&portsMembers);
+	CPSS_PORTS_BMP_PORT_CLEAR_ALL_MAC(&portsTagging);
+
+	osMemSet(&cpssVlanInfo, 0, sizeof(cpssVlanInfo));
+	osMemSet(&portsTaggingCmd, 0, sizeof(CPSS_DXCH_BRG_VLAN_PORTS_TAG_CMD_STC));
+
+	cpssVlanInfo.unregIpmEVidx          = 0xFFF;
+	cpssVlanInfo.floodVidx              = 0xFFF;
+	cpssVlanInfo.portIsolationMode      = CPSS_DXCH_BRG_VLAN_PORT_ISOLATION_L2_CMD_E;
+	cpssVlanInfo.autoLearnDisable       = true;
+	cpssVlanInfo.naMsgToCpuEn           = true;
+
+	/* add vlan. */
+	rc = cpssDxChBrgVlanEntryWrite(devNum, vlanId, &portsMembers, &portsTagging, 
+			&cpssVlanInfo, &portsTaggingCmd);
+	if (rc != GT_OK) {
+		syslog(LOG_NOTICE, "cpssDxChBrgVlanEntryWrite=%x", rc);
+		return rc;
+	}
+
+	/* enable learning for vlan. */
+	rc = cpssDxChBrgVlanLearningStateSet(devNum, vlanId, status);
+	if (rc != GT_OK) {
+		syslog(LOG_NOTICE, "cpssDxChBrgVlanLearningStateSet=%x", rc);
+		return rc;
+	}
+
+	return rc;
+}
+
+uint8_t EAG6LVlanRemove (GT_U16 vlanId)
+{
+	GT_STATUS   rc = GT_OK;
+	GT_U8       devNum = 0;
+    GT_BOOL     isValid;
+	CPSS_PORTS_BMP_STC  portsMembers;
+	CPSS_PORTS_BMP_STC  portsTagging;
+	CPSS_DXCH_BRG_VLAN_INFO_STC  cpssVlanInfo;   /* cpss vlan info format    */
+	CPSS_DXCH_BRG_VLAN_PORTS_TAG_CMD_STC portsTaggingCmd; /* ports tagging command */
+
+	/* get target vlan. */
+	rc = cpssDxChBrgVlanEntryRead(devNum, vlanId, &portsMembers, &portsTagging, 
+			&cpssVlanInfo, &isValid, &portsTaggingCmd);
+	if (rc == GT_OK) {
+		/* remove vlan. */
+		rc = cpssDxChBrgVlanEntryInvalidate(devNum, vlanId);
+		if (rc != GT_OK) {
+			syslog(LOG_NOTICE, "cpssDxChBrgVlanEntryInvalidate=%x", rc);
+			return rc;
+		}
+	}
+	return rc;
+}
+
+uint8_t EAG6LTransparentVlanAdd (GT_U16 vlanId, GT_U32 portNum)
+{
+	GT_STATUS   rc = GT_OK;
+ 	GT_U8       devNum = 0;
+    GT_BOOL     isValid;
+	CPSS_PORTS_BMP_STC  portsMembers;
+	CPSS_PORTS_BMP_STC  portsTagging;
+	CPSS_DXCH_BRG_VLAN_INFO_STC  cpssVlanInfo;   /* cpss vlan info format    */
+	CPSS_DXCH_BRG_VLAN_PORTS_TAG_CMD_STC portsTaggingCmd; /* ports tagging command */
+
+	rc = cpssDxChBrgVlanEntryRead(devNum, vlanId, &portsMembers, &portsTagging, 
+			&cpssVlanInfo, &isValid, &portsTaggingCmd);
+	if (rc != GT_OK) {
+		syslog(LOG_NOTICE, "cpssDxChBrgVlanEntryRead=%x", rc);
+		return rc;
+	}
+
+
+	CPSS_PORTS_BMP_PORT_SET_MAC(&portsMembers, portNum);
+	CPSS_PORTS_BMP_PORT_SET_MAC(&portsTagging, portNum);
+
+	cpssVlanInfo.unregIpmEVidx          = 0xFFF;
+	cpssVlanInfo.floodVidx              = 0xFFF;
+	cpssVlanInfo.fdbLookupKeyMode       = CPSS_DXCH_BRG_FDB_LOOKUP_KEY_MODE_FID_E;
+	cpssVlanInfo.unregIpv4BcastCmd      = CPSS_PACKET_CMD_FORWARD_E;
+	cpssVlanInfo.unregNonIpv4BcastCmd   = CPSS_PACKET_CMD_FORWARD_E;
+	cpssVlanInfo.unregNonIpMcastCmd     = CPSS_PACKET_CMD_FORWARD_E;
+	cpssVlanInfo.floodVidxMode          = CPSS_DXCH_BRG_VLAN_FLOOD_VIDX_MODE_UNREG_MC_E;
+	cpssVlanInfo.portIsolationMode      = CPSS_DXCH_BRG_VLAN_PORT_ISOLATION_L2_CMD_E;
+	cpssVlanInfo.unregIpmEVidxMode      = CPSS_DXCH_BRG_VLAN_UNREG_IPM_EVIDX_MODE_BOTH_E;
+	cpssVlanInfo.ipv4IpmBrgMode         = CPSS_BRG_IPM_SGV_E;
+	cpssVlanInfo.ipv6IpmBrgMode         = CPSS_BRG_IPM_SGV_E;
+	cpssVlanInfo.unkUcastCmd            = CPSS_PACKET_CMD_FORWARD_E;
+	cpssVlanInfo.unknownMacSaCmd        = CPSS_PACKET_CMD_FORWARD_E;
+	cpssVlanInfo.unregIpv4McastCmd      = CPSS_PACKET_CMD_FORWARD_E;
+	cpssVlanInfo.unregIpv6McastCmd      = CPSS_PACKET_CMD_FORWARD_E;
+	cpssVlanInfo.ipv6SiteIdMode         = CPSS_IP_SITE_ID_INTERNAL_E;
+	cpssVlanInfo.ipCtrlToCpuEn          = CPSS_DXCH_BRG_IP_CTRL_NONE_E;
+	cpssVlanInfo.mirrToTxAnalyzerMode   = CPSS_DXCH_MIRROR_EGRESS_NOT_DROPPED_E;
+	cpssVlanInfo.naMsgToCpuEn           = true;
+	cpssVlanInfo.fidValue               = vlanId;
+
+	portsTaggingCmd.portsCmd[portNum]   = CPSS_DXCH_BRG_VLAN_PORT_POP_OUTER_TAG_CMD_E;
+	if(portNum == 50)
+		portsTaggingCmd.portsCmd[50]    = CPSS_DXCH_BRG_VLAN_PORT_TAG0_CMD_E;
+
+	/* add vlan. */
+	rc = cpssDxChBrgVlanEntryWrite(devNum, vlanId, &portsMembers, &portsTagging, 
+			&cpssVlanInfo, &portsTaggingCmd);
+	if (rc != GT_OK) {
+		syslog(LOG_NOTICE, "cpssDxChBrgVlanEntryWrite=%x", rc);
+		return rc;
+	}
+
+	if(portNum != 50) {
+		/* set port pvid. */
+		rc = cpssDxChBrgVlanPortVidSet(devNum, portNum, CPSS_DIRECTION_INGRESS_E, vlanId);
+		if (rc != GT_OK) {
+			syslog(LOG_NOTICE, "cpssDxChBrgVlanPortVidSet=%x", rc);
+			return rc;
+		}
+	}
+	return rc;
+}
+
+uint8_t EAG6LSwitchModeSet(uint8_t enable)
+{
+	uint8_t result = 0;
+	uint8_t ii;
+
+	if(enable) {
+		result += EAG6LVlanInit(SW_TRANSPARENT_MODE);
+
+		result += EAG6LEmptyVlanAdd(SW_TP_MODE_VID1);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID1, 0/*port1*/);
+
+		result += EAG6LEmptyVlanAdd(SW_TP_MODE_VID2);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID2, 8/*port2*/);
+
+		result += EAG6LEmptyVlanAdd(SW_TP_MODE_VID3);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID3, 16/*port3*/);
+
+		result += EAG6LEmptyVlanAdd(SW_TP_MODE_VID4);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID4, 24/*port4*/);
+
+		result += EAG6LEmptyVlanAdd(SW_TP_MODE_VID5);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID5, 32/*port5*/);
+
+		result += EAG6LEmptyVlanAdd(SW_TP_MODE_VID6);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID6, 40/*port6*/);
+
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID1, 50/*port7-100g*/);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID2, 50/*port7-100g*/);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID3, 50/*port7-100g*/);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID4, 50/*port7-100g*/);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID5, 50/*port7-100g*/);
+		result += EAG6LTransparentVlanAdd(SW_TP_MODE_VID6, 50/*port7-100g*/);
+	} else {
+		result += EAG6LVlanRemove(SW_TP_MODE_VID1);
+		result += EAG6LVlanRemove(SW_TP_MODE_VID2);
+		result += EAG6LVlanRemove(SW_TP_MODE_VID3);
+		result += EAG6LVlanRemove(SW_TP_MODE_VID4);
+		result += EAG6LVlanRemove(SW_TP_MODE_VID5);
+		result += EAG6LVlanRemove(SW_TP_MODE_VID6);
+
+		/* reset port pvid. */
+		for(ii = 0; ii < eag6L25GPortArrSize; ii++) {
+			result += cpssDxChBrgVlanPortVidSet(0/*devNum*/, eag6L25GPortlist[ii], 
+					CPSS_DIRECTION_INGRESS_E, 1/*vlanId*/);
+		}
+
+		result += EAG6L25Gto100GFwdSet();
+		result += EAG6LVlanInit(SW_AGGREGATION_MODE);
+	}
+	return result;
+}
+#endif /* [#142] */
+

@@ -53,7 +53,11 @@ extern uint8_t EAG6L25Gto100GFwdSet (void);
 #endif
 
 #if 1/*[#35] traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+extern uint8_t EAG6LVlanInit (uint8_t mode);
+#else
 extern uint8_t EAG6LVlanInit (void);
+#endif
 extern uint8_t EAG6LFecInit (void);
 extern GT_VOID appDemoTraceOn_GT_OK_Set(GT_U32);
 extern void initFaultFsmList (void);
@@ -922,6 +926,12 @@ GT_VOID processPortEvt
 
 uint8_t gCpssSDKInit(int args, ...)
 {
+#if 0/* NOTE : activate if manual sdk setup. */
+	va_list argP;
+	uint8_t result = 0;
+	sysmon_fifo_msg_t *msg = NULL;
+	args = args;
+#else /**************************************/
 	uint8_t result;
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
@@ -940,7 +950,11 @@ uint8_t gCpssSDKInit(int args, ...)
 #endif
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 	/*initial tag/untag forwarding */
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+	result += EAG6LVlanInit(SW_AGGREGATION_MODE);
+#else
 	result += EAG6LVlanInit();
+#endif
 #endif
 #if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
 	result += EAG6LJumboFrameEnable();
@@ -957,6 +971,7 @@ uint8_t gCpssSDKInit(int args, ...)
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 to_sysmon:
 #endif
+#endif /*manual sdk setup*/
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
@@ -2065,6 +2080,35 @@ uint8_t gCpssLocalQL(int args, ...)
 }
 #endif
 
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+uint8_t gCpssSwitchModeSet(int args, ...)
+{
+extern uint8_t EAG6LSwitchModeSet(uint8_t enable);
+
+	uint8_t ret = GT_OK;
+	va_list argP;
+	bool enable;
+	sysmon_fifo_msg_t *msg = NULL;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] state[%d].", 
+		__func__, gSwitchModeSet, msg->type, msg->state);
+
+	enable = msg->state;
+
+	ret = EAG6LSwitchModeSet(enable ? SW_TRANSPARENT_MODE : SW_AGGREGATION_MODE);
+
+	syslog(LOG_INFO, ">>> gCpssSwitchModeSet enable[%d] DONE~!! <<<", enable);
+	msg->result = ret;
+
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif /* [#142] */
+
 cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 {
 	gCpssSDKInit,
@@ -2095,6 +2139,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #endif
 #if 1/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
 	gCpssSynceIfconf,
+#endif
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+	gCpssSwitchModeSet,
 #endif
 };
 
