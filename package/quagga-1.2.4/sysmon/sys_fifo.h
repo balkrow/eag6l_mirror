@@ -26,6 +26,19 @@ typedef uint8_t (*cSysmonToCPSSFuncs) (int args, ...);
 typedef uint8_t (*cSysmonReplyFuncs) (int args, ...);
 #endif
 
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+#define SW_AGGREGATION_MODE  1
+#define SW_TRANSPARENT_MODE  2
+
+/* NOTE : vid range must be confirmed by occ. */
+#define SW_TP_MODE_VID1		4001
+#define SW_TP_MODE_VID2		4002
+#define SW_TP_MODE_VID3		4003
+#define SW_TP_MODE_VID4		4004
+#define SW_TP_MODE_VID5		4005
+#define SW_TP_MODE_VID6		4006
+#endif
+
 enum sysmon_cmd_fifo_type
 {
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
@@ -59,6 +72,10 @@ enum sysmon_cmd_fifo_type
 #if 1/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-11*/
 	gPortSyncePortConf,
 #endif
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+	gSwitchModeSet,
+#endif
+
 };
 
 enum sysmon_cmd_result_type

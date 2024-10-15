@@ -517,6 +517,34 @@ uint8_t gCpssLocalQL(int args, ...)
 }
 #endif
 
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+uint8_t gCpssSwitchModeSet(int args, ...)
+{
+    va_list argP;
+    sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+    zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+    if(args != 1) {
+        zlog_notice("%s: invalid args[%d].", __func__, args);
+        return IPC_CMD_FAIL;
+    }
+
+    memset(&msg, 0, sizeof msg);
+    va_start(argP, args);
+    msg.state = va_arg(argP, uint32_t);
+    va_end(argP);
+    msg.type = gSwitchModeSet;
+
+    if(send_to_sysmon_slave(&msg) == 0) {
+        zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+        return IPC_CMD_FAIL;
+    }
+
+    return IPC_CMD_SUCCESS;
+}
+#endif /* [#142] */
 
 cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 {
@@ -552,6 +580,9 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 #if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-12*/
 	gCpssSynceIfConf,
 #endif
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+	gCpssSwitchModeSet,
+#endif /* [#142] */
 };
 
 const uint32_t funcsListLen = sizeof(gSysmonToCpssFuncs) / sizeof(cSysmonToCPSSFuncs);
@@ -1256,6 +1287,32 @@ uint8_t gReplySynceIfConf(int args, ...)
 }
 #endif
 
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+uint8_t gReplySwitchModeSet(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args != 1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	/* process for result. */
+	if(msg->result != FIFO_CMD_SUCCESS)
+		zlog_notice("Setting Switch Mode failed. ret[%d].", msg->result);
+	return ret;
+}
+#endif /* [#142] */
+
 cSysmonReplyFuncs gSysmonReplyFuncs[] =
 {
 	gReplySDKInit,
@@ -1280,10 +1337,16 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 	gReplyPortESMCQLupdate,
 #endif
 #if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-12*/
+#if 0 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+	/* below is added by mistake. above gReplyPortESMCQLupdate is real one. */
 	gReplyNone,
+#endif
 	gReplyPortSendQL,
 	gReplyLocalQL,
 	gReplySynceIfConf,
+#endif
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+	gReplySwitchModeSet,
 #endif
 };
 

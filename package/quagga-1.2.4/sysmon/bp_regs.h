@@ -120,6 +120,11 @@ typedef enum {
  ****************************/
 
 #define SW_VERSION_ADDR			0x00
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+#define SWITCH_MODE_ADDR		0x0C	/* UNIT DEFINITION 3 */
+#endif
+
+
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 #define CPU_FAIL_ADDR			0x12	
 #define CPU_FAIL_MASK			0x100
@@ -1653,7 +1658,6 @@ typedef enum {
 #if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
 #define FPGA_RESET_BY_BP 0x20
 #endif
-
 
 extern unsigned long __COMMON_CTRL2_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_CONFIG_ADDR[PORT_ID_EAG6L_MAX];

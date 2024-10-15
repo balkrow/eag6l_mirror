@@ -1666,6 +1666,32 @@ extern uint16_t DcoCountReset(uint16_t val);
 }
 #endif /* [#94] */
 
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+DEFUN (sw_mode_set,
+       sw_mode_set_cmd,
+       "transparent-mode",
+       "Enable transparent mode.\n")
+{
+extern uint16_t swModeSet(uint16_t trans_mode);
+
+    swModeSet(SW_TRANSPARENT_MODE);
+    return CMD_SUCCESS;
+}
+
+DEFUN (no_sw_mode_set,
+       no_sw_mode_set_cmd,
+       "no transparent-mode",
+       NO_STR
+       "Disable transparent mode.\n")
+{
+extern uint16_t swModeSet(uint16_t trans_mode);
+
+    swModeSet(SW_AGGREGATION_MODE);
+
+    return CMD_SUCCESS;
+}
+#endif
+
 void
 sysmon_vty_init (void)
 {
@@ -1731,5 +1757,9 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &dco_reset_cmd);
   install_element (ENABLE_NODE, &dco_count_reset_cmd);
   install_element (VIEW_NODE, &show_dco_cmd);
+#endif
+#if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+  install_element (ENABLE_NODE, &sw_mode_set_cmd);
+  install_element (ENABLE_NODE, &no_sw_mode_set_cmd);
 #endif
 }
