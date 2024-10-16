@@ -289,6 +289,10 @@ int i2c_in_use_flag_set = 0;
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 static void print_port_info(struct vty *vty, int portno)
 {
+#if 1 /* [#148] Fixing for Link UP condition, dustin, 2024-10-14 */
+extern dco_status_t DCO_STAT;
+	dco_status_t *pdco = &DCO_STAT;
+#endif /* [#148] */
 	port_status_t * ps = NULL;
 	struct module_inventory * mod_inv = NULL;	
 
@@ -306,7 +310,13 @@ static void print_port_info(struct vty *vty, int portno)
 #endif /* [#94] */
 		portno, 
 		(ps->equip ? "O" : "x"),
+#if 1 /* [#148] Fixing for Link UP condition, dustin, 2024-10-14 */
+		(portno >= (PORT_ID_EAG6L_MAX - 1)) ?
+			(ps->link && !(pdco->dco_RxLos || pdco->dco_RxLoL) ? "Up" : "Dn") :
+			(ps->link ? "Up" : "Dn"), 
+#else
 		(ps->link ? "Up" : "Dn"), 
+#endif /* [#148] */
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 		(ps->speed == PORT_IF_10G_KR ? "10G" :
 			(portno == (PORT_ID_EAG6L_MAX - 1)) ? "100G" : "25G"),
