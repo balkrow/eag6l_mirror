@@ -129,6 +129,9 @@ extern uint16_t RDL_B1_ERASE_FLAG;
 extern uint16_t RDL_B2_ERASE_FLAG;
 #endif
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+uint16_t portFECEnable(uint16_t portno, uint16_t enable);
+#endif
 uint16_t DcoReset(uint16_t val);
 uint16_t DcoCountReset(uint16_t val);
 uint16_t DcoFECEnable(uint16_t val);
@@ -269,6 +272,16 @@ RegMON regMonList [] = {
 #endif /* [#125] */
 #endif
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+  { PORT_1_RS_FEC_ADDR,  0xFF00, 8, 0xA5, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portFECEnable },
+  { PORT_2_RS_FEC_ADDR,  0x00FF, 0, 0xA5, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portFECEnable },
+  { PORT_3_RS_FEC_ADDR,  0xFF00, 8, 0xA5, PORT_ID_EAG6L_PORT3, 0, NULL, sys_fpga_memory_read, portFECEnable },
+  { PORT_4_RS_FEC_ADDR,  0x00FF, 0, 0xA5, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portFECEnable },
+  { PORT_5_RS_FEC_ADDR,  0xFF00, 8, 0xA5, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portFECEnable },
+  { PORT_6_RS_FEC_ADDR,  0x00FF, 0, 0xA5, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portFECEnable },
+  { PORT_7_RS_FEC_ADDR,  0xFF00, 8, 0xA5, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portFECEnable },
+#endif
+
   { QSFP28_RESET_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoReset },
   { QSFP28_FEC_ENABLE_ADDR,  0xFFFF, 0, 0x5AA5, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoFECEnable },
   { QSFP28_COUNT_RESET_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoCountReset },
@@ -1159,6 +1172,17 @@ __retry__:
 #endif
 
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+uint16_t portFECEnable(uint16_t portno, uint16_t enable)
+{
+	if(enable == 0xA5)
+		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 1);
+	else if(enable == 0x5A)
+		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 0);
+	return SUCCESS;
+}
+#endif
+
 uint16_t DcoReset(uint16_t val)
 {
 	if(val == 0xA5) {

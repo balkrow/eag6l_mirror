@@ -72,6 +72,9 @@ enum sysmon_cmd_fifo_type
 #if 1/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-11*/
 	gPortSyncePortConf,
 #endif
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+	gPortFECEnable,
+#endif /* [#152] */
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gSwitchModeSet,
 #endif

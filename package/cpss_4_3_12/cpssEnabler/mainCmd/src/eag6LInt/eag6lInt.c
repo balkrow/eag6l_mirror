@@ -1584,6 +1584,18 @@ uint8_t gCpssPortSetRate(int args, ...)
 			goto _gCpssPortSetRate_exit;
 		}
 
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+		{
+			ret = cpssDxChSamplePortManagerFecModeSet(0, dport, CPSS_PORT_RS_FEC_MODE_ENABLED_E);
+			if(ret != GT_OK) {
+				syslog(LOG_INFO, "cpssDxChPortFecModeSet ret[%d]", ret);
+				goto _gCpssPortSetRate_exit;
+			}
+			/* save fec mode & speed */
+			FEC_MODE[portno] = CPSS_PORT_RS_FEC_MODE_ENABLED_E;
+			SPEED[portno] = msg->speed;
+		}
+#else /*********************************************************/
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 		if((msg->speed == PORT_IF_25G_KR))
 #else
@@ -1607,6 +1619,7 @@ uint8_t gCpssPortSetRate(int args, ...)
 			SPEED[portno] = msg->speed;
 		}
 #endif
+#endif /* [#152] */
 
 		ret = cpssDxChPortManagerStatusGet(0, dport, &pstage);
 		if(ret != GT_OK) {
@@ -2080,6 +2093,169 @@ uint8_t gCpssLocalQL(int args, ...)
 }
 #endif
 
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+uint8_t gCpssPortFECEnable(int args, ...)
+{
+	uint8_t ret = GT_OK, retry;
+	uint8_t portno, dport, ifmode;
+	uint16_t speed;
+	va_list argP;
+	bool enable;
+	sysmon_fifo_msg_t *msg = NULL;
+	CPSS_PORT_MANAGER_STC pmgr;
+	CPSS_PM_PORT_PARAMS_STC pparam;
+	CPSS_PORT_MANAGER_STATUS_STC pstage;
+	CPSS_PORT_SERDES_TYPE_ENT serdes;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+	syslog(LOG_INFO, "%s (REQ): type[%d/%d] for port[%d].", 
+		__func__, gPortFECEnable, msg->type, msg->portid);
+
+	portno = msg->portid;
+	dport = get_eag6L_dport(portno);
+	enable = msg->state;
+
+	/* set speed/mode */
+	switch(SPEED[portno]) {
+		case PORT_IF_10G_KR:
+			speed = CPSS_PORT_SPEED_10000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
+			break;
+		case PORT_IF_25G_KR:
+			speed = CPSS_PORT_SPEED_25000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_KR_E;
+			break;
+		case PORT_IF_10G_SR_LR:
+			speed = CPSS_PORT_SPEED_10000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_SR_LR_E;
+			break;
+		case PORT_IF_25G_SR_LR:
+			speed = CPSS_PORT_SPEED_25000_E;
+			ifmode = CPSS_PORT_INTERFACE_MODE_SR_LR_E;
+			break;
+		default:
+			syslog(LOG_INFO, "%s: invalid speed[%d].", __func__, SPEED[portno]);
+			return GT_ERROR;
+	}
+
+	/* for 100G case. */
+	if(portno == PORT_ID_EAG6L_PORT7) {
+		speed  = CPSS_PORT_SPEED_100G_E;
+		ifmode = CPSS_PORT_INTERFACE_MODE_SR_LR4_E;
+	}
+
+	ret = cpssDxChPortManagerPortParamsStructInit(
+						      CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E, &pparam);
+	if(ret != GT_OK) {
+		syslog(LOG_INFO, "cpssDxChPortManagerPortParamsStructInit ret[%d]", ret);
+		goto _gCpssPortFECEnable_exit;
+	}
+
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		if(portno != msg->portid)	continue;
+
+		dport = get_eag6L_dport(portno);
+
+		pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_DELETE_E;
+		ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssDxChPortManagerEventSet(1) ret[%d]", ret);
+			goto _gCpssPortFECEnable_exit;
+		}
+
+		ret = cpssPortManagerLuaSerdesTypeGet(0, &serdes);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssPortManagerLuaSerdesTypeGet ret[%d]", ret);
+			goto _gCpssPortFECEnable_exit;
+		}
+
+		pparam.portType = CPSS_PORT_MANAGER_PORT_TYPE_REGULAR_E;
+		pparam.magic = 0x1A2BC3D4;
+		pparam.portParamsType.regPort.laneParams[0].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[0].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[0].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[1].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[1].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[1].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[2].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[2].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[2].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[3].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[3].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[3].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[4].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[4].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[4].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[5].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[5].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[5].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[6].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[6].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[6].rxParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[7].validLaneParamsBitMask = 0x0;
+		pparam.portParamsType.regPort.laneParams[7].txParams.type = serdes;
+		pparam.portParamsType.regPort.laneParams[7].rxParams.type = serdes;
+		pparam.portParamsType.regPort.portAttributes.validAttrsBitMask = 0x20;
+		pparam.portParamsType.regPort.portAttributes.preemptionParams.type = CPSS_PM_MAC_PREEMPTION_DISABLED_E;
+		pparam.portParamsType.regPort.portAttributes.fecMode = FEC_OFF;
+		pparam.portParamsType.regPort.speed = speed;
+		pparam.portParamsType.regPort.ifMode = ifmode;
+
+		ret = cpssDxChPortManagerPortParamsSet(0, dport, &pparam);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssDxChPortManagerPortParamsSet ret[%d]", ret);
+			goto _gCpssPortFECEnable_exit;
+		}
+
+		ret = cpssDxChSamplePortManagerFecModeSet(0, dport, 
+				enable ?  CPSS_PORT_RS_FEC_MODE_ENABLED_E : 
+				          CPSS_PORT_FEC_MODE_DISABLED_E);
+		if(ret != GT_OK)
+			syslog(LOG_INFO, "cpssDxChSamplePortManagerFecModeSet: port[%d] enable[%d] ret[%d]", portno, enable, ret);
+		/* save fec mode & speed */
+		else
+			FEC_MODE[portno] = enable ? 
+				CPSS_PORT_RS_FEC_MODE_ENABLED_E : CPSS_PORT_FEC_MODE_DISABLED_E;
+
+		ret = cpssDxChPortManagerStatusGet(0, dport, &pstage);
+		if(ret != GT_OK) {
+			syslog(LOG_INFO, "cpssDxChPortManagerStatusGet ret[%d]", ret);
+			goto _gCpssPortFECEnable_exit;
+		}
+
+		pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
+		if(pstage.portUnderOperDisable || 
+		   (pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)) {
+			if(pstage.portState == CPSS_PORT_MANAGER_STATE_RESET_E)
+				pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_CREATE_E;
+			else
+				pmgr.portEvent = CPSS_PORT_MANAGER_EVENT_ENABLE_E;
+		}
+
+		ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+		retry = 0;
+		while(ret != GT_OK) {
+			if(++retry > 3) {
+				syslog(LOG_INFO, "cpssDxChPortManagerEventSet(2) ret[%d]", ret);
+				goto _gCpssPortFECEnable_exit;
+			}
+			usleep(10000);
+			ret = cpssDxChPortManagerEventSet(0, dport, &pmgr);
+		}
+	}
+
+	syslog(LOG_INFO, ">>> gCpssPortFECEnable DONE~!! <<<");
+_gCpssPortFECEnable_exit:
+	msg->result = ret;
+
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif /* [#152] */
+
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 uint8_t gCpssSwitchModeSet(int args, ...)
 {
@@ -2139,6 +2315,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #endif
 #if 1/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
 	gCpssSynceIfconf,
+#endif
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+	gCpssPortFECEnable,
 #endif
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gCpssSwitchModeSet,

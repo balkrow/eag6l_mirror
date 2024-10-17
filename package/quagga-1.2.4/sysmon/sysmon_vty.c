@@ -1568,6 +1568,43 @@ extern uint16_t boardStatus(uint16_t port, uint16_t val);
 	return CMD_SUCCESS;
 }
 
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+DEFUN (port_rs_fec_enable,
+       port_rs_fec_enable_cmd,
+       "rs-fec port <1-7>",
+       "Enable rs-fec.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+extern uint16_t portFECEnable(uint16_t portno, uint16_t enable);
+
+    int portno = atoi(argv[0]);
+    uint16_t data;
+
+    portFECEnable(portno, 0xA5/*enable*/);
+
+    return CMD_SUCCESS;
+}
+
+DEFUN (no_port_rs_fec_enable,
+       no_port_rs_fec_enable_cmd,
+       "no rs-fec port <1-7>",
+       NO_STR
+       "Disable rs-fec.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+extern uint16_t portFECEnable(uint16_t portno, uint16_t enable);
+
+    int portno = atoi(argv[0]);
+    uint16_t data;
+
+    portFECEnable(portno, 0x5A/*disable*/);
+
+    return CMD_SUCCESS;
+}
+#endif /* [#152] */
+
 DEFUN (show_dco,
        show_dco_cmd,
        "show dco",
@@ -1760,6 +1797,10 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &cr_deinstall_cmd);
   install_element (ENABLE_NODE, &cr_install_cmd);
 
+#if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+  install_element (ENABLE_NODE, &port_rs_fec_enable_cmd);
+  install_element (ENABLE_NODE, &no_port_rs_fec_enable_cmd);
+#endif /* [#152] */
   install_element (ENABLE_NODE, &dco_host_fec_enable_cmd);
   install_element (ENABLE_NODE, &no_dco_host_fec_enable_cmd);
   install_element (ENABLE_NODE, &dco_media_fec_enable_cmd);
