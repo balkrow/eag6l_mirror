@@ -780,6 +780,12 @@ extern int check_sfp_is_present(int portno);
 extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	double fval;
 	uint16_t type, data;
+#if 1 /* [#153] Fixing for updating flex tune, dustin, 2024-10-17 */
+	uint8_t cfg_esmc_enable;
+	uint8_t cfg_flex_tune;
+	uint8_t cfg_smart_tsfp_selfloopback;
+	uint8_t cfg_rtwdm_loopback;
+#endif
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 static uint16_t SFP_CR_CACHE = 0x7F;
 	uint16_t cmask;
@@ -798,11 +804,25 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 #endif
 
 		if((val & (1 << (port - 1))) != 0/*1-mean-not-installed*/) {
+#if 1 /* [#153] Fixing for updating flex tune, dustin, 2024-10-17 */
+			/* backup config values. */
+			cfg_esmc_enable = PORT_STATUS[port].cfg_esmc_enable;
+			cfg_flex_tune   = PORT_STATUS[port].cfg_flex_tune;
+			cfg_smart_tsfp_selfloopback = PORT_STATUS[port].cfg_smart_tsfp_selfloopback;
+			cfg_rtwdm_loopback = PORT_STATUS[port].cfg_rtwdm_loopback;
+#endif
 			/* clear spf inventory */
 			memset(&(INV_TBL[port]), 0, sizeof(struct module_inventory));
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 			memset(&(RTWDM_INV_TBL[port]), 0, sizeof(struct module_inventory));
 			memset(&(PORT_STATUS[port]), 0, sizeof(port_status_t));
+#endif
+#if 1 /* [#153] Fixing for updating flex tune, dustin, 2024-10-17 */
+			/* restore config values. */
+			PORT_STATUS[port].cfg_esmc_enable = cfg_esmc_enable;
+			PORT_STATUS[port].cfg_flex_tune   = cfg_flex_tune;
+			PORT_STATUS[port].cfg_smart_tsfp_selfloopback = cfg_smart_tsfp_selfloopback;
+			PORT_STATUS[port].cfg_rtwdm_loopback = cfg_rtwdm_loopback;
 #endif
 
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
@@ -3580,6 +3600,7 @@ extern int update_flex_tune_status(int portno);
 			gPortRegUpdate(__PORT_WL2_ADDR[portno], 8, 0xF00, type);
 #endif
 
+#if 0 /* [#153] Fixing for updating flex tune, dustin, 2024-10-17 */
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 			if(portno < (PORT_ID_EAG6L_MAX - 1)) {
 				/* update sfp channel no. */
@@ -3587,9 +3608,16 @@ extern int update_flex_tune_status(int portno);
 				continue;
 			}
 #endif /* [#94] */
+#endif /* [#153] */
 
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
-			if(PORT_STATUS[portno].tunable_sfp) {
+#if 1 /* [#153] Fixing for updating flex tune, dustin, 2024-10-17 */
+			if(PORT_STATUS[portno].tunable_sfp &&
+			  (portno < (PORT_ID_EAG6L_MAX - 1)))
+#else
+			if(PORT_STATUS[portno].tunable_sfp)
+#endif /* [#153] */
+			{
 				/* update wavelength1/2 */
 				fval = PORT_STATUS[portno].tunable_rtwdm_wavelength;
 				/* ceiling example : 1558.347 --> 1558.35 */
