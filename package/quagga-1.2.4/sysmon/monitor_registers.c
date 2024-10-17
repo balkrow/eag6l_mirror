@@ -3258,7 +3258,12 @@ void process_alarm_info(void)
 
 		/* update link down (Local Fault?) */
 #if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
+#if 1 /* [#148] Fixing for Link UP condition, dustin, 2024-10-14 */
+		if((! (PORT_STATUS[portno].link && (! PORT_STATUS[portno].los))) || 
+			   PORT_STATUS[portno].local_fault)
+#else
 		if(! PORT_STATUS[portno].link || PORT_STATUS[portno].local_fault)
+#endif /* [#148] */
 #else
 		if(! PORT_STATUS[portno].link)
 #endif
