@@ -1814,6 +1814,14 @@ uint8_t gCpssPortPMGet(int args, ...)
 		if(ret != GT_OK)
 			syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
 
+#if 1 /* [#155] Fixing for PM get fail if FEC is OFF, dustin, 2024-10-18 */
+		if(FEC_MODE[portno] == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
+			memset(&rs_cnt, 0, sizeof rs_cnt);
+			ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
+			if(ret != GT_OK)
+				syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
+		}
+#else /*******************************************************************/
 #if 0/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 #if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
 		fecmode = FEC_MODE[portno];
@@ -1836,6 +1844,7 @@ uint8_t gCpssPortPMGet(int args, ...)
 				syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
 		}
 #endif
+#endif /* [#155] */
 
 		/* copy data to msg->pm */
 #if 1/*[#63] Fixing rx/tx frame counter of PM counters, dustin, 2024-06-20 */
@@ -1871,6 +1880,17 @@ uint8_t gCpssPortPMGet(int args, ...)
 			                        (u64)pmc.badCrc.l[0];
 #endif
 
+#if 1 /* [#155] Fixing for PM get fail if FEC is OFF, dustin, 2024-10-18 */
+		if(FEC_MODE[portno] == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
+			msg->pm[portno].fcs_ok   = ((u64)rs_cnt.correctedFecCodeword.l[1] << 32) |
+				                        (u64)rs_cnt.correctedFecCodeword.l[0];
+			msg->pm[portno].fcs_nok  = ((u64)rs_cnt.uncorrectedFecCodeword.l[1] << 32) |
+				                        (u64)rs_cnt.uncorrectedFecCodeword.l[0];
+		} else {
+			msg->pm[portno].fcs_ok   = 0;
+			msg->pm[portno].fcs_nok  = 0;
+		}
+#else /*******************************************************************/
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 		if(eag6LSpeedStatus[portno] == PORT_IF_25G_KR) {
 			memset(&rs_cnt, 0, sizeof rs_cnt);
@@ -1897,6 +1917,7 @@ uint8_t gCpssPortPMGet(int args, ...)
 			msg->pm[portno].fcs_nok  = 0;
 		}
 #endif
+#endif /* [#155] */
 
 #ifdef DEBUG
 #ifdef MVDEMO /*[68] eag6l board 를 위한 port number 수정, balkrow, 2024-06-27*/
