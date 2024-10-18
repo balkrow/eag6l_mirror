@@ -3364,11 +3364,19 @@ void process_alarm_info(void)
 		/* remove unnecessary bits */
 		masking &= 0x10F;
 
+#if 1 /* [#156] Fixing for correct alarm masking, dustin, 2024-10-18 */
+		/* update alarm */
+		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, (val & ~masking));
+
+		/* update alarm flag */
+		gPortRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, (val & ~masking));
+#else
 		/* update alarm */
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
 
 		/* update alarm flag */
 		gPortRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, val & masking);
+#endif /* [#156] */
 	}
 
 	return;
