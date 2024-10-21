@@ -505,6 +505,9 @@ typedef struct port_status
 		u8  cfg_esmc_enable;
 		u8  cfg_flex_tune;
 		u8  flex_tune_status;
+#if 1 /* [#160] Fixing for rtWDM flex tune status, dustin, 2024-10-21 */
+		u8  flex_tune_rtwdm_status;
+#endif
 		u8  cfg_smart_tsfp_selfloopback;
 		u8  cfg_rtwdm_loopback;
 #endif

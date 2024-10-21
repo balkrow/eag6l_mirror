@@ -1801,6 +1801,34 @@ int get_flex_tune_status(int portno)
 	/* update smart t-sfp status */
 	PORT_STATUS[portno].flex_tune_status = (val & 0x1) ? 1 : 0;
 
+#if 1 /* [#160] Fixing for rtWDM flex tune status, dustin, 2024-10-21 */
+	/* select page for rtwdm flex tune status */
+	if(i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x24/*page-24h*/) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page 24 select failed.",
+				__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* wait for updating selected page */
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+
+	/* read rtwdm flex tune status. */
+    if((val = i2c_smbus_read_byte_data(fd, 253/*0xFD*/)) < 0) {
+        zlog_notice("%s: Reading port[%d(0/%d)] rtwdm flex tune status failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __exit__;
+    }
+
+	PORT_STATUS[portno].flex_tune_rtwdm_status = (val & 0x1) ? 1 : 0;
+
+	/* recover page to default */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+        goto __exit__;
+    }
+#endif
+
 __exit__:
 	close(fd);
 	return ret;
@@ -1835,7 +1863,11 @@ __exit__:
 
 int update_flex_tune_status(int portno)
 {
+#if 1 /* [#160] Fixing for rtWDM flex tune status, dustin, 2024-10-21 */
+    uint16_t val;
+#else
     unsigned char val;
+#endif
 
 	/* do nothing for 100G port. */
 	if(portno >= (PORT_ID_EAG6L_MAX - 1))
@@ -1849,6 +1881,11 @@ int update_flex_tune_status(int portno)
 	}
 
 	/* update smart t-sfp status */
+#if 1 /* [#160] Fixing for rtWDM flex tune status, dustin, 2024-10-21 */
+	val  = PORT_STATUS[portno].flex_tune_status ? 0xA5 : 0x5A;
+	val |= PORT_STATUS[portno].flex_tune_rtwdm_status ? 0xA500 : 0x5A00;
+	FPGA_PORT_WRITE(__PORT_STSFP_STAT_ADDR[portno], val);
+#else
 	val  = PORT_STATUS[portno].flex_tune_status;
 	if(PORT_STATUS[portno].sfp_type == SFP_ID_UNKNOWN/*rtWDM?*/) {
 		gPortRegUpdate(__PORT_STSFP_STAT_ADDR[portno], 8, 0xFF00, val ? 0xA5 : 0x5A);
@@ -1856,6 +1893,7 @@ int update_flex_tune_status(int portno)
 	else {
 		gPortRegUpdate(__PORT_STSFP_STAT_ADDR[portno], 0, 0x00FF, val ? 0xA5 : 0x5A);
 	}
+#endif
 	return SUCCESS;
 }
 
@@ -4301,6 +4339,17 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	}
 
 	PORT_STATUS[portno].tunable_rtwdm_wavelength = wval;
+
+#if 1 /* [#160] Fixing for rtWDM flex tune status, dustin, 2024-10-21 */
+	/* read rtwdm flex tune status. */
+    if((val = i2c_smbus_read_byte_data(fd, 253/*0xFD*/)) < 0) {
+        zlog_notice("%s: Reading port[%d(0/%d)] rtwdm flex tune status failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __exit__;
+    }
+
+	PORT_STATUS[portno].flex_tune_rtwdm_status = val & 0x1;
+#endif
 
 	/* select page */
 	if(i2cset_main(1/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x22/*page-22h*/) < 0) {
