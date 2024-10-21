@@ -89,7 +89,11 @@ uint16_t bankSelect2(uint16_t port, uint16_t val);
 uint16_t syncePortSendQL(uint16_t port, uint16_t val);
 uint16_t synceLocalQL(uint16_t port, uint16_t val);
 #endif
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+void update_port_sfp_inventory(uint8_t rtwdm_flag);
+#else
 void update_port_sfp_inventory(void);
+#endif
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 extern uint16_t sys_fpga_memory_read(uint32_t addr, uint8_t port_reg);
@@ -768,7 +772,11 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 
 	thread_add_timer(master, pm_clear_fec_counters, port, 2);
 
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+	update_port_sfp_inventory(0/*update-no-rtwdm*/);
+#else
 	update_port_sfp_inventory();
+#endif
 
 	return;
 }
@@ -862,6 +870,34 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			FPGA_PORT_WRITE(__PORT_WL2_ADDR[port],  0x0);
 			FPGA_PORT_WRITE(__PORT_GET_CH_NUM_ADDR[port], 0x0);
 #endif /* [#139] */
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+			FPGA_PORT_WRITE(__PORT_VENDOR1_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VENDOR2_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VENDOR3_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VENDOR4_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VENDOR5_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VENDOR6_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VENDOR7_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VENDOR8_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN1_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN2_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN3_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN4_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN5_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN6_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN7_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_PN8_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN1_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN2_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN3_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN4_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN5_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN6_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN7_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_SN8_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_RATE_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_DIST_ADDR[port], 0x0);
+#endif
 
 			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
 			PORT_STATUS[port].equip = 0;/*not-installed*/
@@ -1024,7 +1060,11 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 		if(PORT_STATUS[port].cfg_rtwdm_loopback)
 			set_rtwdm_loopback(port, 1/*enable*/);
 
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+		update_port_sfp_inventory(0/*update-no-rtwdm*/);
+#else
 		update_port_sfp_inventory();
+#endif
 
 		return SUCCESS;
 	}
@@ -1776,6 +1816,9 @@ void read_port_rtwdm_inventory(int portno, struct module_inventory * mod_inv)
 #if 0//PWY_FIXME
     if('\0' == mod_inv->serial_num[0] || mod_inv->dist == 0xFFFF)
 #endif
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+	if(PORT_STATUS[portno].link && (! PORT_STATUS[portno].los))
+#endif
 		get_sfp_rtwdm_info(portno, mod_inv);
 
     return;
@@ -2042,7 +2085,14 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 		/* get only if tunable sfp */
 		if(PORT_STATUS[portno].tunable_sfp) {
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+			if(PORT_STATUS[portno].link && (! PORT_STATUS[portno].los)) {
+				read_port_rtwdm_inventory(portno, &(RTWDM_INV_TBL[portno]));
+				get_sfp_rtwdm_info_diag(portno, &PORT_STATUS[portno]);
+			}
+#else /****************************************************************/
 			get_sfp_rtwdm_info_diag(portno, &PORT_STATUS[portno]);
+#endif /* [#157] */
 			update_port_rtwdm_rx_power(portno);
 #endif
 
@@ -2930,12 +2980,21 @@ void process_hw_inventory_infos(void)
 	return;
 }
 
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+void update_port_sfp_inventory(uint8_t rtwdm_flag)
+#else
 void update_port_sfp_inventory(void)
+#endif /* [#157] */
 {
 	int portno;
 	unsigned int val;
 
 #ifdef BP_BYTE_SWAP /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+	if(rtwdm_flag)
+		goto _rtwdm_stage_;
+#endif
+
 	/* update vendor name */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = (INV_TBL[portno].vendor[0] << 8) | INV_TBL[portno].vendor[1];
@@ -3010,7 +3069,133 @@ void update_port_sfp_inventory(void)
 		FPGA_PORT_WRITE(__PORT_DIST_ADDR[portno], INV_TBL[portno].dist);
 	}
 
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+	/* do not update rtwdm if flag is not set. */
+	if(! rtwdm_flag)
+		return;
+
+_rtwdm_stage_:
+#endif
+
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+	/* consider exceptional cases. */
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		/* update only one time for tunable sfp. */
+		if(! PORT_STATUS[portno].tunable_sfp)
+			continue;
+
+		/* clear registers if port is los. */
+		if((! PORT_STATUS[portno].link) || PORT_STATUS[portno].los) {
+			if(! PORT_STATUS[portno].inv_clear_flag) {
+				FPGA_PORT_WRITE(__PORT_VENDOR1_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_VENDOR2_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_VENDOR3_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_VENDOR4_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_VENDOR5_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_VENDOR6_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_VENDOR7_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_VENDOR8_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN1_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN2_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN3_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN4_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN5_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN6_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN7_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_PN8_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN1_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN2_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN3_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN4_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN5_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN6_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN7_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_SN8_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_RATE_RTWDM_ADDR[portno], 0x0);
+				FPGA_PORT_WRITE(__PORT_DIST_RTWDM_ADDR[portno], 0x0);
+
+				PORT_STATUS[portno].inv_clear_flag = 1;/*once-updated-so-no-more-update*/
+				continue;
+			}
+		}
+
+		/* do not update if all fields are ready */
+		if((! RTWDM_INV_TBL[portno].vendor[0]) ||
+		   (! RTWDM_INV_TBL[portno].part_num[0]) ||
+		   (! RTWDM_INV_TBL[portno].serial_num[0]) ||
+		   (! RTWDM_INV_TBL[portno].max_rate) ||
+		   (! RTWDM_INV_TBL[portno].dist) ||
+		   PORT_STATUS[portno].inv_up_flag)
+			continue;
+
+		/* update vendor name */
+		val = (RTWDM_INV_TBL[portno].vendor[0] << 8) | RTWDM_INV_TBL[portno].vendor[1];
+		FPGA_PORT_WRITE(__PORT_VENDOR1_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].vendor[2] << 8) | RTWDM_INV_TBL[portno].vendor[3];
+		FPGA_PORT_WRITE(__PORT_VENDOR2_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].vendor[4] << 8) | RTWDM_INV_TBL[portno].vendor[5];
+		FPGA_PORT_WRITE(__PORT_VENDOR3_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].vendor[6] << 8) | RTWDM_INV_TBL[portno].vendor[7];
+		FPGA_PORT_WRITE(__PORT_VENDOR4_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].vendor[8] << 8) | RTWDM_INV_TBL[portno].vendor[9];
+		FPGA_PORT_WRITE(__PORT_VENDOR5_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].vendor[10] << 8) | RTWDM_INV_TBL[portno].vendor[11];
+		FPGA_PORT_WRITE(__PORT_VENDOR6_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].vendor[12] << 8) | RTWDM_INV_TBL[portno].vendor[13];
+		FPGA_PORT_WRITE(__PORT_VENDOR7_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].vendor[14] << 8) | RTWDM_INV_TBL[portno].vendor[15];
+		FPGA_PORT_WRITE(__PORT_VENDOR8_RTWDM_ADDR[portno], val);
+
+		/* update part number */
+		val = (RTWDM_INV_TBL[portno].part_num[0] << 8) | RTWDM_INV_TBL[portno].part_num[1];
+		FPGA_PORT_WRITE(__PORT_PN1_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].part_num[2] << 8) | RTWDM_INV_TBL[portno].part_num[3];
+		FPGA_PORT_WRITE(__PORT_PN2_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].part_num[4] << 8) | RTWDM_INV_TBL[portno].part_num[5];
+		FPGA_PORT_WRITE(__PORT_PN3_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].part_num[6] << 8) | RTWDM_INV_TBL[portno].part_num[7];
+		FPGA_PORT_WRITE(__PORT_PN4_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].part_num[8] << 8) | RTWDM_INV_TBL[portno].part_num[9];
+		FPGA_PORT_WRITE(__PORT_PN5_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].part_num[10] << 8) | RTWDM_INV_TBL[portno].part_num[11];
+		FPGA_PORT_WRITE(__PORT_PN6_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].part_num[12] << 8) | RTWDM_INV_TBL[portno].part_num[13];
+		FPGA_PORT_WRITE(__PORT_PN7_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].part_num[14] << 8) | RTWDM_INV_TBL[portno].part_num[15];
+		FPGA_PORT_WRITE(__PORT_PN8_RTWDM_ADDR[portno], val);
+
+		/* update serial number */
+		val = (RTWDM_INV_TBL[portno].serial_num[0] << 8) | RTWDM_INV_TBL[portno].serial_num[1];
+		FPGA_PORT_WRITE(__PORT_SN1_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].serial_num[2] << 8) | RTWDM_INV_TBL[portno].serial_num[3];
+		FPGA_PORT_WRITE(__PORT_SN2_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].serial_num[4] << 8) | RTWDM_INV_TBL[portno].serial_num[5];
+		FPGA_PORT_WRITE(__PORT_SN3_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].serial_num[6] << 8) | RTWDM_INV_TBL[portno].serial_num[7];
+		FPGA_PORT_WRITE(__PORT_SN4_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].serial_num[8] << 8) | RTWDM_INV_TBL[portno].serial_num[9];
+		FPGA_PORT_WRITE(__PORT_SN5_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].serial_num[10] << 8) | RTWDM_INV_TBL[portno].serial_num[11];
+		FPGA_PORT_WRITE(__PORT_SN6_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].serial_num[12] << 8) | RTWDM_INV_TBL[portno].serial_num[13];
+		FPGA_PORT_WRITE(__PORT_SN7_RTWDM_ADDR[portno], val);
+		val = (RTWDM_INV_TBL[portno].serial_num[14] << 8) | RTWDM_INV_TBL[portno].serial_num[15];
+		FPGA_PORT_WRITE(__PORT_SN8_RTWDM_ADDR[portno], val);
+
+		/* update rate */
+		if(portno < PORT_ID_EAG6L_PORT7)
+			val = RTWDM_INV_TBL[portno].max_rate;
+		else
+			val = RTWDM_INV_TBL[portno].max_rate * 10;/*convert 1G unit to 100M unit. */
+		FPGA_PORT_WRITE(__PORT_RATE_RTWDM_ADDR[portno], val);
+
+		/* update distance */
+		FPGA_PORT_WRITE(__PORT_DIST_RTWDM_ADDR[portno], RTWDM_INV_TBL[portno].dist);
+
+		PORT_STATUS[portno].inv_up_flag = 1;/*once-updated-so-no-more-update*/
+	}
+#else /********************************************************************/
 	/* update vendor name */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		if(! PORT_STATUS[portno].tunable_sfp)
@@ -3099,6 +3284,7 @@ void update_port_sfp_inventory(void)
 
 		FPGA_PORT_WRITE(__PORT_DIST_RTWDM_ADDR[portno], RTWDM_INV_TBL[portno].dist);
 	}
+#endif /* [#157] */
 #endif
 #else /**********************************************************************/
 	/* update vendor name */
@@ -3552,6 +3738,38 @@ extern int update_flex_tune_status(int portno);
 			FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[portno], 
 					convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr, 1/*dbm*/));
 #endif
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+			/* clear registers if port is los or rtwdm serial number is ready. */
+			if((! PORT_STATUS[portno].link) || PORT_STATUS[portno].los ||
+			  (RTWDM_INV_TBL[portno].serial_num[0] == 0x0/*NULL*/)) {
+				/* update temperature */
+				FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], 0x0);
+				/* update voltage */
+				FPGA_PORT_WRITE(__PORT_VOLT_RTWDM_ADDR[portno], 0x0);
+				/* update tx bias */
+				FPGA_PORT_WRITE(__PORT_TX_BIAS_RTWDM_ADDR[portno], 0x0);
+				/* update laser temperature */
+				FPGA_PORT_WRITE(__PORT_LTEMP_RTWDM_ADDR[portno], 0x0);
+				/* update TEC current */
+				FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[portno], 0x0);
+			} else {
+				/* update temperature */
+				val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.temp);
+				FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], val);
+				/* update voltage */
+				val = convert_vcc_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.vcc);
+				FPGA_PORT_WRITE(__PORT_VOLT_RTWDM_ADDR[portno], val);
+				/* update tx bias */
+				val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.tx_bias);
+				FPGA_PORT_WRITE(__PORT_TX_BIAS_RTWDM_ADDR[portno], val);
+				/* update laser temperature */
+				val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.laser_temp);
+				FPGA_PORT_WRITE(__PORT_LTEMP_RTWDM_ADDR[portno], val);
+				/* update TEC current */
+				val = convert_dbm_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.tec_curr, 0/*not-dbm*/, 0/*no-use*/);
+				FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[portno], val);
+			}
+#else /****************************************************************/
 			/* update temperature */
 			val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.temp);
 			FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[portno], val);
@@ -3583,6 +3801,7 @@ extern int update_flex_tune_status(int portno);
 			val = convert_temperature_float_to_decimal(PORT_STATUS[portno].rtwdm_ddm_info.tec_curr);
 			FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[portno], val);
 #endif
+#endif /* [#157] */
 #endif
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 			}
@@ -3679,7 +3898,11 @@ extern int update_flex_tune_status(int portno);
 #endif
 		}
 	}
-#else
+
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+	update_port_sfp_inventory(1/*update-rtwdm*/);
+#endif /* [#157] */
+#else /****************************************************************/
 	/* update tx power */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 

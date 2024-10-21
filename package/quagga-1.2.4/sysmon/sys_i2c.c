@@ -4027,6 +4027,22 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	if((tcurr < (double)0) || ((double)65.54 >= tcurr))
 		tcurr = 0;
 #endif
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+		if(PORT_STATUS[portno].tunable_sfp) {
+			extern struct module_inventory RTWDM_INV_TBL[PORT_ID_EAG6L_MAX];
+
+			/* clear rtWDM info if los occurred. */
+			if((! PORT_STATUS[portno].los) &&
+			  (raw_diag->status_control & 0x2)) {
+				memset(&(RTWDM_INV_TBL[portno]), 0, sizeof(struct module_inventory));
+				memset(&(PORT_STATUS[portno].rtwdm_ddm_info), 0, sizeof(ddm_info_t));
+			}
+		}
+
+		/* clear flag for next update, if los state changed. */
+		if(PORT_STATUS[portno].los != (raw_diag->status_control & 0x2))
+			PORT_STATUS[portno].inv_up_flag = PORT_STATUS[portno].inv_clear_flag = 0;
+#endif /* [#157] */
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
 		PORT_STATUS[portno].los = (raw_diag->status_control & 0x2) ? 1 : 0;
 #endif /* [#139] */
