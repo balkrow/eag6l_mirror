@@ -1037,6 +1037,22 @@ uint8_t gReplyPortAlarm(int args, ...)
 		if(PORT_STATUS[portno].link != msg->port_sts[portno].link)
 			link_change_notifier(port_no, msg->port_sts[portno].link);
 #endif
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+		if(PORT_STATUS[portno].tunable_sfp) {
+			extern struct module_inventory RTWDM_INV_TBL[PORT_ID_EAG6L_MAX];
+
+			/* clear rtWDM info if link goes down. */
+			if(PORT_STATUS[portno].link && (! msg->port_sts[portno].link)) {
+				memset(&(RTWDM_INV_TBL[portno]), 0, sizeof(struct module_inventory));
+				memset(&(PORT_STATUS[portno].rtwdm_ddm_info), 0, sizeof(ddm_info_t));
+			}
+		}
+
+		/* clear flag for next update, if link state changed. */
+        if(PORT_STATUS[portno].link != msg->port_sts[portno].link)
+            PORT_STATUS[portno].inv_up_flag = PORT_STATUS[portno].inv_clear_flag = 0;
+
+#endif /* [#157] */
 		PORT_STATUS[portno].link = msg->port_sts[portno].link;
 #if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 		PORT_STATUS[portno].speed = msg->port_sts[portno].speed;

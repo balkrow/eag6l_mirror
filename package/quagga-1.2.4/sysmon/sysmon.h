@@ -514,6 +514,10 @@ typedef struct port_status
 		u8  tunable_rtwdm_sfp_type;
 #endif
 #endif
+#if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+		u8  inv_up_flag; /* flag for one time update registers. */
+		u8  inv_clear_flag; /* flag for one time clearing registers. */
+#endif
 
         /* port alarm status */
         u16 alm_status; /* alarm status */
