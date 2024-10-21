@@ -3017,6 +3017,20 @@ __SKIP_1__:
 #endif
 
 #if 1/*[#56] register update timer 真, balkrow, 2023-06-13 */
+#if 1 /* [#158] Fixing for BP keep alive interval, dustin, 2024-10-18 */
+int reg_Qfast_intv_update(struct thread *thread)
+{
+extern void update_KeepAlive(void);
+
+	thread_add_timer_msec (master, reg_Qfast_intv_update, NULL, 200);
+
+	/*update KeepAlive reg*/
+	update_KeepAlive();
+
+	return RT_OK;
+}
+#endif
+
 int reg_fast_intv_update(struct thread *thread)
 {
 extern void pm_request_counters(void);
@@ -3024,8 +3038,10 @@ extern void update_KeepAlive(void);
 extern void update_port_sfp_information(void);
 extern void process_port_pm_counters(void);
 
+#if 0 /* [#158] Fixing for BP keep alive interval, dustin, 2024-10-18 */
 	/*update KeepAlive reg*/
 	update_KeepAlive();
+#endif
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
 	if(gDB.sdk_init_state != SDK_INIT_DONE) {
@@ -3245,6 +3261,9 @@ void sysmon_thread_init (void)
 	thread_add_timer (master, monMCUupdate, NULL, 1);
 	thread_add_timer (master, reg_fast_intv_update, NULL, 2);
 	thread_add_timer (master, reg_slow_intv_update, NULL, 3);
+#if 1 /* [#158] Fixing for BP keep alive interval, dustin, 2024-10-18 */
+	thread_add_timer (master, reg_Qfast_intv_update, NULL, 5);
+#endif
 #endif
 
 #if 1/*[#53] Clock source status 真真 真 真, balkrow, 2024-06-13*/
