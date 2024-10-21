@@ -300,7 +300,7 @@ extern dco_status_t DCO_STAT;
 	mod_inv = &(INV_TBL[portno]);
 
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
-	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[(0x%02x/%02x) %s]\n", 
 #else /*********************************************************/
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	vty_out(vty, "[%d] equip[%s] link[%4s] speed[%s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[%s]\n", 
@@ -334,6 +334,7 @@ extern dco_status_t DCO_STAT;
 		ps->cfg_flex_tune, ps->flex_tune_status,
 		ps->cfg_smart_tsfp_selfloopback, ps->tsfp_self_lp,
 		ps->cfg_rtwdm_loopback, ps->rtwdm_lp,
+		ps->sfp_type, ps->tunable_rtwdm_sfp_type,
 		((ps->sfp_type == SFP_ID_SMART_DUPLEX_TSFP) ? "Smart Duplex T-SFP" : 
 			(ps->sfp_type == SFP_ID_CU_SFP) ? "CuSFP" :
 			(ps->sfp_type == SFP_ID_SMART_BIDI_TSFP_COT) ? "Smart BiDi TSFP(COT)" :
