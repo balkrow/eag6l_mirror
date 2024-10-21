@@ -47,6 +47,9 @@ extern GLOBAL_DB gDB;
 
 int send_to_sysmon_slave(sysmon_fifo_msg_t * msg);
 
+#if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+int loc_port[PORT_ID_EAG6L_MAX];
+#endif
 
 /*define send callback function */
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
@@ -59,6 +62,7 @@ uint8_t gCpssSDKInit(int args, ...)
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
+	zlog_notice("called %s args=%d", __func__, args);
 	if(args !=  1)
 		return IPC_CMD_FAIL;
 
@@ -214,6 +218,31 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	msg.mode = pri_src;
 	msg.portid = port;
 
+#if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+	if(msg.mode == PRI_SRC)
+	{
+		if(gDB.synce_pri_port != port)
+		{
+			uint16_t val, wr_val;
+			gDB.synce_pri_port = port;
+
+			PORT_STATUS[getMPortByCport(port)].esmc_loss = 1;
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0x8, 0xff00, (getMPortByCport(port))); 
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, 0x11); 
+		}
+	}
+	else if(msg.mode == SEC_SRC)
+	{
+		if(gDB.synce_sec_port != port)
+		{
+			PORT_STATUS[getMPortByCport(port)].esmc_loss = 1;
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0x8, 0xff00, (getMPortByCport(port))); 
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, 0x11); 
+		}
+		gDB.synce_sec_port = port;
+			
+	}
+#else
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2024-07-24 */
 	if(msg.mode == PRI_SRC)
 	{
@@ -227,6 +256,7 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 			    gDB.synce_oper_port != getMPortByCport(port))
 				gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(gDB.synce_oper_port), 0);
 
+			gDB.synce_oper_port = getMPortByCport(port);
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0x8, 0xff00, (getMPortByCport(port))); 
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, 0x11); 
 #endif
@@ -235,21 +265,25 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	else if(msg.mode == SEC_SRC)
 	{
 #if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
-		if(gDB.synce_pri_port == NOT_DEFINED && gDB.synce_sec_port != port)
+		if(gDB.synce_sec_port != port)
 		{
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0x8, 0xff00, (getMPortByCport(port))); 
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, 0x11); 
+			gDB.synce_sec_port = port;
 		}
-		gDB.synce_sec_port = port;
+
+		if(gDB.synce_pri_port == NOT_DEFINED)
+			gDB.synce_oper_port = getMPortByCport(port);
 			
 #endif
 	}
 #endif
-
 	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
 	}
+#endif
+
 
 	return IPC_CMD_SUCCESS;
 }
@@ -847,6 +881,7 @@ uint8_t gReplySynceIfSelect(int args, ...)
 	va_end(argP);
 
 	/* process for result. */
+#if 0
 	/*FIXME*/
 #if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-18*/
 	if(msg->portid != 0xff)
@@ -858,6 +893,7 @@ uint8_t gReplySynceIfSelect(int args, ...)
 	}
 	else if(msg->portid2 != 0xff)
 		gDB.synce_sec_port = msg->portid2;
+#endif
 #endif
 
 	return ret;
@@ -1115,13 +1151,475 @@ uint8_t gReplyPortPMFECClear(int args, ...)
 }
 #endif
 
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+int8_t enable_synce_interface(int8_t src) 
+{
+	int16_t port;
+	if(src == PRI_SRC)
+	{
+		port = getMPortByCport(gDB.synce_pri_port);
+		if(port != NOT_DEFINED)
+		{
+			gDB.synce_oper_port = port; 
+			gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 1);
+		}
+	}
+	else if(src == SEC_SRC)
+	{
+		
+		port = getMPortByCport(gDB.synce_sec_port);
+		if(port != NOT_DEFINED)
+		{
+			if(getMPortByCport(gDB.synce_pri_port) == NOT_DEFINED)
+				gDB.synce_oper_port = port; 
+			gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 1);
+		}
+	}
+	return 0;
+}
+
+int16_t get_synce_oper_port(int16_t candidate_port) 
+{
+	int16_t port = NOT_DEFINED;
+	if(candidate_port == NOT_DEFINED)
+		port = NOT_DEFINED;
+	else if(gDB.esmcRxCfg[candidate_port -1] == CFG_ENABLE && !PORT_STATUS[candidate_port].esmc_loss)
+	{
+		if(PORT_STATUS[candidate_port].received_QL != 0x11 && 
+		PORT_STATUS[candidate_port].received_QL != 0x21) 
+			port = candidate_port;
+	}
+	else if(gDB.esmcRxCfg[candidate_port -1] == CFG_ENABLE && PORT_STATUS[candidate_port].esmc_loss)
+		port = NOT_DEFINED;
+
+	zlog_notice("candidate_port %d QL %x ret %x", candidate_port, PORT_STATUS[candidate_port].received_QL, port);
+
+	return port;
+}
+
+uint8_t processLOC(struct thread *thread)
+{
+	uint8_t portno;
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) 
+	{
+#if 0
+		if(gDB.esmcRxCfg[portno -1] == CFG_DISABLE)
+			continue;
+#endif
+
+		if(PORT_STATUS[portno].esmc_prev_cnt == 0)
+		{
+			PORT_STATUS[portno].esmc_prev_cnt = PORT_STATUS[portno].esmc_recv_cnt; 
+			continue;
+		}
+
+		if(PORT_STATUS[portno].esmc_prev_cnt == PORT_STATUS[portno].esmc_recv_cnt)
+			PORT_STATUS[portno].loc_cnt++;
+		else
+		{
+			PORT_STATUS[portno].esmc_prev_cnt = PORT_STATUS[portno].esmc_recv_cnt; 
+			PORT_STATUS[portno].loc_cnt = 0;
+		}
+#ifdef DEBUG
+	zlog_notice("port %d esmc_recv_cnt  %x loc_cnt %x", portno, PORT_STATUS[portno].esmc_recv_cnt, PORT_STATUS[portno].loc_cnt );
+#endif
+		if(PORT_STATUS[portno].loc_cnt > MAX_LOC_CNT)
+		{
+			/*declare alarm*/
+			zlog_notice("port %d %x ESMC LOSS while 3 seconds", portno, gDB.synce_pri_port );
+			PORT_STATUS[portno].esmc_recv_cnt = 0;
+			PORT_STATUS[portno].esmc_prev_cnt = 0;
+
+			if(gDB.esmcRxCfg[portno - 1] == CFG_ENABLE)
+				PORT_STATUS[portno].esmc_loss = 1;
+
+			PORT_STATUS[portno].loc_cnt = 0;
+			PORT_STATUS[portno].received_QL = 0;
+
+			if(getMPortByCport(gDB.synce_pri_port) == portno)
+			{
+				uint16_t val;
+				zlog_notice("port %d clear pri interface", portno);
+				gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(portno), 0);
+
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
+				val = (val & ~(0xff00));
+				sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, val, PORT_NOREG);
+				val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
+				val = (val & ~(0xff00));
+				sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, val, PORT_NOREG);
+#if 1
+				/*switch secondary interface*/
+				if(gDB.synce_oper_port == portno)
+					gDB.synce_oper_port = get_synce_oper_port(getMPortByCport(gDB.synce_sec_port)); 
+#else
+				if(gDB.synce_oper_port == portno)
+				{
+					int16_t sec_port = getMPortByCport(gDB.synce_sec_port);
+
+					if(sec_port == 0xff)
+						gDB.synce_oper_port = NOT_DEFINED;
+					else if(!PORT_STATUS[sec_port].esmc_loss)
+						gDB.synce_oper_port = sec_port;
+				}
+#endif
+			}
+			else if(getMPortByCport(gDB.synce_sec_port) == portno)
+			{
+				uint16_t val;
+				zlog_notice("port %d clear sec interface", portno);
+				gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(portno), 0);
+
+				val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
+				val = (val & ~(0xff));
+				sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, val, PORT_NOREG);
+
+				val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
+				val = (val & ~(0xff));
+				sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, val, PORT_NOREG);
+#if 1
+				/*switch primary interface*/
+				if(gDB.synce_oper_port == portno)
+					gDB.synce_oper_port = get_synce_oper_port(getMPortByCport(gDB.synce_pri_port)); 
+#else
+				if(gDB.synce_oper_port == portno)
+				{
+					int16_t pri_port = getMPortByCport(gDB.synce_pri_port);
+
+					if(pri_port == 0xff)
+						gDB.synce_oper_port = NOT_DEFINED;
+					else if(!PORT_STATUS[pri_port].esmc_loss)
+						gDB.synce_oper_port = pri_port;
+				}
+#endif
+			}
+
+			{
+				int16_t pri_port, sec_port;
+				pri_port = getMPortByCport(gDB.synce_pri_port);
+				sec_port = getMPortByCport(gDB.synce_sec_port);
+
+				zlog_notice("oper port %x  pri %x sec %x", gDB.synce_oper_port, pri_port, sec_port );
+				if(gDB.synce_oper_port == NOT_DEFINED) 
+				{
+					if(gDB.esmcRxCfg[pri_port -1] != CFG_ENABLE &&
+					   gDB.esmcRxCfg[sec_port -1] != CFG_ENABLE)
+					{
+						enable_synce_interface(PRI_SRC);
+						enable_synce_interface(SEC_SRC);
+					}
+					else if(pri_port == NOT_DEFINED && gDB.esmcRxCfg[pri_port -1] != CFG_ENABLE) 
+					{
+						enable_synce_interface(SEC_SRC);
+					}
+					else if(sec_port == NOT_DEFINED && gDB.esmcRxCfg[sec_port -1] != CFG_ENABLE) 
+					{
+						enable_synce_interface(PRI_SRC);
+					}
+				}
+				else
+				{
+					if(gDB.synce_oper_port == pri_port)
+						enable_synce_interface(PRI_SRC);
+					if(gDB.synce_oper_port == sec_port)
+						enable_synce_interface(SEC_SRC);
+
+				}
+
+			}
+
+			{
+				uint16_t val;
+				if(portno == M_PORT1)
+				{
+					val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
+					val = (val & ~(0xff00));
+					sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, val, PORT_NOREG);
+				}
+				else if(portno == M_PORT2)
+				{
+					val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
+					val = (val & ~(0xff));
+					sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, val, PORT_NOREG);
+				}
+				else if(portno == M_PORT3)
+				{
+					val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
+					val = (val & ~(0xff00));
+					sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, val, PORT_NOREG);
+				}
+				else if(portno == M_PORT4)
+				{
+					val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
+					val = (val & ~(0xff));
+					sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, val, PORT_NOREG);
+				}
+				else if(portno == M_PORT5)
+				{
+					val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
+					val = (val & ~(0xff00));
+					sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, val, PORT_NOREG);
+				}
+				else if(portno == M_PORT6)
+				{
+					val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
+					val = (val & ~(0xff));
+					sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, val, PORT_NOREG);
+				}
+				else if(portno == M_PORT7)
+				{
+					val = sys_fpga_memory_read(SYNCE_ESMC_RQL5_ADDR, PORT_NOREG);
+					val = (val & ~(0xff00));
+					sys_fpga_memory_write(SYNCE_ESMC_RQL5_ADDR, val, PORT_NOREG);
+				}
+			}
+		}
+	}
+
+	thread_add_timer(master, processLOC, NULL, 1);
+	return 0;
+}
+#endif
+
 #if 1/*[#73] SDK ¿¿¿ CPU trap ¿ packet ¿¿ ¿¿ ¿¿, balkrow, 2024-07-17*/
+
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+#define OPT1_QL_PRC 0x13
+#define OPT1_QL_SSUA 0x14
+#define OPT1_QL_SSUB 0x15
+#define OPT1_QL_SEC 0x12
+#define OPT1_QL_DNU 0x11
+#define ESMC_SWITCH 1
+#define ESMC_DONOT_SWITCH 0
+
+int8_t compare_QL(int QL, int port)
+{
+	int8_t ret = 0;
+
+	if(PORT_STATUS[port].received_QL == OPT1_QL_PRC)
+	{
+		ret = ESMC_DONOT_SWITCH;
+	}
+	else if(PORT_STATUS[port].received_QL == OPT1_QL_SSUA)
+	{
+		if(QL == OPT1_QL_PRC) 
+			ret =  ESMC_SWITCH;
+	}
+	else if(PORT_STATUS[port].received_QL == OPT1_QL_SSUB)
+	{
+		if((QL == OPT1_QL_PRC) || (QL == OPT1_QL_SSUA)) 
+			ret =  ESMC_SWITCH;
+	}
+	else if(PORT_STATUS[port].received_QL == OPT1_QL_SEC)
+	{
+		if((QL == OPT1_QL_PRC) || (QL == OPT1_QL_SSUA) || (QL == OPT1_QL_SSUB)) 
+			ret =  ESMC_SWITCH;
+	}
+
+#ifdef DEBUG
+	zlog_notice("%s:%d port %x Recevie QL %x QL %x ret %x", __func__, __LINE__, port, PORT_STATUS[port].received_QL, QL, ret); 
+#endif
+	return ret;
+
+}
+uint8_t switchEsmcInterface(int port, int QL)
+{
+	int pri_port, sec_port, oper_port; 
+	/*check dnu*/
+	if(!PORT_STATUS[port].received_QL)
+	{
+#ifdef DEBUG
+		zlog_notice("%s:%d port %x Recevie QL %x QL %x oper_port %x, %x, %x", __func__, __LINE__, port, 
+			    PORT_STATUS[port].received_QL, QL, gDB.synce_oper_port, 
+			    gDB.synce_pri_port,gDB.synce_sec_port);
+#endif
+
+		pri_port = getMPortByCport(gDB.synce_pri_port);
+		sec_port = getMPortByCport(gDB.synce_sec_port);
+
+		if(QL == 0x11 || QL == 0x21) 
+		{
+			if(pri_port == port)
+			{
+				zlog_notice("Recevie DNU.. port %d clear pri interface", port);
+				gDB.synce_oper_port = get_synce_oper_port(sec_port);
+				gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(port), 0);
+
+				if(gDB.synce_oper_port != NOT_DEFINED)
+				{
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 0);
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 1);
+				}
+			}
+			else if(sec_port == port)
+			{
+				zlog_notice("Recevie DNU.. port %d clear sec interface", port);
+				gDB.synce_oper_port = get_synce_oper_port(pri_port);
+				gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(port), 0);
+				if(gDB.synce_oper_port != NOT_DEFINED)
+				{
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 0);
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 1);
+				}
+			}
+		}
+
+		/*Check oper interface QL*/
+		oper_port = gDB.synce_oper_port;
+		if(oper_port != NOT_DEFINED)
+		{
+			/*received QL is better than oper interrface */
+			if(compare_QL(QL, oper_port))
+			{
+				if(oper_port == pri_port) 
+				{
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
+					zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+					gDB.synce_oper_port = port; 
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+				}
+				else
+				{
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
+					zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+					gDB.synce_oper_port = port; 
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+				}
+			}
+
+		}
+		else
+		{
+			PORT_STATUS[port].received_QL = QL;
+			if(gDB.synce_pri_port != NOT_DEFINED && 
+			   (port == getMPortByCport(gDB.synce_pri_port)))  
+			{
+					gDB.synce_oper_port = get_synce_oper_port(port);
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+			}
+
+			if(gDB.synce_pri_port != NOT_DEFINED && 
+			   (port == getMPortByCport(gDB.synce_sec_port)))  
+			{
+					gDB.synce_oper_port = get_synce_oper_port(port);
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+			}
+
+		}
+		/*update QL*/
+		PORT_STATUS[port].received_QL = QL;
+	}
+	else
+	{
+#ifdef DEBUG
+		zlog_notice("%s:%d port %x Recevie QL %x QL %x oper_port %x, %x, %x", __func__, __LINE__, port, 
+			    PORT_STATUS[port].received_QL, QL, gDB.synce_oper_port, 
+			    gDB.synce_pri_port,gDB.synce_sec_port);
+#endif
+
+		if(PORT_STATUS[port].received_QL == QL)
+			return 0;
+		else/*compare pri/sec QL */
+		{
+
+			pri_port = getMPortByCport(gDB.synce_pri_port);
+			sec_port = getMPortByCport(gDB.synce_sec_port);
+
+			if(QL == 0x11 || QL == 0x21) 
+			{
+				if(pri_port == port)
+				{
+					zlog_notice("Recevie DNU.. port %d clear pri interface", port);
+					gDB.synce_oper_port = get_synce_oper_port(sec_port);
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(port), 0);
+
+					if(gDB.synce_oper_port != NOT_DEFINED)
+					{
+						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 0);
+						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 1);
+					}
+				}
+				else if(sec_port == port)
+				{
+					zlog_notice("Recevie DNU.. port %d clear sec interface", port);
+					gDB.synce_oper_port = get_synce_oper_port(pri_port);
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(port), 0);
+					if(gDB.synce_oper_port != NOT_DEFINED)
+					{
+						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 0);
+						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 1);
+					}
+				}
+				PORT_STATUS[port].received_QL = QL;
+				return 0;
+			}
+
+			/*Check oper interface QL*/
+			oper_port = gDB.synce_oper_port;
+			if(oper_port != NOT_DEFINED)
+			{
+				/*received QL is better than oper interrface */
+				if(compare_QL(QL, oper_port))
+				{
+					if(oper_port == pri_port) 
+					{
+						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
+						zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
+						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+						gDB.synce_oper_port = port; 
+						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+					}
+					else
+					{
+						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
+						zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
+						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+						gDB.synce_oper_port = port; 
+						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+					}
+				}
+
+			}
+			else
+			{
+				PORT_STATUS[port].received_QL = QL;
+				if(gDB.synce_pri_port != NOT_DEFINED && 
+				   (port == getMPortByCport(gDB.synce_pri_port)))  
+				{
+					gDB.synce_oper_port = get_synce_oper_port(port);
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+				}
+
+				if(gDB.synce_pri_port != NOT_DEFINED && 
+				   (port == getMPortByCport(gDB.synce_sec_port)))  
+				{
+					gDB.synce_oper_port = get_synce_oper_port(port);
+					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+				}
+
+			}
+			/*update QL*/
+			PORT_STATUS[port].received_QL = QL;
+		}
+	}
+	return 0;
+}
+#endif
+
 uint8_t gReplyPortESMCQLupdate(int args, ...)
 {
 	uint8_t ret = IPC_CMD_SUCCESS;
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
-
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+	int mport;
+#endif
 	if(args !=  1) {
 		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
@@ -1130,8 +1628,67 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-
+#if 0
 	zlog_notice("port %d RX ESMC QL %x", msg->portid, msg->mode);
+#endif
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+	mport = getMPortByCport(msg->portid);
+
+	if(gDB.esmcRxCfg[mport -1] == CFG_DISABLE)
+		return ret;
+
+#if 0
+	zlog_notice("port %d RX ESMC QL %x esmc_recv_cnt %x port %x", msg->portid, msg->mode, PORT_STATUS[mport].esmc_recv_cnt, mport);
+#endif
+	if(mport != NOT_DEFINED) 
+	{
+
+		if(PORT_STATUS[mport].received_QL == 0x11 || PORT_STATUS[mport].received_QL == 0x21)  
+		{
+			if(msg->mode != 0x11 && msg->mode != 0x21) 
+			{
+				PORT_STATUS[mport].esmc_recv_cnt = 0; 	
+				PORT_STATUS[mport].esmc_prev_cnt = 0; 	
+			}
+
+		}
+		/*check first packet*/
+		if(PORT_STATUS[mport].esmc_recv_cnt == 0) 
+		{
+			if(PORT_STATUS[mport].esmc_loss)
+			{
+				PORT_STATUS[mport].esmc_loss = 0; 
+				zlog_notice("port %d CLEAR ESMC LOSS", mport);
+			}
+
+			if(msg->mode != 0x11 && msg->mode != 0x21) 
+			{
+				if(getMPortByCport(gDB.synce_pri_port) == mport)
+				{
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(mport), 0);
+					zlog_notice("port %d Set ClockConfig", mport);
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(mport), 1);
+				}
+				else if(getMPortByCport(gDB.synce_sec_port) == mport)
+				{
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(mport), 0);
+					zlog_notice("port %d Set ClockConfig", mport);
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(mport), 1);
+				}
+
+				PORT_STATUS[mport].esmc_recv_cnt = 0xf; 
+			}
+		}
+		/*recv_cnt swap*/
+		else if(PORT_STATUS[mport].esmc_recv_cnt == 0xf) 
+			PORT_STATUS[mport].esmc_recv_cnt = 0xc; 
+		else if(PORT_STATUS[mport].esmc_recv_cnt == 0xc) 
+			PORT_STATUS[mport].esmc_recv_cnt = 0xf; 
+
+	}
+
+	switchEsmcInterface(mport, msg->mode);
+#endif
 
 	/* process for result. */
 	if(msg->result == FIFO_CMD_SUCCESS) {
@@ -1143,6 +1700,12 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 			val = (val & ~(0xff00));
 			wr_val = (msg->mode << 8) | val; 
 			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, wr_val, PORT_NOREG);
+#if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+			val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
+			val = (val & ~(0xff00));
+			wr_val = (msg->mode << 8) | val; 
+			sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
+#endif
 		}
 		else if(msg->portid == gDB.synce_sec_port)
 		{
@@ -1151,56 +1714,59 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 			val = (val & ~(0xff));
 			wr_val =  val | msg->mode; 
 			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, wr_val, PORT_NOREG);
+#if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+			val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
+			val = (val & ~(0xff));
+			wr_val =  val | msg->mode; 
+			sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
+#endif
 		}
-#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 		{
 			uint16_t val, wr_val;
-			if(msg->portid == C_PORT1)
+			if(mport == M_PORT1)
 			{
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
 				wr_val = (msg->mode << 8) | val; 
 				sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, wr_val, PORT_NOREG);
 			}
-			else if(msg->portid == C_PORT2)
+			else if(mport == M_PORT2)
 			{
-				uint16_t val, wr_val;
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
 				val = (val & ~(0xff));
 				wr_val =  val | msg->mode; 
 				sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, wr_val, PORT_NOREG);
 			}
-			else if(msg->portid == C_PORT3)
+			else if(mport == M_PORT3)
 			{
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
 				wr_val = (msg->mode << 8) | val; 
 				sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, wr_val, PORT_NOREG);
 			}
-			else if(msg->portid == C_PORT4)
+			else if(mport == M_PORT4)
 			{
-				uint16_t val, wr_val;
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
 				val = (val & ~(0xff));
 				wr_val =  val | msg->mode; 
 				sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, wr_val, PORT_NOREG);
 			}
-			else if(msg->portid == C_PORT5)
+			else if(mport == M_PORT5)
 			{
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
 				wr_val = (msg->mode << 8) | val; 
 				sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, wr_val, PORT_NOREG);
 			}
-			else if(msg->portid == C_PORT6)
+			else if(mport == M_PORT6)
 			{
-				uint16_t val, wr_val;
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
 				val = (val & ~(0xff));
 				wr_val =  val | msg->mode; 
 				sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, wr_val, PORT_NOREG);
 			}
-			else if(msg->portid == C_PORT7)
+			else if(mport == M_PORT7)
 			{
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL5_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));

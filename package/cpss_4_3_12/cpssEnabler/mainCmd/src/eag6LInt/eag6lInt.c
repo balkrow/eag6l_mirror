@@ -1164,9 +1164,40 @@ uint8_t gCpssSynceIfconf(int args, ...)
 		enable = true;
 
 	if(clock_src == PRI_SRC)
+	{
 		recoveryClkType = CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E;
+
+		if(gSyncePriInf != 0xff && gSyncePriInf != portNum)
+		{
+			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E,
+									false,
+									gSyncePriInf,
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
+									 0);
+#endif
+
+			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
+			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
+		}
+	}
 	else
+	{
 		recoveryClkType = CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E;
+		if(gSynceSecInf != 0xff && gSynceSecInf != portNum)
+		{
+			ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
+									CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E,
+									false,
+									gSynceSecInf,
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-05*/
+									0);
+#endif
+			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
+			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
+		}
+	}
+
 
 	ret = cpssDxChPortSyncEtherRecoveryClkConfigSet(devNum, 
 							recoveryClkType,
@@ -1175,9 +1206,23 @@ uint8_t gCpssSynceIfconf(int args, ...)
 							0);
 
 	syslog(LOG_NOTICE, "%s : clock src %x recoveryClkType %x portNum %x %x %x", __func__, clock_src, recoveryClkType, portNum, config, ret);
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-18 */
+	ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(devNum, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+	syslog(LOG_NOTICE, "%s : clock src %x portNum %x recoveryClkType %x ret %x", __func__, clock_src, portNum, recoveryClkType, ret);
+#endif
 
 	if(!ret)
+	{
 		msg->result = FIFO_CMD_SUCCESS;
+		if(clock_src == PRI_SRC)
+		{
+			gSyncePriInf = portNum; 
+		}
+		else 
+		{ 
+			gSynceSecInf = portNum;
+		}
+	}
 	else
 		msg->result = FIFO_CMD_FAIL;
 

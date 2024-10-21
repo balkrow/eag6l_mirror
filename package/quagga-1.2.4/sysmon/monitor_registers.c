@@ -365,17 +365,157 @@ uint16_t getIdxFromRegMonList (uint16_t reg)
 }
 #endif
 
-#if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 uint16_t portESMCenable (uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 	/*TODO: */
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
-	rc = gSysmonToCpssFuncs[gPortESMCenable](2, port, val);
 	if(val)
+	{
+#ifdef DEBUG 
+		zlog_notice("port %x oper_port %x pri %x sec %x", port, gDB.synce_oper_port, 
+			    gDB.synce_pri_port, gDB.synce_sec_port);
+#endif
+
+		if(port == getMPortByCport(gDB.synce_pri_port))  
+		{
+#if 1
+			int sec_port;
+			sec_port = getMPortByCport(gDB.synce_sec_port);
+			zlog_notice("port %x ESMC enable", port);
+
+			gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
+			PORT_STATUS[port].esmc_recv_cnt = 0;
+			PORT_STATUS[port].esmc_prev_cnt = 0;
+			PORT_STATUS[port].received_QL = 0;
+
+			if(sec_port != NOT_DEFINED)
+			{
+
+				zlog_notice("port %x reconfigure", sec_port);
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
+				PORT_STATUS[sec_port].esmc_recv_cnt = 0;
+				PORT_STATUS[sec_port].esmc_prev_cnt = 0;
+				PORT_STATUS[sec_port].received_QL = 0;
+			}
+#else
+			int16_t sec_port = getMPortByCport(gDB.synce_sec_port);
+			zlog_notice("port %x ESMC enable", port);
+
+			if(gDB.esmcRxCfg[port - 1] != CFG_ENABLE) 
+			{
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
+			}
+
+			if(sec_port != NOT_DEFINED && gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE) 
+			{
+				zlog_notice("port %x reconfigure", port);
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
+			}
+#endif
+
+			gDB.synce_oper_port = NOT_DEFINED; 
+		}
+		else if(port == getMPortByCport(gDB.synce_sec_port))  
+		{
+			int16_t pri_port = getMPortByCport(gDB.synce_pri_port);
+			zlog_notice("port %x ESMC enable", port);
+#if 1
+			gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
+			PORT_STATUS[port].esmc_recv_cnt = 0;
+			PORT_STATUS[port].esmc_prev_cnt = 0;
+			PORT_STATUS[port].received_QL = 0;
+
+			if(pri_port != NOT_DEFINED)
+			{
+				zlog_notice("port %x reconfigure", pri_port);
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
+				PORT_STATUS[pri_port].esmc_recv_cnt = 0;
+				PORT_STATUS[pri_port].esmc_prev_cnt = 0;
+				PORT_STATUS[pri_port].received_QL = 0;
+			}
+#else
+			if(gDB.esmcRxCfg[port - 1] != CFG_ENABLE) 
+			{
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
+			}
+
+			if(pri_port != NOT_DEFINED && gDB.esmcRxCfg[pri_port - 1] == CFG_ENABLE) 
+			{
+				zlog_notice("port %x reconfigure", port);
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 1);
+			}
+#endif
+
+			gDB.synce_oper_port = NOT_DEFINED; 
+		}
 		gDB.esmcRxCfg[port - 1] = CFG_ENABLE;
+	
+	}
 	else
+	{
+		int pri_port = getMPortByCport(gDB.synce_pri_port);
+		int sec_port = getMPortByCport(gDB.synce_sec_port);
+
+		zlog_notice("port %x ESMC disable", port);
 		gDB.esmcRxCfg[port - 1] = CFG_DISABLE;
+
+		if(pri_port != NOT_DEFINED && gDB.esmcRxCfg[pri_port - 1] != CFG_ENABLE) 
+		{
+			if(sec_port != NOT_DEFINED  && gDB.esmcRxCfg[sec_port - 1] != CFG_ENABLE)
+			{
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 1);
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 1);
+				gDB.synce_oper_port = pri_port;
+				PORT_STATUS[pri_port].esmc_recv_cnt = 0;
+				PORT_STATUS[pri_port].esmc_prev_cnt = 0;
+				PORT_STATUS[pri_port].esmc_loss = 0;
+				PORT_STATUS[pri_port].received_QL = 0;
+			}
+			else if(sec_port == NOT_DEFINED)
+			{
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_pri_port, 1);
+				gDB.synce_oper_port = pri_port;
+				PORT_STATUS[pri_port].esmc_recv_cnt = 0;
+				PORT_STATUS[pri_port].esmc_prev_cnt = 0;
+				PORT_STATUS[pri_port].esmc_loss = 0;
+				PORT_STATUS[pri_port].received_QL = 0;
+			}
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0);
+#endif
+		}
+		if(sec_port != NOT_DEFINED && gDB.esmcRxCfg[sec_port - 1] != CFG_ENABLE) 
+		{
+			if(pri_port != NOT_DEFINED  && gDB.esmcRxCfg[pri_port - 1] != CFG_ENABLE)
+			{
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 1);
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 1);
+				gDB.synce_oper_port = pri_port;
+				PORT_STATUS[sec_port].esmc_recv_cnt = 0;
+				PORT_STATUS[sec_port].esmc_prev_cnt = 0;
+				PORT_STATUS[sec_port].esmc_loss = 0;
+				PORT_STATUS[sec_port].received_QL = 0;
+			}
+			else if(pri_port == NOT_DEFINED)
+			{
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 1);
+				gDB.synce_oper_port = sec_port;
+				PORT_STATUS[sec_port].esmc_recv_cnt = 0;
+				PORT_STATUS[sec_port].esmc_prev_cnt = 0;
+				PORT_STATUS[sec_port].esmc_loss = 0;
+				PORT_STATUS[sec_port].received_QL = 0;
+			}
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0);
+#endif
+		}
+
+	}
+	rc = gSysmonToCpssFuncs[gPortESMCenable](2, port, val);
 #endif
 	return rc;
 }
@@ -533,7 +673,9 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 	if(port != 0xff)
 	{
 		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL);
+#endif
 	}
 #endif
 	else
@@ -601,8 +743,11 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 #if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
 	if(port != 0xff)
 	{
+		zlog_notice("%s:%d", __func__, __LINE__);
 		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
+#if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
+#endif
 	}
 #endif
 	else
@@ -1644,6 +1789,21 @@ int check_fifo_hello(struct thread *thread)
 }
 #endif
 
+#if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+int8_t decision_oper_interface()
+{
+	int8_t ret;
+
+	/*check pri interface*/
+	if(gDB.synce_pri_port != NOT_DEFINED)
+	{
+		if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].received_QL)
+	}
+
+	return ret;
+}
+#endif
+
 int8_t rsmu_pll_update(void)
 {
 	uint16_t wr_val = 0;
@@ -1663,6 +1823,9 @@ int8_t rsmu_pll_update(void)
 			break;
 		case HOLD_OVER :
 			wr_val = 0x12;
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+			gDB.synce_oper_port = 0xff;
+#endif
 			break;
 		case PLL_LOCK :
 			wr_val = 0x13;
@@ -1677,36 +1840,30 @@ int8_t rsmu_pll_update(void)
 			break;
 		}
 
-		zlog_notice("change pll state %x -> %x", gDB.pll_state, val);
+		zlog_notice("change pll state %x -> %x, oper_port %x", gDB.pll_state, val, gDB.synce_oper_port);
 
 		gDB.pll_state = val;
 #if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
 		if(gDB.pll_state == PLL_LOCK)
 		{	
-			uint8_t pri_port, sec_port;
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
 
-			if(gDB.synce_pri_port != NOT_DEFINED && 
-			   PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].link)
-			{
-				if(gDB.synce_oper_port != NOT_DEFINED && 
-				   (gDB.synce_oper_port == getMPortByCport(gDB.synce_sec_port)))
-					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(gDB.synce_oper_port), 0);
-
-				gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, (getMPortByCport(gDB.synce_pri_port))); 
-				gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
-				gDB.synce_oper_port = getMPortByCport(gDB.synce_pri_port); 
-			}
-			else if(gDB.synce_sec_port != NOT_DEFINED && 
-			   PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].link)
-			{
-				gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, (getMPortByCport(gDB.synce_sec_port))); 
-				gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
-				gDB.synce_oper_port = getMPortByCport(gDB.synce_sec_port); 
-			}
-			zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
+#endif
+		}
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+		if(gDB.pll_state == HOLD_OVER)
+		{
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL); 
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
 		}
 #endif
 
+#endif
 		if(wr_val)
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, SYNCE_SRC_STAT_ADDR_MASK, wr_val)
 	}
@@ -3266,14 +3423,13 @@ void process_alarm_info(void)
 		else
 			val &= ~(1 << 1);
 
-#if 0 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 		/*FIXME : update LOC (ESMC Loss) */
 		if(PORT_STATUS[portno].esmc_loss)
 			val |= (1 << 2);
 		else
 			val &= ~(1 << 2);
 #endif
-
 		/*FIXME : update RF (Remote Fault) */
 		if(PORT_STATUS[portno].remote_fault)
 			val |= (1 << 3);
