@@ -3282,6 +3282,12 @@ void sysmon_thread_init (void)
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 	thread_add_timer(master, check_fifo_hello, NULL, 10/*sec*/);
 #endif
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+	{
+		extern uint8_t processLOC(struct thread *thread);
+		thread_add_timer(master, processLOC, NULL, 10/*sec*/);
+	}
+#endif
 }
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
@@ -3449,6 +3455,9 @@ extern int8_t monitor_hw_init(void);
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-25 */
 	gDB.synce_pri_port = NOT_DEFINED;
 	gDB.synce_sec_port = NOT_DEFINED;
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+	gDB.synce_oper_port = NOT_DEFINED;
+#endif
 #endif
 
 	zlog_notice("init sysmon");

@@ -66,6 +66,9 @@ extern uint16_t sys_dpram_memory_read(uint16_t addr);
 extern uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t val);
 #endif
 #endif
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+#define MAX_LOC_CNT 3
+#endif
 /*
 define Memory Macro
 */
@@ -543,6 +546,12 @@ typedef struct port_status
 
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 		ddm_info_t rtwdm_ddm_info;
+#endif
+#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+	u32 esmc_recv_cnt;
+	u32 esmc_prev_cnt;
+	u32 received_QL;
+	u32 loc_cnt;
 #endif
    } port_status_t;
 
