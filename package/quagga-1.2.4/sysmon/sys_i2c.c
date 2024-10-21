@@ -4231,11 +4231,15 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
 
 	/* read tunable flag. */
+#if 1 /* [#159] Fixing for rtWDM sfp identifier, dustin, 2024-10-19 */
+	tunable_flag = 1;/*no-need-to-check-rtwdm-is-tunable*/
+#else
 	if((tunable_flag = i2c_smbus_read_byte_data(fd, (128 + 65)/*0xC1*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] rtwdm wavelength msb failed.", 
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#endif /* [#159] */
 
 	/* read tunable type. */
 	if((type = i2c_smbus_read_byte_data(fd, (128 + 0x7C)/*0xFC*/)) < 0) {
