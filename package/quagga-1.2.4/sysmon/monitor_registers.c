@@ -3629,6 +3629,10 @@ _rtwdm_stage_:
 
 void process_alarm_info(void)
 {
+#if 1 /* [#161 Fixing for processing alarm flag, dustin, 2024-10-22 */
+	static uint16_t PRE_ALM_FLAG[PORT_ID_EAG6L_MAX] = { 0, 0, 0, 0, 0, 0, 0, 0, };
+	uint16_t bitmask, flagmask, ii;
+#endif
 	uint16_t val;
 	uint16_t masking;
 	uint8_t portno;
@@ -3707,11 +3711,32 @@ void process_alarm_info(void)
 		masking &= 0x10F;
 
 #if 1 /* [#156] Fixing for correct alarm masking, dustin, 2024-10-18 */
+#if 1 /* [#161] Fixing for processing alarm flag, dustin, 2024-10-22 */
+		/* NOTE : masking must be applied to both status and flag. */
+		val &= ~masking;
+
+		/* update alarm */
+		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
+
+		/* update alarm flag */
+		if(PRE_ALM_FLAG[portno] != val) {
+			for(flagmask = 0, ii = 0; ii < 16; ii++) {
+				bitmask = (1 < ii);
+
+				/* get only changed from 0 to 1. */
+				if((PRE_ALM_FLAG[portno] & bitmask == 0) && (val & bitmask == 1))
+					flagmask |= bitmask;
+			}
+			gPortRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, flagmask);
+			PRE_ALM_FLAG[portno] = flagmask;
+		}
+#else
 		/* update alarm */
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, (val & ~masking));
 
 		/* update alarm flag */
 		gPortRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, (val & ~masking));
+#endif
 #else
 		/* update alarm */
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
