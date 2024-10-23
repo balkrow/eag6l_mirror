@@ -346,8 +346,8 @@ int fpga_bank_adjust(void)
 		if(status == 0x9)
 		{
 			printf("FPGA running_bank %d, act_bank %d is same\n", running_bank, act_bank);
-#if 1/*[#137] u-boot fpga default booting 관련 수정, balkrow, 2024-09-27*/
-			env_set("fpga_bank", act_bank);
+#if 1/*[#162] u-boot에서 fpga bank를 비정상 적으로 올리는 현상, balkrow, 2024-10-23*/
+			env_set("fpga_bank", act_bank_str);
 #endif
 			return 0;
 		}
