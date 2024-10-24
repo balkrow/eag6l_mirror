@@ -34,6 +34,9 @@ extern uint8_t eag6LPortArrSize;
 extern uint8_t eag6LPortlist [];
 uint8_t WdmPort = EAG6L_WDM_PORT;
 #define DEBUG
+#if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
+extern int DCO_SFP_LOSS;
+#endif
 
 extern GT_STATUS cpssDxChPortManagerStatusGet
 (
@@ -88,6 +91,10 @@ SVC_FAULT_ST checkLFSFState
 
 	if(islocalFault)
 		rc = SVC_FAULT_ST_LF;
+#if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
+	else if(DCO_SFP_LOSS)
+		rc = SVC_FAULT_ST_LF;
+#endif
 	else if(isRemoteFault)
 		rc = SVC_FAULT_ST_RF;
 
