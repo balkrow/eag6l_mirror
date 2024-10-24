@@ -18,6 +18,9 @@
 #include "sysmon.h"
 #include "bp_regs.h"
 #include "sys_i2c.h"
+#if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */	
+#include "sys_fifo.h"
+#endif
 
 #if 1   /* FIXME, martin, 2022.05.11 [BEGIN] */
 #define IF_MIN_UNI_PORT_NUM     1
@@ -62,6 +65,10 @@ extern u8 get_eag6L_dport(u8 lport);
 #endif
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
+#endif
+
+#if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */	
+extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 #endif
 
 typedef struct __raw_gbic_info__
@@ -5130,7 +5137,12 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	pdco->dco_RxLoL = (val & 0xF) ? 1 : 0;
 
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+#if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */	
+	if(PORT_STATUS[portno].los != (pdco->dco_RxLos ? 1:0))   
+		gSysmonToCpssFuncs[gNotifyDcoState](1, pdco->dco_RxLos ? 1:0);
+
 	PORT_STATUS[portno].los = pdco->dco_RxLos ? 1 : 0;
+#endif
 #endif /* [#139] */
 
 	/* get page 00h byte 6 for TCReadyFlag/InitComplete */

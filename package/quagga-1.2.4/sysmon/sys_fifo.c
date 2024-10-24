@@ -581,6 +581,35 @@ uint8_t gCpssPortFECEnable(int args, ...)
 }
 #endif /* [#152] */
 
+#if 1 /* [#165] DCO SFP 真 LLCF 真, balkrow, 2024-10-24 */
+uint8_t gCpssNotiDcoState(int args, ...)
+{
+    va_list argP;
+    sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+    zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+    if(args != 1) {
+        zlog_notice("%s: invalid args[%d].", __func__, args);
+        return IPC_CMD_FAIL;
+    }
+
+    memset(&msg, 0, sizeof msg);
+    va_start(argP, args);
+    msg.state = va_arg(argP, uint32_t);
+    va_end(argP);
+    msg.type = gNotifyDcoState;
+
+    if(send_to_sysmon_slave(&msg) == 0) {
+        zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+        return IPC_CMD_FAIL;
+    }
+
+    return IPC_CMD_SUCCESS;
+}
+#endif
+
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 uint8_t gCpssSwitchModeSet(int args, ...)
 {
@@ -650,6 +679,9 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gCpssSwitchModeSet,
 #endif /* [#142] */
+#if 1 /* [#165] DCO SFP 真 LLCF 真, balkrow, 2024-10-24 */
+	gCpssNotiDcoState,
+#endif
 };
 
 const uint32_t funcsListLen = sizeof(gSysmonToCpssFuncs) / sizeof(cSysmonToCPSSFuncs);
@@ -1928,6 +1960,32 @@ uint8_t gReplyPortFECEnable(int args, ...)
 }
 #endif /* [#152] */
 
+#if 1 /* [#165] DCO SFP 真 LLCF 真, balkrow, 2024-10-24 */
+uint8_t gReplyDcoSFPState(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args != 1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	/* process for result. */
+	if(msg->result != FIFO_CMD_SUCCESS)
+		zlog_notice("Setting Switch Mode failed. ret[%d].", msg->result);
+	return ret;
+}
+#endif
+
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 uint8_t gReplySwitchModeSet(int args, ...)
 {
@@ -1991,6 +2049,9 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 #endif /* [#152] */
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gReplySwitchModeSet,
+#endif
+#if 1 /* [#165] DCO SFP 真 LLCF 真, balkrow, 2024-10-24 */
+	gReplyDcoSFPState,
 #endif
 };
 

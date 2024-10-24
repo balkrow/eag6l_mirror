@@ -78,6 +78,9 @@ enum sysmon_cmd_fifo_type
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gSwitchModeSet,
 #endif
+#if 1 /* [#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24 */
+	gNotifyDcoState,
+#endif
 
 };
 

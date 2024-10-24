@@ -52,6 +52,10 @@ extern uint8_t EAG6LMacLearningnable (void);
 extern uint8_t EAG6L25Gto100GFwdSet (void);
 #endif
 
+#if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
+int DCO_SFP_LOSS;
+#endif
+
 #if 1/*[#35] traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 extern uint8_t EAG6LVlanInit (uint8_t mode);
@@ -2322,6 +2326,27 @@ _gCpssPortFECEnable_exit:
 }
 #endif /* [#152] */
 
+#if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
+uint8_t gCpssDcoSFPState(int args, ...)
+{
+	uint8_t ret = GT_OK;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	DCO_SFP_LOSS = msg->state;
+	syslog(LOG_INFO, "DCO_SFP_LOSS %d", DCO_SFP_LOSS);
+	msg->result = ret;
+
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 uint8_t gCpssSwitchModeSet(int args, ...)
 {
@@ -2387,6 +2412,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #endif
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gCpssSwitchModeSet,
+#endif
+#if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
+	gCpssDcoSFPState,
 #endif
 };
 
@@ -2571,6 +2599,11 @@ int32_t svc_fault_fsm_timer(struct multi_thread *thread)
 
 		evt = (portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E) ? 
 			SVC_FAULT_EVT_LINK_UP : SVC_FAULT_EVT_LINK_DOWN;
+
+#if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
+		if(DCO_SFP_LOSS)
+			evt = SVC_FAULT_EVT_LINK_DOWN;
+#endif
 
 		state = fault_st_transition(svcPortFaultFsm[i].state, evt);
 
