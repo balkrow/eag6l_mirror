@@ -1086,6 +1086,11 @@ uint8_t gCpssSynceEnable(int args, ...)
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
 
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
 	for(i = 0; i < eag6LPortArrSize; i++) 	
 	{
 		ret += cpssDxChPortRefClockSourceOverrideEnableSet(devNum,
@@ -1121,6 +1126,11 @@ uint8_t gCpssSynceDisable(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	for(i = 0; i < eag6LPortArrSize; i++) 	
 	{
@@ -1163,6 +1173,11 @@ uint8_t gCpssSynceIfconf(int args, ...)
 	portNum = msg->portid;
 	config = msg->portid2;
 	va_end(argP);
+
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	if(config) 
 		enable = true;
@@ -1251,6 +1266,11 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	clock_src = msg->mode;
 	portNum = msg->portid;
 	va_end(argP);
+
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 
 	if(clock_src == PRI_SRC)
@@ -1504,6 +1524,11 @@ uint8_t gCpssLLCFSet(int args, ...)
 
 	syslog(LOG_INFO, "LLCFSet enable[%d] <<<", msg->portid);
 
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
 	if(msg->portid == IPC_FUNC_ON)
 	{
 		llcf_thread = multi_thread_add_timer (master, svc_fault_fsm_timer, NULL, 1);
@@ -1539,6 +1564,10 @@ uint8_t gCpssPortSetRate(int args, ...)
 	va_end(argP);
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d] port[%d] speed[%d] mode[%d].", 
 	       __func__, gPortSetRate, msg->type, msg->portid, msg->speed, msg->mode);
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	/* set speed/mode */
 	switch(msg->speed) {
@@ -1726,6 +1755,11 @@ uint8_t gCpssPortESMCenable(int args, ...)
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d] port[%d] eanble[%d].", 
 	       __func__, gPortESMCenable, msg->type, msg->portid, msg->mode);
 
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
+
 	if(msg->mode) 
 		esmcRxPort |= 1 << (msg->portid - 1); 
 	else
@@ -1766,6 +1800,10 @@ uint8_t gCpssPortAlarm(int args, ...)
 
 #ifdef DEBUG
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortAlarm, msg->type);
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 #endif
 
 #if 1/* just reply with link status table(updated by Marvell link scan event) */
@@ -1851,6 +1889,10 @@ uint8_t gCpssPortPMGet(int args, ...)
 #ifdef DEBUG
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortPMGet, msg->type);
 #endif
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 #if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
@@ -2005,6 +2047,10 @@ uint8_t gCpssPortPMClear(int args, ...)
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d].", __func__, gPortPMClear, msg->type);
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		dport = get_eag6L_dport(portno);
@@ -2058,6 +2104,10 @@ uint8_t gCpssPortPMFECClear(int args, ...)
 	va_end(argP);
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d] for port[%d].", 
 		__func__, gPortPMFECClear, msg->type, msg->portid);
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	portno = msg->portid;
 	dport = get_eag6L_dport(portno);
@@ -2180,8 +2230,12 @@ uint8_t gCpssPortFECEnable(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-	syslog(LOG_INFO, "%s (REQ): type[%d/%d] for port[%d].", 
-		__func__, gPortFECEnable, msg->type, msg->portid);
+	syslog(LOG_INFO, "%s (REQ): enable[%d] for port[%d].", 
+		__func__, msg->state, msg->portid);
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	portno = msg->portid;
 	dport = get_eag6L_dport(portno);
@@ -2362,10 +2416,18 @@ extern uint8_t EAG6LSwitchModeSet(uint8_t enable);
 	va_end(argP);
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d] state[%d].", 
 		__func__, gSwitchModeSet, msg->type, msg->state);
+	if(gEag6LSDKInitStatus != GT_TRUE) {
+		syslog(LOG_INFO, "%s (REQ): Before SDK INIT.", __func__);
+		return IPC_CMD_FAIL;
+	}
 
 	enable = msg->state;
 
+#if 1 /* [#164] Fixing for correct switch mode, dustin, 2024-1023 */
+	ret = EAG6LSwitchModeSet(enable);
+#else
 	ret = EAG6LSwitchModeSet(enable ? SW_TRANSPARENT_MODE : SW_AGGREGATION_MODE);
+#endif
 
 	syslog(LOG_INFO, ">>> gCpssSwitchModeSet enable[%d] DONE~!! <<<", enable);
 	msg->result = ret;

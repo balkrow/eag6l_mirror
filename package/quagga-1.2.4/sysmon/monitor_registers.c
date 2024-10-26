@@ -42,6 +42,9 @@ uint16_t boardStatusFlag = 0;
 dco_status_t DCO_STAT;
 dco_count_t  DCO_COUNT;
 #endif
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+lr4_status_t LR4_STAT;
+#endif
 
 
 extern int synce_config_set_admin(int enable);
@@ -52,6 +55,10 @@ extern void pm_request_clear(void);
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 extern GLOBAL_DB gDB;
 extern int8_t rsmuGetPLLState(void); 
+#endif
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+extern void init_100g_sfp(struct thread *thread);
+int thread_kill_flag;
 #endif
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
@@ -84,6 +91,10 @@ uint16_t boardStatus(uint16_t port, uint16_t val);
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 uint16_t bankSelect1(uint16_t port, uint16_t val);
 uint16_t bankSelect2(uint16_t port, uint16_t val);
+#endif
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+extern int8_t sysmon_llcf_set(int32_t enable);
+uint16_t setLLCFenable(uint16_t val);
 #endif
 #if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
 uint16_t syncePortSendQL(uint16_t port, uint16_t val);
@@ -136,9 +147,16 @@ extern uint16_t RDL_B2_ERASE_FLAG;
 #if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
 uint16_t portFECEnable(uint16_t portno, uint16_t enable);
 #endif
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+/* NOTE : regMon callback function must have portno and value arguments. */
+uint16_t DcoReset(uint16_t portno, uint16_t val);
+uint16_t DcoCountReset(uint16_t portno, uint16_t val);
+uint16_t DcoFECEnable(uint16_t portno, uint16_t val);
+#else
 uint16_t DcoReset(uint16_t val);
 uint16_t DcoCountReset(uint16_t val);
 uint16_t DcoFECEnable(uint16_t val);
+#endif /* [#154] */
 
 extern int set_i2c_dco_reset(void);
 extern int set_i2c_dco_fec_enable(int hs_flag, int ms_flag);
@@ -148,7 +166,12 @@ extern int get_i2c_dco_status(void);
 extern uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno);
 #endif
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+#if 1 /* [#164] Fixing for correct switch mode, dustin, 2024-1023 */
+/* NOTE : regMon callback function must have portno and value arguments. */
+uint16_t swModeSet(uint16_t portno, uint16_t sw_mode);
+#else
 uint16_t swModeSet(uint16_t sw_mode);
+#endif
 #endif
 
 
@@ -180,7 +203,11 @@ RegMON regMonList [] = {
   { PORT_4_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_5_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portESMCenable }, /* 10 */  
   { PORT_6_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portESMCenable },
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+  { PORT_7_CONF_ADDR,     0x3, 0, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, setLLCFenable }, 
+#else
   { PORT_7_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+#endif
 	/* port configuration - flex control */
   { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
   { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
@@ -188,7 +215,9 @@ RegMON regMonList [] = {
   { PORT_4_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
   { PORT_5_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
   { PORT_6_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+#if 0 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
   { PORT_7_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
+#endif
 #else /**************************************************************/
   { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_2_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
@@ -223,7 +252,9 @@ RegMON regMonList [] = {
   { PORT_4_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
   { PORT_5_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
   { PORT_6_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+#if 0 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
   { PORT_7_CONF_ADDR,     0x10, 4, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_rtwdm_loopback }, 
+#endif
 	/* port configuration - smart t-sfp self loopback */
   { PORT_1_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
   { PORT_2_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
@@ -231,7 +262,9 @@ RegMON regMonList [] = {
   { PORT_4_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, /*30*/ 
   { PORT_5_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
   { PORT_6_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+#if 0 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
   { PORT_7_CONF_ADDR,     0x20, 5, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, set_smart_tsfp_self_loopback }, 
+#endif
 	/* alarm mask - flex tune reset */
   { PORT_1_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
   { PORT_2_ALM_MASK_ADDR, 0x20, 5, 0x0, PORT_ID_EAG6L_PORT2, 0, NULL, sys_fpga_memory_read, set_flex_tune_reset }, 
@@ -283,7 +316,11 @@ RegMON regMonList [] = {
   { PORT_4_RS_FEC_ADDR,  0x00FF, 0, 0xA5, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portFECEnable },
   { PORT_5_RS_FEC_ADDR,  0xFF00, 8, 0xA5, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portFECEnable },
   { PORT_6_RS_FEC_ADDR,  0x00FF, 0, 0xA5, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portFECEnable },
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+  { PORT_7_RS_FEC_ADDR,  0xFF00, 8, 0x0,  PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portFECEnable },
+#else
   { PORT_7_RS_FEC_ADDR,  0xFF00, 8, 0xA5, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portFECEnable },
+#endif
 #endif
 
   { QSFP28_RESET_ADDR,  0xFF, 0, 0x0, PORT_ID_EAG6L_NOT_USE, 0, NULL, sys_fpga_memory_read, DcoReset },
@@ -541,12 +578,12 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 
-#if 0//PWY_FIXME
+#if 1/* NOTE : to avoid unexpected calling before sdk init. */
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	if(! PORT_STATUS[port].equip)/*not-installed*/
 		return RT_NOK;
 #endif
-#endif //PWY_FIXME
+#endif
 
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
@@ -834,6 +871,18 @@ uint16_t chipReset(uint16_t port, uint16_t val)
 	return SUCCESS;
 }
 
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+uint16_t setLLCFenable(uint16_t val)
+{
+	uint8_t enable = (val == 0x2) ? 1/*enable*/ : 0/*disable*/;
+zlog_notice("P7 setLLCFenable set to [%d].", enable);//ZZPP
+	sysmon_llcf_set(enable);
+	PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_llcf = enable;
+
+	return SUCCESS;
+}
+#endif
+
 #if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
 /* NOTE : this function is called once sfp is installed. */
 void port_scan_sfp(struct thread *thread)
@@ -843,12 +892,34 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	uint8_t type, port = thread->arg;
 	uint16_t data;
 
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	/* treat 100g diffrently. */
+	if(port == PORT_ID_EAG6L_PORT7/*100g*/) {
+		PORT_STATUS[port].equip = 1;/*installed*/
+		DCO_STAT.dco_initState = DCO_INIT_START;
+
+		if(! thread_kill_flag) {
+			zlog_notice("%s : init 100G start~", __func__);
+			thread_add_timer(master, init_100g_sfp, NULL, 1);
+			thread_kill_flag++;
+		}
+		return;
+	}
+
+	/* NOTE : let pass through to 25G ports. */
+	zlog_notice("%s : init 25G start~ for port[%d].", __func__, port);
+#endif /* [#169] */
+
 	read_port_inventory(port, &(INV_TBL[port]));
 
 	/* get private sfp identifier */
 	type = get_private_sfp_identifier(port);
 	/* get wavelength register 2 */
+#if 1 /* [#161] Fixing for processing alarm flag, dustin, 2024-10-22 */
+	data = FPGA_PORT_READ(__PORT_WL2_ADDR[port]);
+#else
 	data = FPGA_READ(__PORT_WL2_ADDR[port]);
+#endif
 
 	/* update wavelength register 2 */
 	data &= ~0x0F00;
@@ -858,17 +929,39 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	PORT_STATUS[port].sfp_type = type;
 	PORT_STATUS[port].equip = 1;/*installed*/
 
+#if 0 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 	/* init for 100G DCO sfp. FIXME: need OE spf. */
 	if(! memcmp(INV_TBL[port].part_num, "FTLC3351R3PL1", 
 		sizeof("FTLC3351R3PL1")))
 	{
 		extern void init_100G_sfp(void);
 
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+		PORT_STATUS[port].sfp_dco = 1;
+#endif
 		init_100g_sfp();
 	}
+#endif /* [#169] */
 
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+	/* set port fec as configured. */
+	data = FPGA_PORT_READ(__PORT_RS_FEC_ADDR[port]);
+	portFECEnable(port, data);
+#endif
+
+#if 0 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	/* move below to init_100g_sfp. */
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	if(port >= (PORT_ID_EAG6L_MAX - 1)) {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+		/* set sfp host fec as configured. */
+		data = FPGA_PORT_READ(QSFP28_FEC_ENABLE_ADDR);
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+		DcoFECEnable(port, data);
+#else
+		DcoFECEnable(data);
+#endif
+#endif
 		/* read ch no register */
 		if(PORT_STATUS[port].tunable_sfp) {
 			PORT_STATUS[port].tunable_chno = FPGA_PORT_READ(PORT_7_SET_CH_NUM_ADDR);
@@ -879,6 +972,7 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 		}
 	} else
 #endif /* [#94] */
+#endif /* [#169] */
 	if(PORT_STATUS[port].tunable_sfp) {
 		/* get inventory */
 		if(PORT_STATUS[port].tunable_sfp) {
@@ -922,6 +1016,9 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 #else
 	update_port_sfp_inventory();
 #endif
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	PORT_STATUS[port].i2cReady = 1;
+#endif
 
 	return;
 }
@@ -938,6 +1035,15 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	uint8_t cfg_flex_tune;
 	uint8_t cfg_smart_tsfp_selfloopback;
 	uint8_t cfg_rtwdm_loopback;
+#endif
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	uint8_t cfg_rs_fec;
+	uint8_t cfg_dco_fec;
+	uint8_t cfg_ch_data;
+#endif
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+	uint8_t cfg_tx_laser;
+	uint8_t cfg_llcf;
 #endif
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 static uint16_t SFP_CR_CACHE = 0x7F;
@@ -964,6 +1070,15 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			cfg_smart_tsfp_selfloopback = PORT_STATUS[port].cfg_smart_tsfp_selfloopback;
 			cfg_rtwdm_loopback = PORT_STATUS[port].cfg_rtwdm_loopback;
 #endif
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+			cfg_rs_fec   = PORT_STATUS[port].cfg_rs_fec;
+			cfg_dco_fec   = PORT_STATUS[port].cfg_dco_fec;
+			cfg_ch_data   = PORT_STATUS[port].cfg_ch_data;
+#endif
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+			cfg_tx_laser = PORT_STATUS[port].cfg_tx_laser;
+			cfg_llcf   = PORT_STATUS[port].cfg_llcf;
+#endif
 			/* clear spf inventory */
 			memset(&(INV_TBL[port]), 0, sizeof(struct module_inventory));
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
@@ -977,6 +1092,15 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			PORT_STATUS[port].cfg_smart_tsfp_selfloopback = cfg_smart_tsfp_selfloopback;
 			PORT_STATUS[port].cfg_rtwdm_loopback = cfg_rtwdm_loopback;
 #endif
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+			PORT_STATUS[port].cfg_rs_fec = cfg_rs_fec;
+			PORT_STATUS[port].cfg_dco_fec = cfg_dco_fec;
+			PORT_STATUS[port].cfg_ch_data = cfg_ch_data;
+#endif
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+			PORT_STATUS[port].cfg_tx_laser = cfg_tx_laser;
+			PORT_STATUS[port].cfg_llcf = cfg_llcf;
+#endif
 
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
 			pmClear(port, 0xA5);
@@ -988,9 +1112,44 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
 			/* clear not equip sfp registers. */
 			if(port >= (PORT_ID_EAG6L_MAX - 1)) {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+				memset(&DCO_STAT, 0, sizeof DCO_STAT);
+				memset(&DCO_COUNT, 0, sizeof DCO_COUNT);
+
+				/* update lr4 vcc. */
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT1_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT2_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT3_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT4_ADDR, 0x0);
+				/* update lr4 tx bias. */
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS1_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS2_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS3_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS4_ADDR, 0x0);
+				/* update lr4 tec current. */
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR1_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR2_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR3_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR4_ADDR, 0x0);
+				/* update qsfp28 status. */
+				FPGA_PORT_WRITE(QSFP28_STATUS1_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_STATUS2_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_STATUS3_ADDR, 0x0);
+				/* update lr4 tx power. */
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER1_ADDR, 0x8999);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER2_ADDR, 0x8999);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER3_ADDR, 0x8999);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER4_ADDR, 0x8999);
+				/* update lr4 rx power. */
+				FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER1_ADDR, 0x8999);
+				FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER2_ADDR, 0x8999);
+				FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER3_ADDR, 0x8999);
+				FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER4_ADDR, 0x8999);
+#else
 				FPGA_WRITE(QSFP28_STATUS1_ADDR, 0x0);
 				FPGA_WRITE(QSFP28_STATUS2_ADDR, 0x0);
 				FPGA_WRITE(QSFP28_STATUS3_ADDR, 0x0);
+#endif
 			} else {
 				FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[port], 0x0);
 				FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[port], 0x0);
@@ -1181,7 +1340,11 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 		type = get_private_sfp_identifier(port);
 		if(type != SFP_ID_UNKNOWN) {
 			/* get wavelength register 2 */
+#if 1 /* [#161] Fixing for processing alarm flag, dustin, 2024-10-22 */
+			data = FPGA_PORT_READ(__PORT_WL2_ADDR[port]);
+#else
 			data = FPGA_READ(__PORT_WL2_ADDR[port]);
+#endif
 
 			/* update wavelength register 2 */
 			data &= ~0x0F00;
@@ -1380,18 +1543,43 @@ __retry__:
 #if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
 uint16_t portFECEnable(uint16_t portno, uint16_t enable)
 {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+	if(enable == 0xA5) {
+		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 1);
+		PORT_STATUS[portno].cfg_rs_fec = 1;
+	}
+	else if(enable == 0x5A) {
+		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 0);
+		PORT_STATUS[portno].cfg_rs_fec = 0;
+	}
+	else if(enable == 0x0/*auto-mode*/) {
+		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 
+			PORT_STATUS[portno].sfp_dco ? 0 : 1);
+		PORT_STATUS[portno].cfg_rs_fec = PORT_STATUS[portno].sfp_dco ? 0 : 1;
+	}
+#else /**************************************************************/
 	if(enable == 0xA5)
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 1);
 	else if(enable == 0x5A)
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 0);
+#endif
 	return SUCCESS;
 }
 #endif
 
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+/* NOTE : regMon callback function must have portno and value arguments. */
+uint16_t DcoReset(uint16_t portno, uint16_t val)
+#else
 uint16_t DcoReset(uint16_t val)
+#endif
 {
 	if(val == 0xA5) {
 		set_i2c_dco_reset();
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		memset(&DCO_STAT, 0, sizeof DCO_STAT);
+		memset(&DCO_COUNT, 0, sizeof DCO_COUNT);
+#endif
 
 		/* FIXME : correct action ? */
 		thread_add_timer(master, port_scan_sfp, PORT_ID_EAG6L_PORT7, 3);
@@ -1399,19 +1587,43 @@ uint16_t DcoReset(uint16_t val)
 	return SUCCESS;
 }
 
+/* NOTE : both DCO/LR7 can be configured by this. */
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+/* NOTE : regMon callback function must have portno and value arguments. */
+uint16_t DcoFECEnable(uint16_t portno, uint16_t val)
+#else
 uint16_t DcoFECEnable(uint16_t val)
+#endif
 {
 	uint8_t hs_flag, ms_flag;
 
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+	if(val == 0/*auto-mode*/) {
+		hs_flag = PORT_STATUS[PORT_ID_EAG6L_PORT7].sfp_dco ? 0x5A : 0xA5;
+		ms_flag = 0xA5;
+	} else {
+		hs_flag = (val >> 8) & 0xFF;
+		ms_flag = (val & 0xFF);
+	}
+#else
 	hs_flag = (val >> 8) & 0xFF;
 	ms_flag = (val & 0xFF);
+#endif
 	if((hs_flag == 0xA5) || (hs_flag == 0x5A) || 
 	   (ms_flag == 0xA5) || (ms_flag == 0x5A))
 		set_i2c_dco_fec_enable(hs_flag, ms_flag);
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	PORT_STATUS[portno].cfg_dco_fec = (hs_flag == 0xA5) ? 1 : 0;
+#endif
 	return SUCCESS;
 }
 
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+/* NOTE : regMon callback function must have portno and value arguments. */
+uint16_t DcoCountReset(uint16_t portno, uint16_t val)
+#else
 uint16_t DcoCountReset(uint16_t val)
+#endif
 {
 	if(val == 0xA5)
 		set_i2c_dco_count_reset();
@@ -1420,12 +1632,25 @@ uint16_t DcoCountReset(uint16_t val)
 #endif /* [#94] */
 
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
+#if 1 /* [#164] Fixing for correct switch mode, dustin, 2024-1023 */
+/* NOTE : regMon callback function must have portno and value arguments. */
+uint16_t swModeSet(uint16_t portno, uint16_t sw_mode)
+#else
 uint16_t swModeSet(uint16_t sw_mode)
+#endif
 {
+zlog_notice("swModeSet : sw_mode[0x%x].", sw_mode);//ZZPP
+#if 1 /* [#164] Fixing for correct switch mode, dustin, 2024-1023 */
+	if(sw_mode == SW_TRANSPARENT_MODE)
+		gSysmonToCpssFuncs[gSwitchModeSet](1, 1/*SW_TRANSPARENT_MODE*/);
+	else if(sw_mode == SW_AGGREGATION_MODE)
+		gSysmonToCpssFuncs[gSwitchModeSet](1, 0/*SW_AGGREGATION_MODE*/);
+#else
 	if(sw_mode == SW_TRANSPARENT_MODE)
 		gSysmonToCpssFuncs[gSwitchModeSet](1, SW_TRANSPARENT_MODE);
 	else if(sw_mode == SW_AGGREGATION_MODE)
 		gSysmonToCpssFuncs[gSwitchModeSet](1, SW_AGGREGATION_MODE);
+#endif
 	return SUCCESS;
 }
 #endif
@@ -1707,6 +1932,9 @@ void update_laser_status(uint16_t portno, uint16_t val)
 			(val == 0xA5) ? 1/*on*/ : 0/*off*/);
 	}
 
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+	PORT_STATUS[portno].cfg_tx_laser = (val == 0xA5) ? 1/*ON*/ : 0/*OFF*/;
+#endif
 	if(val == 0xA5) {
 		zlog_notice("%s : laser status set to [ON] for port[%d].", 
 			__func__, portno);
@@ -1757,6 +1985,12 @@ void regMonitor(void)
 		/* pm count clear register is part of port configuration part, but without port. */
 		else if(regMonList[i].reg == PM_COUNT_CLEAR_ADDR)
 			val = regMonList[i].func(regMonList[i].reg, PORT_REG);
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+        else if((regMonList[i].reg == QSFP28_FEC_ENABLE_ADDR) ||
+                (regMonList[i].reg == QSFP28_RESET_ADDR) ||
+                (regMonList[i].reg == QSFP28_COUNT_RESET_ADDR))
+            val = regMonList[i].func(regMonList[i].reg, PORT_REG);
+#endif
 		else
 			val = regMonList[i].func(regMonList[i].reg, regMonList[i].portno ? PORT_REG : PORT_NOREG); 
 #else
@@ -2210,7 +2444,11 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		/* skip if port has not installed sfp. */
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+		if(! PORT_STATUS[portno].equip || ! PORT_STATUS[portno].i2cReady)
+#else
 		if(! PORT_STATUS[portno].equip)
+#endif
 			continue;
 #endif
 
@@ -2224,10 +2462,17 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 		if((portno >= (PORT_ID_EAG6L_MAX - 1))) {
 			extern int read_i2c_dco_status(dco_status_t *pdco);
 			extern uint16_t get_dco_sfp_channel_no(uint16_t portno);
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+			extern uint16_t get_dco_ber_fer_rates(uint16_t portno);
+#endif
 
 			if(PORT_STATUS[portno].tunable_sfp) {
 				/* get 100G DCO channel no. */
 				get_dco_sfp_channel_no(portno);
+
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+				get_dco_ber_fer_rates(portno);
+#endif
 			}
 
 			read_i2c_dco_status(&DCO_STAT);
@@ -3633,6 +3878,10 @@ void process_alarm_info(void)
 	static uint16_t PRE_ALM_FLAG[PORT_ID_EAG6L_MAX] = { 0, 0, 0, 0, 0, 0, 0, 0, };
 	uint16_t bitmask, flagmask, ii;
 #endif
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	static uint16_t PRE_QALM_FLAG = 0;
+	uint16_t data;
+#endif
 	uint16_t val;
 	uint16_t masking;
 	uint8_t portno;
@@ -3646,6 +3895,12 @@ void process_alarm_info(void)
 			val |= (1 << 0);
 		else
 			val &= ~(1 << 0);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		if(portno == PORT_ID_EAG6L_PORT7) {
+			if(LR4_STAT.rx_los_mask & 0xF)
+				val |= (1 << 8);
+		}
+#endif
 
 		/* update link down (Local Fault?) */
 #if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
@@ -3680,6 +3935,12 @@ void process_alarm_info(void)
 			val |= (1 << 8);
 		else
 			val &= ~(1 << 8);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		if(portno == PORT_ID_EAG6L_PORT7) {
+			if(LR4_STAT.tx_bias_mask & 0xF)
+				val |= (1 << 8);
+		}
+#endif
 
 		/*FIXME : update Laser status */
 		if(! PORT_STATUS[portno].tx_laser_sts)
@@ -3700,7 +3961,11 @@ void process_alarm_info(void)
 			val &= ~(1 << 11);
 
 		/* read alarm mask register and mask off the result */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		masking = FPGA_PORT_READ(__PORT_ALM_MASK_ADDR[portno]);
+#else
 		masking = FPGA_READ(__PORT_ALM_MASK_ADDR[portno]);
+#endif
 
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 		/* update flex tune status */
@@ -3719,6 +3984,21 @@ void process_alarm_info(void)
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
 
 		/* update alarm flag */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		if(PRE_ALM_FLAG[portno] != val) {
+			PRE_ALM_FLAG[portno] &= val;
+			for(flagmask = 0, ii = 0; ii < 16; ii++) {
+				bitmask = (1 < ii);
+
+				/* get only changed from 0 to 1. */
+				if((PRE_ALM_FLAG[portno] & bitmask == 0) && (val & bitmask == 1))
+					flagmask |= bitmask;
+			}
+			data = flagmask | FPGA_PORT_READ(__PORT_ALM_FLAG_ADDR[portno]);
+			FPGA_PORT_WRITE(__PORT_ALM_FLAG_ADDR[portno], (0x10F & data));
+			PRE_ALM_FLAG[portno] |= (0x10F & flagmask);
+		}
+#else
 		if(PRE_ALM_FLAG[portno] != val) {
 			for(flagmask = 0, ii = 0; ii < 16; ii++) {
 				bitmask = (1 < ii);
@@ -3730,6 +4010,7 @@ void process_alarm_info(void)
 			gPortRegUpdate(__PORT_ALM_FLAG_ADDR[portno], 0, 0x10F, flagmask);
 			PRE_ALM_FLAG[portno] = flagmask;
 		}
+#endif /* [#150] */
 #else
 		/* update alarm */
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, (val & ~masking));
@@ -3746,6 +4027,52 @@ void process_alarm_info(void)
 #endif /* [#156] */
 	}
 
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	portno = PORT_ID_EAG6L_PORT7;
+	val = 0;
+	if(PORT_STATUS[portno].equip) {
+		/* update tx bias. */
+		val |= (LR4_STAT.tx_bias_mask << 8) & 0xF00;
+
+		/* update rx lol. */
+		val |= (LR4_STAT.rx_lol_mask << 4) & 0xF0;
+
+		/* update rx los. */
+		val |= LR4_STAT.rx_los_mask & 0xF;
+
+		/* read alarm mask register and mask off the result */
+		masking = FPGA_PORT_READ(QSFP28_LR4_ALM_MASK_ADDR);
+		/* remove unnecessary bits */
+		masking &= 0xFFF;
+		/* NOTE : masking must be applied to both status and flag. */
+		val &= ~masking;
+
+		/* update alarm */
+		gPortRegUpdate(QSFP28_LR4_ALM_ADDR, 0, 0xFFF, val);
+
+		/* update alarm flag */
+		if(PRE_QALM_FLAG != val) {
+			PRE_QALM_FLAG &= val;
+			for(flagmask = 0, ii = 0; ii < 16; ii++) {
+				bitmask = (1 < ii);
+
+				/* get only changed from 0 to 1. */
+				if(((PRE_QALM_FLAG & bitmask) == 0) && ((val & bitmask) == bitmask))
+					flagmask |= bitmask;
+			}
+			data = flagmask | FPGA_PORT_READ(QSFP28_LR4_ALM_FLAG_ADDR);
+			FPGA_PORT_WRITE(QSFP28_LR4_ALM_FLAG_ADDR, (0xFFF & data));
+			PRE_QALM_FLAG |= (0xFFF & flagmask);
+				
+			gPortRegUpdate(QSFP28_LR4_ALM_FLAG_ADDR, 0, 0x10F, flagmask);
+			PRE_QALM_FLAG = flagmask;
+		}
+	} else {
+		/* clear alarm if not equipped. */
+		FPGA_PORT_WRITE(QSFP28_LR4_ALM_ADDR, val);
+		FPGA_PORT_WRITE(QSFP28_LR4_ALM_FLAG_ADDR, val);
+	}
+#endif /* [#150] */
 	return;
 }
 
@@ -3770,17 +4097,39 @@ extern int update_flex_tune_status(int portno);
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 			if(PORT_STATUS[portno].tunable_sfp) {
 #endif /* [#94] */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			val = (DCO_STAT.dco_IntL << 12) | 
+			      (DCO_STAT.dco_DataNotReady << 8) |
+			      (DCO_STAT.dco_TCReadyFlag << 4) | 
+			       DCO_STAT.dco_InitComplete;
+			FPGA_PORT_WRITE(QSFP28_STATUS1_ADDR, (uint16_t)val);
+#else
 			val = (DCO_STAT.dco_IntL << 12) | 
 			      (DCO_STAT.dco_DataNotReady << 8) |
 			      (DCO_STAT.dco_TCReadyFlag << 4) | 
 			       DCO_STAT.dco_InitComplete;
 			FPGA_WRITE(QSFP28_STATUS1_ADDR, (uint16_t)val);
+#endif
 
+#if 1 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+			/* NOTE : fields changed. this is for LR4 only. */
+			if(PORT_STATUS[portno].sfp_dco) {
+				val = (DCO_STAT.dco_TxLosMask << 8) |
+					(DCO_STAT.dco_TxLoLMask);
+			} else {
+				val = 0;
+			}
+#else
 			val = (DCO_STAT.dco_TxLosMask << 12) |
 			      (DCO_STAT.dco_RxLos << 8) |
 			      (DCO_STAT.dco_TxLoLMask << 4) |
 			       DCO_STAT.dco_RxLoL;
+#endif /* [#147] */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			FPGA_PORT_WRITE(QSFP28_STATUS2_ADDR, (uint16_t)val);
+#else
 			FPGA_WRITE(QSFP28_STATUS2_ADDR, (uint16_t)val);
+#endif
 
 			val = (DCO_STAT.dco_TempHA << 15) |
 			      (DCO_STAT.dco_TempLA << 14) | 
@@ -3790,30 +4139,181 @@ extern int update_flex_tune_status(int portno);
 			      (DCO_STAT.dco_OpticLA << 10) | 
 			      (DCO_STAT.dco_OpticHWA << 9) | 
 			      (DCO_STAT.dco_OpticLWA << 8);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			FPGA_PORT_WRITE(QSFP28_STATUS3_ADDR, (uint16_t)val);
+#else
 			FPGA_WRITE(QSFP28_STATUS3_ADDR, (uint16_t)val);
+#endif
 
-			/*PWY_FIXME : add QSFP28_PRE_FEC_BER_ADDR / QSFP28_FER_ADDR */
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			/* update pre-fec ber. */
+			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER1_ADDR, ((uint32_t)DCO_COUNT.ber_rate >> 8) & 0xFFFF);
+			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER2_ADDR, ((uint32_t)DCO_COUNT.ber_rate & 0xFFFF));
+			/* update fer. */
+			FPGA_PORT_WRITE(QSFP28_FER1_ADDR, ((uint32_t)DCO_COUNT.fer_rate >> 8) & 0xFFFF);
+			FPGA_PORT_WRITE(QSFP28_FER2_ADDR, ((uint32_t)DCO_COUNT.fer_rate & 0xFFFF));
+#else
+			/* update pre-fec ber. */
+			FPGA_WRITE(QSFP28_PRE_FEC_BER1_ADDR, ((uint32_t)DCO_COUNT.ber_rate >> 8) & 0xFFFF);
+			FPGA_WRITE(QSFP28_PRE_FEC_BER2_ADDR, ((uint32_t)DCO_COUNT.ber_rate & 0xFFFF));
+			/* update fer. */
+			FPGA_WRITE(QSFP28_FER1_ADDR, ((uint32_t)DCO_COUNT.fer_rate >> 8) & 0xFFFF);
+			FPGA_WRITE(QSFP28_FER2_ADDR, ((uint32_t)DCO_COUNT.fer_rate & 0xFFFF));
+#endif
+#endif
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 			}
 #endif /* [#94] */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			else if(! PORT_STATUS[portno].sfp_dco && 
+			          PORT_STATUS[portno].equip) { /* 100G LR4 case */
+				/* update lr4 vcc. */
+				val = convert_vcc_float_to_decimal(DCO_STAT.lr4_stat.vcc[0]);
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT1_ADDR, val);
+				val = convert_vcc_float_to_decimal(DCO_STAT.lr4_stat.vcc[1]);
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT2_ADDR, val);
+				val = convert_vcc_float_to_decimal(DCO_STAT.lr4_stat.vcc[2]);
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT3_ADDR, val);
+				val = convert_vcc_float_to_decimal(DCO_STAT.lr4_stat.vcc[3]);
+				FPGA_PORT_WRITE(QSFP28_LR4_VOLT4_ADDR, val);
+				/* update lr4 tx bias. */
+				val = convert_temperature_float_to_decimal(DCO_STAT.lr4_stat.tx_bias[0]);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS1_ADDR, val);
+				val = convert_temperature_float_to_decimal(DCO_STAT.lr4_stat.tx_bias[1]);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS2_ADDR, val);
+				val = convert_temperature_float_to_decimal(DCO_STAT.lr4_stat.tx_bias[2]);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS3_ADDR, val);
+				val = convert_temperature_float_to_decimal(DCO_STAT.lr4_stat.tx_bias[3]);
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_BIAS4_ADDR, val);
+				/* update lr4 tec current. */
+				val = convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tec_curr[0], 
+						0/*not-dbm*/, 0/*no-use*/);
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR1_ADDR, val);
+				val = convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tec_curr[1], 
+						0/*not-dbm*/, 0/*no-use*/);
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR2_ADDR, val);
+				val = convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tec_curr[2], 
+						0/*not-dbm*/, 0/*no-use*/);
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR3_ADDR, val);
+				val = convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tec_curr[3], 
+						0/*not-dbm*/, 0/*no-use*/);
+				FPGA_PORT_WRITE(QSFP28_LR4_TCURR4_ADDR, val);
+				/* update lr4 tx power. */
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER1_ADDR,
+					PORT_STATUS[portno].equip ? 
+					convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tx_pwr[0], 1/*dbm*/, 1/*tx*/)
+						: 0x8999); 
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER2_ADDR,
+					PORT_STATUS[portno].equip ? 
+					convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tx_pwr[0], 1/*dbm*/, 1/*tx*/)
+						: 0x8999); 
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER3_ADDR,
+					PORT_STATUS[portno].equip ? 
+					convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tx_pwr[2], 1/*dbm*/, 1/*tx*/)
+						: 0x8999); 
+				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER4_ADDR,
+					PORT_STATUS[portno].equip ? 
+					convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tx_pwr[3], 1/*dbm*/, 1/*tx*/)
+						: 0x8999); 
+				/* update lr4 rx power. */
+				if(PORT_STATUS[portno].los) {
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER1_ADDR, 0x8600);
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER2_ADDR, 0x8600);
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER3_ADDR, 0x8600);
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER4_ADDR, 0x8600);
+				} else  {
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER1_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[0], 1/*dbm*/, 0/*rx*/));
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER2_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[1], 1/*dbm*/, 0/*rx*/));
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER3_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[2], 1/*dbm*/, 0/*rx*/));
+					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER4_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[3], 1/*dbm*/, 0/*rx*/));
+				}
+				/* update wavelength1 for lane 2. */
+				fval = DCO_STAT.lr4_stat.wavelength[0];
+				fval = ceil(fval * 100) / 100;/* ceiling example : 1558.347 --> 1558.35 */
+				FPGA_PORT_WRITE(QSFP28_LR4_WL1_2_ADDR,
+					convert_hex_to_decimal((int)fval));
+				/* update wavelength2 for lane 2. */
+				fval = (fval - (int)fval) * 100;/* extract value below decimal point */
+				FPGA_PORT_WRITE(QSFP28_LR4_WL2_2_ADDR, convert_hex_to_decimal((int)fval));
+
+				/* update wavelength1 for lane 3. */
+				fval = DCO_STAT.lr4_stat.wavelength[1];
+				fval = ceil(fval * 100) / 100;/* ceiling example : 1558.347 --> 1558.35 */
+				FPGA_PORT_WRITE(QSFP28_LR4_WL1_3_ADDR,
+					convert_hex_to_decimal((int)fval));
+				/* update wavelength2 for lane 3. */
+				fval = (fval - (int)fval) * 100;/* extract value below decimal point */
+				FPGA_PORT_WRITE(QSFP28_LR4_WL2_3_ADDR, convert_hex_to_decimal((int)fval));
+
+				/* update wavelength1 for lane 4. */
+				fval = DCO_STAT.lr4_stat.wavelength[2];
+				fval = ceil(fval * 100) / 100;/* ceiling example : 1558.347 --> 1558.35 */
+				FPGA_PORT_WRITE(QSFP28_LR4_WL1_4_ADDR,
+					convert_hex_to_decimal((int)fval));
+				/* update wavelength2 for lane 4. */
+				fval = (fval - (int)fval) * 100;/* extract value below decimal point */
+				FPGA_PORT_WRITE(QSFP28_LR4_WL2_4_ADDR, convert_hex_to_decimal((int)fval));
+			}
+#endif /* [#150] */
 		}
 #endif
 
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 		/* update tx power */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		fval = PORT_STATUS[portno].tx_pwr;
+		if(portno == PORT_ID_EAG6L_PORT7) {
+			if(PORT_STATUS[portno].equip  && (! PORT_STATUS[portno].sfp_dco)) {
+				fval =  (DCO_STAT.lr4_stat.tx_pwr[0] + DCO_STAT.lr4_stat.tx_pwr[1] +
+				         DCO_STAT.lr4_stat.tx_pwr[2] + DCO_STAT.lr4_stat.tx_pwr[3]) / 4;
+				fval += 10 * log10(4);
+			}
+		}
+		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
+			PORT_STATUS[portno].equip ? 
+				convert_dbm_float_to_decimal(fval, 1/*dbm*/, 1/*tx*/)
+				: 0x8999); 
+#else /***************************************************************/
 		FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[portno], 
 			PORT_STATUS[portno].equip ? 
 			convert_dbm_float_to_decimal(PORT_STATUS[portno].tx_pwr, 1/*dbm*/, 1/*tx*/)
 			: 0x8999); 
+#endif /* [#150] */
 		/* update rx power */
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		if(PORT_STATUS[portno].los) {
+			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 0x8600);
+		} else  {
+			fval = PORT_STATUS[portno].rx_pwr;
+			if(portno == PORT_ID_EAG6L_PORT7) {
+				if(PORT_STATUS[portno].equip  && (! PORT_STATUS[portno].sfp_dco)) {
+					fval =  (DCO_STAT.lr4_stat.rx_pwr[0] + DCO_STAT.lr4_stat.rx_pwr[1] +
+							DCO_STAT.lr4_stat.rx_pwr[2] + DCO_STAT.lr4_stat.rx_pwr[3]) / 4;
+					fval += 10 * log10(4);
+				}
+			}
+			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
+				convert_dbm_float_to_decimal(fval, 1/*dbm*/, 0/*rx*/));
+		}
+#else /***************************************************************/
 		if(PORT_STATUS[portno].los) {
 			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 0x8600);
 		} else  {
 			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
 				convert_dbm_float_to_decimal(PORT_STATUS[portno].rx_pwr, 1/*dbm*/, 0/*rx*/));
 		}
+#endif /* [#150] */
 #else /*******************************************************/
 		FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[portno], 
 			PORT_STATUS[portno].equip ? 
@@ -3850,14 +4350,34 @@ extern int update_flex_tune_status(int portno);
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].temp);
 		FPGA_PORT_WRITE(__PORT_TEMP_ADDR[portno], val);
 		/* update voltage */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		fval = PORT_STATUS[portno].vcc;
+		if(portno == PORT_ID_EAG6L_PORT7) {
+			if(PORT_STATUS[portno].equip  && (! PORT_STATUS[portno].sfp_dco))
+				fval =  (DCO_STAT.lr4_stat.vcc[0] + DCO_STAT.lr4_stat.vcc[1] +
+				         DCO_STAT.lr4_stat.vcc[2] + DCO_STAT.lr4_stat.vcc[3]) / 4;
+		}
+		val = convert_vcc_float_to_decimal(fval);
+#else
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 		val = convert_vcc_float_to_decimal(PORT_STATUS[portno].vcc);
 #else
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].vcc, 0/*not-dbm*/);
 #endif /* [#125] */
+#endif /* [#150] */
 		FPGA_PORT_WRITE(__PORT_VOLT_ADDR[portno], val);
 		/* update tx bias */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		fval = PORT_STATUS[portno].tx_bias;
+		if(portno == PORT_ID_EAG6L_PORT7) {
+			if(PORT_STATUS[portno].equip && (! PORT_STATUS[portno].sfp_dco))
+				fval = (DCO_STAT.lr4_stat.tx_bias[0] + DCO_STAT.lr4_stat.tx_bias[1] + 
+					    DCO_STAT.lr4_stat.tx_bias[2] + DCO_STAT.lr4_stat.tx_bias[3]) / 4;
+		}
+		val = convert_temperature_float_to_decimal(fval);
+#else
 		val = convert_temperature_float_to_decimal(PORT_STATUS[portno].tx_bias);
+#endif
 		FPGA_PORT_WRITE(__PORT_TX_BIAS_ADDR[portno], val);
 		/* update laser temperature */
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
@@ -3865,7 +4385,17 @@ extern int update_flex_tune_status(int portno);
 		FPGA_PORT_WRITE(__PORT_LTEMP_ADDR[portno], val);
 		/* update TEC current */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		fval = PORT_STATUS[portno].tec_curr;
+		if(portno == PORT_ID_EAG6L_PORT7) {
+			if(PORT_STATUS[portno].equip && (! PORT_STATUS[portno].sfp_dco))
+				fval = DCO_STAT.lr4_stat.tec_curr[0] + DCO_STAT.lr4_stat.tec_curr[1] + 
+					   DCO_STAT.lr4_stat.tec_curr[2] + DCO_STAT.lr4_stat.tec_curr[3];
+		}
+		val = convert_dbm_float_to_decimal(fval, 0/*not-dbm*/, 0/*no-use*/);
+#else /***************************************************************/
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].tec_curr, 0/*not-dbm*/, 0/*no-use*/);
+#endif /* [#150] */
 #else
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].tec_curr, 0/*not-dbm*/);
 #endif /* [#125] */
@@ -4325,10 +4855,13 @@ void process_port_pm_counters(void)
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 #if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
 #if 1 /* [#140] Fixing for PM counters, dustin, 2024-10-02 */
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+/* NOTE : removed by requst of cwhan. */
         val = (PM_TBL[portno].fcs_ok >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_OK4_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_ok >> 32) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_OK3_ADDR[portno], val);
+#endif /* [#147] */
         val = (PM_TBL[portno].fcs_ok >> 16) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_OK2_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_ok >>  0) & 0xFFFF;
@@ -4359,10 +4892,13 @@ void process_port_pm_counters(void)
     for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 #if 1 /* [#133] Fixing for PM address changes, dustin, 2024-09-25 */
 #if 1 /* [#140] Fixing for PM counters, dustin, 2024-10-02 */
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+/* NOTE : removed by requst of cwhan. */
         val = (PM_TBL[portno].fcs_nok >> 48) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_NOK4_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_nok >> 32) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_NOK3_ADDR[portno], val);
+#endif /* [#140] */
         val = (PM_TBL[portno].fcs_nok >> 16) & 0xFFFF;
         FPGA_PORT_WRITE(__PORT_PM_FCS_NOK2_ADDR[portno], val);
         val = (PM_TBL[portno].fcs_nok >>  0) & 0xFFFF;
@@ -4682,6 +5218,12 @@ unsigned long __PORT_SET_CH_NUM_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_
 		PORT_2_SET_CH_NUM_ADDR, PORT_3_SET_CH_NUM_ADDR, 
 		PORT_4_SET_CH_NUM_ADDR, PORT_5_SET_CH_NUM_ADDR,
 		PORT_6_SET_CH_NUM_ADDR, PORT_7_SET_CH_NUM_ADDR };
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+unsigned long __PORT_RS_FEC_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT_1_RS_FEC_ADDR,
+		PORT_2_RS_FEC_ADDR, PORT_3_RS_FEC_ADDR, 
+		PORT_4_RS_FEC_ADDR, PORT_5_RS_FEC_ADDR,
+		PORT_6_RS_FEC_ADDR, PORT_7_RS_FEC_ADDR };
+#endif
 unsigned long __PORT_VENDOR1_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, SFP_P1_VENDOR1_ADDR,
 		SFP_P2_VENDOR1_ADDR, SFP_P3_VENDOR1_ADDR, 
 		SFP_P4_VENDOR1_ADDR, SFP_P5_VENDOR1_ADDR,
@@ -4890,6 +5432,8 @@ unsigned long __PORT_PM_FCS_OK2_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1
 		PM_P2_FCS_OK2_ADDR, PM_P3_FCS_OK2_ADDR, 
 		PM_P4_FCS_OK2_ADDR, PM_P5_FCS_OK2_ADDR,
 		PM_P6_FCS_OK2_ADDR, PM_P7_FCS_OK2_ADDR };
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+/* NOTE : removed by requst of cwhan. */
 unsigned long __PORT_PM_FCS_OK3_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_OK3_ADDR,
 		PM_P2_FCS_OK3_ADDR, PM_P3_FCS_OK3_ADDR, 
 		PM_P4_FCS_OK3_ADDR, PM_P5_FCS_OK3_ADDR,
@@ -4905,6 +5449,7 @@ unsigned long __PORT_PM_FCS_OK4_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1
 		PM_P4_FCS_OK4_ADDR, PM_P5_FCS_OK4_ADDR,
 		PM_P6_FCS_OK4_ADDR, PM_P7_FCS4_ADDR };
 #endif
+#endif /* [#147] */
 unsigned long __PORT_PM_FCS_NOK1_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_NOK1_ADDR,
 		PM_P2_FCS_NOK1_ADDR, PM_P3_FCS_NOK1_ADDR, 
 		PM_P4_FCS_NOK1_ADDR, PM_P5_FCS_NOK1_ADDR,
@@ -4913,6 +5458,8 @@ unsigned long __PORT_PM_FCS_NOK2_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P
 		PM_P2_FCS_NOK2_ADDR, PM_P3_FCS_NOK2_ADDR, 
 		PM_P4_FCS_NOK2_ADDR, PM_P5_FCS_NOK2_ADDR,
 		PM_P6_FCS_NOK2_ADDR, PM_P7_FCS_NOK2_ADDR };
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+/* NOTE : removed by requst of cwhan. */
 unsigned long __PORT_PM_FCS_NOK3_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P1_FCS_NOK3_ADDR,
 		PM_P2_FCS_NOK3_ADDR, PM_P3_FCS_NOK3_ADDR, 
 		PM_P4_FCS_NOK3_ADDR, PM_P5_FCS_NOK3_ADDR,
@@ -4928,6 +5475,7 @@ unsigned long __PORT_PM_FCS_NOK4_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PM_P
 		PM_P4_FCS_NOK4_ADDR, PM_P5_FCS_NOK4_ADDR,
 		PM_P6_FCS_NOK4_ADDR, PM_P7_FCS4_ADDR };
 #endif
+#endif /* [#147] */
 unsigned long __PORT_CLEI1_ADDR[PORT_ID_EAG6L_MAX] = { NULL_REG_ADDR, PORT1_CLEI1_ADDR,
 		PORT2_CLEI1_ADDR, PORT3_CLEI1_ADDR, 
 		PORT4_CLEI1_ADDR, PORT5_CLEI1_ADDR,

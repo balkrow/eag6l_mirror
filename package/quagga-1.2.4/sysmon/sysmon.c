@@ -2763,6 +2763,10 @@ RDL_ST_t rdl_update_fsm(void)
 	while (st != ST_RDL_TERM)
 	{
 		evt = rdl_get_evt(st);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		/* save event for rdl debugging. */
+		rdl_info_list.evt = evt;
+#endif
 		if(evt == EVT_RDL_EVT_MAX)
 			goto next_turn;
 #if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */

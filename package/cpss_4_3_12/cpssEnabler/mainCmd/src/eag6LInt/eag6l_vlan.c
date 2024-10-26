@@ -604,6 +604,8 @@ uint8_t EAG6LSwitchModeSet(uint8_t enable)
 	uint8_t result = 0;
 	uint8_t ii;
 
+	syslog(LOG_NOTICE, "EAG6LSwitchModeSet = %s", 
+		enable ? "Transparent" : "Aggregation");
 	if(enable) {
 		result += EAG6LVlanInit(SW_TRANSPARENT_MODE);
 

@@ -496,6 +496,7 @@ uint16_t sys_dpram_memory_read(uint16_t addr)
 			return __CACHE_RDL_PAGE_CRC;
 		case RDL_TARGET_BANK_ADDR:
 			return __CACHE_RDL_TARGET_BANK;
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 		case RDL_MAGIC_NO_1_ADDR:
 			return __CACHE_RDL_MAGIC_NO_1;
 		case RDL_MAGIC_NO_2_ADDR:
@@ -512,10 +513,12 @@ uint16_t sys_dpram_memory_read(uint16_t addr)
 			return __CACHE_RDL_TOTAL_SIZE_1;
 		case RDL_TOTAL_SIZE_2_ADDR:
 			return __CACHE_RDL_TOTAL_SIZE_2;
+#endif /* [#147] */
 		default: /* pass-through */
 			break;
 	}
 
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 	if((RDL_VER_STR_START_ADDR <= addr) && 
 	   (addr <= RDL_VER_STR_END_ADDR)) {
 		uint16_t offset;
@@ -534,6 +537,7 @@ uint16_t sys_dpram_memory_read(uint16_t addr)
 		data = __CACHE_RDL_PAGE[offset] | (__CACHE_RDL_PAGE[offset + 1] << 8);
 		return data;
 	}
+#endif /* [#147] */
 #endif
 	return 0xaa;
 #else
@@ -570,6 +574,7 @@ uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t writeval)
 			return (__CACHE_RDL_PAGE_CRC = writeval);
 		case RDL_TARGET_BANK_ADDR:
 			return (__CACHE_RDL_TARGET_BANK = writeval);
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 		case RDL_MAGIC_NO_1_ADDR:
 			return (__CACHE_RDL_MAGIC_NO_1 = writeval);
 		case RDL_MAGIC_NO_2_ADDR:
@@ -586,10 +591,12 @@ uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t writeval)
 			return (__CACHE_RDL_TOTAL_SIZE_1 = writeval);
 		case RDL_TOTAL_SIZE_2_ADDR:
 			return (__CACHE_RDL_TOTAL_SIZE_2 = writeval);
+#endif /* [#147] */
 		default: /* pass-through */
 			break;
 	}
 
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 	if((RDL_VER_STR_START_ADDR <= addr) && 
 	   (addr <= RDL_VER_STR_END_ADDR)) {
 		uint16_t offset;
@@ -610,6 +617,7 @@ uint16_t sys_dpram_memory_write(uint16_t addr, uint16_t writeval)
 		data = (__CACHE_RDL_PAGE[offset] | (__CACHE_RDL_PAGE[offset + 1] << 8));
 		return (data);
 	}
+#endif /* [#147] */
 #endif
 	return writeval;
 #else

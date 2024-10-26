@@ -1944,7 +1944,7 @@ uint8_t gReplyPortFECEnable(int args, ...)
 #ifdef DEBUG
     zlog_notice("%s (REPLY): args=%d", __func__, args);
 #endif
-    if(args != 2) {
+    if(args != 1) {
         zlog_notice("%s: invalid args[%d].", __func__, args);
         return IPC_CMD_FAIL;
     }
