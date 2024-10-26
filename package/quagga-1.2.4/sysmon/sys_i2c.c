@@ -13,6 +13,9 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <math.h>
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+#include "thread.h"
+#endif
 
 #include "log.h"
 #include "sysmon.h"
@@ -70,6 +73,11 @@ extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
 #if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */	
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
 #endif
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+extern dco_status_t DCO_STAT;
+extern dco_count_t  DCO_COUNT;
+#endif
+
 
 typedef struct __raw_gbic_info__
 {
@@ -879,8 +887,13 @@ uint16_t set_smart_tsfp_self_loopback(uint16_t portno, uint16_t enable)
     }
 
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	/* wait for updating selected page */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	/* wait for updating selected page */
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 #endif
 
 	if((val = i2c_smbus_read_byte_data(fd, 129/*0x81*/)) < 0) {
@@ -1048,7 +1061,11 @@ int get_smart_tsfp_self_loopback(int portno, int * enable)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	if((val = i2c_smbus_read_byte_data(fd, 129/*0x81*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] smart t-sfp self loopback failed. ret[%d].", 
@@ -1190,7 +1207,11 @@ uint16_t set_rtwdm_loopback(uint16_t portno, uint16_t enable)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	if((val = i2c_smbus_read_byte_data(fd, 129/*0x81*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] smart t-sfp self loopback failed.", 
@@ -1355,7 +1376,11 @@ int get_rtwdm_loopback(int portno, int * enable)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	if((val = i2c_smbus_read_byte_data(fd, 129/*0x81*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] rtWDM loopback failed. ret[%d].", 
@@ -1985,7 +2010,11 @@ int get_tunable_sfp_channel_no(int portno)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* read wavelength msb. */
 	if((val = i2c_smbus_read_byte_data(fd, 146/*0x92*/)) < 0) {
@@ -2159,7 +2188,11 @@ __exit_2__:
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* read wavelength msb. */
 	if((val = i2cget_main(1/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 146/*0x92*/)) < 0) {
@@ -2358,7 +2391,11 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* write chno msb. */
 	if((ret = i2c_smbus_write_byte_data(fd, 144/*0x90*/, (chno >> 8) & 0xFF)) < 0) {
@@ -2615,6 +2652,10 @@ static const dco_ch_wave_t dco_tbl[] = {
 };
 #define MAX_DCO_CH_NO	(sizeof(dco_tbl) / sizeof(dco_ch_wave_t))
 
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+extern dco_count_t  DCO_COUNT;
+#endif
+
 uint16_t get_dco_sfp_channel_no(uint16_t portno)
 {
 	int fd, mux_addr, ret = SUCCESS;
@@ -2660,7 +2701,11 @@ uint16_t get_dco_sfp_channel_no(uint16_t portno)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* read chno msb. */
 	if((ret = i2c_smbus_read_byte_data(fd, 136/*0x88*/)) < 0) {
@@ -2801,7 +2846,11 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 	/* read channel grid. */
@@ -2844,7 +2893,11 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* read live update for nominal wavelength. */
 	if((ret = i2c_smbus_read_byte_data(fd, 129/*0x81*/)) < 0) {
@@ -2878,7 +2931,11 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 		goto __exit__;
 	}
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 #endif /* [#94] */
 
 	/* recover to high power mode */
@@ -2888,12 +2945,130 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 		goto __exit__;
 	}
 
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	DCO_STAT.dco_TCReadyFlag = 0;
+#endif
 	PORT_STATUS[portno].tunable_chno = chno;
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	PORT_STATUS[portno].cfg_ch_data = data;
+#endif
 
 __exit__:
 	close(fd);
 	return ret;
 }
+
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+/* access/read i2c dco pre-fec ber/fer counters. */
+uint16_t get_dco_ber_fer_rates(uint16_t portno)
+{
+	unsigned int chann_mask;
+	int	fd, mux_addr, ret, sexp, mantissa;
+	uint16_t ber, fer;
+	f32 data;
+
+	// check if dco sfp and 100G port.
+	if(portno < (PORT_ID_EAG6L_MAX - 1) || (! PORT_STATUS[portno].sfp_dco))
+		return;
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		mux_addr = I2C_MUX;
+		chann_mask = I2C_MUX_100G_MASK;
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	 /* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x20/*page-20h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
+	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
+
+	/* read 1st byte of pre-fec ber. */
+	if((ret = i2c_smbus_read_byte_data(fd, 164/*0xA4*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] pre-fec ber1 failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	ber = (ret & 0xFF) << 8;
+
+	/* read 2nd byte of pre-fec ber. */
+	if((ret = i2c_smbus_read_byte_data(fd, 165/*0xA5*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] pre-fec ber2 failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	ber |= (ret & 0xFF);
+
+	/* read 1st byte of fer. */
+	if((ret = i2c_smbus_read_byte_data(fd, 166/*0xA6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] fer1 failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	fer = (ret & 0xFF) << 8;
+
+	/* read 2nd byte of fer. */
+	if((ret = i2c_smbus_read_byte_data(fd, 167/*0xA7*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] fer2 failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	fer |= (ret & 0xFF);
+
+	/* recover select page. */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x20/*page-20h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	/* decoding compact 16-bit floating point data type (defined in SFF-8636) */
+	/* get ber. */
+	sexp     = (ber >> 11) & 0x1F;
+	sexp    -= 24;
+	mantissa = ber & 0x7FF;
+	data     = (f32)mantissa * powf(10, sexp);
+	DCO_COUNT.ber_data = ber;
+	DCO_COUNT.ber_rate = data;
+	/* get fer. */
+	sexp     = (fer >> 11) & 0x1F;
+	sexp    -= 24;
+	mantissa = fer & 0x7FF;
+	data     = (f32)mantissa * powf(10, sexp);
+	DCO_COUNT.fer_data = fer;
+	DCO_COUNT.fer_rate = data;
+
+__exit__:
+	close(fd);
+	return;
+}
+#endif /* [#149] */
 #endif
 
 ePrivateSfpId get_private_sfp_identifier(int portno)
@@ -3019,7 +3194,11 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 			}
 
 			/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+			usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 			usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 			/* get 2nd value */
 			if((val2 = i2c_smbus_read_byte_data(fd, 252/*0xFC*/)) < 0) {
@@ -3177,7 +3356,11 @@ __exit_2__:
 			}
 
 			/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+			usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 			usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 			/* get 2nd value */
 			if((val2 = i2cget_main(1/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 252/*0xFC*/)) < 0) {
@@ -3664,7 +3847,11 @@ void  get_sfp_rtwdm_info(int portno, struct module_inventory * mod_inv)
 		goto __exit__;
     }
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	addr = DIAG_SFP_IIC_ADDR;
 	start_data_addr = HZ_I2C_SFP_DIAG_START;
@@ -4273,7 +4460,11 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* read tunable flag. */
 #if 1 /* [#159] Fixing for rtWDM sfp identifier, dustin, 2024-10-19 */
@@ -4301,11 +4492,14 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 			PORT_STATUS[portno].tunable_rtwdm_sfp_type = SFP_ID_SMART_BIDI_TSFP_RT;
 		else if(type == 0xCC)
 			PORT_STATUS[portno].tunable_rtwdm_sfp_type = SFP_ID_SMART_DUPLEX_TSFP;
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+		/* NOTE : rtwdm info take time about ~40 sec to access. */
 		else {
 			PORT_STATUS[portno].tunable_rtwdm_sfp_type = SFP_ID_UNKNOWN;
 			zlog_notice("%s: port[%d(0/%d)] rtwdm sfp type unknown.", 
 				__func__, portno, get_eag6L_dport(portno));
 		}
+#endif
 	}
 
 	/* select page for wavelength */
@@ -4316,7 +4510,11 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* read wavelength msb. */
 	if((val = i2c_smbus_read_byte_data(fd, 146/*0x92*/)) < 0) {
@@ -4365,7 +4563,11 @@ void get_sfp_rtwdm_info_diag(int portno, port_status_t * port_sts)
 		goto __exit__;
 	}
 
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
     addr = DIAG_SFP_IIC_ADDR;
     start_data_addr = HZ_I2C_SFP_DIAG_START;
@@ -4525,11 +4727,263 @@ __exit__:
 #endif
 
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
-void init_100g_sfp(void)
+extern struct thread_master *master;
+
+void init_100g_sfp(struct thread *thread)
 {
 	unsigned int chann_mask;
-	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
+	int fd, type, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
 	unsigned char val;
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+extern int thread_kill_flag;
+	dco_status_t *pdco = &DCO_STAT;
+	uint16_t data;
+
+	/* check kill condition to avoid threading multiple timers. */
+	if(thread_kill_flag > 2) {
+		zlog_notice("%s : terminating timer", __func__);
+		thread_kill_flag -= 1;
+		return;
+	}
+
+	/* if init done, return. */
+	if(pdco->dco_initState == DCO_INIT_DONE) {
+		zlog_notice("%s : return. no timer repeat.", __func__);
+		if(thread_kill_flag > 0)
+			thread_kill_flag -= 1;
+		return;
+	}
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __NEXT__;
+	}
+
+	/* set mux for 100g. */
+	mux_addr = I2C_MUX;
+	chann_mask = I2C_MUX_100G_MASK;
+    i2c_set_slave_addr(fd, mux_addr, 1);
+
+	/* set mux address for 100g. */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] Setting mux failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+    i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	/* if config stage, then skip check flags. */
+	if(pdco->dco_initState == DCO_INIT_CONFIG) {
+		zlog_notice("%s : goto config stage.", __func__);
+		goto __INIT_CONFIG__;
+	}
+
+	/* get page 00h byte 6 for TCReadyFlag/InitComplete */
+	if((ret = i2c_smbus_read_byte_data(fd, 6/*0x6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TCReady/InitComplete failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+	/* update flag for TCReady/InitComplete. */
+	if(! pdco->dco_TCReadyFlag) {
+		if(ret & DCO_BIT_TC_READY) {
+			pdco->dco_TCReadyFlag = 1;
+			zlog_notice("%s : TCReadyFlag ok.", __func__);
+		}
+	}
+	if(! pdco->dco_InitComplete) {
+		if(ret & DCO_BIT_INIT_COMPLETE) {
+			zlog_notice("%s : InitComplete ok.", __func__);
+			pdco->dco_InitComplete = 1;
+		}
+	}
+
+	/* check TCReadyFlag/InitComplete. repeat timer until both flags set. */
+	if((! pdco->dco_TCReadyFlag) || (! pdco->dco_InitComplete)) {
+		zlog_notice("%s : flags not ok. tcready[%d] initComplete[%d].", __func__, pdco->dco_TCReadyFlag, pdco->dco_InitComplete);
+		goto __NEXT__;
+	}
+
+	/* if 2nd check is ok, then byebye~! no more timer reapeat. */
+	if(pdco->dco_initState == DCO_INIT_CHECK_COMPLETE2) {
+		update_port_sfp_inventory(0/*update-no-rtwdm*/);
+
+		close(fd);
+		pdco->dco_initState = DCO_INIT_DONE;
+		PORT_STATUS[portno].i2cReady = 1;
+		zlog_notice("%s : 2nd check is ok, then byebye~!", __func__);
+		if(thread_kill_flag > 0)
+			thread_kill_flag -= 1;
+		return;
+	}
+
+	/* read sfp inventory. */
+	read_port_inventory(portno, &(INV_TBL[portno]));
+
+	/* init for 100G DCO sfp. FIXME: need OE spf. */
+	if(! memcmp(INV_TBL[portno].part_num, "FTLC3351R3PL1",
+		sizeof("FTLC3351R3PL1")))
+	{
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+		PORT_STATUS[portno].sfp_dco = 1;
+#endif
+	}
+
+	/* get private sfp identifier */
+	type = get_private_sfp_identifier(portno);
+	/* get wavelength register 2 */
+	data = FPGA_PORT_READ(__PORT_WL2_ADDR[portno]);
+
+	/* update wavelength register 2 */
+	data &= ~0x0F00;
+	data |= (type << 8);
+	FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], data);
+
+	PORT_STATUS[portno].sfp_type = type;
+
+	/* goto config stage. */
+	pdco->dco_initState = DCO_INIT_CONFIG;
+
+__INIT_CONFIG__:
+	zlog_notice("%s : config stage.", __func__);
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+	/* set port fec as configured. */
+	data = FPGA_PORT_READ(__PORT_RS_FEC_ADDR[portno]);
+	portFECEnable(portno, data);
+#endif
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* get fec byte. */
+	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+	val = ret;
+
+	/* set host fec. */
+	if(PORT_STATUS[portno].cfg_dco_fec)
+		val |= 0x80;
+	else
+		val &= ~0x80;
+	zlog_notice("%s : host fec [0x%x].", __func__, val);
+
+	/* set fec byte. */
+	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+    /* select page */
+    if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-12h*/)) < 0) {
+        zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __NEXT__;
+    }
+
+    /* read chno msb. */
+    if((ret = i2c_smbus_read_byte_data(fd, 136/*0x88*/)) < 0) {
+        zlog_notice("%s : Reading port[%d(0/%d)] channel no. msb failed. ret[%d].",
+            __func__, portno, get_eag6L_dport(portno), ret);
+        goto __NEXT__;
+    }
+    data = (ret << 8);
+
+    /* read chno lsb. */
+    if((ret = i2c_smbus_read_byte_data(fd, 137/*0x89*/)) < 0) {
+        zlog_notice("%s : Reading port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+            __func__, portno, get_eag6L_dport(portno), ret);
+        goto __NEXT__;
+    }
+    data |= (ret & 0xFF);
+	zlog_notice("%s : read channel [0x%x].", __func__, data);
+
+	/* set channel number, if different. */
+	if(PORT_STATUS[portno].tunable_chno && 
+	  (PORT_STATUS[portno].cfg_ch_data != data)) {
+		data = PORT_STATUS[portno].cfg_ch_data;
+		zlog_notice("%s : config channel [0x%x].", __func__, data);
+
+		/* write chno msb. */
+		if((ret = i2c_smbus_write_byte_data(fd, 136/*0x88*/, (data >> 8) & 0xFF)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] channel no. msb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __NEXT__;
+		}
+
+		/* write chno lsb. */
+		if((ret = i2c_smbus_write_byte_data(fd, 137/*0x89*/, data & 0xFF)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __NEXT__;
+		}
+	}
+
+	/* NOTE : no need to back to page 0, if accessing low page. */
+
+	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+	if((ret = i2c_smbus_read_byte_data(fd, 86/*0x56*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TxDisable failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+	val = ret;
+	val &= ~0xF;
+	if(! PORT_STATUS[portno].cfg_tx_laser) {
+		val |= 0xF/*tx-disable-4-lanes*/;
+		zlog_notice("%s : config tx laser.", __func__);
+	}
+
+	/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+	if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] txDisable failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+	/* set low power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* set to high power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8/*high-power-mode*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] high power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* goto 2nd check for TCReadyFlag/InitComplete. */
+	pdco->dco_initState = DCO_INIT_CHECK_COMPLETE2;
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	/* clear for next update. */
+	pdco->dco_TCReadyFlag = pdco->dco_InitComplete = 0;
+#endif
+	zlog_notice("%s : config done. goto 2nd check.", __func__);
+
+__NEXT__:
+	close(fd);
+	zlog_notice("%s : repeat timer.", __func__);
+	/* add timer for next process. */
+	thread_add_timer(master, init_100g_sfp, NULL, 1);
+
+    return;
+#else /*****************************************************************/
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 	uint8_t enable;
 	uint16_t pconf;
@@ -4579,9 +5033,11 @@ void init_100g_sfp(void)
 	}
 #endif /* [#94] */
 
+#if 0 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 	/* get laser control is off. */
 	pconf = FPGA_PORT_READ(PORT_7_CONF_ADDR);
 	enable = ((pconf & 0xFF00) == 0x5A00) ? 0/*off*/ : 1/*on*/;
+#endif
 #endif
 
 	/* select page */
@@ -4592,7 +5048,11 @@ void init_100g_sfp(void)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
@@ -4632,7 +5092,11 @@ void init_100g_sfp(void)
 
 	val = ret;
 	val &= ~0xF;
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+	val |= PORT_STATUS[portno].cfg_tx_laser ? 0x0 : 0xF;/*tx-disable-4-lanes*/
+#else
 	val |= enable ? 0x0 : 0xF;/*tx-disable-4-lanes*/
+#endif
 
 	/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
 	if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
@@ -4648,10 +5112,21 @@ void init_100g_sfp(void)
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 #endif /* [#94] */
 
 	/* recover to high power mode */
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8/*high-power-mode*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] high power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+#else
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 
 		enable ? 0x8/*high-power-mode*/ : 0x3/*low-power-mode*/)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
@@ -4659,10 +5134,15 @@ void init_100g_sfp(void)
 		goto __exit__;
 	}
 #endif
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	DCO_STAT.dco_TCReadyFlag = 0;
+#endif
+#endif
 
 __exit__:
     close(fd);
     return;
+#endif /* [#169] */
 }
 #endif
 
@@ -4762,7 +5242,11 @@ int set_i2c_100G_laser_control(int portno, int enable)
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 #endif /* [#94] */
 
 	/* recover to high power mode or keep low power mode if disabled. */
@@ -4772,6 +5256,9 @@ int set_i2c_100G_laser_control(int portno, int enable)
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	DCO_STAT.dco_TCReadyFlag = 0;
+#endif
 #else
 	/* recover to high power mode */
 	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, lp_back)) < 0) {
@@ -4851,6 +5338,9 @@ int set_i2c_dco_reset(void)
 			__func__, portno, get_eag6L_dport(portno));
 		goto __exit__;
 	}
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	DCO_STAT.dco_TCReadyFlag = 0;
+#endif
 
 	/* NOTE : sfp reset, so no need to set high power mode. */
 
@@ -4916,7 +5406,11 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* get fec byte. (Page 03h Bytes 230 Bit 7) */
 	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
@@ -4931,10 +5425,13 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 	else if(hs_flag == 0x5A)
 		val &= ~0x80;/*reset-host-side-fec*/
 
+#if 0 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+	/* NOTE : media fec config is removed. */
 	if(ms_flag == 0xA5)
 		val |= 0x40;/*set-media-side-fec*/
 	else if(ms_flag == 0x5A)
 		val &= ~0x40;/*reset-media-side-fec*/
+#endif
 
 	/* update fec byte. (Page 03h Bytes 230 Bit 7) */
 	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
@@ -4958,7 +5455,11 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 				__func__, portno, get_eag6L_dport(portno));
 			goto __exit__;
 		}
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 		usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 #endif /* [#94] */
 
 		/* recover to high power mode or keep low power mode if disabled. */
@@ -4967,6 +5468,9 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 				__func__, portno, get_eag6L_dport(portno));
 			goto __exit__;
 		}
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		DCO_STAT.dco_TCReadyFlag = 0;
+#endif
 	}
 
 __exit__:
@@ -5024,7 +5528,11 @@ int set_i2c_dco_count_reset(void)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* get error reset byte. (Page 20h Bytes 250 Bit 7) */
 	if((ret = i2c_smbus_read_byte_data(fd, 250/*0xFA*/)) < 0) {
@@ -5058,7 +5566,11 @@ int set_i2c_dco_count_reset(void)
 				__func__, portno, get_eag6L_dport(portno));
 			goto __exit__;
 		}
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+		usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 		usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 #endif /* [#94] */
 
 		/* recover to high power mode or keep low power mode if disabled. */
@@ -5067,6 +5579,9 @@ int set_i2c_dco_count_reset(void)
 				__func__, portno, get_eag6L_dport(portno));
 			goto __exit__;
 		}
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		DCO_STAT.dco_TCReadyFlag = 0;
+#endif
 	}
 
 __exit__:
@@ -5124,7 +5639,11 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	}
 	val = ret;
 	pdco->dco_TxLosMask = (val >> 4) & 0xF;
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	pdco->dco_RxLos = pdco->lr4_stat.rx_los_mask = (val & 0xF);
+#else
 	pdco->dco_RxLos = (val & 0xF) ? 1 : 0;
+#endif
 
 	/* get page 00h byte 5 for TxLoL/RxLoL */
 	if((ret = i2c_smbus_read_byte_data(fd, 5/*0x5*/)) < 0) {
@@ -5134,7 +5653,11 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	}
 	val = ret;
 	pdco->dco_TxLoLMask = (val >> 4) & 0xF;
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	pdco->dco_RxLoL = pdco->lr4_stat.rx_lol_mask = (val & 0xF);
+#else
 	pdco->dco_RxLoL = (val & 0xF) ? 1 : 0;
+#endif
 
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
 #if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */	
@@ -5152,16 +5675,31 @@ int read_i2c_dco_status(dco_status_t *pdco)
 		goto __exit__;
 	}
 	val = ret;
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	if(! pdco->dco_InitComplete) {
+		pdco->dco_InitComplete = (val & 0x1) ? 1 : 0;
+		if(pdco->dco_InitComplete)
+			zlog_notice("Port 7 100G InitComplete flag~!", 1);
+	}
+	if(! pdco->dco_TCReadyFlag) {
+		pdco->dco_TCReadyFlag = (val & 0x2) ? 1 : 0;
+		if(pdco->dco_TCReadyFlag)
+			zlog_notice("Port 7 100G TC Ready flag~!", 1);
+	}
+#else
 	pdco->dco_InitComplete = (val & 0x1) ? 1 : 0;
 	pdco->dco_TCReadyFlag = (val & 0x2) ? 1 : 0;
+#endif
 	pdco->dco_TempHA = (val & 0x80) ? 1 : 0;
 	pdco->dco_TempLA = (val & 0x40) ? 1 : 0;
 	pdco->dco_TempHWA = (val & 0x20) ? 1 : 0;
 	pdco->dco_TempLWA = (val & 0x10) ? 1 : 0;
+#if 0 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 	if(pdco->dco_InitComplete)
 		zlog_notice("100G InitComplete flag~!", 1);
 	if(pdco->dco_TCReadyFlag)
 		zlog_notice("100G TC Ready flag~!", 1);
+#endif
 
 	/* get page 00h byte 9 for OpticHA/OpticLA */
 	if((ret = i2c_smbus_read_byte_data(fd, 9/*0x9*/)) < 0) {
@@ -5181,6 +5719,35 @@ int read_i2c_dco_status(dco_status_t *pdco)
 
 	pdco->dco_OpticHA = (data & 0x8888) ? 1 : 0;
 	pdco->dco_OpticLA = (data & 0x4444) ? 1 : 0;
+
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	if(! PORT_STATUS[portno].sfp_dco) {
+		/* get page 00h byte 11 for Tx bias */
+		if((ret = i2c_smbus_read_byte_data(fd, 11/*0xB*/)) < 0) {
+			zlog_notice("%s: Reading port[%d(0/%d)] Tx(1/2) bias failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __exit__;
+		}
+		data = ret;
+		pdco->lr4_stat.tx_bias_mask = 0;
+		if(data & 0x80)/*tx1*/
+			pdco->lr4_stat.tx_bias_mask |= 1;
+		if(data & 0x08)/*tx2*/
+			pdco->lr4_stat.tx_bias_mask |= (1 << 0);
+
+		/* get page 00h byte 12 for Tx bias */
+		if((ret = i2c_smbus_read_byte_data(fd, 12/*0xC*/)) < 0) {
+			zlog_notice("%s: Reading port[%d(0/%d)] Tx(3/4) bias failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __exit__;
+		}
+		data = ret;
+		if(data & 0x80)/*tx3*/
+			pdco->lr4_stat.tx_bias_mask |= 1;
+		if(data & 0x08)/*tx4*/
+			pdco->lr4_stat.tx_bias_mask |= (1 << 0);
+	}
+#endif
 
 	/* get page 00h byte 13 for OpticHA/OpticLA */
 	if((ret = i2c_smbus_read_byte_data(fd, 13/*0xD*/)) < 0) {
@@ -5216,6 +5783,9 @@ int read_i2c_dco_status(dco_status_t *pdco)
 		goto __exit__;
 	}
 	pdco->dco_tx_disable = ret & 0xF;
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+	PORT_STATUS[portno].tx_laser_sts = (ret & 0xF) ? 0/*OFF*/ : 1/*ON*/;
+#endif
  
 	/* select page */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3h*/)) < 0) {
@@ -5225,7 +5795,11 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* get host/media side fec modes. */
 	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
@@ -5245,7 +5819,11 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	}
 
 	/* wait for updating selected page */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+	usleep(HZ_I2C_PAGE_SELECT_UM);
+#else
 	usleep(HZ_I2C_SLAVE_SLEEP_UM);
+#endif
 
 	/* read chno msb. */
 	if((ret = i2c_smbus_read_byte_data(fd, 136/*0x88*/)) < 0) {

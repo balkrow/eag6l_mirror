@@ -10,6 +10,9 @@
 
 #define	HZ_I2C_SLAVE_RETRY			9		/* total 10 times */
 #define	HZ_I2C_SLAVE_SLEEP_UM		10000	/* 10 ms */
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#define HZ_I2C_PAGE_SELECT_UM		1000	/* 1ms */
+#endif
 
 /*
  * 1. Maximum len is 255 because read_len is unsigned char

@@ -486,7 +486,13 @@ typedef struct port_status
         u8  link;
         u8  speed;
         u8  ifmode;
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+        u8  cfg_rs_fec;
+        u8  cfg_dco_fec;
+		u16 cfg_ch_data;
+#else
         u8  fec_mode;
+#endif
         u8  los;
         u8  lof;
         u8  esmc_loss;
@@ -524,6 +530,14 @@ typedef struct port_status
 		u8  inv_up_flag; /* flag for one time update registers. */
 		u8  inv_clear_flag; /* flag for one time clearing registers. */
 #endif
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+		u8  sfp_dco;
+#endif
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+		u8  cfg_tx_laser;/*for 100G*/
+		u8  cfg_llcf;/*for 100G*/
+#endif
+
 
         /* port alarm status */
         u16 alm_status; /* alarm status */
@@ -550,6 +564,9 @@ typedef struct port_status
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 		ddm_info_t rtwdm_ddm_info;
 #endif
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+		u8  i2cReady;
+#endif
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 	u32 esmc_recv_cnt;
 	u32 esmc_prev_cnt;
@@ -559,6 +576,26 @@ typedef struct port_status
    } port_status_t;
 
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+typedef struct lr4_status
+	{
+		uint16_t  alm_sts;
+		uint16_t  alm_flag;
+		uint16_t  alm_mask;
+
+		f32       tx_pwr[4];
+		f32       rx_pwr[4];
+		f32       vcc[4];
+		f32       tx_bias[4];
+		f32       tec_curr[4];
+		f32       wavelength[3]; /*lane2/3/4*/
+
+		uint8_t   tx_bias_mask;
+		uint8_t   rx_los_mask;
+		uint8_t   rx_lol_mask;
+	} lr4_status_t;
+#endif /* [#150] */
+
 typedef struct dco_status
 	{
 		/* dco status */
@@ -585,12 +622,34 @@ typedef struct dco_status
 		u8  dco_media_fec;
 
 		u16 dco_ch_data;
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		lr4_status_t lr4_stat;
+#endif
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+#define DCO_INIT_START				0x0
+#define DCO_INIT_CHECK_COMPLETE1	0x1
+#define DCO_INIT_CONFIG				0x2
+#define DCO_INIT_CHECK_COMPLETE2	0x4
+#define DCO_INIT_DONE				0x8
+
+#define DCO_BIT_TC_READY			0x2
+#define DCO_BIT_INIT_COMPLETE		0x1
+		u8  dco_initState;
+#endif
 	} dco_status_t;
 
 typedef struct dco_count
 	{
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+		uint16_t ber_data; /* i2c value */
+		uint16_t fer_data; /* i2c value */
+
+		f32  ber_rate;/* Pre-BER (Bit Error Ratio) */
+		f32  fer_rate;/* FER (Frame Error Rate) */
+#else
 		u32  ber_count;/* Pre-BER (Bit Error Ratio) */
 		u32  fer_count;/* FER (Frame Error Rate) */
+#endif
 	} dco_count_t;
 #endif
 

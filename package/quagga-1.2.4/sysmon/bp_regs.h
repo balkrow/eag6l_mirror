@@ -267,7 +267,9 @@ typedef enum {
 #define PORT_7_CONF_ADDR			0x0C	
 
 #define PORT_7_CONF2_ADDR			0x0E	
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 #define PORT_7_CONF3_ADDR			0x1E	
+#endif
 
 /****************************
  * SyncE related registers
@@ -1072,6 +1074,8 @@ typedef enum {
 #define PM_P6_FCS_OK2_ADDR     0x9C2
 #define PM_P7_FCS_OK2_ADDR     0xA12
 
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+/* NOTE : removed by requst of cwhan. */
 #define PM_P1_FCS_OK3_ADDR     0x834
 #define PM_P2_FCS_OK3_ADDR     0x884
 #define PM_P3_FCS_OK3_ADDR     0x8D4
@@ -1087,6 +1091,7 @@ typedef enum {
 #define PM_P5_FCS_OK4_ADDR     0x976
 #define PM_P6_FCS_OK4_ADDR     0x9C6
 #define PM_P7_FCS_OK4_ADDR     0xA16
+#endif /* [#147] */
 
 #define PM_P1_FCS_NOK1_ADDR    0x838
 #define PM_P2_FCS_NOK1_ADDR    0x888
@@ -1104,6 +1109,8 @@ typedef enum {
 #define PM_P6_FCS_NOK2_ADDR    0x9CA
 #define PM_P7_FCS_NOK2_ADDR    0xA1A
 
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+/* NOTE : removed by requst of cwhan. */
 #define PM_P1_FCS_NOK3_ADDR    0x83C
 #define PM_P2_FCS_NOK3_ADDR    0x88C
 #define PM_P3_FCS_NOK3_ADDR    0x8DC
@@ -1119,6 +1126,7 @@ typedef enum {
 #define PM_P5_FCS_NOK4_ADDR    0x97E
 #define PM_P6_FCS_NOK4_ADDR    0x9CE
 #define PM_P7_FCS_NOK4_ADDR    0xA1E
+#endif /* [#147] */
 #else /************************************************************/
 #define PM_P1_TX_BYTE1_ADDR			0x700	
 #define PM_P2_TX_BYTE1_ADDR			0x750	
@@ -1507,9 +1515,48 @@ typedef enum {
 #define QSFP28_STATUS3_ADDR			0xD06
 #define QSFP28_FEC_ENABLE_ADDR		0xD08
 #define QSFP28_COUNT_RESET_ADDR		0xD0A
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+#define QSFP28_PRE_FEC_BER1_ADDR	0xD0C
+#define QSFP28_PRE_FEC_BER2_ADDR	0xD0E
+#define QSFP28_FER1_ADDR			0xD10
+#define QSFP28_FER2_ADDR			0xD12
+#else
 #define QSFP28_PRE_FEC_BER_ADDR		0xD0C
 #define QSFP28_FER_ADDR				0xD0E
+#endif
 #endif /* [#94] */
+
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+#define QSFP28_LR4_ALM_ADDR			0xE00
+#define QSFP28_LR4_ALM_FLAG_ADDR	0xE02
+#define QSFP28_LR4_ALM_MASK_ADDR	0xE04
+#define QSFP28_LR4_VOLT1_ADDR		0xE06
+#define QSFP28_LR4_VOLT2_ADDR		0xE08
+#define QSFP28_LR4_VOLT3_ADDR		0xE0A
+#define QSFP28_LR4_VOLT4_ADDR		0xE0C
+#define QSFP28_LR4_TX_BIAS1_ADDR	0xE0E
+#define QSFP28_LR4_TX_BIAS2_ADDR	0xE10
+#define QSFP28_LR4_TX_BIAS3_ADDR	0xE12
+#define QSFP28_LR4_TX_BIAS4_ADDR	0xE14
+#define QSFP28_LR4_TCURR1_ADDR		0xE16
+#define QSFP28_LR4_TCURR2_ADDR		0xE18
+#define QSFP28_LR4_TCURR3_ADDR		0xE1A
+#define QSFP28_LR4_TCURR4_ADDR		0xE1C
+#define QSFP28_LR4_TX_POWER1_ADDR	0xE1E
+#define QSFP28_LR4_TX_POWER2_ADDR	0xE20
+#define QSFP28_LR4_TX_POWER3_ADDR	0xE22
+#define QSFP28_LR4_TX_POWER4_ADDR	0xE24
+#define QSFP28_LR4_RX_POWER1_ADDR	0xE26
+#define QSFP28_LR4_RX_POWER2_ADDR	0xE28
+#define QSFP28_LR4_RX_POWER3_ADDR	0xE2A
+#define QSFP28_LR4_RX_POWER4_ADDR	0xE2C
+#define QSFP28_LR4_WL1_2_ADDR		0xE2E
+#define QSFP28_LR4_WL1_3_ADDR		0xE30
+#define QSFP28_LR4_WL1_4_ADDR		0xE32
+#define QSFP28_LR4_WL2_2_ADDR		0xE34
+#define QSFP28_LR4_WL2_3_ADDR		0xE36
+#define QSFP28_LR4_WL2_4_ADDR		0xE38
+#endif /* [#150] */
 
 /* 
  * Port Alarm Field Mask 
@@ -1556,6 +1603,8 @@ typedef enum {
 #define RDL_PAGE_CRC_ADDR           0x500010
 #define RDL_WRITE_STATE_ADDR        0x500012
 #define RDL_TARGET_BANK_ADDR        0x500014	/* 1: bank1, 2: bank2, 0/3:none */
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
+/* NOTE : BP will not use below RDL registers, by request of balkrow. */
 #define RDL_MAGIC_NO_1_ADDR         0x500100
 #define RDL_MAGIC_NO_2_ADDR         0x500102
 #define RDL_TOTAL_CRC_1_ADDR        0x500104
@@ -1568,6 +1617,7 @@ typedef enum {
 #define RDL_VER_STR_END_ADDR        0x50011F
 #define RDL_FILE_NAME_START_ADDR    0x500120
 #define RDL_FILE_NAME_END_ADDR      0x50013F
+#endif /* [#147] */
 
 
 /*
@@ -1678,6 +1728,9 @@ extern unsigned long __PORT_ALM_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_ALM_FLAG_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_ALM_MASK_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_GET_CH_NUM_ADDR[PORT_ID_EAG6L_MAX];
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+extern unsigned long __PORT_RS_FEC_ADDR[PORT_ID_EAG6L_MAX];
+#endif
 extern unsigned long __PORT_SET_CH_NUM_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_VENDOR1_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_VENDOR2_ADDR[PORT_ID_EAG6L_MAX];

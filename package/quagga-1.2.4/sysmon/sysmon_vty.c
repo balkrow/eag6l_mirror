@@ -35,6 +35,12 @@ extern int rdl_activate_fpga(uint8_t bno);
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
 extern uint16_t portRateSet (uint16_t port, uint16_t val);
 #endif
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+extern char *rdl_get_state_str(int sno);
+extern char *rdl_get_event_str(int eno);
+
+extern RDL_INFO_LIST_t rdl_info_list;
+#endif /* [#150] */
 
 #if 1/*[#56] register update timer ¿¿, balkrow, 2024-06-13 */
 extern GLOBAL_DB gDB;
@@ -219,6 +225,10 @@ DEFUN (show_sysmon_system,
 	vty_out(vty, "%s %s%s", "       event(L) : ",gSvcFsmEvtStr[gDB.svc_fsm.evt], VTY_NEWLINE);
 	vty_out(vty, "%s %s%s%s","SDK    state    : " ,gDB.sdk_init_state == SDK_INIT_DONE ? "Init Down":"Init Fail" 
 		, VTY_NEWLINE, VTY_NEWLINE);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	vty_out(vty, "%s %s%s", "RDL    state    : ", rdl_get_state_str(rdl_info_list.st), VTY_NEWLINE);
+	vty_out(vty, "%s %s%s%s", "RDL    event    : ", rdl_get_event_str(rdl_info_list.evt), VTY_NEWLINE, VTY_NEWLINE);
+#endif
 	switch(gDB.pll_state) {
 	case FREERUN :
 		sprintf(pll_state, "%s", "FREERUN");
@@ -299,6 +309,9 @@ extern dco_status_t DCO_STAT;
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] laser[%d/%d] llcf[%d] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[(0x%02x/%02x) %s]\n", 
+#else /*************************************************************/
 #if 1 /* [#160] Fixing for rtWDM flex tune status, dustin, 2024-10-21 */
 	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[(0x%02x/%02x) %s]\n", 
 #else /****************************************************************/
@@ -312,6 +325,7 @@ extern dco_status_t DCO_STAT;
 #endif
 #endif /* [#94] */
 #endif /* [#160] */
+#endif /* [#151] */
 		portno, 
 		(ps->equip ? "O" : "x"),
 #if 1 /* [#148] Fixing for Link UP condition, dustin, 2024-10-14 */
@@ -332,6 +346,9 @@ extern dco_status_t DCO_STAT;
 			(portno == (PORT_ID_EAG6L_MAX - 1)) ? "100G" : "25G"),
 #endif
 #endif /* [#94] */
+#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+		ps->cfg_tx_laser, ps->tx_laser_sts, ps->cfg_llcf,
+#endif
 		ps->tunable_sfp,
 		ps->tunable_chno, 
 		ps->tunable_wavelength, ps->tunable_rtwdm_wavelength,
@@ -955,6 +972,7 @@ DEFUN (get_register,
 		addr2 = RDL_TARGET_BANK_ADDR;
 		dpram_flag = 1;
 	}
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 	else if(! strncmp(argv[0], "rdl-magic", strlen("rdl-magic"))) {
 		uint16_t val2;
 		addr2 = RDL_MAGIC_NO_1_ADDR;
@@ -1005,6 +1023,7 @@ DEFUN (get_register,
 		vty_out(vty, "Read = [%s]%s\n", buf, VTY_NEWLINE);
 		return CMD_SUCCESS;
 	}
+#endif /* [#147] */
 #endif
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
@@ -1187,6 +1206,7 @@ DEFUN (set_register,
 		addr2 = RDL_TARGET_BANK_ADDR;
 		dpram_flag = 1;
 	}
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 	else if(! strncmp(argv[0], "rdl-magic", strlen("rdl-magic"))) {
 		addr2 = RDL_MAGIC_NO_1_ADDR;
 		dpram_flag = 1;
@@ -1211,6 +1231,7 @@ DEFUN (set_register,
 		addr2 = RDL_FILE_NAME_START_ADDR;
 		dpram_flag = 1;
 	}
+#endif /* [#147] */
 #endif
 	else {
 		vty_out(vty, "%% ADDRESS NOT MATCH%s", VTY_NEWLINE);
@@ -1228,6 +1249,7 @@ DEFUN (set_register,
 	}
 
 	if(dpram_flag) {
+#if 0 /* [#147] Fixing for 4th register update, dustin, 2024-10-21 */
 		if(! strncmp(argv[0], "rdl-magic", strlen("rdl-magic"))) {
 			DPRAM_WRITE(addr2, (val & 0xFFFF)); 
 			DPRAM_WRITE(addr2 + 2, (val >> 16) & 0xFFFF);
@@ -1267,6 +1289,7 @@ DEFUN (set_register,
 			return CMD_SUCCESS;
 		} else
 			DPRAM_WRITE(addr2, (uint16_t)val);
+#endif /* [#147] */
 	}
 	else
 		FPGA_WRITE(addr, (uint16_t)val);
@@ -1641,8 +1664,15 @@ extern dco_count_t  DCO_COUNT;
 		pdco->dco_TempLA, pdco->dco_TempHWA, pdco->dco_TempLWA, 
 		pdco->dco_OpticHA, pdco->dco_OpticLA, pdco->dco_OpticHWA, 
 		pdco->dco_OpticLWA);
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+	vty_out(vty, "BER I2C-data 0x%08x [0x%08x / %e (%7.2f)]\n"
+		         "FER I2C-data 0x%08x [0x%04x / %e (%7.2f)]\n\n",
+		pcnt->ber_data, pcnt->ber_rate, pcnt->ber_rate, pcnt->ber_rate,
+		pcnt->fer_data, pcnt->fer_rate, pcnt->fer_rate, pcnt->fer_rate);
+#else
 	vty_out(vty, "BER[0x%04x / %e (%7.2f)]\nFER[0x%04x / %e (%7.2f)]\n\n",
 		pcnt->ber_count, pcnt->fer_count);
+#endif
     return CMD_SUCCESS;
 }
 
@@ -1651,9 +1681,15 @@ DEFUN (dco_reset,
        "dco-reset-sfp",
        "Reset DCO SFP.\n")
 {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+extern uint16_t DcoReset(uint16_t portno, uint16_t val);
+
+    DcoReset(0/*fake-portno*/, 0xA5);
+#else
 extern uint16_t DcoReset(uint16_t val);
 
     DcoReset(0xA5);
+#endif
 
     return CMD_SUCCESS;
 }
@@ -1663,9 +1699,15 @@ DEFUN (dco_host_fec_enable,
        "dco-host-fec-enable",
        "Enable DCO Host side FEC.\n")
 {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+extern uint16_t DcoFECEnable(uint16_t portno, uint16_t val);
+
+    DcoFECEnable(0/*fake-portno*/, 0xA500);
+#else
 extern uint16_t DcoFECEnable(uint16_t val);
 
     DcoFECEnable(0xA500);
+#endif
 
     return CMD_SUCCESS;
 }
@@ -1676,9 +1718,15 @@ DEFUN (no_dco_host_fec_enable,
        NO_STR
        "Disable DCO Host side FEC.\n")
 {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+extern uint16_t DcoFECEnable(uint16_t portno, uint16_t val);
+
+    DcoFECEnable(0/*fake-portno*/, 0x5A00);
+#else
 extern uint16_t DcoFECEnable(uint16_t val);
 
     DcoFECEnable(0x5A00);
+#endif
 
     return CMD_SUCCESS;
 }
@@ -1688,9 +1736,15 @@ DEFUN (dco_media_fec_enable,
        "dco-media-fec-enable",
        "Enable DCO Media side FEC.\n")
 {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+extern uint16_t DcoFECEnable(uint16_t portno, uint16_t val);
+
+	DcoFECEnable(0/*fake-portno*/, 0x00A5);
+#else
 extern uint16_t DcoFECEnable(uint16_t val);
 
 	DcoFECEnable(0x00A5);
+#endif
 
 	return CMD_SUCCESS;
 }
@@ -1701,9 +1755,15 @@ DEFUN (no_dco_media_fec_enable,
        NO_STR
        "Disable DCO Media side FEC.\n")
 {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+extern uint16_t DcoFECEnable(uint16_t portno, uint16_t val);
+
+	DcoFECEnable(0/*fake-portno*/, 0x005A);
+#else
 extern uint16_t DcoFECEnable(uint16_t val);
 
 	DcoFECEnable(0x005A);
+#endif
 
 	return CMD_SUCCESS;
 }
@@ -1713,9 +1773,15 @@ DEFUN (dco_count_reset,
        "dco-reset-count",
        "Reset DCO count.\n")
 {
+#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+extern uint16_t DcoCountReset(uint16_t portno, uint16_t val);
+
+    DcoCountReset(0/*fake-portno*/, 0xA5);
+#else
 extern uint16_t DcoCountReset(uint16_t val);
 
     DcoCountReset(0xA5);
+#endif
 
     return CMD_SUCCESS;
 }
