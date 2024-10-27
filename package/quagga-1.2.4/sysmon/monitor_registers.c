@@ -43,7 +43,9 @@ dco_status_t DCO_STAT;
 dco_count_t  DCO_COUNT;
 #endif
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+#if 0 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 lr4_status_t LR4_STAT;
+#endif
 #endif
 
 
@@ -3897,8 +3899,13 @@ void process_alarm_info(void)
 			val &= ~(1 << 0);
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 		if(portno == PORT_ID_EAG6L_PORT7) {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			if(DCO_STAT.lr4_stat.rx_los_mask & 0xF)
+				val |= (1 << 8);
+#else
 			if(LR4_STAT.rx_los_mask & 0xF)
 				val |= (1 << 8);
+#endif
 		}
 #endif
 
@@ -3937,8 +3944,13 @@ void process_alarm_info(void)
 			val &= ~(1 << 8);
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 		if(portno == PORT_ID_EAG6L_PORT7) {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			if(DCO_STAT.lr4_stat.tx_bias_mask & 0xF)
+				val |= (1 << 8);
+#else
 			if(LR4_STAT.tx_bias_mask & 0xF)
 				val |= (1 << 8);
+#endif
 		}
 #endif
 
@@ -3988,13 +4000,20 @@ void process_alarm_info(void)
 		if(PRE_ALM_FLAG[portno] != val) {
 			PRE_ALM_FLAG[portno] &= val;
 			for(flagmask = 0, ii = 0; ii < 16; ii++) {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+				bitmask = (1 << ii);
+#else
 				bitmask = (1 < ii);
+#endif
 
 				/* get only changed from 0 to 1. */
 				if((PRE_ALM_FLAG[portno] & bitmask == 0) && (val & bitmask == 1))
 					flagmask |= bitmask;
 			}
 			data = flagmask | FPGA_PORT_READ(__PORT_ALM_FLAG_ADDR[portno]);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			data &= ~masking;
+#endif
 			FPGA_PORT_WRITE(__PORT_ALM_FLAG_ADDR[portno], (0x10F & data));
 			PRE_ALM_FLAG[portno] |= (0x10F & flagmask);
 		}
@@ -4031,6 +4050,16 @@ void process_alarm_info(void)
 	portno = PORT_ID_EAG6L_PORT7;
 	val = 0;
 	if(PORT_STATUS[portno].equip) {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		/* update tx bias. */
+		val |= (DCO_STAT.lr4_stat.tx_bias_mask << 8) & 0xF00;
+
+		/* update rx lol. */
+		val |= (DCO_STAT.lr4_stat.rx_lol_mask << 4) & 0xF0;
+
+		/* update rx los. */
+		val |= DCO_STAT.lr4_stat.rx_los_mask & 0xF;
+#else
 		/* update tx bias. */
 		val |= (LR4_STAT.tx_bias_mask << 8) & 0xF00;
 
@@ -4039,6 +4068,7 @@ void process_alarm_info(void)
 
 		/* update rx los. */
 		val |= LR4_STAT.rx_los_mask & 0xF;
+#endif
 
 		/* read alarm mask register and mask off the result */
 		masking = FPGA_PORT_READ(QSFP28_LR4_ALM_MASK_ADDR);
@@ -4054,18 +4084,26 @@ void process_alarm_info(void)
 		if(PRE_QALM_FLAG != val) {
 			PRE_QALM_FLAG &= val;
 			for(flagmask = 0, ii = 0; ii < 16; ii++) {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+				bitmask = (1 << ii);
+#else
 				bitmask = (1 < ii);
+#endif
 
 				/* get only changed from 0 to 1. */
 				if(((PRE_QALM_FLAG & bitmask) == 0) && ((val & bitmask) == bitmask))
 					flagmask |= bitmask;
 			}
 			data = flagmask | FPGA_PORT_READ(QSFP28_LR4_ALM_FLAG_ADDR);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+			data &= ~masking;
+#endif
 			FPGA_PORT_WRITE(QSFP28_LR4_ALM_FLAG_ADDR, (0xFFF & data));
 			PRE_QALM_FLAG |= (0xFFF & flagmask);
-				
+#if 0 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 			gPortRegUpdate(QSFP28_LR4_ALM_FLAG_ADDR, 0, 0x10F, flagmask);
 			PRE_QALM_FLAG = flagmask;
+#endif
 		}
 	} else {
 		/* clear alarm if not equipped. */
@@ -4218,11 +4256,32 @@ extern int update_flex_tune_status(int portno);
 						: 0x8999); 
 				/* update lr4 rx power. */
 				if(PORT_STATUS[portno].los) {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER1_ADDR, 0x8600);
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER2_ADDR, 0x8600);
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER3_ADDR, 0x8600);
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER4_ADDR, 0x8600);
+#else
 					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER1_ADDR, 0x8600);
 					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER2_ADDR, 0x8600);
 					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER3_ADDR, 0x8600);
 					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER4_ADDR, 0x8600);
+#endif /* [#150] */
 				} else  {
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER1_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[0], 1/*dbm*/, 0/*rx*/));
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER2_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[1], 1/*dbm*/, 0/*rx*/));
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER3_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[2], 1/*dbm*/, 0/*rx*/));
+					FPGA_PORT_WRITE(QSFP28_LR4_RX_POWER4_ADDR,
+						convert_dbm_float_to_decimal(
+							DCO_STAT.lr4_stat.rx_pwr[3], 1/*dbm*/, 0/*rx*/));
+#else
 					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER1_ADDR,
 						convert_dbm_float_to_decimal(
 							DCO_STAT.lr4_stat.rx_pwr[0], 1/*dbm*/, 0/*rx*/));
@@ -4235,6 +4294,7 @@ extern int update_flex_tune_status(int portno);
 					FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER4_ADDR,
 						convert_dbm_float_to_decimal(
 							DCO_STAT.lr4_stat.rx_pwr[3], 1/*dbm*/, 0/*rx*/));
+#endif /* [#150] */
 				}
 				/* update wavelength1 for lane 2. */
 				fval = DCO_STAT.lr4_stat.wavelength[0];

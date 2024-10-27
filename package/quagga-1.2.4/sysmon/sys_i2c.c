@@ -4104,6 +4104,9 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 
 	double tx_pwrad, temp_ad, vcc_ad, bias_ad;
 	double temp, vcc, bias, ltemp, tcurr;
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+	double _tx_db[4], _rx_db[4], _vcc[4], _bias[4];
+#endif
 
 #if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	/* do nothing for 100G port. */
@@ -4140,6 +4143,25 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		vcc = (double)((raw_diag1->fs_dev_monitor[4] << 8) | 
 				raw_diag1->fs_dev_monitor[5]);
 		vcc *= ((double)100/*uV-unit*/ / (double)1000000/*convert-to-V*/);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		_vcc[0] = vcc;
+		/* VCC2 */
+		_vcc[1] = (double)((raw_diag1->fs_dev_monitor[6] << 8) | 
+				raw_diag1->fs_dev_monitor[7]);
+		_vcc[1] *= ((double)100/*uV-unit*/ / (double)1000000/*convert-to-V*/);
+		/* VCC3 */
+		_vcc[2] = (double)((raw_diag1->fs_dev_monitor[8] << 8) | 
+				raw_diag1->fs_dev_monitor[9]);
+		_vcc[2] *= ((double)100/*uV-unit*/ / (double)1000000/*convert-to-V*/);
+		/* VCC4 */
+		_vcc[3] = (double)((raw_diag1->fs_dev_monitor[10] << 8) | 
+				raw_diag1->fs_dev_monitor[11]);
+		_vcc[3] *= ((double)100/*uV-unit*/ / (double)1000000/*convert-to-V*/);
+		DCO_STAT.lr4_stat.vcc[0] = _vcc[0];
+		DCO_STAT.lr4_stat.vcc[1] = _vcc[1];
+		DCO_STAT.lr4_stat.vcc[2] = _vcc[2];
+		DCO_STAT.lr4_stat.vcc[3] = _vcc[3];
+#endif /* [#150] */
 
 		/* TX Bias */
 		bias = (double)((raw_diag1->chann_monitor[8] << 8) | 
@@ -4149,6 +4171,27 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 #else
 		bias *= ((double)2/*uA-unit*/ / (double)1000000/*convert-to-A*/);
 #endif
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		if(! PORT_STATUS[portno].sfp_dco) {
+			_bias[0] = bias;
+			/* TX2 Bias */
+			_bias[1] = (double)((raw_diag1->chann_monitor[10] << 8) | 
+					raw_diag1->chann_monitor[11]);
+			_bias[1] *= ((double)2/*uA-unit*/ / (double)1000/*convert-to-mA*/);
+			/* TX4 Bias */
+			_bias[2] = (double)((raw_diag1->chann_monitor[12] << 8) | 
+					raw_diag1->chann_monitor[13]);
+			_bias[2] *= ((double)2/*uA-unit*/ / (double)1000/*convert-to-mA*/);
+			/* TX4 Bias */
+			_bias[3] = (double)((raw_diag1->chann_monitor[14] << 8) | 
+					raw_diag1->chann_monitor[15]);
+			_bias[3] *= ((double)2/*uA-unit*/ / (double)1000/*convert-to-mA*/);
+			DCO_STAT.lr4_stat.tx_bias[0] = _bias[0];
+			DCO_STAT.lr4_stat.tx_bias[1] = _bias[1];
+			DCO_STAT.lr4_stat.tx_bias[2] = _bias[2];
+			DCO_STAT.lr4_stat.tx_bias[3] = _bias[3];
+		}
+#endif /* [#150] */
 
 		/* TX Power */
 		tx_db = (double)((raw_diag1->chann_monitor[16] << 8) | 
@@ -4161,6 +4204,36 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		if(tx_db == 0)
 			tx_db = 0.0001;
 		tx_db = 10 * log10(tx_db);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		if(! PORT_STATUS[portno].sfp_dco) {
+			_tx_db[0] = tx_db;
+			/* TX2 Power */
+			_tx_db[1] = (double)((raw_diag1->chann_monitor[18] << 8) | 
+					raw_diag1->chann_monitor[19]);
+			_tx_db[1] *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+			if(_tx_db[1] == 0)
+				_tx_db[1] = 0.0001;
+			_tx_db[1] = 10 * log10(_tx_db[1]);
+			/* TX2 Power */
+			_tx_db[2] = (double)((raw_diag1->chann_monitor[20] << 8) | 
+					raw_diag1->chann_monitor[21]);
+			_tx_db[2] *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+			if(_tx_db[2] == 0)
+				_tx_db[2] = 0.0001;
+			_tx_db[2] = 10 * log10(_tx_db[2]);
+			/* TX2 Power */
+			_tx_db[3] = (double)((raw_diag1->chann_monitor[22] << 8) | 
+					raw_diag1->chann_monitor[23]);
+			_tx_db[3] *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+			if(_tx_db[3] == 0)
+				_tx_db[3] = 0.0001;
+			_tx_db[3] = 10 * log10(_tx_db[3]);
+			DCO_STAT.lr4_stat.tx_pwr[0] = _tx_db[0];
+			DCO_STAT.lr4_stat.tx_pwr[1] = _tx_db[1];
+			DCO_STAT.lr4_stat.tx_pwr[2] = _tx_db[2];
+			DCO_STAT.lr4_stat.tx_pwr[3] = _tx_db[3];
+		}
+#endif /* [#150] */
 
 		/* RX Power */
 		rx_db = (double)((raw_diag1->chann_monitor[0] << 8) | 
@@ -4173,6 +4246,36 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		if(rx_db == 0)
 			rx_db = 0.0001;
 		rx_db = 10 * log10(rx_db);
+#if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+		if(! PORT_STATUS[portno].sfp_dco) {
+			_rx_db[0] = rx_db;
+			/* RX2 Power */
+			_rx_db[1] = (double)((raw_diag1->chann_monitor[2] << 8) | 
+					raw_diag1->chann_monitor[3]);
+			_rx_db[1] *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+			if(_rx_db[1] == 0)
+				_rx_db[1] = 0.0001;
+			_rx_db[1] = 10 * log10(_rx_db[1]);
+			/* RX3 Power */
+			_rx_db[2] = (double)((raw_diag1->chann_monitor[4] << 8) | 
+					raw_diag1->chann_monitor[5]);
+			_rx_db[2] *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+			if(_rx_db[2] == 0)
+				_rx_db[2] = 0.0001;
+			_rx_db[2] = 10 * log10(_rx_db[2]);
+			/* RX4 Power */
+			_rx_db[3] = (double)((raw_diag1->chann_monitor[6] << 8) | 
+					raw_diag1->chann_monitor[7]);
+			_rx_db[3] *= (0.1/*uW-unit*/ / 1000/*convert-to-mW*/);
+			if(_rx_db[3] == 0)
+				_rx_db[3] = 0.0001;
+			_rx_db[3] = 10 * log10(_rx_db[3]);
+			DCO_STAT.lr4_stat.rx_pwr[0] = _rx_db[0];
+			DCO_STAT.lr4_stat.rx_pwr[1] = _rx_db[1];
+			DCO_STAT.lr4_stat.rx_pwr[2] = _rx_db[2];
+			DCO_STAT.lr4_stat.rx_pwr[3] = _rx_db[3];
+		}
+#endif /* [#150] */
 
 		/* Laser Temperature */
 		ltemp = 0;
