@@ -59,6 +59,7 @@ extern int8_t rsmuGetPLLState(void);
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 extern void init_100g_sfp(struct thread *thread);
 int thread_kill_flag;
+int dco_retry_cnt;
 #endif
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
@@ -900,6 +901,7 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 
 		if(! thread_kill_flag) {
 			zlog_notice("%s : init 100G start~", __func__);
+			dco_retry_cnt = 0;
 			thread_add_timer(master, init_100g_sfp, NULL, 1);
 			thread_kill_flag++;
 		}
@@ -1574,6 +1576,13 @@ uint16_t DcoReset(uint16_t portno, uint16_t val)
 uint16_t DcoReset(uint16_t val)
 #endif
 {
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	if(! PORT_STATUS[PORT_ID_EAG6L_PORT7].i2cReady) {
+		zlog_notice("DCO reset was aborted because TCReady/InitComplete.");
+		return ERR_PORT_NOT_READY;
+	}
+#endif
+
 	if(val == 0xA5) {
 		set_i2c_dco_reset();
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
@@ -1625,6 +1634,13 @@ uint16_t DcoCountReset(uint16_t portno, uint16_t val)
 uint16_t DcoCountReset(uint16_t val)
 #endif
 {
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	if(! PORT_STATUS[PORT_ID_EAG6L_PORT7].i2cReady) {
+		zlog_notice("DCO BER reset was aborted because TCReady/InitComplete.");
+		return ERR_PORT_NOT_READY;
+	}
+#endif
+
 	if(val == 0xA5)
 		set_i2c_dco_count_reset();
 	return SUCCESS;

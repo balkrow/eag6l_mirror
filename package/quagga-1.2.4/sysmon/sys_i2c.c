@@ -2803,6 +2803,14 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 	} else
 		data = 0x0006;/*default-ch-data*/
 
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	/* saved config will be used after TCReady/InitComplete is done. */
+	if(! PORT_STATUS[portno].i2cReady) {
+		PORT_STATUS[portno].tunable_chno = chno;
+		PORT_STATUS[portno].cfg_ch_data = data;
+	}
+#endif
+
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
@@ -4736,8 +4744,9 @@ void init_100g_sfp(struct thread *thread)
 	unsigned char val;
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 extern int thread_kill_flag;
+extern int dco_retry_cnt;
 	dco_status_t *pdco = &DCO_STAT;
-	uint16_t data;
+	uint16_t data, cfg_changed = 0;
 
 	/* check kill condition to avoid threading multiple timers. */
 	if(thread_kill_flag > 2) {
@@ -4806,8 +4815,17 @@ extern int thread_kill_flag;
 	/* check TCReadyFlag/InitComplete. repeat timer until both flags set. */
 	if((! pdco->dco_TCReadyFlag) || (! pdco->dco_InitComplete)) {
 		zlog_notice("%s : flags not ok. tcready[%d] initComplete[%d].", __func__, pdco->dco_TCReadyFlag, pdco->dco_InitComplete);
+		/* assume sfp is already in TCReady/InitComplete state and proceed. */
+		if(dco_retry_cnt++ >= 22) {
+			pdco->dco_TCReadyFlag = 1;
+			pdco->dco_InitComplete = 1;
+			goto __GOGO__;
+		}
+
 		goto __NEXT__;
 	}
+
+__GOGO__:
 
 	/* if 2nd check is ok, then byebye~! no more timer reapeat. */
 	if(pdco->dco_initState == DCO_INIT_CHECK_COMPLETE2) {
@@ -4879,11 +4897,19 @@ __INIT_CONFIG__:
 		val &= ~0x80;
 	zlog_notice("%s : host fec [0x%x].", __func__, val);
 
-	/* set fec byte. */
-	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
-		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
-			__func__, portno, get_eag6L_dport(portno), ret);
-		goto __NEXT__;
+	if(val != ret) {
+		/* set fec byte. */
+		if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __NEXT__;
+		}
+		cfg_changed = 1;
+	}
+
+	if(! PORT_STATUS[portno].sfp_dco) {
+		zlog_notice("%s: this is not DCO.", __func__);//ZZPP
+		goto __SKIP_CHNO__;
 	}
 
     /* select page */
@@ -4892,6 +4918,23 @@ __INIT_CONFIG__:
             __func__, portno, get_eag6L_dport(portno));
         goto __NEXT__;
     }
+
+	/* read channel grid. */
+	if((ret = i2c_smbus_read_byte_data(fd, 128/*0x80*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] ch. grid failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+        goto __NEXT__;
+	}
+
+	if(ret != 0x40/*50G-spacing*/) {
+		/* write channel grid. */
+		if((ret = i2c_smbus_write_byte_data(fd, 128/*0x80*/, 0x40/*50G-spacing*/)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] ch. grid failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+        	goto __NEXT__;
+		}
+		cfg_changed = 1;
+	}
 
     /* read chno msb. */
     if((ret = i2c_smbus_read_byte_data(fd, 136/*0x88*/)) < 0) {
@@ -4929,8 +4972,10 @@ __INIT_CONFIG__:
 				__func__, portno, get_eag6L_dport(portno), ret);
 			goto __NEXT__;
 		}
+		cfg_changed = 1;
 	}
 
+__SKIP_CHNO__:
 	/* NOTE : no need to back to page 0, if accessing low page. */
 
 	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
@@ -4947,11 +4992,29 @@ __INIT_CONFIG__:
 		zlog_notice("%s : config tx laser.", __func__);
 	}
 
-	/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
-	if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
-		zlog_notice("%s: Writing port[%d(0/%d)] txDisable failed. ret[%d].",
-			__func__, portno, get_eag6L_dport(portno), ret);
+	if(val != ret) {
+		/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+		if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] txDisable failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __NEXT__;
+		}
+		cfg_changed = 1;
+	}
+
+	/* read power mode */
+	if((ret = i2c_smbus_read_byte_data(fd, 93/*0x5D*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
 		goto __NEXT__;
+	}
+
+	if(! PORT_STATUS[portno].sfp_dco || 
+	  (! cfg_changed && ((ret & 0x8) == 0x8))) {
+		/* nothing changed. goto init done state. */
+		pdco->dco_initState = DCO_INIT_CHECK_COMPLETE2;
+		/* this will end retry timer repeat. */
+		goto __GOGO__;
 	}
 
 	/* set low power mode */
@@ -5156,7 +5219,12 @@ int set_i2c_100G_laser_control(int portno, int enable)
 	unsigned char lp_back;
 #endif
 
+
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	if(! PORT_STATUS[portno].equip || ! PORT_STATUS[portno].i2cReady)
+#else
 	if(! PORT_STATUS[portno].equip)
+#endif
 		return;
 
 	fd = i2c_dev_open(1/*bus*/);
@@ -5355,7 +5423,11 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
 	unsigned char val;
 
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	if(! PORT_STATUS[portno].equip || ! PORT_STATUS[portno].i2cReady)
+#else
 	if(! PORT_STATUS[portno].equip)
+#endif
 		return;
 
 	if(! ((hs_flag == 0xA5) || (hs_flag == 0x5A) ||
@@ -5589,6 +5661,7 @@ __exit__:
 	return;
 }
 
+/* NOTE : below function can be used with LR4 too. */
 int read_i2c_dco_status(dco_status_t *pdco)
 {
 	unsigned int chann_mask;
