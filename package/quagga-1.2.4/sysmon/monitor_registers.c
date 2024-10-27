@@ -1150,6 +1150,12 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 				FPGA_WRITE(QSFP28_STATUS2_ADDR, 0x0);
 				FPGA_WRITE(QSFP28_STATUS3_ADDR, 0x0);
 #endif
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+				FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER1_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER2_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_FER1_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_FER2_ADDR, 0x0);
+#endif /* [#149] */
 			} else {
 				FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[port], 0x0);
 				FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[port], 0x0);
@@ -4083,6 +4089,10 @@ extern int update_flex_tune_status(int portno);
 	unsigned int val, type;
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	double fval;
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+	uint32_t *temp;
+	uint32_t temp2;
+#endif
 
 	/* update alarm */
 	process_alarm_info();
@@ -4148,11 +4158,25 @@ extern int update_flex_tune_status(int portno);
 #if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 			/* update pre-fec ber. */
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+			temp = &(DCO_COUNT.ber_rate);
+			temp2 = *temp;
+			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER1_ADDR, ((temp2) >> 16) & 0xFFFF);
+			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER2_ADDR, ((temp2) & 0xFFFF));
+#else /****************************************************************/
 			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER1_ADDR, ((uint32_t)DCO_COUNT.ber_rate >> 8) & 0xFFFF);
 			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER2_ADDR, ((uint32_t)DCO_COUNT.ber_rate & 0xFFFF));
+#endif /* [#149] */
 			/* update fer. */
+#if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+			temp = &(DCO_COUNT.fer_rate);
+			temp2 = *temp;
+			FPGA_PORT_WRITE(QSFP28_FER1_ADDR, (temp2 >> 16) & 0xFFFF);
+			FPGA_PORT_WRITE(QSFP28_FER2_ADDR, (temp2 & 0xFFFF));
+#else /****************************************************************/
 			FPGA_PORT_WRITE(QSFP28_FER1_ADDR, ((uint32_t)DCO_COUNT.fer_rate >> 8) & 0xFFFF);
 			FPGA_PORT_WRITE(QSFP28_FER2_ADDR, ((uint32_t)DCO_COUNT.fer_rate & 0xFFFF));
+#endif /* [#149] */
 #else
 			/* update pre-fec ber. */
 			FPGA_WRITE(QSFP28_PRE_FEC_BER1_ADDR, ((uint32_t)DCO_COUNT.ber_rate >> 8) & 0xFFFF);
