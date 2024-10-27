@@ -309,6 +309,9 @@ extern dco_status_t DCO_STAT;
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] laser[%d/%d] fec[%d] esmc[%d] llcf[%d] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[(0x%02x/%02x) %s]\n", 
+#else /*****************************************************************/
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] laser[%d/%d] llcf[%d] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[(0x%02x/%02x) %s]\n", 
 #else /*************************************************************/
@@ -326,6 +329,7 @@ extern dco_status_t DCO_STAT;
 #endif /* [#94] */
 #endif /* [#160] */
 #endif /* [#151] */
+#endif /* [#169] */
 		portno, 
 		(ps->equip ? "O" : "x"),
 #if 1 /* [#148] Fixing for Link UP condition, dustin, 2024-10-14 */
@@ -347,7 +351,12 @@ extern dco_status_t DCO_STAT;
 #endif
 #endif /* [#94] */
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
+#if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+		ps->cfg_tx_laser, ps->tx_laser_sts, ps->cfg_rs_fec, 
+		ps->cfg_esmc_enable, ps->cfg_llcf,
+#else
 		ps->cfg_tx_laser, ps->tx_laser_sts, ps->cfg_llcf,
+#endif
 #endif
 		ps->tunable_sfp,
 		ps->tunable_chno, 
@@ -1666,7 +1675,7 @@ extern dco_count_t  DCO_COUNT;
 		pdco->dco_OpticLWA);
 #if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
 	vty_out(vty, "BER I2C-data 0x%08x [0x%08x / %e (%7.2f)]\n"
-		         "FER I2C-data 0x%08x [0x%04x / %e (%7.2f)]\n\n",
+		         "FER I2C-data 0x%08x [0x%08x / %e (%7.2f)]\n\n",
 		pcnt->ber_data, pcnt->ber_rate, pcnt->ber_rate, pcnt->ber_rate,
 		pcnt->fer_data, pcnt->fer_rate, pcnt->fer_rate, pcnt->fer_rate);
 #else
