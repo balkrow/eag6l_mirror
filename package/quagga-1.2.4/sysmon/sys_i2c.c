@@ -2781,6 +2781,9 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 	int fd, mux_addr, ret = SUCCESS;
 	unsigned int chann_mask;
 	uint16_t data, ii;
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+	uint16_t pdata, changed_flag = 0;
+#endif
 
 	/* do nothing for non-tunable sfp */
 	if(! PORT_STATUS[portno].tunable_sfp)
@@ -2808,6 +2811,9 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 	if(! PORT_STATUS[portno].i2cReady) {
 		PORT_STATUS[portno].tunable_chno = chno;
 		PORT_STATUS[portno].cfg_ch_data = data;
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+		return ERR_PORT_NOT_READY;
+#endif
 	}
 #endif
 
@@ -2875,8 +2881,19 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 				__func__, portno, get_eag6L_dport(portno), ret);
 			goto __exit__;
 		}
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+		changed_flag = 1;
+#endif
 	}
 #endif /* [#94] */
+
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+	/* check/skip unnecessary reconfig. */
+	if((chno == PORT_STATUS[PORT_ID_EAG6L_PORT7].tunable_chno) && (! changed_flag)) {
+		zlog_notice("Skipping unnecessary chno reconfig.");
+		goto __exit__;
+	}
+#endif
 
 	/* write chno msb. */
 	if((ret = i2c_smbus_write_byte_data(fd, 136/*0x88*/, (data >> 8) & 0xFF)) < 0) {
@@ -5054,7 +5071,7 @@ __INIT_CONFIG__:
         goto __NEXT__;
     }
     data |= (ret & 0xFF);
-	zlog_notice("%s : read channel [0x%x].", __func__, data);
+	zlog_notice("%s : read channel data[0x%04x].", __func__, data);
 
 	/* set channel number, if different. */
 	if(PORT_STATUS[portno].tunable_chno && 
@@ -5144,7 +5161,6 @@ __SKIP_CHNO__:
 
 __NEXT__:
 	close(fd);
-	zlog_notice("%s : repeat timer.", __func__);
 	/* add timer for next process. */
 	thread_add_timer(master, init_100g_sfp, NULL, 1);
 
@@ -5390,8 +5406,15 @@ int set_i2c_100G_laser_control(int portno, int enable)
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
-
 	val = ret;
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+	/* check/skip unnecessary reconfig. */
+	if(((! enable) && ((val & 0xF) == 0xF)) ||
+	   ((enable) && ((val & 0xF) == 0x0))) {
+		zlog_notice("Skipping unnecessary dco tx laser reconfig.");
+		goto __exit__;
+	}
+#endif
 	val &= ~0xF;
 	val |= enable ? 0x0 : 0xF;/*tx-disable-4-lanes*/
 
@@ -5594,6 +5617,15 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 		goto __exit__;
 	}
 	val = ret;
+
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+	/* check/skip unnecessary reconfig. */
+	if(((val & 0x80) && (hs_flag == 0xA5)) ||
+	   (!(val & 0x80) && (hs_flag == 0x5A))) {
+		zlog_notice("Skipping unnecessary dco fec reconfig.");
+		goto __exit__;
+	}
+#endif
 
 	if(hs_flag == 0xA5)
 		val |= 0x80;/*set-host-side-fec*/

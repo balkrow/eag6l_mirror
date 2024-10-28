@@ -1794,6 +1794,45 @@ extern uint16_t DcoCountReset(uint16_t val);
 
     return CMD_SUCCESS;
 }
+
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+DEFUN (dco_tx_laser_set,
+       dco_tx_laser_set_cmd,
+       "dco-tx-laser-on",
+       "Enable DCO tx laser.\n")
+{
+extern int set_i2c_100G_laser_control(int portno, int enable);
+
+	set_i2c_100G_laser_control(PORT_ID_EAG6L_PORT7, 1/*enable*/);
+	return CMD_SUCCESS;
+}
+
+DEFUN (no_dco_tx_laser_set,
+       no_dco_tx_laser_set_cmd,
+       "no dco-tx-laser-on",
+       NO_STR
+       "Enable DCO tx laser.\n")
+{
+extern int set_i2c_100G_laser_control(int portno, int enable);
+
+	set_i2c_100G_laser_control(PORT_ID_EAG6L_PORT7, 0/*disable*/);
+	return CMD_SUCCESS;
+}
+
+DEFUN (dco_chno_set,
+       dco_chno_set_cmd,
+       "dco-chno <1-40>",
+       "Enable DCO tx laser.\n"
+       "Channel no.")
+{
+extern uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno);
+	int chno;
+
+	chno = atoi(argv[0]);
+    set_dco_sfp_channel_no(PORT_ID_EAG6L_PORT7, chno);
+    return CMD_SUCCESS;
+}
+#endif
 #endif /* [#94] */
 
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
@@ -1895,5 +1934,10 @@ sysmon_vty_init (void)
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
   install_element (ENABLE_NODE, &sw_mode_set_cmd);
   install_element (ENABLE_NODE, &no_sw_mode_set_cmd);
+#endif
+#if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
+  install_element (ENABLE_NODE, &dco_tx_laser_set_cmd);
+  install_element (ENABLE_NODE, &no_dco_tx_laser_set_cmd);
+  install_element (ENABLE_NODE, &dco_chno_set_cmd);
 #endif
 }
