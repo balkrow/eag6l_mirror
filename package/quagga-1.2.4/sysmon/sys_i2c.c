@@ -4856,6 +4856,9 @@ __exit__:
 
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 extern struct thread_master *master;
+#if 1 /* [#172] Fixing for DCO FEC default change, dustin, 2024-10-28 */
+int dco_reset_flag = 0;
+#endif
 
 void init_100g_sfp(struct thread *thread)
 {
@@ -4874,6 +4877,45 @@ extern int dco_retry_cnt;
 		thread_kill_flag -= 1;
 		return;
 	}
+
+#if 1 /* [#172] Fixing for DCO FEC default change, dustin, 2024-10-28 */
+	if(pdco->dco_initState == DCO_INIT_START) {
+		/* read sfp inventory. */
+		read_port_inventory(portno, &(INV_TBL[portno]));
+
+		/* init for 100G DCO sfp. FIXME: need OE spf. */
+		if(! memcmp(INV_TBL[portno].part_num, "FTLC3351R3PL1",
+					sizeof("FTLC3351R3PL1")))
+		{
+			PORT_STATUS[portno].sfp_dco = 1;
+			zlog_notice("%s : this is DCO.", __func__);//ZZPP
+		}
+		else zlog_notice("%s : this is NOT DCO.", __func__);//ZZPP
+
+		/* get private sfp identifier */
+		type = get_private_sfp_identifier(portno);
+		/* get wavelength register 2 */
+		data = FPGA_PORT_READ(__PORT_WL2_ADDR[portno]);
+
+		/* update wavelength register 2 */
+		data &= ~0x0F00;
+		data |= (type << 8);
+		FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], data);
+
+		PORT_STATUS[portno].sfp_type = type;
+
+		if(PORT_STATUS[portno].sfp_dco && (! dco_reset_flag)) {
+			zlog_notice("%s : run i2c_dco_reset.", __func__);
+			set_i2c_dco_reset();
+			dco_reset_flag = 1;
+		}
+
+		if(PORT_STATUS[portno].sfp_dco)
+			pdco->dco_initState = DCO_INIT_START2;
+		else
+			pdco->dco_initState = DCO_INIT_CONFIG;
+	}
+#endif /* [#172] */
 
 	/* if init done, return. */
 	if(pdco->dco_initState == DCO_INIT_DONE) {
@@ -4960,6 +5002,8 @@ __GOGO__:
 		return;
 	}
 
+#if 0 /* [#172] Fixing for DCO FEC default change, dustin, 2024-10-28 */
+	/* NOTE : move to aboce. */
 	/* read sfp inventory. */
 	read_port_inventory(portno, &(INV_TBL[portno]));
 
@@ -4983,6 +5027,7 @@ __GOGO__:
 	FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], data);
 
 	PORT_STATUS[portno].sfp_type = type;
+#endif /* [#172] */
 
 	/* goto config stage. */
 	pdco->dco_initState = DCO_INIT_CONFIG;
@@ -5027,10 +5072,8 @@ __INIT_CONFIG__:
 		cfg_changed = 1;
 	}
 
-	if(! PORT_STATUS[portno].sfp_dco) {
-		zlog_notice("%s: this is not DCO.", __func__);//ZZPP
+	if(! PORT_STATUS[portno].sfp_dco)
 		goto __SKIP_CHNO__;
-	}
 
     /* select page */
     if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-12h*/)) < 0) {

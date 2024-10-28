@@ -631,6 +631,9 @@ typedef struct dco_status
 #define DCO_INIT_CONFIG				0x2
 #define DCO_INIT_CHECK_COMPLETE2	0x4
 #define DCO_INIT_DONE				0x8
+#if 1 /* [#172] Fixing for DCO FEC default change, dustin, 2024-10-28 */
+#define DCO_INIT_START2				0x10
+#endif
 
 #define DCO_BIT_TC_READY			0x2
 #define DCO_BIT_INIT_COMPLETE		0x1
