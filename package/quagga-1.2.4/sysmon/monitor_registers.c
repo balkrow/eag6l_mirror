@@ -63,6 +63,9 @@ extern void init_100g_sfp(struct thread *thread);
 int thread_kill_flag;
 int dco_retry_cnt;
 #endif
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+extern int fec_100g_state;
+#endif
 
 #if 1/*[#48] register monitoring and update 관련 기능 추가, balkrow, 2024-06-10*/ 
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
@@ -1043,11 +1046,14 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 	uint8_t cfg_rs_fec;
 	uint8_t cfg_dco_fec;
-	uint8_t cfg_ch_data;
 #endif
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 	uint8_t cfg_tx_laser;
 	uint8_t cfg_llcf;
+#endif
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+	uint8_t cfg_chno;
+	uint16_t cfg_ch_data;
 #endif
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 static uint16_t SFP_CR_CACHE = 0x7F;
@@ -1079,6 +1085,9 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			cfg_dco_fec   = PORT_STATUS[port].cfg_dco_fec;
 			cfg_ch_data   = PORT_STATUS[port].cfg_ch_data;
 #endif
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+			cfg_chno      = PORT_STATUS[port].tunable_chno;
+#endif
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 			cfg_tx_laser = PORT_STATUS[port].cfg_tx_laser;
 			cfg_llcf   = PORT_STATUS[port].cfg_llcf;
@@ -1101,6 +1110,9 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			PORT_STATUS[port].cfg_dco_fec = cfg_dco_fec;
 			PORT_STATUS[port].cfg_ch_data = cfg_ch_data;
 #endif
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+			PORT_STATUS[port].tunable_chno = cfg_chno;
+#endif
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 			PORT_STATUS[port].cfg_tx_laser = cfg_tx_laser;
 			PORT_STATUS[port].cfg_llcf = cfg_llcf;
@@ -1116,6 +1128,13 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
 			/* clear not equip sfp registers. */
 			if(port >= (PORT_ID_EAG6L_MAX - 1)) {
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+				{
+					extern int dco_reset_flag;
+					dco_reset_flag = 0;
+					fec_100g_state = 0;
+				}
+#endif
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 				memset(&DCO_STAT, 0, sizeof DCO_STAT);
 				memset(&DCO_COUNT, 0, sizeof DCO_COUNT);
@@ -1556,16 +1575,28 @@ uint16_t portFECEnable(uint16_t portno, uint16_t enable)
 #if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
 	if(enable == 0xA5) {
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 1);
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+		PORT_STATUS[portno].cfg_rs_fec = enable;
+#else
 		PORT_STATUS[portno].cfg_rs_fec = 1;
+#endif
 	}
 	else if(enable == 0x5A) {
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 0);
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+		PORT_STATUS[portno].cfg_rs_fec = enable;
+#else
 		PORT_STATUS[portno].cfg_rs_fec = 0;
+#endif
 	}
 	else if(enable == 0x0/*auto-mode*/) {
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 
 			PORT_STATUS[portno].sfp_dco ? 0 : 1);
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+		PORT_STATUS[portno].cfg_rs_fec = enable;
+#else
 		PORT_STATUS[portno].cfg_rs_fec = PORT_STATUS[portno].sfp_dco ? 0 : 1;
+#endif
 	}
 #else /**************************************************************/
 	if(enable == 0xA5)

@@ -307,6 +307,9 @@ uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
 CPSS_DXCH_PORT_FEC_MODE_ENT FEC_MODE[PORT_ID_EAG6L_MAX];
 uint8_t SPEED[PORT_ID_EAG6L_MAX];
 #endif
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+int FEC_CFG[PORT_ID_EAG6L_MAX] = { 0, 1, 1, 1, 1, 1, 1, 1 };
+#endif
 #if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
 uint8_t eag6LLF[PORT_ID_EAG6L_MAX];
 uint8_t eag6LRF[PORT_ID_EAG6L_MAX];
@@ -1672,6 +1675,9 @@ uint8_t gCpssPortSetRate(int args, ...)
 			/* save fec mode & speed */
 			FEC_MODE[portno] = CPSS_PORT_RS_FEC_MODE_ENABLED_E;
 			SPEED[portno] = msg->speed;
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+			FEC_CFG[portno] = 1;
+#endif
 		}
 #else /*********************************************************/
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
@@ -2241,6 +2247,14 @@ uint8_t gCpssPortFECEnable(int args, ...)
 	dport = get_eag6L_dport(portno);
 	enable = msg->state;
 
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+	/* check if already set, then return without doing it again. */
+	if(enable == FEC_CFG[portno]) {
+		syslog(LOG_INFO, "%s (REQ): Already set. Skip.", __func__);
+		goto _gCpssPortFECEnable_exit; 
+	}
+#endif
+
 	/* set speed/mode */
 	switch(SPEED[portno]) {
 		case PORT_IF_10G_KR:
@@ -2340,8 +2354,17 @@ uint8_t gCpssPortFECEnable(int args, ...)
 			syslog(LOG_INFO, "cpssDxChSamplePortManagerFecModeSet: port[%d] enable[%d] ret[%d]", portno, enable, ret);
 		/* save fec mode & speed */
 		else
+#if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
+		{
 			FEC_MODE[portno] = enable ? 
 				CPSS_PORT_RS_FEC_MODE_ENABLED_E : CPSS_PORT_FEC_MODE_DISABLED_E;
+			FEC_CFG[portno] = enable;
+		}
+#else
+			FEC_MODE[portno] = enable ? 
+				CPSS_PORT_RS_FEC_MODE_ENABLED_E : CPSS_PORT_FEC_MODE_DISABLED_E;
+#endif
+		
 
 		ret = cpssDxChPortManagerStatusGet(0, dport, &pstage);
 		if(ret != GT_OK) {
