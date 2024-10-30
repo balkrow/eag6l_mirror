@@ -1861,6 +1861,107 @@ extern uint16_t swModeSet(uint16_t trans_mode);
 }
 #endif
 
+#if 1 /* [#174] Adding "show alarm" CLI for vtysh, dustin, 2024-10-29 */
+void convert_to_bit_string(uint16_t val, uint16_t mask, char *str)
+{
+	int bb;
+	char *pp = str;
+
+	if(str == NULL)
+		return;
+
+	val &= mask;
+	for(bb = 15; bb >= 0; bb--, pp++) {
+		if(~mask & (1 << bb))
+			*pp = 'x';
+		else if(val & (1 << bb))
+			*pp = 'o';
+		else
+			*pp = '.';
+	}
+zlog_notice("---> val[%x] mask[%x] result[%x] str[%s].", val, mask, (val&mask), str);//ZZPP
+	return;
+}
+
+static void print_alarm_info(struct vty *vty, int portno)
+{
+extern dco_status_t DCO_STAT;
+extern dco_count_t  DCO_COUNT;
+
+	port_status_t *ps = NULL;
+	dco_status_t *pdco = &DCO_STAT;
+	dco_count_t *pcnt = &DCO_COUNT;
+	uint16_t alm_sts, alm_flag, alm_mask; 
+	uint16_t lr4_sts, lr4_flag, lr4_mask;
+	char alm_str1[20], alm_str2[20], alm_str3[20];
+
+	vty_out(vty, "\n\tAlarm Information\n\n");
+	ps = &(PORT_STATUS[portno]);
+	alm_sts  = FPGA_PORT_READ(__PORT_ALM_ADDR[portno]);
+	alm_flag = FPGA_PORT_READ(__PORT_ALM_FLAG_ADDR[portno]);
+	alm_mask = FPGA_PORT_READ(__PORT_ALM_MASK_ADDR[portno]);
+
+	memset(alm_str1, 0, sizeof(alm_sts));
+	memset(alm_str2, 0, sizeof(alm_flag));
+	memset(alm_str3, 0, sizeof(alm_mask));
+	convert_to_bit_string(alm_sts,  0xF0FF, alm_str1);
+	convert_to_bit_string(alm_flag, 0xF0FF, alm_str2);
+	convert_to_bit_string(alm_mask, 0xF0FF, alm_str3);
+	vty_out(vty, "port[%d]\n" \ 
+		"        ALM Status : %04x : %s\n" \
+		"        ALM Flag   : %04x : %s\n" \
+		"        ALM Mask   : %04x : %s\n\n",
+		portno, alm_sts, alm_str1, alm_flag, alm_str2, alm_mask, alm_str3);
+	vty_out(vty, 
+		"        los[%d/%x] link[%d] lf[%d] rf[%d] esmc_loss[%d] " \
+		"tx_bias[%d/%x] tx_laser[%d] rtwdm_lp[%d] tsfp_selfloop[%d]\n\n",
+		ps->los, pdco->lr4_stat.rx_los_mask, ps->link, ps->local_fault,
+		ps->remote_fault, ps->esmc_loss, ps->tx_bias_sts, 
+		pdco->lr4_stat.tx_bias_mask, ps->tx_laser_sts, ps->rtwdm_lp, 
+		ps->tsfp_self_lp);
+
+	if(portno == PORT_ID_EAG6L_PORT7) {
+		lr4_sts  = FPGA_PORT_READ(QSFP28_LR4_ALM_ADDR);
+		lr4_flag = FPGA_PORT_READ(QSFP28_LR4_ALM_FLAG_ADDR);
+		lr4_mask = FPGA_PORT_READ(QSFP28_LR4_ALM_MASK_ADDR);
+		convert_to_bit_string(lr4_sts,  0xF0FF, alm_str1);
+		convert_to_bit_string(lr4_flag, 0xF0FF, alm_str2);
+		convert_to_bit_string(lr4_mask, 0xF0FF, alm_str3);
+		vty_out(vty, "port[%d]\n" \ 
+			"        LR4 Status : %04x : %s\n" \
+			"        LR4 Flag   : %04x : %s\n" \
+			"        LR4 Mask   : %04x : %s\n\n",
+			portno, lr4_sts, alm_str1, lr4_flag, alm_str2, lr4_mask, alm_str3);
+		vty_out(vty, "        tx_bias_mask[%x] rx_lol_mask[%x] rx_los_mask[%x]\n\n",
+			pdco->lr4_stat.tx_bias_mask, pdco->lr4_stat.rx_lol_mask,
+			pdco->lr4_stat.rx_los_mask);
+	}
+	return;
+}
+
+DEFUN (show_alarm,
+       show_alarm_cmd,
+       "show alarm (all | <1-7>)",
+       SHOW_STR
+       "alarm status\n"
+       "for all ports\n"
+       "for specified port\n")
+{
+	int portno;
+
+	if(! strncmp(argv[0], "all", strlen("all"))) {
+		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+			print_alarm_info(vty, portno);
+		}
+	} else {
+		portno = atoi(argv[0]);
+		print_alarm_info(vty, portno);
+	}
+
+    return CMD_SUCCESS;
+}
+#endif
+
 void
 sysmon_vty_init (void)
 {
@@ -1939,5 +2040,8 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &dco_tx_laser_set_cmd);
   install_element (ENABLE_NODE, &no_dco_tx_laser_set_cmd);
   install_element (ENABLE_NODE, &dco_chno_set_cmd);
+#endif
+#if 1 /* [#174] Adding "show alarm" CLI for vtysh, dustin, 2024-10-29 */
+  install_element (ENABLE_NODE, &show_alarm_cmd);
 #endif
 }
