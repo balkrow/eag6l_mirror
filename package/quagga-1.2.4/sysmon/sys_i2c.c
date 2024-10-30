@@ -5021,6 +5021,332 @@ uint16_t get_dco_ch_data(uint8_t chno)
 }
 #endif
 
+#if 1 /* [#175] 100G/25G sfp initial source revision, dustin, 2024-08-30 */
+void init_100G_sfp(uint8_t portno)
+{
+	unsigned int chann_mask;
+	int fd, type, mux_addr, ret;
+	unsigned char val;
+extern int thread_kill_flag;
+extern int dco_retry_cnt;
+	dco_status_t *pdco = &DCO_STAT;
+	uint16_t data, cfg_changed = 0;
+
+	if(! PORT_STATUS[portno].equip) {
+		zlog_notice("%s : No equip. terminating timer", __func__);
+		thread_kill_flag -= 1;
+		return;
+	}
+
+	/* check kill condition to avoid threading multiple timers. */
+	if(thread_kill_flag > 2) {
+		zlog_notice("%s : terminating timer", __func__);
+		thread_kill_flag -= 1;
+		return;
+	}
+
+	if(pdco->dco_initState == DCO_INIT_START) {
+		/* read sfp inventory. */
+		read_port_inventory(portno, &(INV_TBL[portno]));
+
+		/* init for 100G DCO sfp. FIXME: need OE spf. */
+		if(! memcmp(INV_TBL[portno].part_num, "FTLC3351R3PL1",
+					sizeof("FTLC3351R3PL1")))
+		{
+			PORT_STATUS[portno].sfp_dco = 1;
+			zlog_notice("%s : this is DCO.", __func__);//ZZPP
+		}
+		else {
+			zlog_notice("%s : this is LR4.", __func__);//ZZPP
+			portFECEnable(portno, 0/*auto-mode*/);
+			init_lr4_sfp();
+			thread_kill_flag -= 1;
+			return;
+		}
+
+		/* get private sfp identifier */
+		type = get_private_sfp_identifier(portno);
+		/* get wavelength register 2 */
+		data = FPGA_PORT_READ(__PORT_WL2_ADDR[portno]);
+
+		/* update wavelength register 2 */
+		data &= ~0x0F00;
+		data |= (type << 8);
+		FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], data);
+
+		PORT_STATUS[portno].sfp_type = type;
+
+		if(PORT_STATUS[portno].sfp_dco)
+			pdco->dco_initState = DCO_INIT_START2;
+		else
+			pdco->dco_initState = DCO_INIT_CONFIG;
+
+		if(PORT_STATUS[portno].sfp_dco && (! dco_reset_flag)) {
+			zlog_notice("%s : run i2c_dco_reset.", __func__);
+			set_i2c_dco_reset();
+			dco_reset_flag = 1;
+		}
+	}
+
+	/* if init done, return. */
+	if(pdco->dco_initState == DCO_INIT_DONE) {
+		zlog_notice("%s : return. no timer repeat.", __func__);
+		if(thread_kill_flag > 0)
+			thread_kill_flag -= 1;
+		return;
+	}
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __NEXT__;
+	}
+
+	/* set mux for 100g. */
+	mux_addr = I2C_MUX;
+	chann_mask = I2C_MUX_100G_MASK;
+    i2c_set_slave_addr(fd, mux_addr, 1);
+
+	/* set mux address for 100g. */
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] Setting mux failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+    i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	/* if config stage, then skip check flags. */
+	if(pdco->dco_initState == DCO_INIT_CONFIG) {
+		zlog_notice("%s : goto config stage.", __func__);
+		goto __INIT_CONFIG__;
+	}
+
+	/* get page 00h byte 6 for TCReadyFlag/InitComplete */
+	if((ret = i2c_smbus_read_byte_data(fd, 6/*0x6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TCReady/InitComplete failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+	/* update flag for TCReady/InitComplete. */
+	if(! pdco->dco_TCReadyFlag) {
+		if(ret & DCO_BIT_TC_READY) {
+			pdco->dco_TCReadyFlag = 1;
+			zlog_notice("%s : TCReadyFlag ok.", __func__);
+		}
+	}
+	if(! pdco->dco_InitComplete) {
+		if(ret & DCO_BIT_INIT_COMPLETE) {
+			zlog_notice("%s : InitComplete ok.", __func__);
+			pdco->dco_InitComplete = 1;
+		}
+	}
+
+	/* check TCReadyFlag/InitComplete. repeat timer until both flags set. */
+	if((! pdco->dco_TCReadyFlag) || (! pdco->dco_InitComplete)) {
+		zlog_notice("%s : flags not ok. tcready[%d] initComplete[%d].", __func__, pdco->dco_TCReadyFlag, pdco->dco_InitComplete);
+		/* assume sfp is already in TCReady/InitComplete state and proceed. */
+		if(dco_retry_cnt++ >= 22) {
+			pdco->dco_TCReadyFlag = 1;
+			pdco->dco_InitComplete = 1;
+			goto __GOGO__;
+		}
+
+		goto __NEXT__;
+	}
+
+__GOGO__:
+
+	/* if 2nd check is ok, then byebye~! no more timer reapeat. */
+	if(pdco->dco_initState == DCO_INIT_CHECK_COMPLETE2) {
+		update_port_sfp_inventory(0/*update-no-rtwdm*/);
+
+		close(fd);
+		pdco->dco_initState = DCO_INIT_DONE;
+		PORT_STATUS[portno].i2cReady = 1;
+		zlog_notice("%s : 2nd check is ok, then byebye~!", __func__);
+		if(thread_kill_flag > 0)
+			thread_kill_flag -= 1;
+		return;
+	}
+
+	/* goto config stage. */
+	pdco->dco_initState = DCO_INIT_CONFIG;
+
+__INIT_CONFIG__:
+	zlog_notice("%s : config stage.", __func__);
+	if(! PORT_STATUS[portno].equip) {
+		zlog_notice("%s : No equip. terminating timer", __func__);
+		thread_kill_flag -= 1;
+		close(fd);
+		return;
+	}
+
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x3/*page-3*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* get fec byte. */
+	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+	val = ret;
+
+	/* set host fec. */
+	if(PORT_STATUS[portno].cfg_dco_fec)
+		val |= 0x80;
+	else
+		val &= ~0x80;
+	zlog_notice("%s : host fec [0x%x].", __func__, val);
+
+	/* NOTE : force change, requested by balkrwo. */
+	/* set fec byte. */
+	if((ret = i2c_smbus_write_byte_data(fd, 230/*0xE6*/, val)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] host side fec failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+	cfg_changed = 1;
+
+    /* select page */
+    if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-12h*/)) < 0) {
+        zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+            __func__, portno, get_eag6L_dport(portno));
+        goto __NEXT__;
+    }
+
+	/* read channel grid. */
+	if((ret = i2c_smbus_read_byte_data(fd, 128/*0x80*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] ch. grid failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+        goto __NEXT__;
+	}
+
+	if(ret != 0x40/*50G-spacing*/) {
+		/* write channel grid. */
+		if((ret = i2c_smbus_write_byte_data(fd, 128/*0x80*/, 0x40/*50G-spacing*/)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] ch. grid failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+        	goto __NEXT__;
+		}
+		cfg_changed = 1;
+	}
+
+    /* read chno msb. */
+    if((ret = i2c_smbus_read_byte_data(fd, 136/*0x88*/)) < 0) {
+        zlog_notice("%s : Reading port[%d(0/%d)] channel no. msb failed. ret[%d].",
+            __func__, portno, get_eag6L_dport(portno), ret);
+        goto __NEXT__;
+    }
+    data = (ret << 8);
+
+    /* read chno lsb. */
+    if((ret = i2c_smbus_read_byte_data(fd, 137/*0x89*/)) < 0) {
+        zlog_notice("%s : Reading port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+            __func__, portno, get_eag6L_dport(portno), ret);
+        goto __NEXT__;
+    }
+    data |= (ret & 0xFF);
+	zlog_notice("%s : read channel data[0x%04x].", __func__, data);
+
+	/* set channel number, if different. */
+	if(PORT_STATUS[portno].tunable_chno && 
+	  (PORT_STATUS[portno].cfg_ch_data != data)) {
+		data = PORT_STATUS[portno].cfg_ch_data;
+		zlog_notice("%s : config channel chno[%d] data[0x%x].", __func__, PORT_STATUS[portno].tunable_chno, data);
+		if((data == 0x0) && PORT_STATUS[portno].tunable_chno) {
+			data = get_dco_ch_data(PORT_STATUS[portno].tunable_chno);
+			zlog_notice("%s : updated ch_data[0x%x].", __func__, data);
+		}
+
+		/* write chno msb. */
+		if((ret = i2c_smbus_write_byte_data(fd, 136/*0x88*/, (data >> 8) & 0xFF)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] channel no. msb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __NEXT__;
+		}
+
+		/* write chno lsb. */
+		if((ret = i2c_smbus_write_byte_data(fd, 137/*0x89*/, data & 0xFF)) < 0) {
+			zlog_notice("%s : Writing port[%d(0/%d)] channel no. lsb failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __NEXT__;
+		}
+		cfg_changed = 1;
+	}
+
+__SKIP_CHNO__:
+	/* NOTE : no need to back to page 0, if accessing low page. */
+
+	/* read txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+	if((ret = i2c_smbus_read_byte_data(fd, 86/*0x56*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] TxDisable failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __NEXT__;
+	}
+
+	val = ret;
+	val &= ~0xF;
+	if(! PORT_STATUS[portno].cfg_tx_laser) {
+		val |= 0xF/*tx-disable-4-lanes*/;
+		zlog_notice("%s : config tx laser off.", __func__);
+	}
+
+	if(val != ret) {
+		/* update txDisable control byte, page 00h, byte 86(0x56), bit 0-3. */
+		if((ret = i2c_smbus_write_byte_data(fd, 86/*0x56*/, val)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] txDisable failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __NEXT__;
+		}
+		cfg_changed = 1;
+	}
+
+	/* set low power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x3)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] low power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* set to high power mode */
+	if((ret = i2c_smbus_write_byte_data(fd, 93/*0x5D*/, 0x8/*high-power-mode*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] high power mode failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* goto 2nd check for TCReadyFlag/InitComplete. */
+	pdco->dco_initState = DCO_INIT_CHECK_COMPLETE2;
+	/* clear for next update. */
+	pdco->dco_TCReadyFlag = pdco->dco_InitComplete = 0;
+	zlog_notice("%s : config done. goto 2nd check.", __func__);
+
+__NEXT__:
+	if(PORT_STATUS[portno].sfp_dco) {
+		if(fec_100g_state == 0)
+		{
+			portFECEnable(portno, PORT_STATUS[portno].cfg_rs_fec);
+			fec_100g_state = 1;
+		}
+	}
+
+	close(fd);
+	/* add timer for next process. */
+	thread_add_timer(master, init_100G_sfp, NULL, 1);
+
+    return;
+}
+#endif
+
 void init_100g_sfp(struct thread *thread)
 {
 	unsigned int chann_mask;
