@@ -889,6 +889,73 @@ zlog_notice("P7 setLLCFenable set to [%d].", enable);//ZZPP
 }
 #endif
 
+#if 1 /* [#175] 100G/25G sfp initial source revision, dustin, 2024-08-30 */
+void port_scan_10G_25G(uint8_t port)
+{
+extern ePrivateSfpId get_private_sfp_identifier(int portno);
+
+	uint8_t type;
+	uint16_t data;
+
+	/* NOTE : let pass through to 25G ports. */
+	zlog_notice("%s : init 25G start~ for port[%d].", __func__, port);
+
+	read_port_inventory(port, &(INV_TBL[port]));
+
+	/* get private sfp identifier */
+	type = get_private_sfp_identifier(port);
+	/* get wavelength register 2 */
+	data = FPGA_PORT_READ(__PORT_WL2_ADDR[port]);
+
+	/* update wavelength register 2 */
+	data &= ~0x0F00;
+	data |= (type << 8);
+	FPGA_PORT_WRITE(__PORT_WL2_ADDR[port], data);
+
+	PORT_STATUS[port].sfp_type = type;
+	PORT_STATUS[port].equip = 1;/*installed*/
+
+	/* set port fec as configured. */
+	data = FPGA_PORT_READ(__PORT_RS_FEC_ADDR[port]);
+	portFECEnable(port, data);
+
+	if(PORT_STATUS[port].tunable_sfp) {
+		/* get inventory */
+		if(PORT_STATUS[port].tunable_sfp) {
+			read_port_rtwdm_inventory(port, &(RTWDM_INV_TBL[port]));
+		}
+
+		/* set flex tune if configured */
+		if(PORT_STATUS[port].cfg_flex_tune)
+			set_flex_tune_control(port, 1/*enable*/);
+		else
+			set_flex_tune_control(port, 0/*disable*/);
+
+		/* set smart t-sfp self loopback if configured. */
+		if(PORT_STATUS[port].cfg_smart_tsfp_selfloopback)
+			set_smart_tsfp_self_loopback(port, 1/*enable*/);
+		else
+			set_smart_tsfp_self_loopback(port, 0/*disable*/);
+
+		/* set rtwdm loopback if configured. */
+		if(PORT_STATUS[port].cfg_rtwdm_loopback)
+			set_rtwdm_loopback(port, 1/*enable*/);
+		else
+			set_rtwdm_loopback(port, 0/*disable*/);
+
+		if(PORT_STATUS[port].tunable_chno)
+			set_tunable_sfp_channel_no(port, PORT_STATUS[port].tunable_chno);
+	}
+
+	thread_add_timer(master, pm_clear_fec_counters, port, 2);
+
+	update_port_sfp_inventory(0/*update-no-rtwdm*/);
+	PORT_STATUS[port].i2cReady = 1;
+
+	return;
+}
+#endif
+
 #if 1 /* [#107] Fixing for 2nd register updates, dustin, 2024-08-29 */
 /* NOTE : this function is called once sfp is installed. */
 void port_scan_sfp(struct thread *thread)
