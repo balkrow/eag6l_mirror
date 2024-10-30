@@ -5248,6 +5248,22 @@ __INIT_CONFIG__:
 		goto __NEXT__;
 	}
 
+#if 1 /* [#179] Fixing for stable DCO link status, dustin, 2024-10-30 */
+	/* set rx output emphasis control. requested by LimHoon. */
+	if((ret = i2c_smbus_write_byte_data(fd, 236/*0xEC*/, 0x0)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] rx output emphasis failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* set rx output emphasis control. requested by LimHoon. */
+	if((ret = i2c_smbus_write_byte_data(fd, 237/*0xED*/, 0x0)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] rx output emphasis failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+#endif
+
 	/* get fec byte. */
 	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] host side fec failed. ret[%d].",
