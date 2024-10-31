@@ -470,6 +470,10 @@ static void print_sfp_inventory_info(struct vty *vty, int portno)
 
 static void print_sfp_ddm(struct vty *vty, int portno)
 {
+#if 1 /* [#182] Fixing for showing LR4 rx/tx power in vtysh, dustin, 2024-11-01 */
+extern dco_status_t DCO_STAT;
+	dco_status_t *pdco = &DCO_STAT;
+#endif
 	port_status_t * ps = NULL;
 
 	ps = &(PORT_STATUS[portno]);
@@ -481,6 +485,26 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 #endif
 
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
+#if 1 /* [#182] Fixing for showing LR4 rx/tx power in vtysh, dustin, 2024-11-01 */
+	vty_out(vty, "[%d] vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f] rx_Los[%d]\n",
+		portno,
+		ps->vcc,
+		ps->temp,
+		ps->tx_bias,
+		ps->laser_temp,
+		ps->tec_curr,
+		((portno == PORT_ID_EAG6L_PORT7) && (! ps->sfp_dco)) ? 
+			((pdco->lr4_stat.tx_pwr[0] + pdco->lr4_stat.tx_pwr[1] +
+			  pdco->lr4_stat.tx_pwr[2] + pdco->lr4_stat.tx_pwr[3]) / 4) + 
+				(10 * log10(4)) :
+			ps->tx_pwr,
+		((portno == PORT_ID_EAG6L_PORT7) && (! ps->sfp_dco)) ? 
+			((pdco->lr4_stat.rx_pwr[0] + pdco->lr4_stat.rx_pwr[1] +
+			  pdco->lr4_stat.rx_pwr[2] + pdco->lr4_stat.rx_pwr[3]) / 4) + 
+				(10 * log10(4)) :
+			ps->rx_pwr,
+		ps->los);
+#else /**************************************************************************/
 	vty_out(vty, "[%d] vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f] rx_Los[%d]\n",
 		portno,
 		ps->vcc,
@@ -491,6 +515,7 @@ static void print_sfp_ddm(struct vty *vty, int portno)
 		ps->tx_pwr,
 		ps->rx_pwr,
 		ps->los);
+#endif /* [#182] */
 #else
 	vty_out(vty, "[%d] vcc[%6.2f] temp[%4.1f] tx_bias[%6.2f] laser[%6.2f] tec_curr[%6.2f] tx_pwr[%6.2f] rx_pwr[%6.2f]\n",
 		portno,
