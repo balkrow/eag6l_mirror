@@ -1904,8 +1904,8 @@ extern dco_count_t  DCO_COUNT;
 	memset(alm_str2, 0, sizeof(alm_str2));
 	memset(alm_str3, 0, sizeof(alm_str3));
 	convert_to_bit_string(alm_sts,  0x0F0F, alm_str1);
-	convert_to_bit_string(alm_flag, 0x0F0F, alm_str2);
-	convert_to_bit_string(alm_mask, 0x0F0F, alm_str3);
+	convert_to_bit_string(alm_flag, 0x010F, alm_str2);
+	convert_to_bit_string(alm_mask, 0x810F, alm_str3);
 	vty_out(vty, "port[%d]                     7654321076543210\n" \ 
 		"        ALM Status : %04x : %s\n" \
 		"        ALM Flag   : %04x : %s\n" \
