@@ -1903,9 +1903,9 @@ extern dco_count_t  DCO_COUNT;
 	memset(alm_str1, 0, sizeof(alm_str1));
 	memset(alm_str2, 0, sizeof(alm_str2));
 	memset(alm_str3, 0, sizeof(alm_str3));
-	convert_to_bit_string(alm_sts,  0xF0FF, alm_str1);
-	convert_to_bit_string(alm_flag, 0xF0FF, alm_str2);
-	convert_to_bit_string(alm_mask, 0xF0FF, alm_str3);
+	convert_to_bit_string(alm_sts,  0x0F0F, alm_str1);
+	convert_to_bit_string(alm_flag, 0x0F0F, alm_str2);
+	convert_to_bit_string(alm_mask, 0x0F0F, alm_str3);
 	vty_out(vty, "port[%d]                     7654321076543210\n" \ 
 		"        ALM Status : %04x : %s\n" \
 		"        ALM Flag   : %04x : %s\n" \
@@ -1923,9 +1923,9 @@ extern dco_count_t  DCO_COUNT;
 		lr4_sts  = FPGA_PORT_READ(QSFP28_LR4_ALM_ADDR);
 		lr4_flag = FPGA_PORT_READ(QSFP28_LR4_ALM_FLAG_ADDR);
 		lr4_mask = FPGA_PORT_READ(QSFP28_LR4_ALM_MASK_ADDR);
-		convert_to_bit_string(lr4_sts,  0xF0FF, alm_str1);
-		convert_to_bit_string(lr4_flag, 0xF0FF, alm_str2);
-		convert_to_bit_string(lr4_mask, 0xF0FF, alm_str3);
+		convert_to_bit_string(lr4_sts,  0x0FFF, alm_str1);
+		convert_to_bit_string(lr4_flag, 0x0FFF, alm_str2);
+		convert_to_bit_string(lr4_mask, 0x0FFF, alm_str3);
 		vty_out(vty, "port[%d]                     7654321076543210\n" \ 
 			"        LR4 Status : %04x : %s\n" \
 			"        LR4 Flag   : %04x : %s\n" \
