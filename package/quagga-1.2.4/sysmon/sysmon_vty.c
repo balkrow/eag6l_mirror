@@ -1879,7 +1879,6 @@ void convert_to_bit_string(uint16_t val, uint16_t mask, char *str)
 		else
 			*pp = '.';
 	}
-zlog_notice("---> val[%x] mask[%x] result[%x] str[%s].", val, mask, (val&mask), str);//ZZPP
 	return;
 }
 
@@ -1901,13 +1900,13 @@ extern dco_count_t  DCO_COUNT;
 	alm_flag = FPGA_PORT_READ(__PORT_ALM_FLAG_ADDR[portno]);
 	alm_mask = FPGA_PORT_READ(__PORT_ALM_MASK_ADDR[portno]);
 
-	memset(alm_str1, 0, sizeof(alm_sts));
-	memset(alm_str2, 0, sizeof(alm_flag));
-	memset(alm_str3, 0, sizeof(alm_mask));
+	memset(alm_str1, 0, sizeof(alm_str1));
+	memset(alm_str2, 0, sizeof(alm_str2));
+	memset(alm_str3, 0, sizeof(alm_str3));
 	convert_to_bit_string(alm_sts,  0xF0FF, alm_str1);
 	convert_to_bit_string(alm_flag, 0xF0FF, alm_str2);
 	convert_to_bit_string(alm_mask, 0xF0FF, alm_str3);
-	vty_out(vty, "port[%d]\n" \ 
+	vty_out(vty, "port[%d]                     7654321076543210\n" \ 
 		"        ALM Status : %04x : %s\n" \
 		"        ALM Flag   : %04x : %s\n" \
 		"        ALM Mask   : %04x : %s\n\n",
@@ -1927,7 +1926,7 @@ extern dco_count_t  DCO_COUNT;
 		convert_to_bit_string(lr4_sts,  0xF0FF, alm_str1);
 		convert_to_bit_string(lr4_flag, 0xF0FF, alm_str2);
 		convert_to_bit_string(lr4_mask, 0xF0FF, alm_str3);
-		vty_out(vty, "port[%d]\n" \ 
+		vty_out(vty, "port[%d]                     7654321076543210\n" \ 
 			"        LR4 Status : %04x : %s\n" \
 			"        LR4 Flag   : %04x : %s\n" \
 			"        LR4 Mask   : %04x : %s\n\n",
