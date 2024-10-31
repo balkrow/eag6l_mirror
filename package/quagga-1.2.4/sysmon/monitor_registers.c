@@ -4323,7 +4323,11 @@ extern int update_flex_tune_status(int portno);
 						: 0x8999); 
 				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER2_ADDR,
 					PORT_STATUS[portno].equip ? 
+#if 1 /* [#182] Fixing for showing LR4 rx/tx power in vtysh, dustin, 2024-11-01 */
+					convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tx_pwr[1], 1/*dbm*/, 1/*tx*/)
+#else
 					convert_dbm_float_to_decimal(DCO_STAT.lr4_stat.tx_pwr[0], 1/*dbm*/, 1/*tx*/)
+#endif
 						: 0x8999); 
 				FPGA_PORT_WRITE(QSFP28_LR4_TX_POWER3_ADDR,
 					PORT_STATUS[portno].equip ? 
