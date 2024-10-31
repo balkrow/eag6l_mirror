@@ -1098,6 +1098,14 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			memset(&(RTWDM_INV_TBL[port]), 0, sizeof(struct module_inventory));
 			memset(&(PORT_STATUS[port]), 0, sizeof(port_status_t));
 #endif
+#if 1 /* [#176] Fixing for wrong detect DCO for LR4 SFP, dustin, 2024-10-30 */
+			/* NOTE : if no cleard, could cause incorrect sfp type matching. */
+			{
+				extern void clear_sfp_read_buffer(void);
+
+				clear_sfp_read_buffer();
+			}
+#endif
 #if 1 /* [#153] Fixing for updating flex tune, dustin, 2024-10-17 */
 			/* restore config values. */
 			PORT_STATUS[port].cfg_esmc_enable = cfg_esmc_enable;

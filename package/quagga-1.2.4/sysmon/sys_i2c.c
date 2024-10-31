@@ -263,6 +263,15 @@ typedef struct _slot_sfp_info_t           /* Maybe used to get SFP information i
 
 static struct _slot_sfp_info_t slot_sfp_info;
 
+#if 1 /* [#176] Fixing for wrong detect DCO for LR4 SFP, dustin, 2024-10-30 */
+	/* NOTE : if no cleard, could cause incorrect sfp type matching. */
+void clear_sfp_read_buffer(void)
+{
+	memset(&slot_sfp_info, 0, sizeof(struct _slot_sfp_info_t));
+	return;
+}
+#endif
+
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 static const uint32_t wave_info[] =
