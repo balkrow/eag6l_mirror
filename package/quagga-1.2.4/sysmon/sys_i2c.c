@@ -5063,7 +5063,25 @@ extern int dco_retry_cnt;
 		else {
 			zlog_notice("%s : this is LR4.", __func__);//ZZPP
 			portFECEnable(portno, 0/*auto-mode*/);
+
+#if 1 /* [#178] Fixing for correct process for LR4, dustin, 2024-10-30 */
+			/* get private sfp identifier */
+			type = get_private_sfp_identifier(portno);
+			/* get wavelength register 2 */
+			data = FPGA_PORT_READ(__PORT_WL2_ADDR[portno]);
+
+			/* update wavelength register 2 */
+			data &= ~0x0F00;
+			data |= (type << 8);
+			FPGA_PORT_WRITE(__PORT_WL2_ADDR[portno], data);
+
+			PORT_STATUS[portno].sfp_type = type;
+#endif
+
 			init_lr4_sfp();
+#if 1 /* [#178] Fixing for correct process for LR4, dustin, 2024-10-30 */
+			PORT_STATUS[portno].i2cReady = 1;
+#endif
 			thread_kill_flag -= 1;
 			return;
 		}
