@@ -182,6 +182,14 @@ typedef struct rsmu_get_sts
 } RSMU_PLL_STATE;
 #endif
 
+#if 1/*[177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-30*/
+typedef struct rsmu_get_idx
+{
+	uint8_t dpll;
+	uint8_t idx;
+} RSMU_PLL_CLK_IDX;
+#endif
+
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #define RDL_VER_STR_MAX             16/* or 2? */
 #define RDL_FILE_NAME_MAX           32
@@ -572,6 +580,9 @@ typedef struct port_status
 	u32 esmc_prev_cnt;
 	u32 received_QL;
 	u32 loc_cnt;
+#endif
+#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
+	u32 recv_dnu;
 #endif
    } port_status_t;
 

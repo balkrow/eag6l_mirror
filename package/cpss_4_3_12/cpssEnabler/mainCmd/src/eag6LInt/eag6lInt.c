@@ -887,7 +887,13 @@ GT_VOID processPortEvt
 				syslog(LOG_INFO, "loca fault : get failed for port %s, ret[%d].",
 					port_str, rc);
 			else
+			{
+#ifdef DEBUG
+				syslog(LOG_INFO, "local fault : port %s, ret[%d].",
+					port_str, lf_st);
+#endif
 				eag6LLF[portno] = lf_st;
+			}
 
 			/* get remote fault */
 			rc = cpssDxChPortXgmiiRemoteFaultGet(devNum, evExtData, &rf_st);
@@ -895,7 +901,13 @@ GT_VOID processPortEvt
 				syslog(LOG_INFO, "loca fault : get failed for port %s, ret[%d].",
 					port_str, rc);
 			else
+			{
+#ifdef DEBUG
+				syslog(LOG_INFO, "remote fault : port %s, ret[%d].",
+					port_str, rf_st);
+#endif
 				eag6LRF[portno] = rf_st;
+			}
 		}
 #else
 		if(portConfigOutParams.portState == CPSS_PORT_MANAGER_STATE_LINK_UP_E)
@@ -1014,8 +1026,11 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 
 	/* set Mac for traffic mirrored to CPU*/
 	memset(&macEntry, 0, sizeof(CPSS_MAC_ENTRY_EXT_STC));
-
+#if 0
+	macEntry.daCommand = CPSS_PACKET_CMD_TRAP_TO_CPU_E;
+#else
 	macEntry.daCommand = CPSS_MAC_TABLE_MIRROR_TO_CPU_E;
+#endif
 	macEntry.isStatic = GT_TRUE;
 
 	macEntry.key.key.macVlan.macAddr.arEther[0] = 0x01;
@@ -1236,17 +1251,18 @@ uint8_t gCpssSynceIfconf(int args, ...)
 	if(!ret)
 	{
 		msg->result = FIFO_CMD_SUCCESS;
-		if(clock_src == PRI_SRC)
-		{
-			gSyncePriInf = portNum; 
-		}
-		else 
-		{ 
-			gSynceSecInf = portNum;
-		}
 	}
 	else
 		msg->result = FIFO_CMD_FAIL;
+
+	if(clock_src == PRI_SRC)
+	{
+		gSyncePriInf = portNum; 
+	}
+	else 
+	{ 
+		gSynceSecInf = portNum;
+	}
 
 	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
@@ -1294,6 +1310,12 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, gSyncePriInf, ret);
 		}
 
+		if(portNum == 0xff)
+		{
+			msg->result = FIFO_CMD_SUCCESS;
+			goto success_return;
+		}
+
 #if 0/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
 		if(gSynceSecInf != 0xff && gSynceSecInf == portNum)
 		{
@@ -1325,6 +1347,12 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 #endif
 			syslog(LOG_NOTICE, "%s : clear clock src %x portNum %x, ret=%x", __func__, 
 			       CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, gSynceSecInf, ret);
+		}
+
+		if(portNum == 0xff)
+		{
+			msg->result = FIFO_CMD_SUCCESS;
+			goto success_return;
 		}
 
 #if 0/*[#127] SYNCE current interface <BF><BF>, balkrow, 2024-09-12*/
@@ -1365,23 +1393,24 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	{
 		msg->result = FIFO_CMD_SUCCESS;
 #if 1/*[#73] SDK 내에서 CPU trap 된 packet 처리 로직 추가, balkrow, 2024-07-18*/
-		if(clock_src == PRI_SRC)
-		{
-			gSyncePriInf = portNum; 
-			msg->portid = portNum;
-			msg->portid2= 0xff;
-		}
-		else 
-		{ 
-			gSynceSecInf = portNum;
-			msg->portid = 0xff;
-			msg->portid2 = portNum;
-		}
 #endif
 	}
 	else
 		msg->result = FIFO_CMD_FAIL;
 
+	if(clock_src == PRI_SRC)
+	{
+		gSyncePriInf = portNum; 
+		msg->portid = portNum;
+		msg->portid2= 0xff;
+	}
+	else 
+	{ 
+		gSynceSecInf = portNum;
+		msg->portid = 0xff;
+		msg->portid2 = portNum;
+	}
+success_return:
 	send_to_sysmon_master(msg);
 	return IPC_CMD_SUCCESS;
 fail_return :

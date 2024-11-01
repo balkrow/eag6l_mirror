@@ -64,6 +64,24 @@ int8_t rsmuGetPLLState(void)
 	return get.state;
 }
 
+#if 1/*[177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-30*/
+int8_t rsmuGetClockIdx(void) 
+{
+	RSMU_PLL_CLK_IDX get;
+
+	memset(&get, 0, sizeof(get));
+	get.dpll = RSMU_PLL_IDX;
+
+	if(ioctl(g_rsmu_fd, RSMU_GET_CURRENT_CLOCK_INDEX, &get))
+	{
+		zlog_err("%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+		return RT_NOK;
+	}
+	zlog_notice("pll idx %x:%x", get.dpll, get.idx);
+	return get.idx;
+}
+#endif
+
 int8_t hdriv_init(void)
 {
 		
