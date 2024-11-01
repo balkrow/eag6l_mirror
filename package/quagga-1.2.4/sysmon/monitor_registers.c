@@ -440,7 +440,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 
 		if(port == getMPortByCport(gDB.synce_pri_port))  
 		{
-#if 1
+#if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
 			int sec_port;
 			sec_port = getMPortByCport(gDB.synce_sec_port);
 			zlog_notice("port %x ESMC enable", port);
@@ -449,7 +449,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			PORT_STATUS[port].esmc_recv_cnt = 0;
 			PORT_STATUS[port].esmc_prev_cnt = 0;
 			PORT_STATUS[port].received_QL = 0;
-
+#if 0
 			if(sec_port != NOT_DEFINED)
 			{
 
@@ -459,6 +459,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 				PORT_STATUS[sec_port].esmc_prev_cnt = 0;
 				PORT_STATUS[sec_port].received_QL = 0;
 			}
+#endif
 #else
 			int16_t sec_port = getMPortByCport(gDB.synce_sec_port);
 			zlog_notice("port %x ESMC enable", port);
@@ -482,12 +483,12 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 		{
 			int16_t pri_port = getMPortByCport(gDB.synce_pri_port);
 			zlog_notice("port %x ESMC enable", port);
-#if 1
+#if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
 			gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
 			PORT_STATUS[port].esmc_recv_cnt = 0;
 			PORT_STATUS[port].esmc_prev_cnt = 0;
 			PORT_STATUS[port].received_QL = 0;
-
+#if 0
 			if(pri_port != NOT_DEFINED)
 			{
 				zlog_notice("port %x reconfigure", pri_port);
@@ -496,6 +497,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 				PORT_STATUS[pri_port].esmc_prev_cnt = 0;
 				PORT_STATUS[pri_port].received_QL = 0;
 			}
+#endif
 #else
 			if(gDB.esmcRxCfg[port - 1] != CFG_ENABLE) 
 			{
@@ -522,7 +524,39 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 
 		zlog_notice("port %x ESMC disable", port);
 		gDB.esmcRxCfg[port - 1] = CFG_DISABLE;
+		PORT_STATUS[port].esmc_recv_cnt = 0;
+		PORT_STATUS[port].esmc_prev_cnt = 0;
+		PORT_STATUS[port].esmc_loss = 0;
+		PORT_STATUS[port].received_QL = 0;
 
+		if(gDB.pll_state == PLL_LOCK)
+		{
+			if(gDB.synce_oper_port == pri_port)
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 1);
+			else if(gDB.synce_oper_port == sec_port)
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 1);
+
+		}
+		else
+		{
+			if(pri_port == port)
+				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 1);
+			else if(sec_port == port)
+				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 1);
+		}
+
+#if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
+		if(port == pri_port) {
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0); 
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0); 
+		} else if(port == sec_port) {
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
+		}
+
+#endif
+
+#if 0/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
 		if(pri_port != NOT_DEFINED && gDB.esmcRxCfg[pri_port - 1] != CFG_ENABLE) 
 		{
 			if(sec_port != NOT_DEFINED  && gDB.esmcRxCfg[sec_port - 1] != CFG_ENABLE)
@@ -573,6 +607,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0);
 #endif
 		}
+#endif
 
 	}
 	rc = gSysmonToCpssFuncs[gPortESMCenable](2, port, val);
@@ -729,17 +764,16 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 			break;
 	}
 
-#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
-	if(port != 0xff)
+#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
+	rc = gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
+	if(port = NOT_DEFINED)
 	{
-		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
-#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
+		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0); 
+		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0);
+	}
+	else
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL);
 #endif
-	}
-#endif
-	else
-		rc = RT_NOK;
 
 	return rc;
 }
@@ -800,18 +834,15 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 			break;
 	}
 
-#if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
-	if(port != 0xff)
+#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
+	rc = gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
+	if(port = NOT_DEFINED)
 	{
-		zlog_notice("%s:%d", __func__, __LINE__);
-		rc = gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
-#if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
-		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
-#endif
+		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
+		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
 	}
-#endif
 	else
-		rc = RT_NOK;
+#endif
 
 	return rc;
 }
@@ -2219,20 +2250,48 @@ int8_t rsmu_pll_update(void)
 #if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
 		if(gDB.pll_state == PLL_LOCK)
 		{	
+#if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-30*/
+			int8_t clk_idx = 0;
+			int8_t pri_port = getMPortByCport(gDB.synce_pri_port);
+			int8_t sec_port = getMPortByCport(gDB.synce_sec_port);
+
+			clk_idx = rsmuGetClockIdx(); 
+
+			if(clk_idx == 0)
+				gDB.synce_oper_port = pri_port;
+			else
+				gDB.synce_oper_port = sec_port;
+
+			zlog_notice("state  %x, oper_port %x clk_idx %x", gDB.pll_state, gDB.synce_oper_port, clk_idx);
+#endif
+
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
-			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL); 
-			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
-
+#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
+			if(!PORT_STATUS[pri_port].recv_dnu && !PORT_STATUS[pri_port].esmc_loss)
+				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+			if(!PORT_STATUS[sec_port].recv_dnu && !PORT_STATUS[sec_port].esmc_loss)
+				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#endif
 #endif
 		}
-#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
-		if(gDB.pll_state == HOLD_OVER)
+#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
+		else if(gDB.pll_state == HOLD_OVER)
 		{
+#if 0
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL); 
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
+#endif
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
+		}
+		else
+		{
+#if 0
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL); 
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
+#endif
+			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
 		}
 #endif
 
@@ -3963,19 +4022,35 @@ void process_alarm_info(void)
 #endif
 
 		/* update link down (Local Fault?) */
-#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
-#if 1 /* [#148] Fixing for Link UP condition, dustin, 2024-10-14 */
+#if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-31 */
 		if((! (PORT_STATUS[portno].link && (! PORT_STATUS[portno].los))) || 
 			   PORT_STATUS[portno].local_fault)
-#else
-		if(! PORT_STATUS[portno].link || PORT_STATUS[portno].local_fault)
-#endif /* [#148] */
-#else
-		if(! PORT_STATUS[portno].link)
-#endif
+		{
+
+			if(getMPortByCport(gDB.synce_pri_port) == portno && 
+			   gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 1;
+			}
+			else if(getMPortByCport(gDB.synce_sec_port) == portno && 
+			   gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 1;
+			}
+
 			val |= (1 << 1);
+		}
 		else
+		{
+			if(getMPortByCport(gDB.synce_pri_port) == portno && 
+			   gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 0;
+			}
+			else if(getMPortByCport(gDB.synce_sec_port) == portno && 
+			   gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 0;
+			}
 			val &= ~(1 << 1);
+		}
+#endif
 
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 		/*FIXME : update LOC (ESMC Loss) */
