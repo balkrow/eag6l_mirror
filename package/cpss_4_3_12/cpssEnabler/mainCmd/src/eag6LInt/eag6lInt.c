@@ -1026,8 +1026,8 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 
 	/* set Mac for traffic mirrored to CPU*/
 	memset(&macEntry, 0, sizeof(CPSS_MAC_ENTRY_EXT_STC));
-#if 0
-	macEntry.daCommand = CPSS_PACKET_CMD_TRAP_TO_CPU_E;
+#if 1 /*[#183] ESMC packet forwarding 수정, balkrow, 2024-11-04*/
+	macEntry.daCommand = CPSS_MAC_TABLE_CNTL_E;
 #else
 	macEntry.daCommand = CPSS_MAC_TABLE_MIRROR_TO_CPU_E;
 #endif
@@ -1087,6 +1087,7 @@ uint8_t gCpssEsmcToCPUUnSet(void)
 	macEntry.key.macVlan.vlanId = 1;
 
 	rc = cpssDxChBrgFdbMacEntryDelete(devNum, &macEntry);
+	syslog(LOG_NOTICE, "%s: unset cpu trap function ret %x", __func__, rc);
 	return rc;
 }
 #endif
@@ -1119,7 +1120,7 @@ uint8_t gCpssSynceEnable(int args, ...)
 		ret +=	gCpssEsmcToCPUSet(eag6LPortlist[i]);
 #endif
 	}
-#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-08*/
+#if 0 /*[#183] ESMC packet forwarding 수정, balkrow, 2024-11-04*/
 	ret +=	gCpssEsmcToCPUSet(eag6LPortlist[0]);
 #endif
 
@@ -1158,7 +1159,7 @@ uint8_t gCpssSynceDisable(int args, ...)
 			CPSS_PORT_REF_CLOCK_SOURCE_SECONDARY_E);
 	}
 
-#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
+#if 0 /*[#183] ESMC packet forwarding 수정, balkrow, 2024-11-04*/
 	gCpssEsmcToCPUUnSet();
 #endif
 
@@ -1795,10 +1796,23 @@ uint8_t gCpssPortESMCenable(int args, ...)
 		return IPC_CMD_FAIL;
 	}
 
+#if 1 /*[#183] ESMC packet forwarding 수정, balkrow, 2024-11-04*/
 	if(msg->mode) 
+	{
+		if(!esmcRxPort)
+			gCpssEsmcToCPUSet(0);	
+
 		esmcRxPort |= 1 << (msg->portid - 1); 
+	}
 	else
+	{
+		if(esmcRxPort)
+			gCpssEsmcToCPUUnSet();
+
 		esmcRxPort &= ~(1 << (msg->portid - 1)); 
+	}
+#endif
+
 #endif
 
 	syslog(LOG_INFO, ">>> gCpssPortESMCenable DONE ret[%x] <<<", esmcRxPort);
