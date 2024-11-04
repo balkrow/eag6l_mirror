@@ -1886,6 +1886,149 @@ extern uint16_t swModeSet(uint16_t trans_mode);
 }
 #endif
 
+#if 1 /* [#174] Adding "show alarm" CLI for vtysh, dustin, 2024-10-29 */
+void convert_to_bit_string(uint16_t val, uint16_t mask, char *str, char *str2, int type)
+{
+	int bb;
+	char *pp = str;
+	char tmp[10];
+
+	if(str == NULL || str2 == NULL)
+		return;
+
+	val &= mask;
+	for(bb = 15; bb >= 0; bb--, pp++) {
+		if(~mask & (1 << bb))
+			*pp = 'x';
+		else if(val & (1 << bb)) {
+			*pp = 'o';
+			if(type == 0) /*basic-alarm*/ {
+				if(bb == 11)
+					strcat(str2, "Smart-Loop, ");
+				else if(bb == 10)
+					strcat(str2, "rtWDM-Loop, ");
+				else if(bb == 9)
+					strcat(str2, "Laser, ");
+				else if(bb == 8)
+					strcat(str2, "TxBias, ");
+				else if(bb == 3)
+					strcat(str2, "RF, ");
+				else if(bb == 2)
+					strcat(str2, "LOC, ");
+				else if(bb == 1)
+					strcat(str2, "LF, ");
+				else if(bb == 0)
+					strcat(str2, "LOS, ");
+			} else /* lr4-alarm */ {
+				if((7 < bb) && (bb < 12)) {
+					sprintf(tmp, "Tx%d-Bias, ", (bb - 7));
+					strcat(str2, tmp);
+				} else if((3 < bb) && (bb < 8)) {
+					sprintf(tmp, "Rx%d-LoL, ", (bb - 3));
+					strcat(str2, tmp);
+				} else if((0 <= bb) && (bb < 4)) {
+					sprintf(tmp, "Rx%d-LoS, ", (bb + 1));
+					strcat(str2, tmp);
+				}
+			}
+		}
+		else
+			*pp = '.';
+	}
+	return;
+}
+
+static void print_alarm_info(struct vty *vty, int portno)
+{
+extern dco_status_t DCO_STAT;
+extern dco_count_t  DCO_COUNT;
+
+	port_status_t *ps = NULL;
+	dco_status_t *pdco = &DCO_STAT;
+	dco_count_t *pcnt = &DCO_COUNT;
+	uint16_t alm_sts, alm_flag, alm_mask; 
+	uint16_t lr4_sts, lr4_flag, lr4_mask;
+	char alm_str1[20], alm_str2[20], alm_str3[20];
+	char astr1[200], astr2[200], astr3[200];
+
+	vty_out(vty, "\n\tAlarm Information\n\n");
+	ps = &(PORT_STATUS[portno]);
+	alm_sts  = FPGA_PORT_READ(__PORT_ALM_ADDR[portno]);
+	alm_flag = FPGA_PORT_READ(__PORT_ALM_FLAG_ADDR[portno]);
+	alm_mask = FPGA_PORT_READ(__PORT_ALM_MASK_ADDR[portno]);
+
+	memset(alm_str1, 0, sizeof(alm_str1));
+	memset(alm_str2, 0, sizeof(alm_str2));
+	memset(alm_str3, 0, sizeof(alm_str3));
+	memset(astr1, 0, sizeof(astr1));
+	memset(astr2, 0, sizeof(astr2));
+	memset(astr3, 0, sizeof(astr3));
+	convert_to_bit_string(alm_sts,  0x0F0F, alm_str1, astr1, 0/*basic*/);
+	convert_to_bit_string(alm_flag, 0x010F, alm_str2, astr2, 0/*basic*/);
+	convert_to_bit_string(alm_mask, 0x810F, alm_str3, astr3, 0/*basic*/);
+	vty_out(vty, "port[%d]                     7654321076543210\n" \ 
+		"        ALM Status : %04X : %s : %s\n" \
+		"        ALM Flag   : %04X : %s : %s\n" \
+		"        ALM Mask   : %04X : %s : %s\n\n",
+		portno, alm_sts, alm_str1, astr1, alm_flag, alm_str2, astr2, 
+		alm_mask, alm_str3, astr3);
+	vty_out(vty, 
+		"        los[%d/0x%04X] link[%d] lf[%d] rf[%d] esmc_loss[%d] " \
+		"tx_bias[%d/0x%04X] tx_laser[%d] rtwdm_lp[%d] tsfp_selfloop[%d]\n\n",
+		ps->los, pdco->lr4_stat.rx_los_mask, ps->link, ps->local_fault,
+		ps->remote_fault, ps->esmc_loss, ps->tx_bias_sts, 
+		pdco->lr4_stat.tx_bias_mask, ps->tx_laser_sts, ps->rtwdm_lp, 
+		ps->tsfp_self_lp);
+
+	if(portno == PORT_ID_EAG6L_PORT7) {
+		lr4_sts  = FPGA_PORT_READ(QSFP28_LR4_ALM_ADDR);
+		lr4_flag = FPGA_PORT_READ(QSFP28_LR4_ALM_FLAG_ADDR);
+		lr4_mask = FPGA_PORT_READ(QSFP28_LR4_ALM_MASK_ADDR);
+		memset(alm_str1, 0, sizeof(alm_str1));
+		memset(alm_str2, 0, sizeof(alm_str2));
+		memset(alm_str3, 0, sizeof(alm_str3));
+		memset(astr1, 0, sizeof(astr1));
+		memset(astr2, 0, sizeof(astr2));
+		memset(astr3, 0, sizeof(astr3));
+		convert_to_bit_string(lr4_sts,  0x0FFF, alm_str1, astr1, 1/*lr4*/);
+		convert_to_bit_string(lr4_flag, 0x0FFF, alm_str2, astr2, 1/*lr4*/);
+		convert_to_bit_string(lr4_mask, 0x0FFF, alm_str3, astr3, 1/*lr4*/);
+		vty_out(vty, "port[%d] [LR4]               7654321076543210\n" \ 
+			"        LR4 Status : %04X : %s : %s\n" \
+			"        LR4 Flag   : %04X : %s : %s\n" \
+			"        LR4 Mask   : %04X : %s : %s\n\n",
+			portno, lr4_sts, alm_str1, astr1, lr4_flag, alm_str2, astr2, 
+			lr4_mask, alm_str3, astr3);
+		vty_out(vty, "        tx_bias_mask[0x%X] rx_lol_mask[0x%X] rx_los_mask[0x%X]\n\n",
+			pdco->lr4_stat.tx_bias_mask, pdco->lr4_stat.rx_lol_mask,
+			pdco->lr4_stat.rx_los_mask);
+	}
+	return;
+}
+
+DEFUN (show_alarm,
+       show_alarm_cmd,
+       "show alarm (all | <1-7>)",
+       SHOW_STR
+       "alarm status\n"
+       "for all ports\n"
+       "for specified port\n")
+{
+	int portno;
+
+	if(! strncmp(argv[0], "all", strlen("all"))) {
+		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+			print_alarm_info(vty, portno);
+		}
+	} else {
+		portno = atoi(argv[0]);
+		print_alarm_info(vty, portno);
+	}
+
+    return CMD_SUCCESS;
+}
+#endif
+
 void
 sysmon_vty_init (void)
 {
@@ -1964,5 +2107,8 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &dco_tx_laser_set_cmd);
   install_element (ENABLE_NODE, &no_dco_tx_laser_set_cmd);
   install_element (ENABLE_NODE, &dco_chno_set_cmd);
+#endif
+#if 1 /* [#174] Adding "show alarm" CLI for vtysh, dustin, 2024-10-29 */
+  install_element (ENABLE_NODE, &show_alarm_cmd);
 #endif
 }
