@@ -95,9 +95,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv manufacture %s", bdinvent.manufacturer);
 			system(tmpbuffer);
+#endif
 		}
 		else if (!strcmp(console_buffer,"1")){
 			sprintf (message, "MODEL NAME  (%d bytes):[%s]\t:",9,bdinvent.model_name);
@@ -111,9 +113,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv model_name %s", bdinvent.model_name);
 			system(tmpbuffer);
+#endif
 		}
 		else if (!strcmp(console_buffer,"2")){
 			sprintf (message, "PART NUMBER  (%d bytes):[%s]\t:",15,bdinvent.part_number);
@@ -127,9 +131,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv part_number %s", bdinvent.part_number);
 			system(tmpbuffer);
+#endif
 		}
 		else if (!strcmp(console_buffer,"3")){
 			sprintf (message, "SERIAL NUMBER  (%d bytes):[%s]\t:",15,bdinvent.serial_number);
@@ -143,9 +149,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv serial_number %s", bdinvent.serial_number);
 			system(tmpbuffer);
+#endif
 		}
 		else if (!strcmp(console_buffer,"4")){
 			sprintf (message, "REVISION  (%d bytes):[0x%x]\t:",4,bdinvent.revision);
@@ -159,9 +167,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv revision %x", bdinvent.revision);
 			system(tmpbuffer);
+#endif
 		}
 		else if (!strcmp(console_buffer,"5")){
 			sprintf (message, "MANUFACTURE DATE  (%d bytes):[%s]\t:",9,bdinvent.manufacture_date);
@@ -176,9 +186,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv manufacture_date %s", bdinvent.manufacture_date);
 			system(tmpbuffer);
+#endif
 		}
 		else if (!strcmp(console_buffer,"6")){
 			sprintf (message, "REPAIR DATE  (%d bytes):[%s]\t:",9,bdinvent.repair_date);
@@ -193,9 +205,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv repair_date %s", bdinvent.repair_date);
 			system(tmpbuffer);
+#endif
 		}
 		else if (!strcmp(console_buffer,"7")){
 			sprintf (message, "REPAIR CODE  (%d bytes):[0x%x]\t:",4,bdinvent.repair_code);
@@ -209,9 +223,11 @@ int set_eag6l_inventory(struct vty *vty)
 			fp = fopen(EAG6L_INVENTORY_FILE, "w");
 			fwrite(&bdinvent,1,sizeof(board_inventory_t)-16,fp );
 			fclose(fp);
+#if 0 /* [#184] Removing unnecessary env update, dustin, 2024-11-04 */
 			// update to boot env
 			sprintf(tmpbuffer, "fw_setenv repair_code %x", bdinvent.repair_code);
 			system(tmpbuffer);
+#endif
 		}
 #if 0
 		else if (!strcmp(console_buffer,"8")){
