@@ -1178,6 +1178,12 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 				memset(&DCO_STAT, 0, sizeof DCO_STAT);
 				memset(&DCO_COUNT, 0, sizeof DCO_COUNT);
 
+#if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
+				/* clear alarm status/flag. */
+				FPGA_PORT_WRITE(QSFP28_LR4_ALM_ADDR, 0x0);
+				FPGA_PORT_WRITE(QSFP28_LR4_ALM_FLAG_ADDR, 0x0);
+#endif
+
 				/* update lr4 vcc. */
 				FPGA_PORT_WRITE(QSFP28_LR4_VOLT1_ADDR, 0x0);
 				FPGA_PORT_WRITE(QSFP28_LR4_VOLT2_ADDR, 0x0);
@@ -3994,6 +4000,13 @@ _rtwdm_stage_:
 #endif
 }
 
+#if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
+uint8_t ALM_DATA[PORT_ID_EAG6L_MAX];
+uint8_t ALM_CMASK[PORT_ID_EAG6L_MAX];
+uint8_t QALM_DATA;
+uint8_t QALM_CMASK;
+#endif
+
 void process_alarm_info(void)
 {
 #if 1 /* [#161 Fixing for processing alarm flag, dustin, 2024-10-22 */
@@ -4031,8 +4044,12 @@ void process_alarm_info(void)
 
 		/* update link down (Local Fault?) */
 #if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-31 */
+#if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
+		if(! PORT_STATUS[portno].link || PORT_STATUS[portno].local_fault)
+#else /******************************************************************/
 		if((! (PORT_STATUS[portno].link && (! PORT_STATUS[portno].los))) || 
 			   PORT_STATUS[portno].local_fault)
+#endif /* [#181] */
 		{
 
 			if(getMPortByCport(gDB.synce_pri_port) == portno && 
@@ -4133,6 +4150,28 @@ void process_alarm_info(void)
 
 		/* update alarm flag */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+#if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
+		/* mask for valid flag */
+		val &= 0x010F;
+		data = ALM_DATA[portno] = FPGA_PORT_READ(__PORT_ALM_FLAG_ADDR[portno]);
+		if(((PRE_ALM_FLAG[portno] & val) != val) ||
+		   (data != PRE_ALM_FLAG[portno])) {
+			PRE_ALM_FLAG[portno] &= val;
+			for(flagmask = 0, ii = 0; ii < 16; ii++) {
+				bitmask = (1 << ii);
+
+				/* get only changed from 0 to 1. */
+				if((! (PRE_ALM_FLAG[portno] & bitmask)) && (val & bitmask))
+					flagmask |= bitmask;
+			}
+
+			ALM_CMASK[portno] = PRE_ALM_FLAG[portno] ^ ALM_DATA[portno];
+			ALM_DATA[portno] = ALM_DATA[portno] | (flagmask & ~ALM_CMASK[portno]);
+			ALM_DATA[portno] &= ~masking;
+			FPGA_PORT_WRITE(__PORT_ALM_FLAG_ADDR[portno], (0x10F & ALM_DATA[portno]));
+			PRE_ALM_FLAG[portno] |= (0x10F & ALM_DATA[portno]);
+		}
+#else /******************************************************************/
 		if(PRE_ALM_FLAG[portno] != val) {
 			PRE_ALM_FLAG[portno] &= val;
 			for(flagmask = 0, ii = 0; ii < 16; ii++) {
@@ -4153,6 +4192,7 @@ void process_alarm_info(void)
 			FPGA_PORT_WRITE(__PORT_ALM_FLAG_ADDR[portno], (0x10F & data));
 			PRE_ALM_FLAG[portno] |= (0x10F & flagmask);
 		}
+#endif /* [#181] */
 #else
 		if(PRE_ALM_FLAG[portno] != val) {
 			for(flagmask = 0, ii = 0; ii < 16; ii++) {
@@ -4217,6 +4257,26 @@ void process_alarm_info(void)
 		gPortRegUpdate(QSFP28_LR4_ALM_ADDR, 0, 0xFFF, val);
 
 		/* update alarm flag */
+#if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
+		data = QALM_DATA = FPGA_PORT_READ(QSFP28_LR4_ALM_FLAG_ADDR);
+		if(((PRE_QALM_FLAG & val) != val) ||
+		   (data != PRE_QALM_FLAG)) {
+			PRE_QALM_FLAG &= val;
+			for(flagmask = 0, ii = 0; ii < 16; ii++) {
+				bitmask = (1 << ii);
+
+				/* get only changed from 0 to 1. */
+				if((! (PRE_QALM_FLAG & bitmask)) && (val & bitmask))
+					flagmask |= bitmask;
+			}
+
+			QALM_CMASK = PRE_QALM_FLAG ^ QALM_DATA;
+			QALM_DATA = QALM_DATA | (flagmask & ~QALM_CMASK);
+			QALM_DATA &= ~masking;
+			FPGA_PORT_WRITE(QSFP28_LR4_ALM_FLAG_ADDR, (0xFFF & QALM_DATA));
+			PRE_QALM_FLAG |= (0xFFF & QALM_DATA);
+		}
+#else /******************************************************************/
 		if(PRE_QALM_FLAG != val) {
 			PRE_QALM_FLAG &= val;
 			for(flagmask = 0, ii = 0; ii < 16; ii++) {
@@ -4241,6 +4301,7 @@ void process_alarm_info(void)
 			PRE_QALM_FLAG = flagmask;
 #endif
 		}
+#endif /* [#181] */
 	} else {
 		/* clear alarm if not equipped. */
 		FPGA_PORT_WRITE(QSFP28_LR4_ALM_ADDR, val);
