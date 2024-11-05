@@ -4047,6 +4047,36 @@ void process_alarm_info(void)
 
 		/* update link down (Local Fault?) */
 #if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-31 */
+#if 1 /* [#186] Fixing for correct link down/LF condition, dustin, 2024-11-05 */
+		if(! PORT_STATUS[portno].link)
+		{
+			if(getMPortByCport(gDB.synce_pri_port) == portno &&
+				gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 1;
+			}
+			else if(getMPortByCport(gDB.synce_sec_port) == portno &&
+				gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 1;
+			}
+		}
+		else
+		{
+			if(getMPortByCport(gDB.synce_pri_port) == portno &&
+				gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 0;
+			}
+			else if(getMPortByCport(gDB.synce_sec_port) == portno &&
+				gDB.esmcRxCfg[portno - 1] != CFG_ENABLE) {
+				PORT_STATUS[portno].esmc_loss = 0;
+			}
+		}
+
+		/* update local fault. */
+		if(PORT_STATUS[portno].local_fault)
+			val |= (1 << 1);
+		else
+			val &= ~(1 << 1);
+#else /************************************************************************/
 #if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
 		if(! PORT_STATUS[portno].link || PORT_STATUS[portno].local_fault)
 #else /******************************************************************/
@@ -4078,6 +4108,7 @@ void process_alarm_info(void)
 			}
 			val &= ~(1 << 1);
 		}
+#endif /* [#186] */
 #endif
 
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
