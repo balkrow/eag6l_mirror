@@ -1696,6 +1696,9 @@ uint8_t gCpssPortSetRate(int args, ...)
 		}
 
 #if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
+#if 1 /* [#188] Fixing for wrong fec for 10G speed, dustin, 2024-11-05 */
+		if(speed != CPSS_PORT_SPEED_10000_E)
+#endif
 		{
 			ret = cpssDxChSamplePortManagerFecModeSet(0, dport, CPSS_PORT_RS_FEC_MODE_ENABLED_E);
 			if(ret != GT_OK) {
