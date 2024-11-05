@@ -304,7 +304,18 @@ f 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
 #endif
 #if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+#if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
+CPSS_DXCH_PORT_FEC_MODE_ENT FEC_MODE[PORT_ID_EAG6L_MAX] = 
+	{ 0, CPSS_PORT_RS_FEC_MODE_ENABLED_E, 
+	     CPSS_PORT_RS_FEC_MODE_ENABLED_E, 
+	     CPSS_PORT_RS_FEC_MODE_ENABLED_E, 
+	     CPSS_PORT_RS_FEC_MODE_ENABLED_E, 
+	     CPSS_PORT_RS_FEC_MODE_ENABLED_E, 
+	     CPSS_PORT_RS_FEC_MODE_ENABLED_E, 
+	     CPSS_PORT_RS_FEC_MODE_ENABLED_E };
+#else
 CPSS_DXCH_PORT_FEC_MODE_ENT FEC_MODE[PORT_ID_EAG6L_MAX];
+#endif
 uint8_t SPEED[PORT_ID_EAG6L_MAX];
 #endif
 #if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
@@ -1871,6 +1882,10 @@ uint8_t gCpssPortAlarm(int args, ...)
 #if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
 		msg->port_sts[portno].local_fault  = eag6LLF[portno];
 		msg->port_sts[portno].remote_fault = eag6LRF[portno];
+#endif
+#if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
+		msg->port_sts[portno].rs_fec_sts   = 
+			(FEC_MODE[portno] == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) ? 1 : 0;
 #endif
 	}
 #else/***********************************************************/

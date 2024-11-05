@@ -309,6 +309,9 @@ extern dco_status_t DCO_STAT;
 	ps = &(PORT_STATUS[portno]);
 	mod_inv = &(INV_TBL[portno]);
 
+#if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
+	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] laser[%d/%d] rs-fec[%d/%d] esmc[%d] llcf[%d] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[(0x%02x/%02x) %s]\n", 
+#else /****************************************************************/
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 	vty_out(vty, "[%d] equip[%s] link[%s] speed[%4s] laser[%d/%d] fec[%d] esmc[%d] llcf[%d] tunable[%d] chno[0x%02x] wavelength[%7.2f/%7.2f] flex[%d/%d/%d] tsfp-sloop[%d/%d] rtwdm-loop[%d/%d] sfp[(0x%02x/%02x) %s]\n", 
 #else /*****************************************************************/
@@ -330,6 +333,7 @@ extern dco_status_t DCO_STAT;
 #endif /* [#160] */
 #endif /* [#151] */
 #endif /* [#169] */
+#endif /* [#185] */
 		portno, 
 		(ps->equip ? "O" : "x"),
 #if 1 /* [#148] Fixing for Link UP condition, dustin, 2024-10-14 */
@@ -352,8 +356,17 @@ extern dco_status_t DCO_STAT;
 #endif /* [#94] */
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
+#if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
+		ps->cfg_tx_laser, ps->tx_laser_sts, 
+		(ps->cfg_rs_fec == 0xA5) ? 1 : 
+			((ps->cfg_rs_fec == 0x5A) ? 0 : 
+			(((ps->cfg_rs_fec == 0x0/*auto-mode*/) && ps->sfp_dco) ? 0 : 1)),
+		ps->rs_fec_sts,
+		ps->cfg_esmc_enable, ps->cfg_llcf,
+#else
 		ps->cfg_tx_laser, ps->tx_laser_sts, ps->cfg_rs_fec, 
 		ps->cfg_esmc_enable, ps->cfg_llcf,
+#endif
 #else
 		ps->cfg_tx_laser, ps->tx_laser_sts, ps->cfg_llcf,
 #endif

@@ -1159,6 +1159,9 @@ uint8_t gReplyPortAlarm(int args, ...)
 		PORT_STATUS[portno].local_fault  = msg->port_sts[portno].local_fault;
 		PORT_STATUS[portno].remote_fault = msg->port_sts[portno].remote_fault;
 #endif
+#if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
+		PORT_STATUS[portno].rs_fec_sts   = msg->port_sts[portno].rs_fec_sts;
+#endif
 	}
 
 	return ret;

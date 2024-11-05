@@ -501,6 +501,9 @@ typedef struct port_status
 #else
         u8  fec_mode;
 #endif
+#if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
+        u8  rs_fec_sts;
+#endif
         u8  los;
         u8  lof;
         u8  esmc_loss;
