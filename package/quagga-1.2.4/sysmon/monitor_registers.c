@@ -209,6 +209,9 @@ RegMON regMonList [] = {
   { PORT_4_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT4, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
   { PORT_5_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT5, 0, NULL, sys_fpga_memory_read, portESMCenable }, /* 10 */  
   { PORT_6_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT6, 0, NULL, sys_fpga_memory_read, portESMCenable },
+#if 1 /* [#187] Adding omitted ESMC for 100G, dustin, 2024-11-05 */
+  { PORT_7_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+#endif /* [#187] */
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
   { PORT_7_CONF_ADDR,     0x3, 0, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, setLLCFenable }, 
 #else
