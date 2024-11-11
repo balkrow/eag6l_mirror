@@ -5088,6 +5088,9 @@ extern int dco_retry_cnt;
 #endif
 
 			init_lr4_sfp();
+#if 1 /* [#190] Fixing for omitted 100G sfp inventory, dustin, 2024-11-11 */
+			update_port_sfp_inventory(0/*update-no-rtwdm*/);
+#endif
 #if 1 /* [#178] Fixing for correct process for LR4, dustin, 2024-10-30 */
 			PORT_STATUS[portno].i2cReady = 1;
 #endif
