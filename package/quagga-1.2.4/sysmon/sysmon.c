@@ -28,7 +28,7 @@
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 #define ACCESS_SIM	/* moved to sysmon.h */
 #endif
-#define DEBUG
+#undef DEBUG
 
 #if 0/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 u32 INIT_COMPLETE_FLAG;
@@ -3030,6 +3030,9 @@ extern void update_KeepAlive(void);
 
 	/*update KeepAlive reg*/
 	update_KeepAlive();
+#ifdef DEBUG
+	zlog_notice("gDB.KeepAlive %d", gDB.keepAlive);
+#endif
 
 	return RT_OK;
 }
@@ -3071,6 +3074,14 @@ __SKIP_2__:
 	return RT_OK;
 }
 
+#if 1/*[#191] IPC FAIL alarm ¿¿ ¿¿ ¿¿ ¿ ¿¿, balkrow, 2024-11-12 */
+int reg_slow_intv_update2(struct thread *thread)
+{
+	update_sfp();
+	thread_add_timer (master, reg_slow_intv_update2, NULL, 3);
+}
+#endif
+
 int reg_slow_intv_update(struct thread *thread)
 {
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
@@ -3086,7 +3097,9 @@ extern uint16_t portAlarm(void);
 
 	if(! i2c_in_use_flag)
 #endif
+#if 0/*[#191] IPC FAIL alarm ¿¿ ¿¿ ¿¿ ¿ ¿¿, balkrow, 2024-11-12 */
 	update_sfp();
+#endif
 
 #if 0/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 	/* removing unnecessary codes */
@@ -3265,9 +3278,12 @@ void sysmon_thread_init (void)
 #endif
 
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
-	thread_add_timer (master, monMCUupdate, NULL, 1);
+	thread_add_timer (master, monMCUupdate, NULL, 5);
 	thread_add_timer (master, reg_fast_intv_update, NULL, 2);
 	thread_add_timer (master, reg_slow_intv_update, NULL, 3);
+#if 1/*[#191] IPC FAIL alarm ¿¿ ¿¿ ¿¿ ¿ ¿¿, balkrow, 2024-11-12 */
+	thread_add_timer (master, reg_slow_intv_update2, NULL, 10);
+#endif
 #if 1 /* [#158] Fixing for BP keep alive interval, dustin, 2024-10-18 */
 	thread_add_timer (master, reg_Qfast_intv_update, NULL, 5);
 #endif
