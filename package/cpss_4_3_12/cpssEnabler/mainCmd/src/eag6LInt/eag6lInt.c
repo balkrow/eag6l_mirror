@@ -1844,8 +1844,12 @@ uint8_t gCpssPortESMCenable(int args, ...)
 uint8_t gCpssPortAlarm(int args, ...)
 {
     uint8_t portno;
-#if 0/* just reply with link status table(updated by Marvell link scan event) */
+#if 1 /* [#192] port status 업데이트시 LF/RF 업데이트, balkrow, 2024-11-12 */
     uint8_t dport;
+    GT_BOOL                             lf_st, rf_st;
+    GT_U8 devNum = 0;
+#endif
+#if 0/* just reply with link status table(updated by Marvell link scan event) */
     uint8_t ret = GT_OK;
 	GT_BOOL link, enable;
 	CPSS_PORT_MANAGER_STATUS_STC pm_sts;
@@ -1885,9 +1889,12 @@ uint8_t gCpssPortAlarm(int args, ...)
 			msg->port_sts[portno].speed = eag6LSpeedStatus[portno];
 		}
 #endif
-#if 1 /* [#88] Adding LF/RF reading and updating to Alarm, dustin, 2024-08-01 */
-		msg->port_sts[portno].local_fault  = eag6LLF[portno];
-		msg->port_sts[portno].remote_fault = eag6LRF[portno];
+#if 1 /* [#192] port status 업데이트시 LF/RF 업데이트, balkrow, 2024-11-12 */
+		dport = get_eag6L_dport(portno);
+		cpssDxChPortXgmiiLocalFaultGet(devNum, dport, &lf_st);
+		cpssDxChPortXgmiiRemoteFaultGet(devNum, dport, &rf_st);
+		msg->port_sts[portno].local_fault  = lf_st;
+		msg->port_sts[portno].remote_fault = rf_st;
 #endif
 #if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
 		msg->port_sts[portno].rs_fec_sts   = 
