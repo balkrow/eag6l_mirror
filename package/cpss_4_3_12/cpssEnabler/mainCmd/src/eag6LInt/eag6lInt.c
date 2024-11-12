@@ -74,6 +74,9 @@ extern uint8_t EAG6LJumboFrameEnable (void);
 int8_t gLocalQL = 0;
 int8_t gSecSendQL = 0;
 #endif
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+extern int32_t llcf_process(int8_t port, int8_t evt);
+#endif
 
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 extern uint8_t eag6LPortlist [];
@@ -2465,9 +2468,10 @@ _gCpssPortFECEnable_exit:
 #endif /* [#152] */
 
 #if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
-uint8_t gCpssDcoSFPState(int args, ...)
+uint8_t gCpssPortForceLinkDown(int args, ...)
 {
 	uint8_t ret = GT_OK;
+	int8_t port, evt;
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
 
@@ -2475,8 +2479,10 @@ uint8_t gCpssDcoSFPState(int args, ...)
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
 
-	DCO_SFP_LOSS = msg->state;
-	syslog(LOG_INFO, "DCO_SFP_LOSS %d", DCO_SFP_LOSS);
+	port = msg->portid;
+	evt = msg->state;
+	llcf_process(port, evt);
+	syslog(LOG_INFO, "port %d force link %s", port, evt == 1 ? "Down":"Up");
 	msg->result = ret;
 
 	/* reply the result */
@@ -2559,8 +2565,8 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gCpssSwitchModeSet,
 #endif
-#if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
-	gCpssDcoSFPState,
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-12*/
+	gCpssPortForceLinkDown,
 #endif
 };
 

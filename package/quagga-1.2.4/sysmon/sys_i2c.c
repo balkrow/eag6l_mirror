@@ -729,6 +729,52 @@ data_addr : CPLD data address
 	return status;
 }
 
+#if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
+int laser_onoff_25g(int portno, int onoff)
+{
+	int fd, mux_addr, ret, val;
+	unsigned int chann_mask;
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		return ERR_NOT_FOUND;
+	}
+
+	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		mux_addr = I2C_MUX;
+		chann_mask = I2C_MUX_100G_MASK;
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+
+	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR , 1);
+	val = i2c_smbus_read_byte_data(fd, 110);
+
+	if(onoff)
+	{
+		val &= 0xbf;	
+		ret = i2c_smbus_write_byte_data(fd, 110, val);
+		zlog_notice("port %d laser enable val %x ret %x", portno, val, ret); 
+	}
+	else
+	{
+		val |= (0x1 << 6);	
+		ret = i2c_smbus_write_byte_data(fd, 110, val);
+		zlog_notice("port %d laser disable val %x ret %x", portno, val, ret); 
+	}
+
+	close(fd);
+	return ret;
+}
+#endif
+
 #if 1/*[#51] Adding register callback templates for config/command registers, dustin, 2024-06-12 */
 #if 1/*[#39] Adding Smart T-SFP related functions, dustin, 2024-06-12 */
 int check_sfp_is_present(int portno)
@@ -6168,12 +6214,11 @@ int read_i2c_dco_status(dco_status_t *pdco)
 #endif
 
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
-#if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */	
+#if 0/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
 	if(PORT_STATUS[portno].los != (pdco->dco_RxLos ? 1:0))   
 		gSysmonToCpssFuncs[gNotifyDcoState](1, pdco->dco_RxLos ? 1:0);
-
-	PORT_STATUS[portno].los = pdco->dco_RxLos ? 1 : 0;
 #endif
+	PORT_STATUS[portno].los = pdco->dco_RxLos ? 1 : 0;
 #endif /* [#139] */
 
 	/* get page 00h byte 6 for TCReadyFlag/InitComplete */

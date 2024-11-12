@@ -45,6 +45,9 @@ extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
 extern GLOBAL_DB gDB;
 #endif
 
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+extern int laser_onoff_25g(int portno, int onoff);
+#endif
 int	send_to_sysmon_slave(sysmon_fifo_msg_t * msg);
 int16_t get_synce_oper_port(int16_t candidate_port); 
 int 	secondary_reconfigure = 0;
@@ -594,8 +597,8 @@ uint8_t gCpssPortFECEnable(int args, ...)
 }
 #endif /* [#152] */
 
-#if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */
-uint8_t gCpssNotiDcoState(int args, ...)
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+uint8_t gCpssPortForceLinkDown(int args, ...)
 {
     va_list argP;
     sysmon_fifo_msg_t msg;
@@ -603,16 +606,17 @@ uint8_t gCpssNotiDcoState(int args, ...)
     zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-    if(args != 1) {
+    if(args != 2) {
         zlog_notice("%s: invalid args[%d].", __func__, args);
         return IPC_CMD_FAIL;
     }
 
     memset(&msg, 0, sizeof msg);
     va_start(argP, args);
+    msg.portid = va_arg(argP, uint32_t);
     msg.state = va_arg(argP, uint32_t);
     va_end(argP);
-    msg.type = gNotifyDcoState;
+    msg.type = gPortForceLinkDown;
 
     if(send_to_sysmon_slave(&msg) == 0) {
         zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
@@ -692,8 +696,8 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gCpssSwitchModeSet,
 #endif /* [#142] */
-#if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */
-	gCpssNotiDcoState,
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+	gCpssPortForceLinkDown,
 #endif
 };
 
@@ -1489,6 +1493,113 @@ int8_t compare_QL(int QL, int port)
 	return ret;
 
 }
+
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+uint8_t processLLCF(void)
+{
+	int n;
+	
+	if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_llcf) 
+	{
+		if(gDB.llcf_status)
+		{
+			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+			{
+				if(gDB.llcf_reason == 1 && PORT_STATUS[n].cfg_tx_laser) 
+					laser_onoff_25g(n, 1);
+				else if(gDB.llcf_reason == 2) 
+					gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(n), 0);
+			}
+			gDB.llcf_status = 0;
+			gDB.llcf_reason = 0;
+			gDB.llcf_port_state = 0;
+		}
+		goto add_timer;
+	}
+
+
+	if(PORT_STATUS[PORT_ID_EAG6L_PORT7].los)
+	{
+		if(gDB.llcf_status)
+			goto port7_check;
+
+		for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+		{
+			if((gDB.llcf_port_state & (1 << n)))
+				continue;
+
+			if(PORT_STATUS[n].cfg_tx_laser) 
+			{
+				laser_onoff_25g(n, 0);
+				zlog_notice("LLCF: port %d laser off\n", n); 
+			}
+			gDB.llcf_port_state |= (1 << n);
+		}
+
+		if(gDB.llcf_port_state == 0x7e)
+		{
+			gDB.llcf_status = 1;
+			gDB.llcf_reason = 1;
+		}
+	}
+	else if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].link)
+	{
+		if(gDB.llcf_status)
+			goto port7_check;
+
+		for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+		{
+			if((gDB.llcf_port_state & (1 << n)))
+				continue;
+
+			gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(n), 1);
+			zlog_notice("LLCF: port %d force link down\n", n); 
+			gDB.llcf_port_state |= (1 << n);
+		}
+		if(gDB.llcf_port_state == 0x7e)
+		{
+			gDB.llcf_status = 1;
+			gDB.llcf_reason = 2;
+		}
+	}
+
+
+port7_check:
+	if(gDB.llcf_status)
+	{
+		if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].los && gDB.llcf_reason == 1)
+		{
+
+			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+			{
+				if(PORT_STATUS[n].cfg_tx_laser) 
+				{
+					laser_onoff_25g(n, 1);
+					zlog_notice("LLCF: port %d laser on\n", n); 
+				}
+				gDB.llcf_port_state &= ~(1 << n);
+			}
+			gDB.llcf_status = 0;
+			gDB.llcf_reason = 0;
+		}
+
+		if(PORT_STATUS[PORT_ID_EAG6L_PORT7].link && gDB.llcf_reason == 2)
+		{
+
+			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+			{
+				gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(n), 0);
+				zlog_notice("LLCF: port %d force link up\n", n); 
+				gDB.llcf_port_state &= ~(1 << n);
+			}
+			gDB.llcf_status = 0;
+			gDB.llcf_reason = 0;
+		}
+	}
+add_timer:
+	return 0;
+}
+#endif
 
 uint8_t switchEsmcInterface(int port, int QL)
 {

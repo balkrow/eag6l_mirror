@@ -189,6 +189,34 @@ SVC_FAULT_ST portEventRFstate
 	return rc;
 }
 
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+int32_t llcf_process(int8_t port, int8_t evt)
+{
+	int8_t i;
+	int32_t ret = 0;
+	GT_U8 devNum = 0;
+
+	for(i = 0; i < eag6LPortArrSize - 1 ; i++)
+	{
+		if(eag6LPortlist[i] == port) 
+		{
+			CPSS_PORT_MANAGER_STC                  portEventStc;
+			if(evt)
+				portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_FORCE_LINK_DOWN_E;
+			else
+				portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_UNFORCE_LINK_DOWN_E;
+
+			ret = cpssDxChPortManagerEventSet(devNum, eag6LPortlist[i], &portEventStc);
+
+			syslog(LOG_INFO, "port %d force link %s ret %d", eag6LPortlist[i], 
+			       evt == 1 ? "Down":"Up", ret);
+		}
+
+	}
+	return ret;
+}
+#endif
+
 SVC_FAULT_ST portEventRFCLRstate
 (
  uint16_t port

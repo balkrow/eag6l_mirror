@@ -42,6 +42,10 @@ extern char *rdl_get_event_str(int eno);
 extern RDL_INFO_LIST_t rdl_info_list;
 #endif /* [#150] */
 
+#if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
+extern int laser_onoff_25g(int portno, int onoff);
+#endif
+
 #if 1/*[#56] register update timer ¿¿, balkrow, 2024-06-13 */
 extern GLOBAL_DB gDB;
 
@@ -142,6 +146,26 @@ DEFUN (llcf_conf,
 
   return CMD_SUCCESS;
 }
+
+#if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
+DEFUN (laser_onoff,
+       laser_onoff_conf_cmd,
+       "laser-tx <1-6> (enable|disable)",
+       "laser-tx"
+       "Port\n"
+       "enable\n"
+       "disable\n")
+{
+
+  int portno = atoi(argv[0]);
+  if (strncmp (argv[1], "e", 1) == 0)
+	  laser_onoff_25g(portno, 1);
+  else
+	  laser_onoff_25g(portno, 0);
+
+  return CMD_SUCCESS;
+}
+#endif
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
@@ -2069,6 +2093,9 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &set_port_rtwdm_loopback_cmd);
   install_element (ENABLE_NODE, &no_set_port_rtwdm_loopback_cmd);
   install_element (ENABLE_NODE, &set_port_speed_cmd);
+#endif
+#if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
+  install_element (ENABLE_NODE, &laser_onoff_conf_cmd);
 #endif
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
   install_element (VIEW_NODE, &get_register_cmd);
