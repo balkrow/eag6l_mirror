@@ -100,7 +100,9 @@ uint16_t bankSelect2(uint16_t port, uint16_t val);
 #endif
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 extern int8_t sysmon_llcf_set(int32_t enable);
-uint16_t setLLCFenable(uint16_t val);
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+uint16_t setLLCFenable(uint16_t port, uint16_t val);
+#endif
 #endif
 #if 1/*[#118] Sync-e option2 지원, balkrow, 2024-09-06*/
 uint16_t syncePortSendQL(uint16_t port, uint16_t val);
@@ -212,10 +214,8 @@ RegMON regMonList [] = {
 #if 1 /* [#187] Adding omitted ESMC for 100G, dustin, 2024-11-05 */
   { PORT_7_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
 #endif /* [#187] */
-#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
-  { PORT_7_CONF_ADDR,     0x3, 0, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, setLLCFenable }, 
-#else
-  { PORT_7_CONF_ADDR,     0x8, 3, 0x0, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, portESMCenable }, 
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+  { PORT_7_CONF_ADDR,     0x3, 0, 0x1, PORT_ID_EAG6L_PORT7, 0, NULL, sys_fpga_memory_read, setLLCFenable }, 
 #endif
 	/* port configuration - flex control */
   { PORT_1_CONF_ADDR,     0x4, 2, 0x0, PORT_ID_EAG6L_PORT1, 0, NULL, sys_fpga_memory_read, set_flex_tune_control }, 
@@ -911,12 +911,14 @@ uint16_t chipReset(uint16_t port, uint16_t val)
 	return SUCCESS;
 }
 
-#if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
-uint16_t setLLCFenable(uint16_t val)
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+uint16_t setLLCFenable(uint16_t port, uint16_t val)
 {
 	uint8_t enable = (val == 0x2) ? 1/*enable*/ : 0/*disable*/;
-zlog_notice("P7 setLLCFenable set to [%d].", enable);//ZZPP
+	zlog_notice("P7 setLLCFenable set to [%d:%d].", enable, val);//ZZPP
+#if 0
 	sysmon_llcf_set(enable);
+#endif
 	PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_llcf = enable;
 
 	return SUCCESS;
@@ -1059,6 +1061,24 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 #endif
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 	PORT_STATUS[port].i2cReady = 1;
+#endif
+
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+	if(gDB.llcf_status && PORT_STATUS[port].cfg_tx_laser)
+	{
+		if(gDB.llcf_reason == 1 && 
+		   !(gDB.llcf_port_state & (1 << port)))
+		{
+			laser_onoff_25g(port, 0);
+			gDB.llcf_port_state |= (1 << port);
+		}
+		else if(gDB.llcf_reason == 2 && 
+		   !(gDB.llcf_port_state & (1 << port)))
+		{
+			gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(port), 1);
+			gDB.llcf_port_state |= (1 << port);
+		}
+	}
 #endif
 
 	return;

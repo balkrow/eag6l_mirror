@@ -78,8 +78,8 @@ enum sysmon_cmd_fifo_type
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 	gSwitchModeSet,
 #endif
-#if 1 /* [#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24 */
-	gNotifyDcoState,
+#if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
+	gPortForceLinkDown,
 #endif
 
 };

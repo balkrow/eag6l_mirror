@@ -249,6 +249,11 @@ typedef struct globalDB
 #if 1/*[#127] SYNCE current interface 수정, balkrow, 2024-09-11*/
 	uint8_t synce_oper_port;
 #endif
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+	uint8_t llcf_status;
+	uint8_t llcf_reason; /*1: LOS. 2: LinkDown*/
+	uint8_t llcf_port_state; /*bitmap*/
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;

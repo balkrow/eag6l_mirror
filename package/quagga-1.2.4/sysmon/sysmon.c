@@ -3116,6 +3116,9 @@ extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
 
 	/* get port alarm (link) */
 	portAlarm();
+#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+	processLLCF();
+#endif
 
 __SKIP_3__:
 	thread_add_timer (master, reg_slow_intv_update, NULL, 1);
