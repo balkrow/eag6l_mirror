@@ -2795,7 +2795,11 @@ unsigned int convert_temperature_float_to_decimal(f32 val)
     vvv = 0;
     if(minus_flag || (val == 0))
         vvv |= (1 << 15);
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+	vvv |= ((unit_100 << 12) & 0x7000);
+#else
     vvv |= ((unit_100 << 12) & 0x700);
+#endif
     vvv |= ((unit_10 << 8) & 0xf00);
     vvv |= ((unit_1 << 4) & 0xf0);
     vvv |= unit_0;
@@ -4687,8 +4691,12 @@ extern int update_flex_tune_status(int portno);
 		fval = PORT_STATUS[portno].vcc;
 		if(portno == PORT_ID_EAG6L_PORT7) {
 			if(PORT_STATUS[portno].equip  && (! PORT_STATUS[portno].sfp_dco))
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+				fval = DCO_STAT.lr4_stat.vcc[0]; /* use channel 0 value only. */
+#else
 				fval =  (DCO_STAT.lr4_stat.vcc[0] + DCO_STAT.lr4_stat.vcc[1] +
 				         DCO_STAT.lr4_stat.vcc[2] + DCO_STAT.lr4_stat.vcc[3]) / 4;
+#endif /* [#195] */
 		}
 		val = convert_vcc_float_to_decimal(fval);
 #else
@@ -4704,8 +4712,13 @@ extern int update_flex_tune_status(int portno);
 		fval = PORT_STATUS[portno].tx_bias;
 		if(portno == PORT_ID_EAG6L_PORT7) {
 			if(PORT_STATUS[portno].equip && (! PORT_STATUS[portno].sfp_dco))
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+				fval = (DCO_STAT.lr4_stat.tx_bias[0] + DCO_STAT.lr4_stat.tx_bias[1] +
+					    DCO_STAT.lr4_stat.tx_bias[2] + DCO_STAT.lr4_stat.tx_bias[3]);
+#else
 				fval = (DCO_STAT.lr4_stat.tx_bias[0] + DCO_STAT.lr4_stat.tx_bias[1] + 
 					    DCO_STAT.lr4_stat.tx_bias[2] + DCO_STAT.lr4_stat.tx_bias[3]) / 4;
+#endif /* [#195] */
 		}
 		val = convert_temperature_float_to_decimal(fval);
 #else
@@ -4720,12 +4733,21 @@ extern int update_flex_tune_status(int portno);
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 		fval = PORT_STATUS[portno].tec_curr;
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+		/* NOTE : LR4 has only one TEC Current. */
+		/* NOTE : 100g port has over 1000 mA tec current. register format overflow. */
+		if(portno == PORT_ID_EAG6L_PORT7)
+			val = convert_hex_to_decimal(fval);
+		else
+			val = convert_dbm_float_to_decimal(fval, 0/*not-dbm*/, 0/*no-use*/);
+#else
 		if(portno == PORT_ID_EAG6L_PORT7) {
 			if(PORT_STATUS[portno].equip && (! PORT_STATUS[portno].sfp_dco))
 				fval = DCO_STAT.lr4_stat.tec_curr[0] + DCO_STAT.lr4_stat.tec_curr[1] + 
 					   DCO_STAT.lr4_stat.tec_curr[2] + DCO_STAT.lr4_stat.tec_curr[3];
 		}
 		val = convert_dbm_float_to_decimal(fval, 0/*not-dbm*/, 0/*no-use*/);
+#endif /* [#195] */
 #else /***************************************************************/
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].tec_curr, 0/*not-dbm*/, 0/*no-use*/);
 #endif /* [#150] */
