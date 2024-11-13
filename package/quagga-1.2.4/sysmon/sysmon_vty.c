@@ -925,7 +925,11 @@ DEFUN (set_port_speed,
 			PORT_IF_10G_KR : PORT_IF_25G_KR);
 
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
+#if 1 /* [#193] Fixing for setting port rate, dustin, 2024-11-12 */
+	portRateSet(portno, (speed == PORT_IF_10G_KR) ? 0x8 : 0x9);
+#else
 	portRateSet(portno, (speed == PORT_IF_10G_KR) ? 0x6 : 0x7);
+#endif
 #else
 	gSysmonToCpssFuncs[gPortSetRate](3, (uint16_t)portno, (uint16_t)speed, (uint16_t)speed);
 #endif/*ZZPP*/
