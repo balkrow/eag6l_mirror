@@ -887,12 +887,12 @@ uint16_t set_smart_tsfp_self_loopback(uint16_t portno, uint16_t enable)
 
     /* do nothing for non-tunable sfp or 100G port */
     if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
-        return SUCCESS;
+        return RT_OK;
 
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
-		return ERR_NOT_FOUND;
+		return RT_OK;
 	}
 
 #if 1 /* [#84] Fixing for PM counters and I2C on Target system, dustin, 2024-07-30 */
@@ -989,9 +989,12 @@ uint16_t set_smart_tsfp_self_loopback(uint16_t portno, uint16_t enable)
 		goto __exit__;
 	}
 
+#if 0 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
+	return RT_OK;
+#endif
 __exit__:
 	close(fd);
-	return SUCCESS;
+	return RT_OK;
 #else
 	unsigned char val;
 
@@ -1207,12 +1210,12 @@ uint16_t set_rtwdm_loopback(uint16_t portno, uint16_t enable)
 
     /* do nothing for non-tunable sfp or 100G port */
     if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
-        return SUCCESS;
+        return RT_OK;
 
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
-		return ERR_NOT_FOUND;
+		return RT_OK;
 	}
 
 #if 1 /* [#84] Fixing for PM counters and I2C on Target system, dustin, 2024-07-30 */
@@ -1304,9 +1307,12 @@ uint16_t set_rtwdm_loopback(uint16_t portno, uint16_t enable)
 		zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].", 
 			__func__, portno, get_eag6L_dport(portno), ret);
 
+#if 0 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
+	return RT_OK;
+#endif
 __exit__:
 	close(fd);
-	return ret;
+	return RT_OK;
 #else
 	unsigned char val;
 
@@ -1518,12 +1524,14 @@ uint16_t set_flex_tune_control(uint16_t portno, uint16_t enable)
 
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
-		return SUCCESS;
+		return RT_OK;
 
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
-		return ERR_NOT_FOUND;
+#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
+		return RT_OK;
+#endif
 	}
 
 #if 1 /* [#84] Fixing for PM counters and I2C on Target system, dustin, 2024-07-30 */
@@ -1598,10 +1606,12 @@ uint16_t set_flex_tune_control(uint16_t portno, uint16_t enable)
     }
 
     PORT_STATUS[portno].flex_tune_status = (val & 0x1/*bit-0*/) ? 1 : 0;
-
+#if 0 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
+    return RT_OK;
+#endif
 __exit__:
 	close(fd);
-    return SUCCESS;
+    return RT_OK;
 #else
 	unsigned char val;
 
@@ -1650,12 +1660,12 @@ uint16_t set_flex_tune_reset(uint16_t portno, uint16_t enable)
 
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
-		return SUCCESS;
+		return RT_OK;
 
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
-		return ERR_NOT_FOUND;
+		return RT_OK;
 	}
 
 #if 1 /* [#84] Fixing for PM counters and I2C on Target system, dustin, 2024-07-30 */
@@ -1766,9 +1776,12 @@ uint16_t set_flex_tune_reset(uint16_t portno, uint16_t enable)
 		}
 	}
 
+#if 0 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
+	return RT_OK;
+#endif
 __exit__:
 	close(fd);
-	return ret;
+	return RT_OK;
 #else
 	unsigned char val;
 
@@ -2360,7 +2373,7 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 	if(chno > MAX_CHANNEL_NO) {
 		zlog_notice("%s: Invalid channel no[%d] for port[%d(0/%d)]", 
 			__func__, chno, portno, get_eag6L_dport(portno));
-		return ERR_INVALID_PARAM;
+		return RT_OK;
 	}
 #else
 	if((0 >= chno) || (chno > MAX_CHANNEL_NO)) {
@@ -2372,7 +2385,7 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 
 	/* do nothing for non-tunable sfp or 100G port */
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
-		return SUCCESS;
+		return RT_OK;
 
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	/* NOTE : set as chno, not as wavelength. no need to map to wavelength. */
@@ -2395,7 +2408,7 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
-		return ERR_NOT_FOUND;
+		return RT_OK;
 	}
 
 #if 1 /* [#84] Fixing for PM counters and I2C on Target system, dustin, 2024-07-30 */
@@ -2498,8 +2511,11 @@ __exit__:
 			__func__, portno, get_eag6L_dport(portno));
 	}
 #endif
+#if 0 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
+	return RT_OK;
+#endif
 	close(fd);
-	return ret;
+	return RT_OK;
 #else
 	unsigned int data, ii;
 	double wval;
@@ -2854,7 +2870,7 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 
 	/* do nothing for non-tunable sfp */
 	if(! PORT_STATUS[portno].tunable_sfp)
-		return SUCCESS;
+		return RT_OK;
 
 	/* scan table and get chno data. */
 	for(ii = 0; ii < MAX_DCO_CH_NO; ii++) {
@@ -2868,7 +2884,7 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 	if(chno) {
 		if(ii >= MAX_DCO_CH_NO) {
 			zlog_notice("%s : Invalid DCO chno[%d(0x%x)].", __func__, chno, chno);
-			return ERR_NOT_FOUND;
+			return RT_OK;
 		}
 	} else
 		data = 0x0006;/*default-ch-data*/
@@ -2882,7 +2898,7 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 		thread_add_timer(master, delayed_set_dco_chno, NULL, 3);
 #endif
 #if 1 /* [#171] Fixing for unnecessary re-config, dustin, 2024-10-28 */
-		return ERR_PORT_NOT_READY;
+		return RT_OK;
 #endif
 	}
 #endif
@@ -2890,7 +2906,7 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
-		return ERR_NOT_FOUND;
+		return RT_OK;
 	}
 
 	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
@@ -3050,7 +3066,7 @@ uint16_t set_dco_sfp_channel_no(uint16_t portno, uint16_t chno)
 
 __exit__:
 	close(fd);
-	return ret;
+	return RT_OK;
 }
 
 #if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
@@ -3109,6 +3125,10 @@ uint16_t get_dco_ber_fer_rates(uint16_t portno)
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
+
+#if 1 /* [#196] Fixing for unexpected ber/fer values, dustin, 2024-11-13 */
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+#endif
 
 	 /* select page */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x20/*page-20h*/)) < 0) {
@@ -3963,6 +3983,10 @@ void  get_sfp_rtwdm_info(int portno, struct module_inventory * mod_inv)
 		goto __exit__;
 	}
 
+#if 1 /* [#196] Fixing for unexpected ber/fer values, dustin, 2024-11-13 */
+	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
+#endif
+
 	 /* select page */
     if(i2cset_main(1/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x20/*page-20h*/) < 0) {
         zlog_notice("%s: Writing port[%d(0/%d)] page 20 select failed.", 
@@ -4400,11 +4424,15 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		}
 #endif /* [#150] */
 
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+		/* NOTE : ltemp/tcurr will be updated by read_i2c_dco_status. */
+#else
 		/* Laser Temperature */
 		ltemp = 0;
 
 		/* TEC Current */
 		tcurr = 0;
+#endif /* [#195] */
 	} else {
 	// Temperature.
 	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
@@ -4482,8 +4510,13 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
 #endif
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+	if((tcurr < (double)0) || ((double)65.54 <= tcurr))
+		tcurr = 0;
+#else
 	if((tcurr < (double)0) || ((double)65.54 >= tcurr))
 		tcurr = 0;
+#endif /* [#195] */
 #endif
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
 		if(PORT_STATUS[portno].tunable_sfp) {
@@ -4594,8 +4627,16 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	port_sts->vcc = (float)vcc;
 	port_sts->temp = (float)temp;
 	port_sts->tx_bias = (float)bias;
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+	/* NOTE : ltemp/tcurr will be updated by read_i2c_dco_status. */
+	if(portno < (PORT_ID_EAG6L_MAX - 1)) {
+		port_sts->laser_temp = (float)ltemp;
+		port_sts->tec_curr = (float)tcurr;
+	}
+#else
 	port_sts->laser_temp = (float)ltemp;
 	port_sts->tec_curr = (float)tcurr;
+#endif /* [#195] */
 
 	return (0);
 }
@@ -6397,6 +6438,51 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	}
 	data |= (ret & 0xFF);
 	pdco->dco_ch_data = data;
+
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-20h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* read tec current msb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 168/*0xA8*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] tec current msb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = (ret << 8);
+
+	/* read tec current lsb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 169/*0xA9*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] tec current lsb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF);
+	data = ~(data - 1) & 0x7FFF;
+	PORT_STATUS[portno].tec_curr = ((float)data * 0.1/*mA*/);
+
+	/* read laser temp msb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 170/*0xAA*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] laser temp msb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = (ret << 8);
+
+	/* read laser temp lsb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 171/*0xAB*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] laser temp lsb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF);
+	data = ~(data - 1) & 0x7FFF;
+	PORT_STATUS[portno].laser_temp = (float)((int16_t)data * ((float)1/256/*unit*/));
+#endif
 
 	/* recover page to default */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
