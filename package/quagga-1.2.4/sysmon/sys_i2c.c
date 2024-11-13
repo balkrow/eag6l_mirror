@@ -4424,11 +4424,15 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 		}
 #endif /* [#150] */
 
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+		/* NOTE : ltemp/tcurr will be updated by read_i2c_dco_status. */
+#else
 		/* Laser Temperature */
 		ltemp = 0;
 
 		/* TEC Current */
 		tcurr = 0;
+#endif /* [#195] */
 	} else {
 	// Temperature.
 	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
@@ -4506,8 +4510,13 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	sfp_get_vcc(tcurr, vcc_slope, vcc_offset, &tcurr);
 #endif
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+	if((tcurr < (double)0) || ((double)65.54 <= tcurr))
+		tcurr = 0;
+#else
 	if((tcurr < (double)0) || ((double)65.54 >= tcurr))
 		tcurr = 0;
+#endif /* [#195] */
 #endif
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
 		if(PORT_STATUS[portno].tunable_sfp) {
@@ -4618,8 +4627,16 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	port_sts->vcc = (float)vcc;
 	port_sts->temp = (float)temp;
 	port_sts->tx_bias = (float)bias;
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+	/* NOTE : ltemp/tcurr will be updated by read_i2c_dco_status. */
+	if(portno < (PORT_ID_EAG6L_MAX - 1)) {
+		port_sts->laser_temp = (float)ltemp;
+		port_sts->tec_curr = (float)tcurr;
+	}
+#else
 	port_sts->laser_temp = (float)ltemp;
 	port_sts->tec_curr = (float)tcurr;
+#endif /* [#195] */
 
 	return (0);
 }
@@ -6421,6 +6438,51 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	}
 	data |= (ret & 0xFF);
 	pdco->dco_ch_data = data;
+
+#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
+	/* select page */
+	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x12/*page-20h*/)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __exit__;
+	}
+
+	/* read tec current msb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 168/*0xA8*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] tec current msb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = (ret << 8);
+
+	/* read tec current lsb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 169/*0xA9*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] tec current lsb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF);
+	data = ~(data - 1) & 0x7FFF;
+	PORT_STATUS[portno].tec_curr = ((float)data * 0.1/*mA*/);
+
+	/* read laser temp msb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 170/*0xAA*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] laser temp msb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data = (ret << 8);
+
+	/* read laser temp lsb. */
+	if((ret = i2c_smbus_read_byte_data(fd, 171/*0xAB*/)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] laser temp lsb failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	data |= (ret & 0xFF);
+	data = ~(data - 1) & 0x7FFF;
+	PORT_STATUS[portno].laser_temp = (float)((int16_t)data * ((float)1/256/*unit*/));
+#endif
 
 	/* recover page to default */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
