@@ -695,17 +695,22 @@ uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 	msg.type = gPortESMCQLupdate;
 	msg.result = FIFO_CMD_SUCCESS; 
 
+#if 1/*[194] synce TX QL 관련 수정, balkrow, 2024-11-13*/
 	/*network option 1*/
 	if(ql == E_esmc_ql_net_opt_1_DNU)
 		msg.mode = 0x11; 
-	else if(ql == E_esmc_ql_net_opt_1_SEC)
+	else if(ql == E_esmc_ql_net_opt_1_SEC || ql == E_esmc_ql_net_opt_1_eSEC )
 		msg.mode = 0x12; 
-	else if(ql == E_esmc_ql_net_opt_1_PRC)
+	else if(ql == E_esmc_ql_net_opt_1_PRC || 
+		ql == E_esmc_ql_net_opt_1_PRTC ||
+		ql == E_esmc_ql_net_opt_1_ePRTC ||
+		ql == E_esmc_ql_net_opt_1_ePRC)
 		msg.mode = 0x13; 
 	else if(ql == E_esmc_ql_net_opt_1_SSUA)
 		msg.mode = 0x14; 
 	else if(ql == E_esmc_ql_net_opt_1_SSUB)
 		msg.mode = 0x15; 
+#endif
 	else 
 		msg.mode = 0xff; 
 	/*network option 2*/
