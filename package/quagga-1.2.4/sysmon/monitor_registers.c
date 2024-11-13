@@ -2364,18 +2364,33 @@ int8_t rsmu_pll_update(void)
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
-#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
-			if(!PORT_STATUS[pri_port].recv_dnu && !PORT_STATUS[pri_port].esmc_loss)
-				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL); 
-			if(!PORT_STATUS[sec_port].recv_dnu && !PORT_STATUS[sec_port].esmc_loss)
-				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#if 1/*[#194] synce TX QL 관련 수정, balkrow, 2024-11-13*/
+				if(gDB.esmcRxCfg[pri_port - 1] == CFG_ENABLE)
+				{
+					if(gDB.synce_oper_port == pri_port)
+					{
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0x11); 
+					}
+					else
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+				}
+
+				if(gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE)
+				{
+					if(gDB.synce_oper_port == sec_port)
+					{
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0x11); 
+					}
+					else
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+				}
 #endif
 #endif
 		}
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
 		else if(gDB.pll_state == HOLD_OVER)
 		{
-#if 0
+#if 1/*[#194] synce TX QL 관련 수정, balkrow, 2024-11-13*/
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL); 
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
 #endif

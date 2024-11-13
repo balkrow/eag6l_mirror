@@ -1380,9 +1380,12 @@ uint8_t processLOC(struct thread *thread)
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
 				sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, val, PORT_NOREG);
+#if 0/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 				val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
+				val = (gDB.localQL << 8) | val; 
 				sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, val, PORT_NOREG);
+#endif
 
 			} else if(getMPortByCport(gDB.synce_sec_port) == portno)
 			{
@@ -1394,9 +1397,12 @@ uint8_t processLOC(struct thread *thread)
 				val = (val & ~(0xff));
 				sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, val, PORT_NOREG);
 
+#if 0/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 				val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff));
+				val = val | gDB.localQL; 
 				sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, val, PORT_NOREG);
+#endif
 			}
 
 			{
@@ -1607,7 +1613,7 @@ uint8_t switchEsmcInterface(int port, int QL)
 	/*check dnu*/
 	if(!PORT_STATUS[port].received_QL)
 	{
-#ifdef DEBUG
+#if 1
 		zlog_notice("%s:%d port %x Recevie QL %x QL %x oper_port %x, %x, %x", __func__, __LINE__, port, 
 			    PORT_STATUS[port].received_QL, QL, gDB.synce_oper_port, 
 			    gDB.synce_pri_port,gDB.synce_sec_port);
@@ -1774,11 +1780,15 @@ uint8_t switchEsmcInterface(int port, int QL)
 						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 1);
 					}
 #endif
-#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
+#if 1/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 					val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 					val = (val & ~(0xff00));
-					wr_val = (QL << 8) | val; 
+					if(gDB.pll_state == HOLD_OVER)
+						wr_val = (gDB.localQL << 8) | val; 
+					else
+						wr_val = (QL << 8) | val; 
 					sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
+					PORT_STATUS[port].recv_dnu = 1;
 #endif
 				}
 				else if(sec_port == port)
@@ -1797,22 +1807,27 @@ uint8_t switchEsmcInterface(int port, int QL)
 						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 1);
 					}
 #endif
-#if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
+#if 1/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 					val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 					val = (val & ~(0xff));
-					wr_val =  val | QL; 
+					if(gDB.pll_state == HOLD_OVER)
+						wr_val =  val | gDB.localQL; 
+					else
+						wr_val =  val | QL; 
+
 					sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
+					PORT_STATUS[port].recv_dnu = 1;
 #endif
 				}
 
 				PORT_STATUS[port].received_QL = QL;
-				PORT_STATUS[port].recv_dnu = 1;
 				return 0;
 			}
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 			else 
 			{
 				PORT_STATUS[port].recv_dnu = 0;
+#if 0/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 				if(pri_port == port)
 				{
 					gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL);
@@ -1821,6 +1836,7 @@ uint8_t switchEsmcInterface(int port, int QL)
 				{
 					gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL);
 				}
+#endif
 			}
 #endif
 
@@ -1959,10 +1975,9 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 			PORT_STATUS[mport].esmc_recv_cnt = 0xf; 
 #endif
 
-	}
-
 	switchEsmcInterface(mport, msg->mode);
 #endif
+	}
 
 	/* process for result. */
 	if(msg->result == FIFO_CMD_SUCCESS) {
