@@ -132,7 +132,7 @@ extern uint16_t set_flex_tune_reset(uint16_t port, uint16_t enable);
 uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno);
 #endif
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
-uint16_t update_laser_status(uint16_t portno, uint16_t val);
+void update_laser_status(uint16_t portno, uint16_t val);
 #endif
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 void read_port_inventory(int portno, struct module_inventory * mod_inv);
@@ -433,11 +433,6 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 	/*TODO: */
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
-
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
 	if(val)
 	{
@@ -618,7 +613,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 #endif
 
 	}
-	gSysmonToCpssFuncs[gPortESMCenable](2, port, val);
+	rc = gSysmonToCpssFuncs[gPortESMCenable](2, port, val);
 #endif
 	return rc;
 }
@@ -627,17 +622,12 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 
-#if 1 /* [#193] Fixing for setting port rate, dustin, 2024-11-12 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#else /***********************************************************/
 #if 1/* NOTE : to avoid unexpected calling before sdk init. */
 #if 1/*[#61] Adding omitted functions, dustin, 2024-06-24 */
 	if(! PORT_STATUS[port].equip)/*not-installed*/
 		return RT_NOK;
 #endif
 #endif
-#endif /* [#193] */
 
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
@@ -646,27 +636,27 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 #else
 	if(val == 0x7/*25G*/)
 #endif
-		gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
 #if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
 	else if(val == 0x8/*10G*/)
 #else
 	else if(val == 0x6/*10G*/)
 #endif
-		gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
 #else
 	if(val == 0x7/*25G*/)
-		gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_25G_SR_LR);
+		rc = gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_25G_SR_LR);
 	else if(val == 0x6/*10G*/)
-		gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_10G_SR_LR);
+		rc = gSysmonToCpssFuncs[gPortSetRate](2, port, PORT_IF_10G_SR_LR);
 #endif
 #else
 	if(val == 0x7/*25G*/)
-		gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_25G_KR, PORT_IF_25G_KR);
 	else if(val == 0x6/*10G*/)
-		gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
+		rc = gSysmonToCpssFuncs[gPortSetRate](3, port, PORT_IF_10G_KR, PORT_IF_10G_KR);
 #endif
 	else
-		rc = RT_OK;
+		rc = RT_NOK;
 
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
 #if 1 /* [#102] Fixing some register updates, dustin, 2024-08-26 */
@@ -687,10 +677,10 @@ uint16_t synceEnableSet(uint16_t port, uint16_t val)
 	port = port;
 #if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-24 */
 	if(val == 0xa5) {
-		gSysmonToCpssFuncs[gSynceEnable](1, 1);
+		rc = gSysmonToCpssFuncs[gSynceEnable](1, 1);
 		gDB.synce_state = CFG_ENABLE;
 	} else if(val == 0x5a) {
-		gSysmonToCpssFuncs[gSynceDisable](1, 0);
+		rc = gSysmonToCpssFuncs[gSynceDisable](1, 0);
 		gDB.synce_state = CFG_DISABLE;
 	}
 #endif
@@ -704,18 +694,14 @@ uint16_t synceEnableSet(uint16_t port, uint16_t val)
 uint16_t syncePortSendQL(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
-	gSysmonToCpssFuncs[gPortSendQL](1, val);
+	rc = gSysmonToCpssFuncs[gPortSendQL](1, val);
 	return rc;
 }
 
 uint16_t synceLocalQL(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
-	gSysmonToCpssFuncs[gPortLocalQL](1, val);
+	rc = gSysmonToCpssFuncs[gPortLocalQL](1, val);
 #if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
 	gDB.localQL = val;
 #endif
@@ -728,11 +714,6 @@ uint16_t synceLocalQL(uint16_t port, uint16_t val)
 uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
-
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
 
 	switch(val)
 	{
@@ -787,7 +768,7 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 	}
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
-	gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
+	rc = gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
 	if(port = NOT_DEFINED)
 	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0); 
@@ -803,10 +784,6 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
 
 	switch(val)
 	{
@@ -861,14 +838,13 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 	}
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
-	gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
+	rc = gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
 	if(port = NOT_DEFINED)
 	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
 		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
 	}
 	else
-		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
 #endif
 
 	return rc;
@@ -880,13 +856,9 @@ uint16_t pmClear(uint16_t port, uint16_t val)
 {
 	uint16_t rc = RT_OK;
 	port  = port;
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
 
 	if(val != 0xA5)
-		return RT_OK;
+		return SUCCESS;
 
 	gSysmonToCpssFuncs[gPortPMClear](1, 1);
 
@@ -894,9 +866,7 @@ uint16_t pmClear(uint16_t port, uint16_t val)
 	/* clear pm counter for resetting fec counter. */
 	memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
 #endif
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	return rc;
-#endif
+	return SUCCESS;
 }
 #else
 uint16_t pmClear(uint16_t port, uint16_t val)
@@ -915,18 +885,9 @@ extern void pm_request_clear(void);
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
 uint16_t pmFECClear(uint16_t port)
 {
-	uint16_t rc = RT_OK;
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
 	gSysmonToCpssFuncs[gPortPMFECClear](1, port);
 	PM_TBL[port].fcs_ok  = 0;
 	PM_TBL[port].fcs_nok = 0;
-
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	return rc;
-#endif
 }
 #endif
 
@@ -960,7 +921,7 @@ uint16_t setLLCFenable(uint16_t port, uint16_t val)
 #endif
 	PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_llcf = enable;
 
-	return RT_OK;
+	return SUCCESS;
 }
 #endif
 
@@ -1452,7 +1413,7 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 #endif
 		}
 	}
-	return RT_OK;
+	return SUCCESS;
 #else
 	if(val != 0/*1-mean-not-installed*/) {
 		/* clear spf inventory */
@@ -1679,11 +1640,6 @@ __retry__:
 #if 1 /* [#152] Adding for port RS-FEC control, dustin, 2024-10-15 */
 uint16_t portFECEnable(uint16_t portno, uint16_t enable)
 {
-	uint16_t rc = RT_OK;
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
 #if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
 	if(enable == 0xA5) {
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 1);
@@ -1716,9 +1672,7 @@ uint16_t portFECEnable(uint16_t portno, uint16_t enable)
 	else if(enable == 0x5A)
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 0);
 #endif
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	return rc;
-#endif
+	return SUCCESS;
 }
 #endif
 
@@ -1732,7 +1686,7 @@ uint16_t DcoReset(uint16_t val)
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 	if(! PORT_STATUS[PORT_ID_EAG6L_PORT7].i2cReady) {
 		zlog_notice("DCO reset was aborted because TCReady/InitComplete.");
-		return RT_OK;
+		return ERR_PORT_NOT_READY;
 	}
 #endif
 
@@ -1746,7 +1700,7 @@ uint16_t DcoReset(uint16_t val)
 		/* FIXME : correct action ? */
 		thread_add_timer(master, port_scan_sfp, PORT_ID_EAG6L_PORT7, 3);
 	}
-	return RT_OK;
+	return SUCCESS;
 }
 
 /* NOTE : both DCO/LR7 can be configured by this. */
@@ -1777,7 +1731,7 @@ uint16_t DcoFECEnable(uint16_t val)
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 	PORT_STATUS[portno].cfg_dco_fec = (hs_flag == 0xA5) ? 1 : 0;
 #endif
-	return RT_OK;
+	return SUCCESS;
 }
 
 #if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
@@ -1790,13 +1744,13 @@ uint16_t DcoCountReset(uint16_t val)
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 	if(! PORT_STATUS[PORT_ID_EAG6L_PORT7].i2cReady) {
 		zlog_notice("DCO BER reset was aborted because TCReady/InitComplete.");
-		return RT_OK;
+		return ERR_PORT_NOT_READY;
 	}
 #endif
 
 	if(val == 0xA5)
 		set_i2c_dco_count_reset();
-	return RT_OK;
+	return SUCCESS;
 }
 #endif /* [#94] */
 
@@ -1808,13 +1762,6 @@ uint16_t swModeSet(uint16_t portno, uint16_t sw_mode)
 uint16_t swModeSet(uint16_t sw_mode)
 #endif
 {
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	uint16_t rc = RT_OK;
-
-	if(gDB.init_state != SYS_INIT_DONE)
-		return RT_NOK;
-#endif
-
 zlog_notice("swModeSet : sw_mode[0x%x].", sw_mode);//ZZPP
 #if 1 /* [#164] Fixing for correct switch mode, dustin, 2024-1023 */
 	if(sw_mode == SW_TRANSPARENT_MODE)
@@ -1827,9 +1774,7 @@ zlog_notice("swModeSet : sw_mode[0x%x].", sw_mode);//ZZPP
 	else if(sw_mode == SW_AGGREGATION_MODE)
 		gSysmonToCpssFuncs[gSwitchModeSet](1, SW_AGGREGATION_MODE);
 #endif
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-	return rc;
-#endif
+	return SUCCESS;
 }
 #endif
 
@@ -1885,7 +1830,7 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 #endif
 	if((val != RDL_BANK_1) && (val != RDL_BANK_2)) {
 		zlog_notice("%s : MCU set invalid bank no[%d] for FPGA FW.", __func__, val);
-		return RT_OK;
+		return -1;
 	}
 
 	if(!gDB.pkg_is_zip)
@@ -1912,7 +1857,7 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 
 			memset(del, 0, sizeof(fw_image_header_t));
 			write_pkg_header(val, del);
-			return RT_OK;
+			return -1;
 		}
 		else
 		{
@@ -1949,7 +1894,7 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 
 			memset(del, 0, sizeof(fw_image_header_t));
 			write_pkg_header(val, del);
-			return RT_OK;
+			return -1;
 		}
 		else
 		{
@@ -2097,14 +2042,13 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 	/*FIXME : restart bank */
 #endif
 
-	return RT_OK;
+	return SUCCESS;
 }
 #endif
 
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-uint16_t update_laser_status(uint16_t portno, uint16_t val)
+#if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
+void update_laser_status(uint16_t portno, uint16_t val)
 {
-	uint16_t rc = RT_OK;
 	if(portno >= (PORT_ID_EAG6L_MAX - 1)) {
 		/* call i2c function to set laser on/off for 100G sfp. */
 		set_i2c_100G_laser_control(portno, 
@@ -2123,7 +2067,7 @@ uint16_t update_laser_status(uint16_t portno, uint16_t val)
 			__func__, portno);
 		PORT_STATUS[portno].tx_laser_sts = 0/*off*/;
 	}
-	return rc;
+	return;
 }
 #endif
 
@@ -2201,10 +2145,7 @@ void regMonitor(void)
 #ifdef DEBUG
 			zlog_notice("%s: reg=%x prv %x, cur %x", __func__, regMonList[i].reg, regMonList[i].val, val);
 #endif
-#if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
-			if(ret == RT_OK)
-				regMonList[i].val = val;
-#endif
+			regMonList[i].val = val;
 		}
 	}
 }
@@ -2869,11 +2810,7 @@ unsigned int convert_temperature_float_to_decimal(f32 val)
     vvv = 0;
     if(minus_flag || (val == 0))
         vvv |= (1 << 15);
-#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
-	vvv |= ((unit_100 << 12) & 0x7000);
-#else
     vvv |= ((unit_100 << 12) & 0x700);
-#endif
     vvv |= ((unit_10 << 8) & 0xf00);
     vvv |= ((unit_1 << 4) & 0xf0);
     vvv |= unit_0;
@@ -4765,12 +4702,8 @@ extern int update_flex_tune_status(int portno);
 		fval = PORT_STATUS[portno].vcc;
 		if(portno == PORT_ID_EAG6L_PORT7) {
 			if(PORT_STATUS[portno].equip  && (! PORT_STATUS[portno].sfp_dco))
-#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
-				fval = DCO_STAT.lr4_stat.vcc[0]; /* use channel 0 value only. */
-#else
 				fval =  (DCO_STAT.lr4_stat.vcc[0] + DCO_STAT.lr4_stat.vcc[1] +
 				         DCO_STAT.lr4_stat.vcc[2] + DCO_STAT.lr4_stat.vcc[3]) / 4;
-#endif /* [#195] */
 		}
 		val = convert_vcc_float_to_decimal(fval);
 #else
@@ -4786,13 +4719,8 @@ extern int update_flex_tune_status(int portno);
 		fval = PORT_STATUS[portno].tx_bias;
 		if(portno == PORT_ID_EAG6L_PORT7) {
 			if(PORT_STATUS[portno].equip && (! PORT_STATUS[portno].sfp_dco))
-#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
-				fval = (DCO_STAT.lr4_stat.tx_bias[0] + DCO_STAT.lr4_stat.tx_bias[1] +
-					    DCO_STAT.lr4_stat.tx_bias[2] + DCO_STAT.lr4_stat.tx_bias[3]);
-#else
 				fval = (DCO_STAT.lr4_stat.tx_bias[0] + DCO_STAT.lr4_stat.tx_bias[1] + 
 					    DCO_STAT.lr4_stat.tx_bias[2] + DCO_STAT.lr4_stat.tx_bias[3]) / 4;
-#endif /* [#195] */
 		}
 		val = convert_temperature_float_to_decimal(fval);
 #else
@@ -4807,21 +4735,12 @@ extern int update_flex_tune_status(int portno);
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 		fval = PORT_STATUS[portno].tec_curr;
-#if 1 /* [#195] Fixing for LR4 Vcc/Tx Bias calculation, dustin, 2024-11-13 */
-		/* NOTE : LR4 has only one TEC Current. */
-		/* NOTE : 100g port has over 1000 mA tec current. register format overflow. */
-		if(portno == PORT_ID_EAG6L_PORT7)
-			val = convert_hex_to_decimal(fval);
-		else
-			val = convert_dbm_float_to_decimal(fval, 0/*not-dbm*/, 0/*no-use*/);
-#else
 		if(portno == PORT_ID_EAG6L_PORT7) {
 			if(PORT_STATUS[portno].equip && (! PORT_STATUS[portno].sfp_dco))
 				fval = DCO_STAT.lr4_stat.tec_curr[0] + DCO_STAT.lr4_stat.tec_curr[1] + 
 					   DCO_STAT.lr4_stat.tec_curr[2] + DCO_STAT.lr4_stat.tec_curr[3];
 		}
 		val = convert_dbm_float_to_decimal(fval, 0/*not-dbm*/, 0/*no-use*/);
-#endif /* [#195] */
 #else /***************************************************************/
 		val = convert_dbm_float_to_decimal(PORT_STATUS[portno].tec_curr, 0/*not-dbm*/, 0/*no-use*/);
 #endif /* [#150] */
