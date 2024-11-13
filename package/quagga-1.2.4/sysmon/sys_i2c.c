@@ -3126,6 +3126,10 @@ uint16_t get_dco_ber_fer_rates(uint16_t portno)
 		goto __exit__;
 	}
 
+#if 1 /* [#196] Fixing for unexpected ber/fer values, dustin, 2024-11-13 */
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+#endif
+
 	 /* select page */
 	if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x20/*page-20h*/)) < 0) {
 		zlog_notice("%s: Writing port[%d(0/%d)] page select failed. ret[%d].",
@@ -3978,6 +3982,10 @@ void  get_sfp_rtwdm_info(int portno, struct module_inventory * mod_inv)
 			__func__, portno, get_eag6L_dport(portno), ret);
 		goto __exit__;
 	}
+
+#if 1 /* [#196] Fixing for unexpected ber/fer values, dustin, 2024-11-13 */
+	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
+#endif
 
 	 /* select page */
     if(i2cset_main(1/*bus*/, DIAG_SFP_IIC_ADDR/*0x51*/, 127/*0x7F*/, 0x20/*page-20h*/) < 0) {
