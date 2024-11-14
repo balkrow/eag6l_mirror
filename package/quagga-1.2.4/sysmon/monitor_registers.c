@@ -1820,13 +1820,26 @@ uint16_t swModeSet(uint16_t sw_mode)
 	if(gDB.init_state != SYS_INIT_DONE)
 		return RT_NOK;
 #endif
-
-zlog_notice("swModeSet : sw_mode[0x%x].", sw_mode);//ZZPP
-#if 1 /* [#164] Fixing for correct switch mode, dustin, 2024-1023 */
+#if 1 /* [#200] swMode default 값 수정, balkrow, 2024-11-14 */
+	if(gDB.traffic_mode == sw_mode)
+	{
+		zlog_notice("swModeSet : aleardy running mode[0x%x].", sw_mode);
+		return rc;
+	} 
+	else
+		zlog_notice("swModeSet : sw_mode[0x%x].", sw_mode);
+#endif
+#if 1 /* [#200] swMode default 값 수정, balkrow, 2024-11-14 */
 	if(sw_mode == SW_TRANSPARENT_MODE)
+	{
+		gDB.traffic_mode = sw_mode;
 		gSysmonToCpssFuncs[gSwitchModeSet](1, 1/*SW_TRANSPARENT_MODE*/);
+	}
 	else if(sw_mode == SW_AGGREGATION_MODE)
+	{
+		gDB.traffic_mode = sw_mode;
 		gSysmonToCpssFuncs[gSwitchModeSet](1, 0/*SW_AGGREGATION_MODE*/);
+	}
 #else
 	if(sw_mode == SW_TRANSPARENT_MODE)
 		gSysmonToCpssFuncs[gSwitchModeSet](1, SW_TRANSPARENT_MODE);

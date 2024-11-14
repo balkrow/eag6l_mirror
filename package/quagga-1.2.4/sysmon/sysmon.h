@@ -254,6 +254,9 @@ typedef struct globalDB
 	uint8_t llcf_reason; /*1: LOS. 2: LinkDown*/
 	uint8_t llcf_port_state; /*bitmap*/
 #endif
+#if 1 /* [#200] swMode default 값 수정, balkrow, 2024-11-14 */
+	uint8_t traffic_mode; /*bitmap*/
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;
