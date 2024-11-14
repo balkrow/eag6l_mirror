@@ -292,6 +292,9 @@ typedef enum {
 #define SYNCE_ESMC_RQL3_ADDR			0x170	
 #define SYNCE_ESMC_RQL4_ADDR			0x172	
 #define SYNCE_ESMC_RQL5_ADDR			0x174	
+#if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
+#define SYNCE_ESMC_SQL_EXT_ADDR			0x174	
+#endif
 
 
 /****************************
