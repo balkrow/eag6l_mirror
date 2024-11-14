@@ -557,9 +557,15 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 		if(port == pri_port) {
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0); 
 			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0); 
+#if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
+			gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, 0); 
+#endif
 		} else if(port == sec_port) {
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
 			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
+#if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
+			gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, 0); 
+#endif
 		}
 
 #endif
@@ -2373,6 +2379,10 @@ int8_t rsmu_pll_update(void)
 					}
 					else
 						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
+						gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#endif
+
 				}
 
 				if(gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE)
@@ -2383,6 +2393,9 @@ int8_t rsmu_pll_update(void)
 					}
 					else
 						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
+						gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#endif
 				}
 #endif
 #endif
@@ -2395,6 +2408,9 @@ int8_t rsmu_pll_update(void)
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
 #endif
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
+#if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
+			gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, gDB.localQL); 
+#endif
 		}
 		else
 		{
