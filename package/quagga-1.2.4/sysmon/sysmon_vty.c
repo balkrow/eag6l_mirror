@@ -289,6 +289,10 @@ DEFUN (show_sysmon_system,
 	vty_out(vty, "FPGA  running bank    : %d%s", gDB.fpga_running_bank, VTY_NEWLINE);
 	vty_out(vty, "FPGA  act bank    : %d%s", gDB.fpga_act_bank, VTY_NEWLINE);
 #endif
+#if 1 /* [#200] swMode default 값 수정, balkrow, 2024-11-14 */
+	vty_out(vty, "Traffic  Mode    : %s%s", 
+		gDB.traffic_mode == 1 ? "Aggregate":"Transport", VTY_NEWLINE);
+#endif
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
 	for(i = 0; i < PORT_ID_EAG6L_MAX; i++)

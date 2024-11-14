@@ -3482,6 +3482,9 @@ extern int8_t monitor_hw_init(void);
 	gDB.synce_oper_port = NOT_DEFINED;
 #endif
 #endif
+#if 1 /* [#200] swMode default ¿ ¿¿, balkrow, 2024-11-14 */
+	gDB.traffic_mode = SW_AGGREGATION_MODE;
+#endif
 
 	zlog_notice("init sysmon");
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
