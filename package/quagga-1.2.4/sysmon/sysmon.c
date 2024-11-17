@@ -3264,17 +3264,34 @@ extern void do_recovery_update_after_fpga_reset(void);
 }
 #endif
 
+#ifdef SUPPORT_SDK_WDT/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+int sdk_alive_counter(struct thread *thread) 
+{
+	gDB.sdk_alive_counter--;
+
+	if(gDB.sdk_alive_counter == 0)
+	{
+		zlog_notice("Reboot by SDK HANG(%x)", gDB.sdk_alive_counter);
+		CPLD_WRITE(CPLD_HW_RST_ADDR, CPLD_HW_RST);
+	}
+	thread_add_timer(master, sdk_alive_counter, NULL, 20);
+
+}
+#endif
+
+#if 1/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+int wd_clear(struct thread *thread) 
+{
+	CPLD_WRITE(CPLD_WD_CLR_ADDR, CPLD_WD_CLR);
+	thread_add_timer(master, wd_clear, NULL, 5);
+}
+#endif
+
 /* Allocate new sys structure and set default value. */
 void sysmon_thread_init (void)
 {
 #if 1/*[#26] system managent FSM ¿¿, balkrow, 2024-05-20*/
 	thread_add_timer (master, svc_fsm_timer, NULL, 2);
-#endif
-#if 0/*[#25] I2C related register update, dustin, 2024-05-28 */
-	thread_add_timer (master, sfp_timer_func, NULL, 10);
-#endif
-#if 0/*[#4] Register updating, dustin, 2024-05-28 */
-	thread_add_timer (master, reg_timer_func, NULL, 10);
 #endif
 
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
@@ -3295,13 +3312,10 @@ void sysmon_thread_init (void)
 #if 1/* [#70] Adding RDL feature, dustin, 2024-07-02 */
 	thread_add_timer (master, rdl_fsm_func, NULL, 5);
 #endif
-#if 1 /* [#124] Fixing for 3rd registers update, dustin, 2024-09-09 */
-    /* NOTE : no more use below emul functions. */
-#else /**************************************************************/
-#if 1/* [#77] Adding RDL emulation function, dustin, 2024-07-16 */
-	thread_add_timer (master, rdl_mcu_emul_func, NULL, 5);
+#if 1/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+	thread_add_timer (master, wd_clear, NULL, 5);
 #endif
-#endif /* [#124] */
+
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 	thread_add_timer(master, check_fifo_hello, NULL, 10/*sec*/);
 #endif
@@ -3485,11 +3499,19 @@ extern int8_t monitor_hw_init(void);
 #if 1 /* [#200] swMode default ¿ ¿¿, balkrow, 2024-11-14 */
 	gDB.traffic_mode = SW_AGGREGATION_MODE;
 #endif
-
 	zlog_notice("init sysmon");
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 	monitor_hw_init();
 #endif
+#ifdef SUPPORT_SDK_WDT/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+#warning "-----SUPPORT_SDK_WDT-----"
+	gDB.sdk_alive_counter = SDK_ALIVE_COUNTER;
+#endif
+#if 1 /* [#197] WDT¿¿, balkrow, 2024-11-15 */
+	CPLD_WRITE(CPLD_WD_CTL_ADDR, CPLD_WD_EN);
+	zlog_notice("Enable HW WDT(%x)", CPLD_READ(CPLD_WD_CTL_ADDR));
+#endif
+
 #if 1/*[#26] system managent FSM ¿¿, balkrow, 2024-05-20*/
 #if 0/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 	sysmon_master_fifo_init ();

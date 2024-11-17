@@ -257,6 +257,10 @@ typedef struct globalDB
 #if 1 /* [#200] swMode default 값 수정, balkrow, 2024-11-14 */
 	uint8_t traffic_mode; /*bitmap*/
 #endif
+#ifdef SUPPORT_SDK_WDT/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+#define SDK_ALIVE_COUNTER 24
+	uint16_t sdk_alive_counter; /*bitmap*/
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;

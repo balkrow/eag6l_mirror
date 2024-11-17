@@ -3,6 +3,12 @@
 #cd $(dirname $0)
 INSTALL_ROOT=${TOPDIR}/rootfs
 QUAGGA=`pwd`
+CFLAGS=
+
+if [ ${SUPPORT_SDK_WDT} == "y" ] 
+  then
+  CFLAGS="-DSUPPORT_SDK_WDT"
+fi
 
 function _clean {
 	[ -f Makefile ] && make distclean && rm -fr install || exit -1
@@ -12,6 +18,7 @@ function _clean {
 function _config {
   if [ ${BUILD_BOARD_NAME} == "eag6l" ] ; then
     automake
+    CFLAGS=${CFLAGS} \
 	./configure											\
 		--host=${CROSS_COMPILE_PFX}							\
 		--prefix=$QUAGGA/install \
