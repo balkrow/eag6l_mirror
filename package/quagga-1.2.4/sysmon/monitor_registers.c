@@ -1945,9 +1945,14 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 			zlog_notice("clear fpga register!!");
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0);
 #endif
+#if 1/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+			zlog_notice("Reboot by Bank Switch(%x)", val);
+			CPLD_WRITE(CPLD_HW_RST_ADDR, CPLD_HW_RST);
+#else
 			memset(cmd, 0, 100);
 			sprintf(cmd, "reboot -nf");
 			system(cmd);
+#endif
 			
 		}
 
@@ -1997,10 +2002,14 @@ extern void set_fpga_fw_active_bank_flag(uint8_t bno);
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0xa5a5);
 			CPLD_WRITE(FPGA_RESET_BY_BP, 0);
 #endif
+#if 1/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+			zlog_notice("Reboot by Bank Switch(%x)", val);
+			CPLD_WRITE(CPLD_HW_RST_ADDR, CPLD_HW_RST);
+#else
 			memset(cmd, 0, 100);
 			sprintf(cmd, "reboot -nf");
 			system(cmd);
-
+#endif
 		}
 
 #if 0/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-04*/

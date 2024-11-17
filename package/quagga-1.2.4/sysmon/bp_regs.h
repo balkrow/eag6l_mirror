@@ -1711,6 +1711,14 @@ typedef enum {
 #if 1/*[#119] bank switch 시 fpga reset 기능 추가, balkrow, 2024-09-05*/
 #define FPGA_RESET_BY_BP 0x20
 #endif
+#if 1/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+#define CPLD_WD_CLR_ADDR	0x3A
+#define CPLD_WD_CTL_ADDR	0x38
+#define CPLD_HW_RST_ADDR	0x36
+#define CPLD_WD_CLR	0xa5a5
+#define CPLD_WD_EN	0x5a5a
+#define CPLD_HW_RST	0x5a5a
+#endif
 
 extern unsigned long __COMMON_CTRL2_ADDR[PORT_ID_EAG6L_MAX];
 extern unsigned long __PORT_CONFIG_ADDR[PORT_ID_EAG6L_MAX];

@@ -2240,6 +2240,32 @@ U_BOOT_CMD(
 	NULL
 );
 
+#if 1/*[#197] WDT구현, balkrow, 2024-11-15*/
+int do_wd_enable (cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+{
+	if (argc < 2) {
+		cmd_usage(cmdtp);
+		return 1;
+	}
+
+	if(argv[1][0] == 'e')
+	{
+		*((ushort *)(0x70000000 + 0x38)) = (ushort)0x5a5a;
+	} else
+	{
+		*((ushort *)(0x70000000 + 0x38)) = (ushort)0;
+	}
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	   wd, 2, 1,       do_wd_enable,
+	   "WatchDog(HW) Enable or Disable",
+	   "\nwd enable    - HW watchdog enabled (default)\n"
+	   "wd disable     - HW watchdog disabled\n"
+	  );
+#endif
 
 struct hfr_img_info *hfrflash;
 
@@ -2338,6 +2364,9 @@ void store_bootimagename( char *name)
 #if 1/*[#106] init 시 FPGA update 기능 추가, balkrow, 2024-08-28 */
 	strcat(bootargs_tmp, " fpga_bank=");
 	strcat(bootargs_tmp, fpga_bank);
+#if 0/*[#197] WDT구현, balkrow, 2024-11-15*/
+	strcat(bootargs_tmp, " pcie_aspm=off");
+#endif
 #endif
 	env_set("bootargs", bootargs_tmp);
 

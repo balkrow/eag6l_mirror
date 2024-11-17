@@ -978,6 +978,9 @@ static int hdriver_init(void)
 
     (unsigned short)fpga_memory(HDRIVER_MEMORY_TYPE_WRITE,0x3A,0xA5A5);
 #endif
+#if 1/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+     iowrite16(0, hdriver_cpld_virt_base + 0x38);
+#endif
 
     return 0;
 }

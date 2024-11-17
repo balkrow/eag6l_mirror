@@ -99,6 +99,12 @@ uint8_t gCpssHello(int args, ...)
 	va_end(argP);
 
 	msg->type = gHello;
+#ifdef SUPPORT_SDK_WDT/* [#197] WDT¿¿, balkrow, 2024-11-15 */
+#ifdef DEBUG
+	zlog_notice("Received Hello Reply (%d)", gDB.sdk_alive_counter);
+#endif
+	gDB.sdk_alive_counter = SDK_ALIVE_COUNTER;
+#endif
 	if(send_to_sysmon_slave(msg) == 0)
 		ret = IPC_CMD_FAIL;
 
