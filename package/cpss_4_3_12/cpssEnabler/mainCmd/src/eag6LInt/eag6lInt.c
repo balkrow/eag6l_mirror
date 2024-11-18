@@ -20,6 +20,9 @@
 #include <appDemo/userExit/userEventHandler.h>
 #include <cpss/dxCh/dxChxGen/networkIf/cpssDxChNetIfTypes.h>
 #endif
+#if 1/*[#202] unknownUnicast 에 drop 설정, balkrow, 2024-11-18*/
+#include <cpss/generic/cpssCommonDefs.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -76,6 +79,15 @@ int8_t gSecSendQL = 0;
 #endif
 #if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
 extern int32_t llcf_process(int8_t port, int8_t evt);
+#endif
+
+#if 1/*[#202] unknownUnicast 에 drop 설정, balkrow, 2024-11-18*/
+extern GT_STATUS cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet
+(
+    IN GT_U8                devNum,
+    IN GT_PORT_NUM          portNum,
+    IN CPSS_PACKET_CMD_ENT  cmd
+);
 #endif
 
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
@@ -985,6 +997,9 @@ uint8_t gCpssSDKInit(int args, ...)
 #if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
 	result += EAG6LMacLearningnable();
 	result += EAG6L25Gto100GFwdSet();
+#endif
+#if 1/*[#202] unknownUnicast 에 drop 설정, balkrow, 2024-11-18*/
+	result += cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet(0, EAG6L_WDM_PORT, CPSS_PACKET_CMD_DROP_HARD_E); 
 #endif
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 	/*initial tag/untag forwarding */
