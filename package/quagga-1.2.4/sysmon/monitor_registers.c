@@ -4184,6 +4184,8 @@ void process_alarm_info(void)
 		/* update link down (Local Fault?) */
 #if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-31 */
 #if 1 /* [#186] Fixing for correct link down/LF condition, dustin, 2024-11-05 */
+
+#if 0 /* [#203] esmc enable 인 경우에만 LOC 발생하도록 수정, balkrow, 2024-11-18 */
 		if(! PORT_STATUS[portno].link)
 		{
 			if(getMPortByCport(gDB.synce_pri_port) == portno &&
@@ -4206,6 +4208,7 @@ void process_alarm_info(void)
 				PORT_STATUS[portno].esmc_loss = 0;
 			}
 		}
+#endif
 
 		/* update local fault. */
 		if(PORT_STATUS[portno].local_fault)
