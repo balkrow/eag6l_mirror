@@ -1196,6 +1196,11 @@ uint8_t gReplyPortPMGet(int args, ...)
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
 
+#if 1 /* [#204] pmClear register ¿ normal ¿ pm update ¿¿¿ ¿¿, balkrow, 2024-11-19 */
+	if(gDB.pmUpdateCmd == 0xa5)
+		return;
+#endif
+
 	/* process for result. */
 	if(msg->result == FIFO_CMD_SUCCESS) {
 		/* accumulate the counters. marvell counters are cleared on read. */
