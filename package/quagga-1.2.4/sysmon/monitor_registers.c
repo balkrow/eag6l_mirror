@@ -890,16 +890,25 @@ uint16_t pmClear(uint16_t port, uint16_t val)
 	if(gDB.init_state != SYS_INIT_DONE)
 		return RT_NOK;
 #endif
-
+#if 1 /* [#204] pmClear register 시 normal 시 pm update 하도록 수정, balkrow, 2024-11-19 */
+	if(val == 0xa5)
+	{
+		gDB.pmUpdateCmd = val;
+		gSysmonToCpssFuncs[gPortPMClear](1, 1);
+	}
+	else if(val == 0)
+		gDB.pmUpdateCmd = val;
+#else
 	if(val != 0xA5)
 		return RT_OK;
 
 	gSysmonToCpssFuncs[gPortPMClear](1, 1);
-
 #if 1 /* [#85] Fixing for resetting PM counter for unexpected FEC counting, dustin, 2024-07-31 */
 	/* clear pm counter for resetting fec counter. */
 	memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
 #endif
+#endif
+
 #if 1 /* [#193] Fixing for setting port rate, balkrow, 2024-11-13 */
 	return rc;
 #endif
@@ -5149,6 +5158,11 @@ void process_port_pm_counters(void)
 	}
 	//FIXME : read-clear ?
 	FPGA_WRITE(PM_COUNT_CLEAR_ADDR, 0x0);
+#endif
+
+#if 1 /* [#204] pmClear register 시 normal 시 pm update 하도록 수정, balkrow, 2024-11-19 */
+	if(gDB.pmUpdateCmd == 0xa5)
+		return;
 #endif
 
     /* update pm tx byte */

@@ -261,6 +261,9 @@ typedef struct globalDB
 #define SDK_ALIVE_COUNTER 24
 	uint16_t sdk_alive_counter; /*bitmap*/
 #endif
+#if 1 /* [#204] pmClear register 시 normal 시 pm update 하도록 수정, balkrow, 2024-11-19 */
+	uint8_t pmUpdateCmd; /*bitmap*/
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;
