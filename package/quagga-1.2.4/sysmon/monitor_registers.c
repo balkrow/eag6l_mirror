@@ -893,11 +893,18 @@ uint16_t pmClear(uint16_t port, uint16_t val)
 #if 1 /* [#204] pmClear register 시 normal 시 pm update 하도록 수정, balkrow, 2024-11-19 */
 	if(val == 0xa5)
 	{
+		int n;
+		for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_MAX; n++)
+			memset(&(PM_TBL[n]), 0, sizeof(port_pm_counter_t));
+
+		process_port_pm_counters();
 		gDB.pmUpdateCmd = val;
 		gSysmonToCpssFuncs[gPortPMClear](1, 1);
 	}
 	else if(val == 0)
+	{
 		gDB.pmUpdateCmd = val;
+	}
 #else
 	if(val != 0xA5)
 		return RT_OK;
