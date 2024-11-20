@@ -1523,7 +1523,12 @@ uint8_t processLLCF(void)
 			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
 			{
 				if(gDB.llcf_reason == 1 && PORT_STATUS[n].cfg_tx_laser) 
+				{
 					laser_onoff_25g(n, 1);
+#if 1/*[#207] LLCF on ¿ link down ¿ loss ¿¿ ¿¿ ¿¿¿¿ ¿¿¿ ¿¿ ¿¿ ¿¿, balkrow, 2024-11-20*/
+					PORT_STATUS[n].tx_laser_sts = 1;
+				}
+#endif
 				else if(gDB.llcf_reason == 2) 
 					gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(n), 0);
 			}
@@ -1534,6 +1539,9 @@ uint8_t processLLCF(void)
 		goto add_timer;
 	}
 
+#if 1/*[#207] LLCF on ¿ link down ¿ loss ¿¿ ¿¿ ¿¿¿¿ ¿¿¿ ¿¿ ¿¿ ¿¿, balkrow, 2024-11-20*/
+	get_sfp_info_diag(PORT_ID_EAG6L_PORT7, &(PORT_STATUS[PORT_ID_EAG6L_PORT7]));
+#endif
 
 	if(PORT_STATUS[PORT_ID_EAG6L_PORT7].los)
 	{
@@ -1550,6 +1558,9 @@ uint8_t processLLCF(void)
 				laser_onoff_25g(n, 0);
 				zlog_notice("LLCF: port %d laser off\n", n); 
 			}
+#if 1/*[#207] LLCF on ¿ link down ¿ loss ¿¿ ¿¿ ¿¿¿¿ ¿¿¿ ¿¿ ¿¿ ¿¿, balkrow, 2024-11-20*/
+			PORT_STATUS[n].tx_laser_sts = 0;
+#endif
 			gDB.llcf_port_state |= (1 << n);
 		}
 
@@ -1595,6 +1606,9 @@ port7_check:
 					zlog_notice("LLCF: port %d laser on\n", n); 
 				}
 				gDB.llcf_port_state &= ~(1 << n);
+#if 1/*[#207] LLCF on ¿ link down ¿ loss ¿¿ ¿¿ ¿¿¿¿ ¿¿¿ ¿¿ ¿¿ ¿¿, balkrow, 2024-11-20*/
+				PORT_STATUS[n].tx_laser_sts = 1;
+#endif
 			}
 			gDB.llcf_status = 0;
 			gDB.llcf_reason = 0;
