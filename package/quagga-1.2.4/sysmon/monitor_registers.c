@@ -1170,6 +1170,9 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	uint8_t cfg_chno;
 	uint16_t cfg_ch_data;
 #endif
+#if 1 /* [#208] Fixing for updating info for not equipped port, dustin, 2024-11-20 */
+static uint8_t first_flag = 0;
+#endif
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 static uint16_t SFP_CR_CACHE = 0x7F;
 	uint16_t cmask;
@@ -1183,7 +1186,11 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 	for(port = PORT_ID_EAG6L_PORT1; port < PORT_ID_EAG6L_MAX; port++) {
 #if 1 /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
 		/* skip unchanged port */
+#if 1 /* [#208] Fixing for updating info for not equipped port, dustin, 2024-11-20 */
+		if(! (cmask & (1 << (port - 1))) && first_flag)
+#else
 		if(! (cmask & (1 << (port - 1))))
+#endif
 			continue;
 #endif
 
@@ -1320,6 +1327,10 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 				FPGA_PORT_WRITE(__PORT_WL2_RTWDM_ADDR[port], 0x0);
 			}
 
+#if 1 /* [#208] Fixing for updating info for not equipped port, dustin, 2024-11-20 */
+			FPGA_PORT_WRITE(__PORT_ALM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_ALM_FLAG_ADDR[port], 0x0);
+#endif
 			FPGA_PORT_WRITE(__PORT_TX_PWR_ADDR[port], 0x8999);
 			FPGA_PORT_WRITE(__PORT_RX_PWR_ADDR[port], 0x8999);
 			FPGA_PORT_WRITE(__PORT_TEMP_ADDR[port], 0x0);
@@ -1474,6 +1485,9 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 #endif
 		}
 	}
+#if 1 /* [#208] Fixing for updating info for not equipped port, dustin, 2024-11-20 */
+	first_flag = 1;
+#endif
 	return RT_OK;
 #else
 	if(val != 0/*1-mean-not-installed*/) {
@@ -4178,6 +4192,11 @@ void process_alarm_info(void)
 
 	/* update alarm */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+#if 1 /* [#208] Fixing for updating info for not equipped port, dustin, 2024-11-20 */
+		if(! PORT_STATUS[portno].equip)
+			continue;
+#endif
+
 		val = 0;
 
 		/*FIXME : update LOS */
