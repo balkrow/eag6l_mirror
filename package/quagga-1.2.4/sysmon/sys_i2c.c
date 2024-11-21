@@ -3708,6 +3708,9 @@ int i2cget_main_len( int bus, unsigned char addr, unsigned char start_data_addr,
             "functionality matrix: %s\n", strerror(errno));
 		zlog_notice("%s : ioctl failed. bus[%x] addr[%x] data_addr[%x] reason[%s]", 
 			__func__, bus, addr, start_data_addr, strerror(errno));
+#if 1 /* [#205] Fixing for minus temperature and P7 rx/tx power, dustin, 2024-11-19 */
+		close(fd);
+#endif
         return -1;
     }
 
@@ -4236,6 +4239,37 @@ int sfp_get_bias(double bias_ad, double bias_slope, double bias_offset, double *
   return 0;
 }
 
+#if 1 /* [#205] Fixing for minus temperature and P7 rx/tx power, dustin, 2024-11-19 */
+/* NOTE : below calculation came from ddm temp excel file. (from Lim Hoon) */
+double calculate_temp(uint16_t temp_data)
+{
+	double temp, total;
+
+	total  = 0;
+	total += (temp_data & 0x4000) ? 0x40   : 0;
+	total += (temp_data & 0x2000) ? 0x20   : 0;
+	total += (temp_data & 0x1000) ? 0x10   : 0;
+	total += (temp_data & 0x0800) ? 0x08   : 0;
+	total += (temp_data & 0x0400) ? 0x04   : 0;
+	total += (temp_data & 0x0200) ? 0x02   : 0;
+	total += (temp_data & 0x0100) ? 0x01   : 0;
+	total += (temp_data & 0x0080) ? (double)1/2 : 0;
+	total += (temp_data & 0x0040) ? (double)1/4 : 0;
+	total += (temp_data & 0x0020) ? (double)1/8 : 0;
+	total += (temp_data & 0x0010) ? (double)1/16 : 0;
+	total += (temp_data & 0x0008) ? (double)1/32 : 0;
+	total += (temp_data & 0x0004) ? (double)1/64 : 0;
+	total += (temp_data & 0x0002) ? (double)1/128 : 0;
+	total += (temp_data & 0x0001) ? (double)1/256 : 0;
+
+	if(temp_data > 32768)
+		temp = (128 - total) * -1.0;
+	else
+		temp = total;
+	return temp;
+}
+#endif
+
 int get_sfp_info_diag(int portno, port_status_t * port_sts)
 {
 	int	bus = 1;
@@ -4253,6 +4287,9 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 	double temp, vcc, bias, ltemp, tcurr;
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 	double _tx_db[4], _rx_db[4], _vcc[4], _bias[4];
+#endif
+#if 1 /* [#205] Fixing for minus temperature and P7 rx/tx power, dustin, 2024-11-19 */
+	uint16_t temp_raw;
 #endif
 
 #if 0 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
@@ -4282,9 +4319,15 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 
 	if(portno >= (PORT_ID_EAG6L_MAX - 1)) {
 		/* Temperature */
+#if 1 /* [#205] Fixing for minus temperature and P7 rx/tx power, dustin, 2024-11-19 */
+		temp_raw = ((raw_diag1->fs_dev_monitor[0] << 8) | 
+			         raw_diag1->fs_dev_monitor[1]);
+		temp = calculate_temp(temp_raw);
+#else
 		temp = (double)((raw_diag1->fs_dev_monitor[0] << 8) | 
 				raw_diag1->fs_dev_monitor[1]);
 		temp *= (((double)1 / (double)256)/*unit*/);
+#endif
 
 		/* VCC */
 		vcc = (double)((raw_diag1->fs_dev_monitor[4] << 8) | 
@@ -4435,10 +4478,15 @@ int get_sfp_info_diag(int portno, port_status_t * port_sts)
 #endif /* [#195] */
 	} else {
 	// Temperature.
+#if 1 /* [#205] Fixing for minus temperature and P7 rx/tx power, dustin, 2024-11-19 */
+	temp_raw = ((raw_diag->diagnostics[0] << 8) | raw_diag->diagnostics[1]);
+	temp = calculate_temp(temp_raw);
+#else
 	sfp_get_ad(raw_diag->diagnostics[0], raw_diag->diagnostics[1], &temp_ad);
 	sfp_get_slope(raw_diag->ext_cal_constants[28], raw_diag->ext_cal_constants[29], &temp_slope);
 	sfp_get_offset(raw_diag->ext_cal_constants[30], raw_diag->ext_cal_constants[31], &temp_offset);
 	sfp_get_temp(temp_ad, temp_slope, temp_offset, &temp);
+#endif
 
 	// VCC
 	sfp_get_ad(raw_diag->diagnostics[2], raw_diag->diagnostics[3], &vcc_ad);
