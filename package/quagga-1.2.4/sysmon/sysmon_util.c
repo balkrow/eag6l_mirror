@@ -370,6 +370,9 @@ int16_t activate_os(uint8_t bank)
 	/*move os image from package bank to os bank*/
 	char cmd[512] = {0, }; 
 	char os_img[256] = {0, }; 
+#if 1/*[#210] bank switch 시 기존 image 삭제 로직 구현, balkrow, 2024-11-21*/
+	char uImage_orig[256] = {0, }; 
+#endif
 	char *bank_path = NULL;
 	char *os_bank_path = NULL;
 	char *uImage_path = NULL;
@@ -396,6 +399,18 @@ int16_t activate_os(uint8_t bank)
 	result = system(cmd);
 	zlog_notice("cmd %s result=%d", cmd, result);
 	/*remove uImage symbolic link*/
+
+#if 1/*[#210] bank switch 시 기존 image 삭제 로직 구현, balkrow, 2024-11-21*/
+	if(readlink(uImage_path, uImage_orig, 256) > 0)
+	{
+		int ret;
+		memset(cmd, 0, 512); 
+		sprintf(cmd, "%s%s", os_bank_path, uImage_orig);
+		ret = unlink(cmd);
+		zlog_notice("delete previous img %s[%d]", cmd, ret);
+	}
+#endif
+
 	memset(cmd, 0, 512); 
 	sprintf(cmd, "rm %s", uImage_path);
 	result = system(cmd);
