@@ -1238,6 +1238,9 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 #endif
 #if 1 /* [#151] Implementing P7 config register, dustin, 2024-10-21 */
 			PORT_STATUS[port].cfg_tx_laser = cfg_tx_laser;
+#if 1 /* [#206] Fixing for unexpect clearing tx_laser_sts, dustin, 2024-11-20 */
+			PORT_STATUS[port].tx_laser_sts = cfg_tx_laser;
+#endif
 			PORT_STATUS[port].cfg_llcf = cfg_llcf;
 #endif
 
