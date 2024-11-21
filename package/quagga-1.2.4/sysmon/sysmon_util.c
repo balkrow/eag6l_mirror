@@ -395,11 +395,6 @@ int16_t activate_os(uint8_t bank)
 	if(get_os_filename(OS_IMG_PREFIX, bank_path, os_img) == RT_NOK)
 		return RT_NOK; 
 
-	sprintf(cmd, "cp %s%s %s", bank_path, os_img, os_bank_path);
-	result = system(cmd);
-	zlog_notice("cmd %s result=%d", cmd, result);
-	/*remove uImage symbolic link*/
-
 #if 1/*[#210] bank switch 시 기존 image 삭제 로직 구현, balkrow, 2024-11-21*/
 	if(readlink(uImage_path, uImage_orig, 256) > 0)
 	{
@@ -410,6 +405,12 @@ int16_t activate_os(uint8_t bank)
 		zlog_notice("delete previous img %s[%d]", cmd, ret);
 	}
 #endif
+
+	sprintf(cmd, "cp %s%s %s", bank_path, os_img, os_bank_path);
+	result = system(cmd);
+	zlog_notice("cmd %s result=%d", cmd, result);
+	/*remove uImage symbolic link*/
+
 
 	memset(cmd, 0, 512); 
 	sprintf(cmd, "rm %s", uImage_path);
