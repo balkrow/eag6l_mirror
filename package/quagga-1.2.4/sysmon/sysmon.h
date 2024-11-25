@@ -250,7 +250,9 @@ typedef struct globalDB
 	uint8_t synce_oper_port;
 #endif
 #if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
-	uint8_t llcf_status;
+#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
+	uint8_t linkdown_try;
+#endif
 	uint8_t llcf_reason; /*1: LOS. 2: LinkDown*/
 	uint8_t llcf_port_state; /*bitmap*/
 #endif

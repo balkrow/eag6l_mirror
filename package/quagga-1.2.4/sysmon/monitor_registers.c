@@ -1124,17 +1124,15 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	PORT_STATUS[port].i2cReady = 1;
 #endif
 
-#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
-	if(gDB.llcf_status && PORT_STATUS[port].cfg_tx_laser)
+#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
+	if(!(gDB.llcf_port_state & (1 << port)) && PORT_STATUS[port].cfg_tx_laser)
 	{
-		if(gDB.llcf_reason == 1 && 
-		   !(gDB.llcf_port_state & (1 << port)))
+		if(gDB.llcf_reason == 1)
 		{
 			laser_onoff_25g(port, 0);
 			gDB.llcf_port_state |= (1 << port);
 		}
-		else if(gDB.llcf_reason == 2 && 
-		   !(gDB.llcf_port_state & (1 << port)))
+		else if(gDB.llcf_reason == 2)
 		{
 			gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(port), 1);
 			gDB.llcf_port_state |= (1 << port);
@@ -1382,6 +1380,9 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 
 			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
 			PORT_STATUS[port].equip = 0;/*not-installed*/
+#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
+			gDB.llcf_port_state &= ~(1 << port);
+#endif
 		} else {/*0-mean-installed*/
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 			i2c_in_use_flag_backup = i2c_in_use_flag;
