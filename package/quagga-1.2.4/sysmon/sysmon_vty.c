@@ -46,6 +46,25 @@ extern RDL_INFO_LIST_t rdl_info_list;
 extern int laser_onoff_25g(int portno, int onoff);
 #endif
 
+#if 1/*[#55] Adding vty shell test CLIs, dustin, 2024-06-20 */
+extern int set_smart_tsfp_self_loopback(int portno, int enable);
+extern int set_flex_tune_control(int portno, int enable);
+extern int set_rtwdm_loopback(int portno, int enable);
+extern void port_config_speed(int port, int speed, int mode);
+
+extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
+extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
+extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
+#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
+extern struct module_inventory RTWDM_INV_TBL[PORT_ID_EAG6L_MAX];
+#endif
+extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
+extern int i2c_in_use_flag;
+#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-08-19 */
+int i2c_in_use_flag_set = 0;
+#endif
+
+
 #if 1/*[#56] register update timer ¿¿, balkrow, 2024-06-13 */
 extern GLOBAL_DB gDB;
 
@@ -293,6 +312,12 @@ DEFUN (show_sysmon_system,
 	vty_out(vty, "Traffic  Mode    : %s%s", 
 		gDB.traffic_mode == 1 ? "Aggregate":"Transport", VTY_NEWLINE);
 #endif
+#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
+	vty_out(vty, "LLCF  Enable    : %x%s", PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_llcf, VTY_NEWLINE); 
+	vty_out(vty, "LLCF  reason    : %x%s", gDB.llcf_reason, VTY_NEWLINE); 
+	vty_out(vty, "LLCF  port status    : %x%s", gDB.llcf_port_state, VTY_NEWLINE); 
+
+#endif
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
 	for(i = 0; i < PORT_ID_EAG6L_MAX; i++)
@@ -303,24 +328,6 @@ DEFUN (show_sysmon_system,
 #endif
 	return CMD_SUCCESS;
 }
-#endif
-
-#if 1/*[#55] Adding vty shell test CLIs, dustin, 2024-06-20 */
-extern int set_smart_tsfp_self_loopback(int portno, int enable);
-extern int set_flex_tune_control(int portno, int enable);
-extern int set_rtwdm_loopback(int portno, int enable);
-extern void port_config_speed(int port, int speed, int mode);
-
-extern cSysmonToCPSSFuncs gSysmonToCpssFuncs[];
-extern port_status_t PORT_STATUS[PORT_ID_EAG6L_MAX];
-extern struct module_inventory INV_TBL[PORT_ID_EAG6L_MAX];
-#if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
-extern struct module_inventory RTWDM_INV_TBL[PORT_ID_EAG6L_MAX];
-#endif
-extern port_pm_counter_t PM_TBL[PORT_ID_EAG6L_MAX];
-extern int i2c_in_use_flag;
-#if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-08-19 */
-int i2c_in_use_flag_set = 0;
 #endif
 
 

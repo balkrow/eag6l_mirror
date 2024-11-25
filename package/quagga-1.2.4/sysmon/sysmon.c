@@ -3499,6 +3499,9 @@ extern int8_t monitor_hw_init(void);
 #if 1 /* [#200] swMode default ¿ ¿¿, balkrow, 2024-11-14 */
 	gDB.traffic_mode = SW_AGGREGATION_MODE;
 #endif
+#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
+	gDB.linkdown_try = 0;
+#endif
 	zlog_notice("init sysmon");
 #if 1/*[#53] Clock source status ¿¿¿¿ ¿¿ ¿¿, balkrow, 2024-06-13*/
 	monitor_hw_init();

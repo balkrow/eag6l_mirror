@@ -52,6 +52,18 @@ extern GT_STATUS cpssDxChPortManagerEventSet
     IN  CPSS_PORT_MANAGER_STC   *portEventStcPtr
 );
 
+#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
+extern GT_STATUS cpssDxChPortRemoteFaultSet
+(
+    IN  GT_U8                           devNum,
+    IN  GT_PHYSICAL_PORT_NUM            portNum,
+    IN  CPSS_PORT_INTERFACE_MODE_ENT    ifMode,
+    IN  CPSS_PORT_SPEED_ENT             speed,
+    IN  GT_BOOL                         send
+);
+#endif
+
+
 #if 1/*[#40] IPC source 정리, balkrow, 2024-06-11 */
 SVC_FAULT_FSM svcPortFaultFsm[PORT_ID_EAG6L_MAX];
 #else
@@ -189,13 +201,31 @@ SVC_FAULT_ST portEventRFstate
 	return rc;
 }
 
-#if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
+#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
 int32_t llcf_process(int8_t port, int8_t evt)
 {
-	int8_t i;
 	int32_t ret = 0;
 	GT_U8 devNum = 0;
-
+#if 1
+	if(evt)
+	{
+		CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
+		cpssDxChPortManagerStatusGet(devNum, port, &portConfigOutParams);
+		cpssDxChPortRemoteFaultSet(devNum, port, 
+					   portConfigOutParams.ifMode,
+					   portConfigOutParams.speed,
+					   GT_TRUE);
+	}
+	else
+	{
+		CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
+		cpssDxChPortManagerStatusGet(devNum, port, &portConfigOutParams);
+		cpssDxChPortRemoteFaultSet(devNum, port, 
+					   portConfigOutParams.ifMode,
+					   portConfigOutParams.speed,
+					   GT_FALSE);
+	}
+#else
 	for(i = 0; i < eag6LPortArrSize - 1 ; i++)
 	{
 		if(eag6LPortlist[i] == port) 
@@ -213,6 +243,7 @@ int32_t llcf_process(int8_t port, int8_t evt)
 		}
 
 	}
+#endif
 	return ret;
 }
 #endif
