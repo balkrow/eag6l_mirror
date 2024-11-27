@@ -63,6 +63,24 @@ extern GT_STATUS cpssDxChPortRemoteFaultSet
 );
 #endif
 
+#if 1/*[#214] LLCF on 상태에서 100G link down시 Localfault 전달, balkrow, 2024-11-27*/
+GT_STATUS prvCpssCommonPortIfModeToHwsTranslate
+(
+    IN  GT_U8                           devNum,
+    IN  CPSS_PORT_INTERFACE_MODE_ENT    cpssIfMode,
+    IN  CPSS_PORT_SPEED_ENT             cpssSpeed,
+    OUT MV_HWS_PORT_STANDARD            *hwsIfModePtr
+);
+
+GT_STATUS mvHwsPortSendLocalFaultSet
+(
+    IN GT_U8                   devNum,
+    IN GT_U32                  portGroup,
+    IN GT_U32                  phyPortNum,
+    IN MV_HWS_PORT_STANDARD    portMode,
+    IN GT_BOOL                 enable
+);
+#endif
 
 #if 1/*[#40] IPC source 정리, balkrow, 2024-06-11 */
 SVC_FAULT_FSM svcPortFaultFsm[PORT_ID_EAG6L_MAX];
@@ -201,49 +219,30 @@ SVC_FAULT_ST portEventRFstate
 	return rc;
 }
 
-#if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
+#if 1/*[#214] LLCF on 상태에서 100G link down시 Localfault 전달, balkrow, 2024-11-27*/
 int32_t llcf_process(int8_t port, int8_t evt)
 {
 	int32_t ret = 0;
-	GT_U8 devNum = 0;
-#if 1
+	GT_U8	devNum = 0;
+	GT_U32  portGroup = 0;
+	MV_HWS_PORT_STANDARD  portMode;
+
 	if(evt)
 	{
 		CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
 		cpssDxChPortManagerStatusGet(devNum, port, &portConfigOutParams);
-		cpssDxChPortRemoteFaultSet(devNum, port, 
-					   portConfigOutParams.ifMode,
-					   portConfigOutParams.speed,
-					   GT_TRUE);
+		prvCpssCommonPortIfModeToHwsTranslate(devNum, portConfigOutParams.ifMode, portConfigOutParams.speed, &portMode);
+
+		ret = mvHwsPortSendLocalFaultSet(devNum, portGroup, port, portMode, GT_TRUE);
 	}
 	else
 	{
 		CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
 		cpssDxChPortManagerStatusGet(devNum, port, &portConfigOutParams);
-		cpssDxChPortRemoteFaultSet(devNum, port, 
-					   portConfigOutParams.ifMode,
-					   portConfigOutParams.speed,
-					   GT_FALSE);
+		prvCpssCommonPortIfModeToHwsTranslate(devNum, portConfigOutParams.ifMode, portConfigOutParams.speed, &portMode);
+
+		ret = mvHwsPortSendLocalFaultSet(devNum, portGroup, port, portMode, GT_FALSE);
 	}
-#else
-	for(i = 0; i < eag6LPortArrSize - 1 ; i++)
-	{
-		if(eag6LPortlist[i] == port) 
-		{
-			CPSS_PORT_MANAGER_STC                  portEventStc;
-			if(evt)
-				portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_FORCE_LINK_DOWN_E;
-			else
-				portEventStc.portEvent = CPSS_PORT_MANAGER_EVENT_UNFORCE_LINK_DOWN_E;
-
-			ret = cpssDxChPortManagerEventSet(devNum, eag6LPortlist[i], &portEventStc);
-
-			syslog(LOG_INFO, "port %d force link %s ret %d", eag6LPortlist[i], 
-			       evt == 1 ? "Down":"Up", ret);
-		}
-
-	}
-#endif
 	return ret;
 }
 #endif
