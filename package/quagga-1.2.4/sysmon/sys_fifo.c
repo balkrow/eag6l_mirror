@@ -1516,8 +1516,31 @@ uint8_t processLLCF(void)
 {
 	int n;
 
+
+#if 0/*[#215] Laser off/on ¿ ¿¿¿¿, balkrow, 2024-11-28*/
 	if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].equip)
+	{
+#if 0
+		if(gDB.llcf_port_state != 0)
+		{
+			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+			{
+				if(gDB.llcf_reason == 1) 
+				{
+					laser_onoff_25g(n, 1);
+					PORT_STATUS[n].tx_laser_sts = 1;
+				}
+				else if(gDB.llcf_reason == 2) 
+					gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(n), 0);
+			}
+			gDB.linkdown_try = 0;
+			gDB.llcf_reason = 0;
+			gDB.llcf_port_state = 0;
+		}
+#endif
 		goto add_timer;
+	}
+#endif
 	
 	if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_llcf) 
 	{
@@ -1529,7 +1552,9 @@ uint8_t processLLCF(void)
 		{
 			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
 			{
-				if(gDB.llcf_reason == 1 && PORT_STATUS[n].cfg_tx_laser) 
+#if 1/*[#215] Laser off/on ¿ ¿¿¿¿, balkrow, 2024-11-28*/
+				if(gDB.llcf_reason == 1) 
+#endif
 				{
 					laser_onoff_25g(n, 1);
 #if 1/*[#207] LLCF on ¿ link down ¿ loss ¿¿ ¿¿ ¿¿¿¿ ¿¿¿ ¿¿ ¿¿ ¿¿, balkrow, 2024-11-20*/
@@ -1548,11 +1573,37 @@ uint8_t processLLCF(void)
 		goto add_timer;
 	}
 
+#if 1/*[#215] Laser off/on ¿ ¿¿¿¿, balkrow, 2024-11-28*/
+	if(PORT_STATUS[PORT_ID_EAG6L_PORT7].equip && !PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_tx_laser)
+	{
+		if(gDB.llcf_port_state != 0)
+		{
+			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+			{
+				if(gDB.llcf_reason == 1) 
+				{
+					laser_onoff_25g(n, 1);
+					PORT_STATUS[n].tx_laser_sts = 1;
+				}
+				else if(gDB.llcf_reason == 2) 
+					gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(n), 0);
+			}
+			gDB.linkdown_try = 0;
+			gDB.llcf_reason = 0;
+			gDB.llcf_port_state = 0;
+		}
+		goto add_timer;
+
+	}
+#endif
+
 #if 0/*[#207] LLCF on ¿ link down ¿ loss ¿¿ ¿¿ ¿¿¿¿ ¿¿¿ ¿¿ ¿¿ ¿¿, balkrow, 2024-11-20*/
 	get_sfp_info_diag(PORT_ID_EAG6L_PORT7, &(PORT_STATUS[PORT_ID_EAG6L_PORT7]));
 #endif
 
-	if(PORT_STATUS[PORT_ID_EAG6L_PORT7].los)
+#if 1/*[#215] Laser off/on ¿ ¿¿¿¿, balkrow, 2024-11-28*/
+	if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].equip || PORT_STATUS[PORT_ID_EAG6L_PORT7].los)
+#endif
 	{
 #if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
 
@@ -1608,12 +1659,16 @@ uint8_t processLLCF(void)
 
 port7_check:
 #if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
-	if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].los && gDB.llcf_reason == 1)
+	if((PORT_STATUS[PORT_ID_EAG6L_PORT7].equip && !PORT_STATUS[PORT_ID_EAG6L_PORT7].los) && gDB.llcf_reason == 1)
 	{
 
 		for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
 		{
+#if 1/*[#215] Laser off/on ¿ ¿¿¿¿, balkrow, 2024-11-28*/
+			if((gDB.llcf_port_state & (1 << n)))
+#else
 			if(PORT_STATUS[n].cfg_tx_laser) 
+#endif
 			{
 				laser_onoff_25g(n, 1);
 				zlog_notice("LLCF: port %d laser on\n", n); 
