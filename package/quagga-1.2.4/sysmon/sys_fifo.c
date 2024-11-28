@@ -1605,6 +1605,16 @@ uint8_t processLLCF(void)
 	if(!PORT_STATUS[PORT_ID_EAG6L_PORT7].equip || PORT_STATUS[PORT_ID_EAG6L_PORT7].los)
 #endif
 	{
+		if(gDB.llcf_reason == 2)
+		{
+			for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
+			{
+				gSysmonToCpssFuncs[gPortForceLinkDown](2, getCPortByMport(n), 0);
+				zlog_notice("LLCF: port %d force link up\n", n); 
+				gDB.llcf_port_state &= ~(1 << n);
+			}
+			gDB.llcf_reason = 0; 
+		}
 #if 1/*[#213] SFP equip/not equip ¿ LLCF ¿¿, balkrow, 2024-11-25*/
 
 		for(n = PORT_ID_EAG6L_PORT1; n < PORT_ID_EAG6L_PORT7; n++)
