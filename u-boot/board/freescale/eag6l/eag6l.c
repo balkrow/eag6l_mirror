@@ -265,7 +265,9 @@ int try_boot_with_confirm(uint16_t bank)
 	buf = map_sysmem(0x7000001c, 2);
 	*((u16 *)buf) = bank;
 	unmap_sysmem(buf);
-	udelay(500000);
+#if 1/*[#217] u-boot에서 bank절체 안되고 default bank로 부팅안되는 이슈, balkrow, 2024-12-02*/
+	udelay(1000000);
+#endif
 
 	for(loop = 0; loop < 2; loop++)
 	{
@@ -295,7 +297,9 @@ int try_boot_with_confirm(uint16_t bank)
 		else
 			printf("retry bank %d result=%x\n", bank, bank_cfg_result);
 
-		udelay(10000);
+#if 1/*[#217] u-boot에서 bank절체 안되고 default bank로 부팅안되는 이슈, balkrow, 2024-12-02*/
+		udelay(100000);
+#endif
 	}
 	return 0;
 }
@@ -306,7 +310,7 @@ int fpga_bank_adjust(void)
 	uint16_t try_cnt;
 	char *act_bank_str = env_get("fw_act_bank");
 	char *std_bank_str = env_get("fw_stb_bank");
-#if 0/*[#126] bank switch 후 CPU 멈춤현상, balkrow, 2024-09-25*/
+#if 1/*[#217] u-boot에서 bank절체 안되고 default bank로 부팅안되는 이슈, balkrow, 2024-12-02*/
 	buf = map_sysmem(0x70000020, 2);
 	*((u16 *)buf) = 0xa5a5;
 	unmap_sysmem(buf);
