@@ -794,7 +794,9 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
 	gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
-	if(port = NOT_DEFINED)
+#if 1/*[#220] code 오류 fix, balkrow, 2024-12-05*/
+	if(port == NOT_DEFINED)
+#endif
 	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0); 
 		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0);
@@ -868,7 +870,9 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
 	gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
-	if(port = NOT_DEFINED)
+#if 1/*[#220] code 오류 fix, balkrow, 2024-12-05*/
+	if(port == NOT_DEFINED)
+#endif
 	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
 		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
