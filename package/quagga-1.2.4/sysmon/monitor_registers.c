@@ -683,6 +683,12 @@ uint16_t portRateSet (uint16_t port, uint16_t val)
 		thread_add_timer(master, pm_clear_fec_counters, port, 2);
 #endif
 
+#if 1 /* [#222] Fixing for CDR OFF for 10G sfp, dustin, 2024-12-06 */
+	{
+		extern int set_i2c_port_cdr(int portno, int onoff);
+		set_i2c_port_cdr(port, ((val == 0x8/*10G*/) ? 0/*OFF*/ : 1/*ON*/));
+	}
+#endif
 	return rc;
 }
 
