@@ -379,8 +379,13 @@ extern dco_status_t DCO_STAT;
 		(ps->link ? "Up" : "Dn"), 
 #endif /* [#148] */
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
+#if 1 /* [#219] Fixing for couting FEC on 10G speed, dustin, 2024-12-05 */
+		(portno == (PORT_ID_EAG6L_MAX - 1)) ? "100G" :
+			((ps->speed == PORT_IF_10G_KR) ? "10G" : "25G"),
+#else
 		(ps->speed == PORT_IF_10G_KR ? "10G" :
 			(portno == (PORT_ID_EAG6L_MAX - 1)) ? "100G" : "25G"),
+#endif /* [#219] */
 #else /**********************************************************/
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 		(ps->speed == PORT_IF_10G_KR ? "10G" : "25G"),

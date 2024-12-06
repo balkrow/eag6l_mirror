@@ -313,7 +313,13 @@ static uint16_t gSynceSecInf = 0xff;
 
 uint8_t eag6LLinkStatus[PORT_ID_EAG6L_MAX];
 #if 1/*[#67] build err 수정, balkrow, 2024-06-27*/
+#if 1 /* [#219] Fixing for couting FEC on 10G speed, dustin, 2024-12-05 */
+uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX] = { 0,
+			PORT_IF_25G_KR, PORT_IF_25G_KR, PORT_IF_25G_KR,
+			PORT_IF_25G_KR, PORT_IF_25G_KR, PORT_IF_25G_KR, 0/*100G-no-need*/ };
+#else
 uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
+#endif /* [#219] */
 #else
 f 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 uint8_t eag6LSpeedStatus[PORT_ID_EAG6L_MAX];
@@ -1750,6 +1756,13 @@ uint8_t gCpssPortSetRate(int args, ...)
 		FEC_CFG[portno] = 1;
 #endif
 	}
+#if 1 /* [#219] Fixing for couting FEC on 10G speed, dustin, 2024-12-05 */
+	else {
+		FEC_MODE[portno] = CPSS_PORT_FEC_MODE_DISABLED_E;
+		SPEED[portno] = msg->speed;
+		FEC_CFG[portno] = 0;
+	}
+#endif /* [#219] */
 #else /*********************************************************/
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 	if((msg->speed == PORT_IF_25G_KR))
@@ -1891,10 +1904,12 @@ uint8_t gCpssPortAlarm(int args, ...)
 	GT_BOOL link, enable;
 	CPSS_PORT_MANAGER_STATUS_STC pm_sts;
 #endif
+#if 0 /* [#219] Fixing for couting FEC on 10G speed, dustin, 2024-12-05 */
 #if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 	static uint8_t __speed_check__ = 0;
 	uint8_t speed;
 #endif
+#endif /* [#219] */
     va_list argP;
     sysmon_fifo_msg_t *msg = NULL;
 #ifdef DEBUG
@@ -1916,6 +1931,9 @@ uint8_t gCpssPortAlarm(int args, ...)
 #if 1/* just reply with link status table(updated by Marvell link scan event) */
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		msg->port_sts[portno].link = eag6LLinkStatus[portno];
+#if 1 /* [#219] Fixing for couting FEC on 10G speed, dustin, 2024-12-05 */
+		msg->port_sts[portno].speed = eag6LSpeedStatus[portno];
+#else /******************************************************************/
 #if 1/*[#66] Adding for updating port speed info, dustin, 2024-06-24 */
 		if(__speed_check__++ < PORT_ID_EAG6L_MAX) {
 			if(get_port_speed(portno, &speed) == 0) {
@@ -1926,6 +1944,7 @@ uint8_t gCpssPortAlarm(int args, ...)
 			msg->port_sts[portno].speed = eag6LSpeedStatus[portno];
 		}
 #endif
+#endif /* [#219] */
 #if 1 /* [#192] port status 업데이트시 LF/RF 업데이트, balkrow, 2024-11-12 */
 		dport = get_eag6L_dport(portno);
 		cpssDxChPortXgmiiLocalFaultGet(devNum, dport, &lf_st);
