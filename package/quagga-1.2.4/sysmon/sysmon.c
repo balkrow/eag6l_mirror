@@ -3082,6 +3082,14 @@ int reg_slow_intv_update2(struct thread *thread)
 }
 #endif
 
+#if 1 /* [#221] Fixing for update interval for sfp, dustin, 2024-12-06 */
+int reg_slow_intv_update3(struct thread *thread)
+{
+	update_sfp_1sec();
+	thread_add_timer (master, reg_slow_intv_update3, NULL, 1);
+}
+#endif
+
 int reg_slow_intv_update(struct thread *thread)
 {
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
@@ -3300,6 +3308,9 @@ void sysmon_thread_init (void)
 	thread_add_timer (master, reg_slow_intv_update, NULL, 3);
 #if 1/*[#191] IPC FAIL alarm ¿¿ ¿¿ ¿¿ ¿ ¿¿, balkrow, 2024-11-12 */
 	thread_add_timer (master, reg_slow_intv_update2, NULL, 10);
+#endif
+#if 1 /* [#221] Fixing for update interval for sfp, dustin, 2024-12-06 */
+	thread_add_timer (master, reg_slow_intv_update3, NULL, 10);
 #endif
 #if 1 /* [#158] Fixing for BP keep alive interval, dustin, 2024-10-18 */
 	thread_add_timer (master, reg_Qfast_intv_update, NULL, 5);

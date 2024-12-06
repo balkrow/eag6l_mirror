@@ -2734,6 +2734,78 @@ void update_port_rtwdm_rx_power(int portno)
 }
 #endif
 
+#if 1 /* [#221] Fixing for update interval for sfp, dustin, 2024-12-06 */
+/* NOTE : below will be interval 1 sec. */
+void update_sfp_1sec(void)
+{
+	int enable, portno;
+
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		/* skip if port has not installed sfp. */
+		if(! PORT_STATUS[portno].equip || ! PORT_STATUS[portno].i2cReady)
+			continue;
+
+		get_sfp_info_diag(portno, &(PORT_STATUS[portno]));
+		update_port_rx_power(portno);
+
+		if((portno >= (PORT_ID_EAG6L_MAX - 1))) {
+			extern uint16_t get_dco_ber_fer_rates(uint16_t portno);
+
+			if(PORT_STATUS[portno].tunable_sfp) {
+				/* get 100G DCO channel no. */
+				get_dco_ber_fer_rates(portno);
+			}
+		} else /*10G/25G*/ {
+			/* get only if tunable sfp */
+			if(PORT_STATUS[portno].tunable_sfp) {
+				/* get flex tune status */
+				get_flex_tune_status(portno);
+
+				/* get wavelength for channel no. */
+				get_tunable_sfp_channel_no(portno);
+			}
+		}
+	}
+	return;
+}
+
+/* NOTE : below will be interval 3 sec. */
+void update_sfp(void)
+{
+extern int get_smart_tsfp_self_loopback(int portno, int * enable);
+extern int get_rtwdm_loopback(int portno, int * enable);
+
+	int enable, portno;
+
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+		/* skip if port has not installed sfp. */
+		if(! PORT_STATUS[portno].equip || ! PORT_STATUS[portno].i2cReady)
+			continue;
+
+		if((portno >= (PORT_ID_EAG6L_MAX - 1))) {
+			extern int read_i2c_dco_status(dco_status_t *pdco);
+			extern uint16_t get_dco_sfp_channel_no(uint16_t portno);
+
+			if(PORT_STATUS[portno].tunable_sfp) {
+				/* get 100G DCO channel no. */
+				get_dco_sfp_channel_no(portno);
+			}
+
+			read_i2c_dco_status(&DCO_STAT);
+		} else /*10G/25G*/ {
+			/* get only if tunable sfp */
+			if(PORT_STATUS[portno].tunable_sfp) {
+				if(PORT_STATUS[portno].link && (! PORT_STATUS[portno].los)) {
+					read_port_rtwdm_inventory(portno, &(RTWDM_INV_TBL[portno]));
+					get_sfp_rtwdm_info_diag(portno, &PORT_STATUS[portno]);
+				}
+				update_port_rtwdm_rx_power(portno);
+			}
+		}
+	}
+	return;
+}
+#else /*****************************************************************/
 void update_sfp(void)
 {
 #if 1/*[#54] Adding Smart T-SFP I2C functions, dustin, 2024-06-13 */
@@ -2830,6 +2902,7 @@ extern int get_rtwdm_loopback(int portno, int * enable);
 	}
 	return;
 }
+#endif /* [#221] */
 
 
 u32 MCU_INIT_COMPLETE_FLAG;
