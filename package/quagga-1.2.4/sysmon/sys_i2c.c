@@ -6545,3 +6545,85 @@ __exit__:
 }
 #endif
 
+#if 1 /* [#222] Fixing for CDR OFF for 10G sfp, dustin, 2024-12-06 */
+int set_i2c_port_cdr(int portno, int onoff)
+{
+	int fd, mux_addr, ret, val;
+	unsigned int chann_mask;
+
+	if(portno == PORT_ID_EAG6L_PORT7)
+		return 0;
+
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		return ERR_NOT_FOUND;
+	}
+
+	mux_addr = I2C_MUX;
+	chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+
+	/* update status/control byte. */
+	i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR , 1);
+	if((ret = i2c_smbus_read_byte_data(fd, 110)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] status/control failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+
+	if(onoff)
+	{
+		val |= 0x8/* CDR : soft rate select on. */;
+		ret = i2c_smbus_write_byte_data(fd, 110, val);
+	}
+	else
+	{
+		val &= ~0x8/* CDR : soft rate select off. */;
+		ret = i2c_smbus_write_byte_data(fd, 110, val);
+	}
+
+	if(ret < 0) {
+		zlog_notice("Setting cdr1(soft rate select) %s for port[%d] failed.",
+			onoff ? "ON" : "OFF", portno);
+		goto __exit__;
+	}
+
+	/* update extended status/control byte. */
+	if((ret = i2c_smbus_read_byte_data(fd, 118)) < 0) {
+		zlog_notice("%s : Reading port[%d(0/%d)] ext status/control failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+
+	if(onoff)
+	{
+		val |= 0x8/* CDR : soft rate select on. */;
+		ret = i2c_smbus_write_byte_data(fd, 118, val);
+	}
+	else
+	{
+		val &= ~0x8/* CDR : soft rate select off. */;
+		ret = i2c_smbus_write_byte_data(fd, 118, val);
+	}
+
+	if(ret < 0) {
+		zlog_notice("Setting cdr2(soft rate select) %s for port[%d] failed.",
+			onoff ? "ON" : "OFF", portno);
+		goto __exit__;
+	}
+
+	zlog_notice("Setting cdr(soft rate select) %s for port[%d] : DONE.",
+		onoff ? "ON" : "OFF", portno);
+
+__exit__:
+	close(fd);
+	return ret;
+}
+#endif
