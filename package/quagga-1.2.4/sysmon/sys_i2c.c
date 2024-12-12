@@ -889,6 +889,9 @@ uint16_t set_smart_tsfp_self_loopback(uint16_t portno, uint16_t enable)
     if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
         return RT_OK;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("tsfp self loopback port[%d] enable[%d].", portno, enable);
+#endif
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
@@ -1212,6 +1215,9 @@ uint16_t set_rtwdm_loopback(uint16_t portno, uint16_t enable)
     if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
         return RT_OK;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("rtwdm loopback port[%d] enable[%d].", portno, enable);
+#endif
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
@@ -1526,6 +1532,9 @@ uint16_t set_flex_tune_control(uint16_t portno, uint16_t enable)
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return RT_OK;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("flex-tune control port[%d] enable[%d].", portno, enable);
+#endif
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
@@ -1662,6 +1671,9 @@ uint16_t set_flex_tune_reset(uint16_t portno, uint16_t enable)
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return RT_OK;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("flex-tune reset port[%d] enable[%d].", portno, enable);
+#endif
 	if((fd = i2c_dev_open(1/*bus*/)) < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
 			__func__, portno, get_eag6L_dport(portno), strerror(errno));
@@ -2387,6 +2399,9 @@ uint16_t set_tunable_sfp_channel_no(uint16_t portno, uint16_t chno)
 	if((! PORT_STATUS[portno].tunable_sfp) || (portno >= (PORT_ID_EAG6L_MAX - 1)))
 		return RT_OK;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("tunable sfp channel no. port[%d] chno[%d].", portno, chno);
+#endif
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	/* NOTE : set as chno, not as wavelength. no need to map to wavelength. */
 #else /**********************************************************************/
@@ -5919,6 +5934,9 @@ int set_i2c_dco_reset(void)
 	if(! PORT_STATUS[portno].equip)
 		return;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("Resetting dco sfp.");
+#endif
 	fd = i2c_dev_open(1/*bus*/);
 	if(fd < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
@@ -5994,6 +6012,9 @@ int set_i2c_dco_fec_enable(int hs_flag, int ms_flag)
 #endif
 		return;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("DCO FEC enable host[%d] media[%d].", hs_flag, ms_flag);
+#endif
 	if(! ((hs_flag == 0xA5) || (hs_flag == 0x5A) ||
 	     (ms_flag == 0xA5) || (ms_flag == 0x5A))) {
 		zlog_notice("%s : Invalid FEC enable value. host/media[0x%x/0x%x].",
@@ -6132,6 +6153,9 @@ int set_i2c_dco_count_reset(void)
 	if(! PORT_STATUS[portno].equip)
 		return;
 
+#if 1 /* [#224] Adding some debug log for 100G DCO, dustin, 2024-12-11 */
+	zlog_notice("Resetting DCO count.");
+#endif
 	fd = i2c_dev_open(1/*bus*/);
 	if(fd < 0) {
 		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
