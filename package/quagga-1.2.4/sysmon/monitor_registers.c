@@ -1088,6 +1088,22 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 #endif /* [#94] */
 #endif /* [#169] */
 	if(PORT_STATUS[port].tunable_sfp) {
+#if 1 /* [#225] Fixing for init rtWDM info registers if spf installed, dustin, 2024-12-12 */
+		/* init rtwdm registers when sfp is installed. */
+		if((type == SFP_ID_SMART_DUPLEX_TSFP) ||
+		   (type == SFP_ID_SMART_BIDI_TSFP_COT)) {
+			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_VOLT_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_TX_BIAS_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_LTEMP_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_WL1_RTWDM_ADDR[port], 0x0);
+			FPGA_PORT_WRITE(__PORT_WL2_RTWDM_ADDR[port], 0x0);
+		}
+#endif
+
 		/* get inventory */
 		if(PORT_STATUS[port].tunable_sfp) {
 			read_port_rtwdm_inventory(port, &(RTWDM_INV_TBL[port]));
@@ -1332,6 +1348,17 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 				FPGA_PORT_WRITE(QSFP28_FER2_ADDR, 0x0);
 #endif /* [#149] */
 			} else {
+#if 1 /* [#225] Fixing for initializing rtWDM info registers if spf installed, dustin, 2024-12-12 */
+				FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_VOLT_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_TX_BIAS_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_LTEMP_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_WL1_RTWDM_ADDR[port], 0x8999);
+				FPGA_PORT_WRITE(__PORT_WL2_RTWDM_ADDR[port], 0x8999);
+#else /***************************************************************************/
 				FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[port], 0x0);
 				FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[port], 0x0);
 				FPGA_PORT_WRITE(__PORT_TEMP_RTWDM_ADDR[port], 0x0);
@@ -1341,6 +1368,7 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 				FPGA_PORT_WRITE(__PORT_TCURR_RTWDM_ADDR[port], 0x0);
 				FPGA_PORT_WRITE(__PORT_WL1_RTWDM_ADDR[port], 0x0);
 				FPGA_PORT_WRITE(__PORT_WL2_RTWDM_ADDR[port], 0x0);
+#endif /* [#225] */
 			}
 
 #if 1 /* [#208] Fixing for updating info for not equipped port, dustin, 2024-11-20 */
@@ -5012,6 +5040,26 @@ extern int update_flex_tune_status(int portno);
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
 #if 1 /* [#100] Adding update of Laser status by Laser_con, dustin, 2024-08-23 */
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
+#if 1 /* [#225] Fixing for initializing rtWDM info registers if spf installed, dustin, 2024-12-12 */
+			/* update tx power */
+			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
+			PORT_STATUS[portno].equip ?
+				((PORT_STATUS[portno].link && PORT_STATUS[portno].los &&
+					RTWDM_INV_TBL[portno].serial_num[0]) ?
+				convert_dbm_float_to_decimal(
+				PORT_STATUS[portno].rtwdm_ddm_info.tx_pwr, 1/*dbm*/, 1/*tx*/)
+				: 0x0)
+				: 0x8999);
+			/* update rx power */
+			FPGA_PORT_WRITE(__PORT_RX_PWR_RTWDM_ADDR[portno], 
+			PORT_STATUS[portno].equip ?
+				((PORT_STATUS[portno].link && PORT_STATUS[portno].los &&
+					RTWDM_INV_TBL[portno].serial_num[0]) ?
+				convert_dbm_float_to_decimal(
+				PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr, 1/*dbm*/, 0/*rx*/)
+				: 0x0)
+				: 0x8999);
+#else /*********************************************************************/
 			/* update tx power */
 			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
 			PORT_STATUS[portno].equip ?
@@ -5024,6 +5072,7 @@ extern int update_flex_tune_status(int portno);
 				convert_dbm_float_to_decimal(
 				PORT_STATUS[portno].rtwdm_ddm_info.rx_pwr, 1/*dbm*/, 0/*rx*/)
 				: 0x8999);
+#endif /* [#226] */
 #else /*******************************************************************/
 			/* update tx power */
 			FPGA_PORT_WRITE(__PORT_TX_PWR_RTWDM_ADDR[portno], 
