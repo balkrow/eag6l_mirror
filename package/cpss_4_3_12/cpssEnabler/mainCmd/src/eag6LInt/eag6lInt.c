@@ -2029,6 +2029,10 @@ uint8_t gCpssPortPMGet(int args, ...)
 
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 #if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
+#if 1 /* [#226] Fixing for getting correct FEC count, dustin, 2024-12-12 */
+		memset(&msg->pm[portno], 0, sizeof(port_pm_counter_t));
+#endif /* [#226] */
+
 		/* only for link up ports. */
 		if(! eag6LLinkStatus[portno])	continue;
 #endif
@@ -2039,6 +2043,15 @@ uint8_t gCpssPortPMGet(int args, ...)
 			syslog(LOG_INFO, "cpssDxChPortMacCountersOnPortGet: port[%d] ret[%d]", portno, ret);
 
 #if 1 /* [#155] Fixing for PM get fail if FEC is OFF, dustin, 2024-10-18 */
+#if 1 /* [#226] Fixing for getting correct FEC count, dustin, 2024-12-12 */
+		memset(&rs_cnt, 0, sizeof rs_cnt);
+		if((eag6LSpeedStatus[portno] != PORT_IF_10G_KR) &&
+		   (FEC_MODE[portno] == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E)) {
+			ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
+			if(ret != GT_OK)
+				syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
+		}
+#else /*******************************************************************/
 		if((eag6LSpeedStatus[portno] == PORT_IF_25G_KR) && FEC_MODE[portno] == CPSS_DXCH_PORT_RS_FEC_MODE_ENABLED_E) {
 			memset(&rs_cnt, 0, sizeof rs_cnt);
 			ret = cpssDxChRsFecCounterGet(0, dport, &rs_cnt);
@@ -2047,6 +2060,7 @@ uint8_t gCpssPortPMGet(int args, ...)
 				syslog(LOG_INFO, "cpssDxChRsFecCounterGet: port[%d] ret[%d]", portno, ret);
 #endif
 		}
+#endif /* [#226] */
 #else /*******************************************************************/
 #if 0/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
 #if 1/* [#74] Fixing for preventing too many callings to get FEC mode, dustin, 2024-07-09 */
