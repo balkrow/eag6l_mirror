@@ -926,8 +926,11 @@ static GT_STATUS getPpPhase1ConfigSimple
 
     phase1Params->maxNumOfPhyPortsToUse = 128;/* single mode of 128 physical ports ,
                                             so supports value 128 or 0 */
-
+#if 1/*[#228] switch TX ref clock 외부 diff clk 만을 보도록 수정, balkrow, 2024-12-13*/
+    phase1Params->serdesRefClock        = CPSS_DXCH_PP_SERDES_REF_CLOCK_EXTERNAL_156_25_DIFF_E;
+#else
     phase1Params->serdesRefClock        = CPSS_DXCH_PP_SERDES_REF_CLOCK_EXTERNAL_25_SINGLE_ENDED_E;
+#endif
 
     /* add Db Entry */
     rc = appDemoDxHwPpPhase1DbEntryInit(CAST_SW_DEVNUM(devNum),phase1Params,
