@@ -37,6 +37,14 @@ uint8_t WdmPort = EAG6L_WDM_PORT;
 #if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
 extern int DCO_SFP_LOSS;
 #endif
+#if 1/*[228] switch TX ref clock 외부 diff clk 만을 보도록 수정, balkrow, 2024-12-13*/
+extern uint8_t get_eag6L_lport(uint8_t dport);
+extern uint8_t eag6LLF[PORT_ID_EAG6L_MAX];
+extern uint8_t eag6LRF[PORT_ID_EAG6L_MAX];
+
+uint8_t llcf_act_lf[PORT_ID_EAG6L_MAX];
+uint8_t llcf_act_rf[PORT_ID_EAG6L_MAX];
+#endif
 
 extern GT_STATUS cpssDxChPortManagerStatusGet
 (
@@ -223,17 +231,39 @@ SVC_FAULT_ST portEventRFstate
 int32_t llcf_process(int8_t port, int8_t evt)
 {
 	int32_t ret = 0;
-	GT_U8	devNum = 0;
+#if 1/*[228] switch TX ref clock 외부 diff clk 만을 보도록 수정, balkrow, 2024-12-13*/
+	GT_U8	devNum = 0, portNum = PORT_ID_EAG6L_PORT7;
+#endif
 	GT_U32  portGroup = 0;
 	MV_HWS_PORT_STANDARD  portMode;
 
+#if 1/*[228] switch TX ref clock 외부 diff clk 만을 보도록 수정, balkrow, 2024-12-13*/
+	int8_t lport;
+	lport = get_eag6L_lport(port);
+#endif
 	if(evt)
 	{
 		CPSS_PORT_MANAGER_STATUS_STC portConfigOutParams;
+
 		cpssDxChPortManagerStatusGet(devNum, port, &portConfigOutParams);
 		prvCpssCommonPortIfModeToHwsTranslate(devNum, portConfigOutParams.ifMode, portConfigOutParams.speed, &portMode);
+#if 1/*[228] switch TX ref clock 외부 diff clk 만을 보도록 수정, balkrow, 2024-12-13*/
+		syslog(LOG_INFO, "port %d lf %x rf %x", portNum, eag6LLF[portNum], eag6LRF[portNum]);
 
-		ret = mvHwsPortSendLocalFaultSet(devNum, portGroup, port, portMode, GT_TRUE);
+		if(eag6LLF[portNum])
+		{
+			ret = mvHwsPortSendLocalFaultSet(devNum, portGroup, port, portMode, GT_TRUE);
+			llcf_act_lf[lport] = 1;
+		}
+		else if(eag6LRF[portNum])
+		{
+			ret = cpssDxChPortRemoteFaultSet(devNum, port, 
+						   portConfigOutParams.ifMode,
+						   portConfigOutParams.speed,
+						   GT_TRUE);
+			llcf_act_rf[lport] = 1;
+		}
+#endif
 	}
 	else
 	{
@@ -241,7 +271,23 @@ int32_t llcf_process(int8_t port, int8_t evt)
 		cpssDxChPortManagerStatusGet(devNum, port, &portConfigOutParams);
 		prvCpssCommonPortIfModeToHwsTranslate(devNum, portConfigOutParams.ifMode, portConfigOutParams.speed, &portMode);
 
+#if 1/*[228] switch TX ref clock 외부 diff clk 만을 보도록 수정, balkrow, 2024-12-13*/
+		if(llcf_act_lf[lport] == 1)
+		{
+			ret = mvHwsPortSendLocalFaultSet(devNum, portGroup, port, portMode, GT_FALSE);
+			llcf_act_lf[lport] = 0;
+		}
+		else if(llcf_act_rf[lport] == 1)
+		{
+			ret = cpssDxChPortRemoteFaultSet(devNum, port, 
+						   portConfigOutParams.ifMode,
+						   portConfigOutParams.speed,
+						   GT_FALSE);
+			llcf_act_rf[lport] = 0;
+		}
+#else
 		ret = mvHwsPortSendLocalFaultSet(devNum, portGroup, port, portMode, GT_FALSE);
+#endif
 	}
 	return ret;
 }

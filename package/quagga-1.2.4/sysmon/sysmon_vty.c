@@ -157,11 +157,18 @@ DEFUN (llcf_conf,
        "enable\n"
        "disable\n")
 {
-
+#if 1/*add by balkrow*/
+	extern uint16_t setLLCFenable(uint16_t port, uint16_t val);
+	if (strncmp (argv[0], "e", 1) == 0)
+		setLLCFenable(7, 0x2);
+	else
+		setLLCFenable(7, 0x1);
+#else
   if (strncmp (argv[0], "e", 1) == 0)
 	sysmon_llcf_set(IPC_FUNC_ON);
   else
 	sysmon_llcf_set(IPC_FUNC_OFF);
+#endif
 
   return CMD_SUCCESS;
 }
@@ -1923,9 +1930,9 @@ DEFUN (sw_mode_set,
        "transparent-mode",
        "Enable transparent mode.\n")
 {
-extern uint16_t swModeSet(uint16_t trans_mode);
+extern uint16_t swModeSet(uint16_t portno, uint16_t sw_mode);
 
-    swModeSet(SW_TRANSPARENT_MODE);
+    swModeSet(7, SW_TRANSPARENT_MODE);
     return CMD_SUCCESS;
 }
 
@@ -1935,9 +1942,9 @@ DEFUN (no_sw_mode_set,
        NO_STR
        "Disable transparent mode.\n")
 {
-extern uint16_t swModeSet(uint16_t trans_mode);
+extern uint16_t swModeSet(uint16_t portno, uint16_t sw_mode);
 
-    swModeSet(SW_AGGREGATION_MODE);
+    swModeSet(7, SW_AGGREGATION_MODE);
 
     return CMD_SUCCESS;
 }

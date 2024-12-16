@@ -341,13 +341,20 @@ uint8_t EAG6LJumboFrameEnable (void)
 {
 	uint8_t rc = 0, i;
 	GT_U8 devNum = 0x0;
-	GT_U32 mruSize = 0x2800, mruIndex = 1;
+#if 1/*[228] switch TX ref clock 외부 diff clk 만을 보도록 수정, balkrow, 2024-12-16*/
+	GT_U32 mruSize = 0x2800, mruIndex = 0;
+	rc += cpssDxChBrgVlanMruProfileValueSet(devNum, mruIndex, mruSize);
+	rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, SW_TP_MODE_VID1, mruIndex);
+	rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, SW_TP_MODE_VID2, mruIndex);
+	rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, SW_TP_MODE_VID3, mruIndex);
+	rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, SW_TP_MODE_VID4, mruIndex);
+	rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, SW_TP_MODE_VID5, mruIndex);
+	rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, SW_TP_MODE_VID6, mruIndex);
+#endif
 
 	for(i = 0; i < eag6LPortArrSize; i++)
 	{
 		 rc += cpssDxChPortMruSet(devNum, eag6LPortlist[i], mruSize);
-		 rc += cpssDxChBrgVlanMruProfileValueSet(devNum, mruIndex, mruSize);
-		 rc += cpssDxChBrgVlanMruProfileIdxSet(devNum, 1, mruIndex);
 	}
 	return rc;
 }

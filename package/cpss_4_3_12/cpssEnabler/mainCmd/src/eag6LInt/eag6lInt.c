@@ -925,7 +925,7 @@ GT_VOID processPortEvt
 					port_str, rc);
 			else
 			{
-#ifdef DEBUG
+#if 1
 				syslog(LOG_INFO, "local fault : port %s, ret[%d].",
 					port_str, lf_st);
 #endif
@@ -939,7 +939,7 @@ GT_VOID processPortEvt
 					port_str, rc);
 			else
 			{
-#ifdef DEBUG
+#if 1
 				syslog(LOG_INFO, "remote fault : port %s, ret[%d].",
 					port_str, rf_st);
 #endif
