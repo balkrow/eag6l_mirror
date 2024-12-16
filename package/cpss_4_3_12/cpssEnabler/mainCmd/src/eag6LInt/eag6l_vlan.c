@@ -28,6 +28,9 @@
 #include <cpss/common/private/globalShared/prvCpssGlobalDbInterface.h>
 #include <appDemo/sysHwConfig/gtAppDemoSysConfig.h>
 #include <appDemo/boardConfig/appDemoBoardConfig.h>
+#if 1/*[#223] Transport Mode에서 UC flooding 가능토록 수정, balkrow, 2024-12-09*/
+#include <cpss/generic/cpssCommonDefs.h>
+#endif
 #if 1/*[#52] 25G to 100G forwarding 기능 추가, balkrow, 2024-06-12*/
 #include <stdbool.h>
 #include "eag6l_fsm.h"
@@ -38,6 +41,15 @@
 #endif
 
 #define DEBUG
+
+#if 1/*[#223] Transport Mode에서 UC flooding 가능토록 수정, balkrow, 2024-12-09*/
+extern GT_STATUS cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet
+(
+    IN GT_U8                devNum,
+    IN GT_PORT_NUM          portNum,
+    IN CPSS_PACKET_CMD_ENT  cmd
+);
+#endif
 
 extern GT_VOID * osMemSet
 (
@@ -396,11 +408,17 @@ uint8_t EAG6LVlanInit (uint8_t mode)
 			CPSS_VLAN_ETHERTYPE0_E, isDefaultProfile, profile);
 		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, EAG6L_WDM_PORT,
 			CPSS_VLAN_ETHERTYPE1_E, isDefaultProfile, profile);
+#if 1/*[#223] Transport Mode에서 UC flooding 가능토록 수정, balkrow, 2024-12-09*/
+		rc += cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet(0, EAG6L_WDM_PORT, CPSS_PACKET_CMD_DROP_HARD_E); 
+#endif
 	} else { /* SW_TRANSPARENT_MODE */
 		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, EAG6L_WDM_PORT, 
 			CPSS_VLAN_ETHERTYPE0_E, isDefaultProfile, 0x0/*reset*/);
 		rc = cpssDxChBrgVlanPortIngressTpidProfileSet(devNum, EAG6L_WDM_PORT,
 			CPSS_VLAN_ETHERTYPE1_E, isDefaultProfile, 0x0/*reset*/);
+#if 1/*[#223] Transport Mode에서 UC flooding 가능토록 수정, balkrow, 2024-12-09*/
+		rc += cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet(0, EAG6L_WDM_PORT, CPSS_PACKET_CMD_FORWARD_E); 
+#endif
 	}
 
 	/* init vlan ingress tpid profile. */
