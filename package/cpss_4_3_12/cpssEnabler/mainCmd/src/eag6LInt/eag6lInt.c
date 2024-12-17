@@ -1004,7 +1004,7 @@ uint8_t gCpssSDKInit(int args, ...)
 	result += EAG6LMacLearningnable();
 	result += EAG6L25Gto100GFwdSet();
 #endif
-#if 1/*[#202] unknownUnicast 에 drop 설정, balkrow, 2024-11-18*/
+#if 0/*[#230] rollback unknown unicast flooding 방지 로직, balkrow, 2024-12-17*/
 	result += cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet(0, EAG6L_WDM_PORT, CPSS_PACKET_CMD_DROP_HARD_E); 
 #endif
 #if 1/*[#35]traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
