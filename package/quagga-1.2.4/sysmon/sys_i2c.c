@@ -6227,6 +6227,8 @@ int set_i2c_dco_count_reset(void)
 		goto __exit__;
 	}
 
+#if 0 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+	/* NOTE : no need to change power mode for this action. */
 	if(PORT_STATUS[portno].tunable_sfp) {
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 		/* set low power mode */
@@ -6252,6 +6254,7 @@ int set_i2c_dco_count_reset(void)
 		DCO_STAT.dco_TCReadyFlag = 0;
 #endif
 	}
+#endif /* [#232] */
 
 __exit__:
 	close(fd);

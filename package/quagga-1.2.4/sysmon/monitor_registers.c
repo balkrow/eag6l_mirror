@@ -4650,6 +4650,9 @@ extern int update_flex_tune_status(int portno);
 	uint32_t *temp;
 	uint32_t temp2;
 #endif
+#if 1 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+	uint16_t ber_reset;
+#endif /* [#232] */
 
 	/* update alarm */
 	process_alarm_info();
@@ -4716,8 +4719,18 @@ extern int update_flex_tune_status(int portno);
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 			/* update pre-fec ber. */
 #if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+#if 1 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+			/* NOTE : count must be valid only when reset is normal state. */
+			ber_reset = FPGA_PORT_READ(QSFP28_COUNT_RESET_ADDR);
+			if(ber_reset == 0x0) {
+				temp = &(DCO_COUNT.ber_rate);
+				temp2 = *temp;
+			} else
+				temp2 = 0x0;
+#else /*******************************************************************/
 			temp = &(DCO_COUNT.ber_rate);
 			temp2 = *temp;
+#endif /* [#232] */
 			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER1_ADDR, ((temp2) >> 16) & 0xFFFF);
 			FPGA_PORT_WRITE(QSFP28_PRE_FEC_BER2_ADDR, ((temp2) & 0xFFFF));
 #else /****************************************************************/
@@ -4726,8 +4739,17 @@ extern int update_flex_tune_status(int portno);
 #endif /* [#149] */
 			/* update fer. */
 #if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
+#if 1 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+			/* NOTE : count must be valid only when reset is normal state. */
+			if(ber_reset == 0x0) {
+				temp = &(DCO_COUNT.fer_rate);
+				temp2 = *temp;
+			} else
+				temp2 = 0x0;
+#else /*******************************************************************/
 			temp = &(DCO_COUNT.fer_rate);
 			temp2 = *temp;
+#endif /* [#232] */
 			FPGA_PORT_WRITE(QSFP28_FER1_ADDR, (temp2 >> 16) & 0xFFFF);
 			FPGA_PORT_WRITE(QSFP28_FER2_ADDR, (temp2 & 0xFFFF));
 #else /****************************************************************/
@@ -5311,6 +5333,9 @@ extern int update_flex_tune_status(int portno);
 
 void process_port_pm_counters(void)
 {
+#if 1 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+	u16 reg_cleared_flag = 0;
+#endif /* [#232] */
 	u16 portno;
 	u16 val;
 
@@ -5329,7 +5354,16 @@ void process_port_pm_counters(void)
 
 #if 1 /* [#204] pmClear register 시 normal 시 pm update 하도록 수정, balkrow, 2024-11-19 */
 	if(gDB.pmUpdateCmd == 0xa5)
+#if 1 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+	{
+		if(reg_cleared_flag) 
+			return;
+		reg_cleared_flag = 1;
+	} else
+		reg_cleared_flag = 0;
+#else /*******************************************************************/
 		return;
+#endif /* [#232] */
 #endif
 
     /* update pm tx byte */
