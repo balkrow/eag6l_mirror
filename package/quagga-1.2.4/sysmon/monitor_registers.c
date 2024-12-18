@@ -1785,8 +1785,12 @@ uint16_t portFECEnable(uint16_t portno, uint16_t enable)
 #endif
 	}
 	else if(enable == 0x0/*auto-mode*/) {
+#if 1 /* [#233] Fixing for changing default host fec on DCO, dustin, 2024-12-18 */
+		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 1);
+#else /**************************************************************************/
 		gSysmonToCpssFuncs[gPortFECEnable](2, portno, 
 			PORT_STATUS[portno].sfp_dco ? 0 : 1);
+#endif /* [#233] */
 #if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
 		PORT_STATUS[portno].cfg_rs_fec = enable;
 #else
@@ -1844,7 +1848,11 @@ uint16_t DcoFECEnable(uint16_t val)
 
 #if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
 	if(val == 0/*auto-mode*/) {
+#if 1 /* [#233] Fixing for changing default host fec on DCO, dustin, 2024-12-18 */
+		hs_flag = 0xA5;
+#else
 		hs_flag = PORT_STATUS[PORT_ID_EAG6L_PORT7].sfp_dco ? 0x5A : 0xA5;
+#endif
 		ms_flag = 0xA5;
 	} else {
 		hs_flag = (val >> 8) & 0xFF;

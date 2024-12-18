@@ -405,9 +405,15 @@ extern dco_status_t DCO_STAT;
 #if 1 /* [#169] Fixing for new DCO install process, dustin, 2024-10-25 */
 #if 1 /* [#185] Adding for rs-fec status in vtysh, dustin, 2024-11-04 */
 		ps->cfg_tx_laser, ps->tx_laser_sts, 
+#if 1 /* [#233] Fixing for changing default host fec on DCO, dustin, 2024-12-18 */
+		(ps->cfg_rs_fec == 0xA5) ? 1 : 
+			((ps->cfg_rs_fec == 0x5A) ? 0 : 
+			(((ps->cfg_rs_fec == 0x0/*auto-mode*/)) ? 1 : 0)),
+#else /**************************************************************************/
 		(ps->cfg_rs_fec == 0xA5) ? 1 : 
 			((ps->cfg_rs_fec == 0x5A) ? 0 : 
 			(((ps->cfg_rs_fec == 0x0/*auto-mode*/) && ps->sfp_dco) ? 0 : 1)),
+#endif /* [#233] */
 		ps->rs_fec_sts,
 		ps->cfg_esmc_enable, ps->cfg_llcf,
 #else
