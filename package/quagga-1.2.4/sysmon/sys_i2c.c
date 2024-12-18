@@ -5216,6 +5216,9 @@ extern int dco_retry_cnt;
 					sizeof("FTLC3351R3PL1")))
 		{
 			PORT_STATUS[portno].sfp_dco = 1;
+#if 1 /* [#233] Fixing for changing default host fec on DCO, dustin, 2024-12-18 */
+			PORT_STATUS[portno].cfg_dco_fec = 1;
+#endif
 			zlog_notice("%s : this is DCO.", __func__);//ZZPP
 		}
 #if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
@@ -5427,6 +5430,22 @@ __INIT_CONFIG__:
 			__func__, portno, get_eag6L_dport(portno));
 		goto __NEXT__;
 	}
+
+#if 1 /* [#233] Fixing for changing default host fec on DCO, dustin, 2024-12-18 */
+	/* set rx output emphasis control. requested by LimHoon. */
+	if((ret = i2c_smbus_write_byte_data(fd, 236/*0xEC*/, 0x0)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] rx output emphasis failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+
+	/* set rx output emphasis control. requested by LimHoon. */
+	if((ret = i2c_smbus_write_byte_data(fd, 237/*0xED*/, 0x0)) < 0) {
+		zlog_notice("%s: Writing port[%d(0/%d)] rx output emphasis failed.",
+			__func__, portno, get_eag6L_dport(portno));
+		goto __NEXT__;
+	}
+#endif /* [#233] */
 
 	/* get fec byte. */
 	if((ret = i2c_smbus_read_byte_data(fd, 230/*0xE6*/)) < 0) {
