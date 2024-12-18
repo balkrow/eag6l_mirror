@@ -1183,6 +1183,9 @@ uint8_t gReplyPortPMGet(int args, ...)
 	uint8_t portno, ret = IPC_CMD_SUCCESS;
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
+#if 1 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+	static int pm_cleared_flag = 0;
+#endif /* [#232] */
 
 #ifdef DEBUG
 	zlog_notice("%s (REPLY): args=%d", __func__, args);
@@ -1197,8 +1200,19 @@ uint8_t gReplyPortPMGet(int args, ...)
 	va_end(argP);
 
 #if 1 /* [#204] pmClear register ¿ normal ¿ pm update ¿¿¿ ¿¿, balkrow, 2024-11-19 */
+#if 1 /* [#232] Fixing for pm count/ber reset action, dustin, 2024-12-18 */
+	if(gDB.pmUpdateCmd == 0xa5) {
+		if(! pm_cleared_flag) {
+			memset(&PM_TBL[0], 0, sizeof(port_pm_counter_t) * PORT_ID_EAG6L_MAX);
+			pm_cleared_flag = 1;
+		}
+		return ret;
+	} else 
+		pm_cleared_flag = 0;
+#else /*******************************************************************/
 	if(gDB.pmUpdateCmd == 0xa5)
 		return;
+#endif /* [#232] */
 #endif
 
 	/* process for result. */
