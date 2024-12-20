@@ -54,6 +54,16 @@
 extern uint8_t EAG6LMacLearningnable (void);
 extern uint8_t EAG6L25Gto100GFwdSet (void);
 #endif
+#if 1/*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17 */
+extern uint8_t pll_config(uint8_t clk_src, uint32_t speed);
+extern GT_STATUS cpssDxChHfrPortRejectPacketConfigSet
+(
+ IN  GT_U8                               devNum,
+ IN  CPSS_PACKET_CMD_ENT                 command,
+ IN  CPSS_NET_RX_CPU_CODE_ENT            cpuCode
+ );
+extern int8_t rsmu_init (void);
+#endif
 
 #if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
 int DCO_SFP_LOSS;
@@ -337,7 +347,7 @@ CPSS_DXCH_PORT_FEC_MODE_ENT FEC_MODE[PORT_ID_EAG6L_MAX] =
 #else
 CPSS_DXCH_PORT_FEC_MODE_ENT FEC_MODE[PORT_ID_EAG6L_MAX];
 #endif
-uint8_t SPEED[PORT_ID_EAG6L_MAX];
+uint8_t SPEED[PORT_ID_EAG6L_MAX] = { 1, 1, 1, 1, 1, 1, 1, 1 };
 #endif
 #if 1 /* [#173] Fixing for stable fast DCO init, dustin, 2024-10-29 */
 int FEC_CFG[PORT_ID_EAG6L_MAX] = { 0, 1, 1, 1, 1, 1, 1, 1 };
@@ -1018,6 +1028,11 @@ uint8_t gCpssSDKInit(int args, ...)
 #if 1/*[#45] Jumbo frame 기능 추가, balkrow, 2024-06-10*/
 	result += EAG6LJumboFrameEnable();
 #endif
+
+#if 0/*add by balkrow*/
+	cpssDxChHfrPortRejectPacketConfigSet(CPSS_PACKET_CMD_FORWARD_E, CPSS_NET_FIRST_UNKNOWN_HW_CPU_CODE_E);
+#endif
+
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	if(!result)
 		gEag6LSDKInitStatus = GT_TRUE; 
@@ -1218,7 +1233,9 @@ uint8_t gCpssSynceDisable(int args, ...)
 uint8_t gCpssSynceIfconf(int args, ...)
 {
 	uint8_t ret = 0;
-	uint8_t devNum = 0, config;
+#if 1/*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17 */
+	uint8_t devNum = 0, config, lport;
+#endif
 	uint32_t clock_src, portNum;
 	GT_BOOL enable = false;
 	CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_TYPE_ENT recoveryClkType;
@@ -1284,8 +1301,22 @@ uint8_t gCpssSynceIfconf(int args, ...)
 							0);
 
 	syslog(LOG_NOTICE, "%s : clock src %x recoveryClkType %x portNum %x %x %x", __func__, clock_src, recoveryClkType, portNum, config, ret);
-#if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-18 */
-	ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(devNum, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+#if 1/*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17 */
+	lport = get_eag6L_lport(portNum);
+	if(SPEED[lport] == PORT_IF_10G_KR)
+	{
+		uint8_t clk_src;
+		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
+		pll_config(clk_src, PORT_IF_10G_KR);
+		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(devNum, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+	}
+	else
+	{
+		uint8_t clk_src;
+		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
+		pll_config(clk_src, PORT_IF_25G_KR);
+		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(devNum, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+	}
 	syslog(LOG_NOTICE, "%s : clock src %x portNum %x recoveryClkType %x ret %x", __func__, clock_src, portNum, recoveryClkType, ret);
 #endif
 
@@ -1313,7 +1344,9 @@ uint8_t gCpssSynceIfconf(int args, ...)
 uint8_t gCpssSynceIfSelect(int args, ...)
 {
 	uint8_t ret = 0;
-	uint8_t devNum = 0;
+#if 1/*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17 */
+	uint8_t devNum = 0, lport;
+#endif
 	uint32_t clock_src, portNum;
 	GT_BOOL enable = true;
 	CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_TYPE_ENT recoveryClkType;
@@ -1426,7 +1459,23 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 					  0);
 	syslog(LOG_NOTICE, "%s : clock src %x portNum %x recoveryClkType %x enable %x ret %x", __func__, clock_src, portNum, recoveryClkType, enable, ret);
 
-	ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+#if 1/*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17 */
+	lport = get_eag6L_lport(portNum);
+	if(SPEED[lport] == PORT_IF_10G_KR) 
+	{
+		uint8_t clk_src;
+		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
+		pll_config(clk_src, PORT_IF_10G_KR);
+		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+	}
+	else
+	{
+		uint8_t clk_src;
+		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
+		pll_config(clk_src, PORT_IF_25G_KR);
+		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+	}
+#endif
 #endif
 
 	syslog(LOG_NOTICE, "%s : clock src %x portNum %x recoveryClkType %x ret %x", __func__, clock_src, portNum, recoveryClkType, ret);
@@ -1833,6 +1882,40 @@ uint8_t gCpssPortSetRate(int args, ...)
 	/* get current speed */
 	if(msg->portid != (PORT_ID_EAG6L_MAX - 1))
 		get_port_speed(msg->portid, &eag6LSpeedStatus[msg->portid]);
+#endif
+#if 1/*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17 */
+	if(SPEED[portno] == PORT_IF_10G_KR)
+	{
+		syslog(LOG_INFO, "dport %x gSyncePriInf %x", dport, gSyncePriInf);
+		if(gSyncePriInf == dport)
+		{
+			pll_config(1, PORT_IF_10G_KR);
+			ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+			syslog(LOG_INFO, " cpssDxChPortSyncEtherRecoveryClkDividerValueSet ret %x ", ret);
+		}
+		else if(gSynceSecInf == dport)
+		{
+			pll_config(2, PORT_IF_10G_KR);
+			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+		}
+
+	}
+	else
+	{
+		syslog(LOG_INFO, "dport %x gSyncePriInf %x", dport, gSyncePriInf);
+		if(gSyncePriInf == dport)
+		{
+			pll_config(1, PORT_IF_25G_KR);
+			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+			syslog(LOG_INFO, " cpssDxChPortSyncEtherRecoveryClkDividerValueSet ret %x ", ret);
+		}
+		else if(gSynceSecInf == dport)
+		{
+			pll_config(2, PORT_IF_25G_KR);
+			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+		}
+
+	}
 #endif
 _gCpssPortSetRate_exit:
 	msg->result = ret;
@@ -2871,6 +2954,9 @@ static unsigned __TASKCONV OAM_thread(void)
 
 #if 1/*[#34] aldrin3s chip initial 기능 추가, balkrow, 2024-05-23*/
 	openlog("EAG6LIPC", LOG_PID | LOG_CONS| LOG_NDELAY | LOG_PID, LOG_USER);
+#endif
+#if 1 /*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17*/
+	rsmu_init();
 #endif
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	notifyEventToIPC = processPortEvt;

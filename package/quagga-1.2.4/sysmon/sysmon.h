@@ -190,6 +190,15 @@ typedef struct rsmu_get_idx
 } RSMU_PLL_CLK_IDX;
 #endif
 
+#if 1 /*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17*/
+typedef struct rsmu_reg_rw_str
+{
+	uint32_t offset;
+	uint8_t byte_count;
+	uint8_t bytes[256];
+} RSMU_REG_RW;
+#endif
+
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #define RDL_VER_STR_MAX             16/* or 2? */
 #define RDL_FILE_NAME_MAX           32
@@ -271,7 +280,10 @@ typedef struct globalDB
 } GLOBAL_DB;
 
 #define RSMU_MAGIC   '?'
-#define RSMU_GET_STATE                      _IOR(RSMU_MAGIC, 2, struct rsmu_get_state)
+#define RSMU_GET_STATE                  _IOR(RSMU_MAGIC, 2, struct rsmu_get_state)
+#if 1 /*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17*/
+#define RSMU_REG_WRITE			_IOR(RSMU_MAGIC, 101, struct rsmu_reg_rw)
+#endif
 #endif
 #if 1/*[#122] primary/secondary Send QL 설정, balkrow, 2024-09-09*/
 #define ESMC_LOCAL_QL 0x12

@@ -29,6 +29,10 @@
 #if 1/*[#40] IPC source 정리, balkrow, 2024-06-11 */
 #include "sysmon.h"
 #endif
+#if 1 /*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17*/
+#include "rsmu.h"
+int32_t g_rsmu_fd = UNINITIALIZED_FD;
+#endif
 
 extern uint8_t eag6LPortArrSize;
 extern uint8_t eag6LPortlist [];
@@ -88,6 +92,24 @@ GT_STATUS mvHwsPortSendLocalFaultSet
     IN MV_HWS_PORT_STANDARD    portMode,
     IN GT_BOOL                 enable
 );
+#endif
+
+#if 1 /*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17*/
+int8_t rsmu_init (void)
+{
+	if(g_rsmu_fd == UNINITIALIZED_FD)
+	{
+		if((g_rsmu_fd = open(RSMU_DEVICE_NAME, O_WRONLY)) < 0)
+		{
+			syslog(LOG_ERR, "%s open faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+			return RT_NOK;
+		} else
+			syslog(LOG_INFO, "%s open success", RSMU_DEVICE_NAME);
+	} else
+		syslog(LOG_INFO, "%s already opened", RSMU_DEVICE_NAME);
+
+	return 0;
+}
 #endif
 
 #if 1/*[#40] IPC source 정리, balkrow, 2024-06-11 */
@@ -385,3 +407,159 @@ void initFaultFsmList (void)
 		svcPortFaultFsm[i].cb[SVC_FAULT_ST_NO_LFRF] = portEventNoLFRFstate; 
 	}
 }
+
+#if 1 /*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17*/
+uint8_t pll_config(uint8_t clk_src, uint32_t speed)
+{
+#if 0
+	clk_src = clk_src;
+	speed = speed;
+	return 0;
+#else
+	uint8_t input0_10g_val[8] = { 0x88, 0xa3, 0xb4, 0x01, 0x0f, 0x00, 0xd0, 0x07 };
+	uint8_t input0_25g_val[8] = { 0xe2, 0x8f, 0xaa, 0xdc, 0x05, 0x00, 0x71, 0x02 };
+
+	uint8_t other1_10g_val[4] = { 0x80, 0x02, 0x00, 0x00 };
+	uint8_t other1_25g_val[4] = { 0x00, 0x00, 0x00, 0x00 };
+
+	uint8_t other2_10g_val = 0x01;
+	uint8_t other2_25g_val = 0x01;
+
+	RSMU_REG_RW set;
+
+	if(clk_src == 1)
+	{
+		syslog(LOG_ERR, "%s:%d speed %x", __func__, __LINE__, speed);
+		/*INPUT0*/
+		memset(&set, 0, sizeof(set));
+		if(speed == PORT_IF_10G_KR)
+		{
+			set.offset = 0x2010c1b0;
+			memcpy(set.bytes, input0_10g_val, 8);
+			set.byte_count = 8;
+		}
+		else
+		{
+			set.offset = 0x2010c1b0;
+			memcpy(set.bytes, input0_25g_val, 8);
+			set.byte_count = 8;
+		}
+
+		if(ioctl(g_rsmu_fd, RSMU_REG_WRITE, &set))
+		{
+			syslog(LOG_ERR, "%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+			return RT_NOK;
+		}
+
+		/*OTHER1*/
+		memset(&set, 0, sizeof(set));
+		if(speed == PORT_IF_10G_KR)
+		{
+			set.offset = 0x2010c724;
+			memcpy(set.bytes, other1_10g_val, 4);
+			set.byte_count = 3;
+		}
+		else
+		{
+			set.offset = 0x2010c724;
+			memcpy(set.bytes, other1_25g_val, 4);
+			set.byte_count = 3;
+		}
+
+		if(ioctl(g_rsmu_fd, RSMU_REG_WRITE, &set))
+		{
+			syslog(LOG_ERR, "%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+			return RT_NOK;
+		}
+
+		/*OTHER2*/
+		memset(&set, 0, sizeof(set));
+		if(speed == PORT_IF_10G_KR)
+		{
+			set.offset = 0x2010c1bd;
+			set.bytes[0] = other2_10g_val;
+			set.byte_count = 1;
+		}
+		else
+		{
+			set.offset = 0x2010c1bd;
+			set.bytes[0] = other2_25g_val;
+			set.byte_count = 1;
+		}
+
+		if(ioctl(g_rsmu_fd, RSMU_REG_WRITE, &set))
+		{
+			syslog(LOG_ERR, "%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+			return RT_NOK;
+		}
+	}
+	else
+	{
+		syslog(LOG_ERR, "%s:%d speed %x", __func__, __LINE__, speed);
+		/*INPUT1*/
+		memset(&set, 0, sizeof(set));
+		if(speed == PORT_IF_10G_KR)
+		{
+			set.offset = 0x2010c1c0;
+			memcpy(set.bytes, input0_10g_val, 8);
+			set.byte_count = 8;
+		}
+		else
+		{
+			set.offset = 0x2010c1c0;
+			memcpy(set.bytes, input0_25g_val, 8);
+			set.byte_count = 8;
+		}
+
+		if(ioctl(g_rsmu_fd, RSMU_REG_WRITE, &set))
+		{
+			syslog(LOG_ERR, "%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+			return RT_NOK;
+		}
+
+		/*OTHER1*/
+		memset(&set, 0, sizeof(set));
+		if(speed == PORT_IF_10G_KR)
+		{
+			set.offset = 0x2010c724;
+			memcpy(set.bytes, other1_10g_val, 4);
+			set.byte_count = 3;
+		}
+		else
+		{
+			set.offset = 0x2010c724;
+			memcpy(set.bytes, other1_25g_val, 4);
+			set.byte_count = 3;
+		}
+
+		if(ioctl(g_rsmu_fd, RSMU_REG_WRITE, &set))
+		{
+			syslog(LOG_ERR, "%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+			return RT_NOK;
+		}
+
+		/*OTHER2*/
+		memset(&set, 0, sizeof(set));
+		if(speed == PORT_IF_10G_KR)
+		{
+			set.offset = 0x2010c1cd;
+			set.bytes[0] = other2_10g_val;
+			set.byte_count = 1;
+		}
+		else
+		{
+			set.offset = 0x2010c1cd;
+			set.bytes[0] = other2_25g_val;
+			set.byte_count = 1;
+		}
+
+		if(ioctl(g_rsmu_fd, RSMU_REG_WRITE, &set))
+		{
+			syslog(LOG_ERR, "%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+			return RT_NOK;
+		}
+	}
+	return 0;
+#endif
+}
+#endif
