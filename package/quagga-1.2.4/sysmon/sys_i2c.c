@@ -3229,6 +3229,40 @@ __exit__:
 #endif /* [#149] */
 #endif
 
+#if 1 /* [#235] Adding new DCO part numbers, dustin, 2024-12-20 */
+int check_100G_dco_sfp(void)
+{
+/*
+	[100G DCO] Coherent
+		FTLC3351R3PL1            (Standard Power, C-Temp)
+		FTLC3351R3PL4            (Standard Power, I-Temp)
+		FTLC3352R3PL4            (High Power, I-Temp)
+*/
+	int portno = PORT_ID_EAG6L_PORT7;
+
+	if((INV_TBL[portno].part_num[7] != '1') && 
+	   (INV_TBL[portno].part_num[7] != '2'))
+		return 0;
+	if((INV_TBL[portno].part_num[12] != '1') && 
+	   (INV_TBL[portno].part_num[12] != '4'))
+		return 0;
+	if((INV_TBL[portno].part_num[0] != 'F') ||
+	   (INV_TBL[portno].part_num[1] != 'T') ||
+	   (INV_TBL[portno].part_num[2] != 'L') ||
+	   (INV_TBL[portno].part_num[3] != 'C') ||
+	   (INV_TBL[portno].part_num[4] != '3') ||
+	   (INV_TBL[portno].part_num[5] != '3') ||
+	   (INV_TBL[portno].part_num[6] != '5'))
+		return 0;
+	if((INV_TBL[portno].part_num[8]  != 'R') ||
+	   (INV_TBL[portno].part_num[9]  != '3') ||
+	   (INV_TBL[portno].part_num[10] != 'P') ||
+	   (INV_TBL[portno].part_num[11] != 'L'))
+		return 0;
+	return 1;
+}
+#endif/* [#235] */
+
 ePrivateSfpId get_private_sfp_identifier(int portno)
 {
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */
@@ -3242,8 +3276,12 @@ ePrivateSfpId get_private_sfp_identifier(int portno)
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 	/* NOTE : this is for only SFP, not for QSFP. */
 	if(portno >= (PORT_ID_EAG6L_MAX - 1)) {
+#if 1 /* [#235] Adding new DCO part numbers, dustin, 2024-12-20 */
+		if(check_100G_dco_sfp())
+#else /**********************************************************/
 		if(! memcmp(INV_TBL[portno].part_num, "FTLC3351R3PL1",
 			sizeof("FTLC3351R3PL1")))
+#endif/* [#235] */
 #if 1 /* [#94] Adding for 100G DCO handling, dustin, 2024-09-23 */
 		{
 			PORT_STATUS[portno].tunable_sfp = 1;
@@ -5212,8 +5250,12 @@ extern int dco_retry_cnt;
 		read_port_inventory(portno, &(INV_TBL[portno]));
 
 		/* init for 100G DCO sfp. FIXME: need OE spf. */
+#if 1 /* [#235] Adding new DCO part numbers, dustin, 2024-12-20 */
+		if(check_100G_dco_sfp())
+#else /**********************************************************/
 		if(! memcmp(INV_TBL[portno].part_num, "FTLC3351R3PL1",
 					sizeof("FTLC3351R3PL1")))
+#endif/* [#235] */
 		{
 			PORT_STATUS[portno].sfp_dco = 1;
 #if 1 /* [#233] Fixing for changing default host fec on DCO, dustin, 2024-12-18 */
