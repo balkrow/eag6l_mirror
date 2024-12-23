@@ -520,24 +520,31 @@ uint8_t gCpssNone(int args, ...)
 	return IPC_CMD_SUCCESS;
 }
 
+#if 1/*[#121] ESMC Packet Send 真 真, balkrow, 2024-12-02*/
 uint8_t gCpssPortSendQL(int args, ...)
 {
 	va_list argP;
+	uint32_t port, ql;
 	sysmon_fifo_msg_t msg;
 #ifdef DEBUG
 	zlog_notice("called %s args=%d", __func__, args);
 #endif
 
-	if(args != 1) {
+	if(args != 2) {
 		zlog_notice("%s: invalid args[%d].", __func__, args);
 		return IPC_CMD_FAIL;
 	}
 
 	memset(&msg, 0, sizeof msg);
 	va_start(argP, args);
-	msg.portid = va_arg(argP, uint32_t);
+	port = va_arg(argP, uint32_t);
+	ql = va_arg(argP, uint32_t);
 	va_end(argP);
 	msg.type = gPortSendQL;
+	msg.portid = port;
+	msg.mode = ql;
+
+	zlog_notice("%s port %d QL %x", __func__, port, ql);
 
 	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
@@ -545,6 +552,7 @@ uint8_t gCpssPortSendQL(int args, ...)
 	}
 	return IPC_CMD_SUCCESS;
 }
+#endif
 
 uint8_t gCpssLocalQL(int args, ...)
 {
@@ -1756,6 +1764,9 @@ uint8_t switchEsmcInterface(int port, int QL)
 				wr_val = (QL << 8) | val; 
 				sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
 #endif
+#if 1/*[#121] ESMC Packet Send 真 真, balkrow, 2024-12-02*/
+				gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), QL);
+#endif
 			}
 			else if(sec_port == port)
 			{
@@ -1780,6 +1791,9 @@ uint8_t switchEsmcInterface(int port, int QL)
 				val = (val & ~(0xff));
 				wr_val =  val | QL; 
 				sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
+#endif
+#if 1/*[#121] ESMC Packet Send 真 真, balkrow, 2024-12-02*/
+				gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), QL);
 #endif
 			}
 		}
@@ -1890,10 +1904,18 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#194] synce TX QL 真 真, balkrow, 2024-11-13*/
 					val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 					val = (val & ~(0xff00));
+#if 1/*[#121] ESMC Packet Send 真 真, balkrow, 2024-12-02*/
 					if(gDB.pll_state == HOLD_OVER)
+					{
 						wr_val = (gDB.localQL << 8) | val; 
+						gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), gDB.localQL);
+					}
 					else
+					{
 						wr_val = (QL << 8) | val; 
+						gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), QL);
+					}
+#endif
 					sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
 					PORT_STATUS[port].recv_dnu = 1;
 #endif
@@ -1917,10 +1939,17 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#194] synce TX QL 真 真, balkrow, 2024-11-13*/
 					val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 					val = (val & ~(0xff));
+#if 1/*[#121] ESMC Packet Send 真 真, balkrow, 2024-12-02*/
 					if(gDB.pll_state == HOLD_OVER)
+					{
 						wr_val =  val | gDB.localQL; 
+						gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), gDB.localQL);
+					}
 					else
+					{
 						wr_val =  val | QL; 
+					}
+#endif
 
 					sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, wr_val, PORT_NOREG);
 					PORT_STATUS[port].recv_dnu = 1;
@@ -2021,7 +2050,7 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-#if 0
+#if 1
 	zlog_notice("port %d RX ESMC QL %x", msg->portid, msg->mode);
 #endif
 #if 1/*[#120] LOC Alarm process 真, balkrow, 2024-10-16 */
@@ -2030,7 +2059,7 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 	if(gDB.esmcRxCfg[mport -1] == CFG_DISABLE)
 		return ret;
 
-#if 0
+#ifdef DEBUG 
 	zlog_notice("port %d RX ESMC QL %x esmc_recv_cnt %x port %x", msg->portid, msg->mode, PORT_STATUS[mport].esmc_recv_cnt, mport);
 #endif
 	if(mport != NOT_DEFINED) 

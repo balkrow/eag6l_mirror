@@ -560,11 +560,19 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 #if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
 			gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, 0); 
 #endif
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), 0);
+			gSysmonToCpssFuncs[gPortSendQL](2, 0xff, 0);
+#endif
 		} else if(port == sec_port) {
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
 			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
 #if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
 			gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, 0); 
+#endif
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), 0);
+			gSysmonToCpssFuncs[gPortSendQL](2, 0xff, 0);
 #endif
 		}
 
@@ -794,13 +802,22 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
 	gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
-	if(port = NOT_DEFINED)
+
+	if(port == NOT_DEFINED)
 	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0); 
 		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0);
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+		gSysmonToCpssFuncs[gPortSendQL](2, val, 0);
+#endif
 	}
 	else
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL);
+		gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
+	}
+#endif
 #endif
 
 	return rc;
@@ -868,13 +885,21 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
 	gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
-	if(port = NOT_DEFINED)
+	if(port == NOT_DEFINED)
 	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
 		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+		gSysmonToCpssFuncs[gPortSendQL](2, val, 0);
+#endif
 	}
 	else
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+	{
 		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
+		gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
+	}
+#endif
 #endif
 
 	return rc;
@@ -2437,11 +2462,22 @@ int8_t rsmu_pll_update(void)
 					if(gDB.synce_oper_port == pri_port)
 					{
 						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0x11); 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+						gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), 0x11);
+#endif
 					}
 					else
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+					{
 						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+						gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), PORT_STATUS[gDB.synce_oper_port].received_QL);
+					}
+#endif
 #if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
 						gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+						gSysmonToCpssFuncs[gPortSendQL](2, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL);
+#endif
 #endif
 
 				}
@@ -2451,11 +2487,22 @@ int8_t rsmu_pll_update(void)
 					if(gDB.synce_oper_port == sec_port)
 					{
 						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0x11); 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+						gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), 0x11);
+#endif
 					}
 					else
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+					{
 						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+						gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), PORT_STATUS[gDB.synce_oper_port].received_QL);
+					}
+#endif
 #if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
 						gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL); 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+						gSysmonToCpssFuncs[gPortSendQL](2, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL);
+#endif
 #endif
 				}
 #endif
@@ -2471,6 +2518,11 @@ int8_t rsmu_pll_update(void)
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
 #if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
 			gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, gDB.localQL); 
+#endif
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
+			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), gDB.localQL);
+			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), gDB.localQL);
+			gSysmonToCpssFuncs[gPortSendQL](2, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL);
 #endif
 		}
 		else
