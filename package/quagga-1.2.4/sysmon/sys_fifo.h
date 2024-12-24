@@ -81,7 +81,9 @@ enum sysmon_cmd_fifo_type
 #if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
 	gPortForceLinkDown,
 #endif
-
+#if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
+	gPortDLFForward,
+#endif
 };
 
 enum sysmon_cmd_result_type

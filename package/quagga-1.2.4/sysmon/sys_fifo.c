@@ -603,6 +603,35 @@ uint8_t gCpssPortFECEnable(int args, ...)
 }
 #endif /* [#152] */
 
+#if 1/*[#237] DLF flooding on/off ¿¿ ¿¿, balkrow, 2024-12-24*/
+uint8_t gCpssPortDLFForward(int args, ...)
+{
+    va_list argP;
+    sysmon_fifo_msg_t msg;
+#ifdef DEBUG
+    zlog_notice("called %s args=%d", __func__, args);
+#endif
+
+    if(args != 1) {
+        zlog_notice("%s: invalid args[%d].", __func__, args);
+        return IPC_CMD_FAIL;
+    }
+
+    memset(&msg, 0, sizeof msg);
+    va_start(argP, args);
+    msg.state = va_arg(argP, uint32_t);
+    va_end(argP);
+    msg.type = gPortDLFForward;
+
+    if(send_to_sysmon_slave(&msg) == 0) {
+        zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
+        return IPC_CMD_FAIL;
+    }
+
+    return IPC_CMD_SUCCESS;
+}
+#endif
+
 #if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
 uint8_t gCpssPortForceLinkDown(int args, ...)
 {
@@ -704,6 +733,9 @@ cSysmonToCPSSFuncs gSysmonToCpssFuncs[] =
 #endif /* [#142] */
 #if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-11*/
 	gCpssPortForceLinkDown,
+#endif
+#if 1/*[#237] DLF flooding on/off ¿¿ ¿¿, balkrow, 2024-12-24*/
+	gCpssPortDLFForward,
 #endif
 };
 
@@ -2305,6 +2337,32 @@ uint8_t gReplyPortFECEnable(int args, ...)
 }
 #endif /* [#152] */
 
+#if 1/*[#237] DLF flooding on/off ¿¿ ¿¿, balkrow, 2024-12-24*/
+uint8_t gReplyDLFForward(int args, ...)
+{
+	uint8_t ret = IPC_CMD_SUCCESS;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+#ifdef DEBUG
+	zlog_notice("%s (REPLY): args=%d", __func__, args);
+#endif
+	if(args != 1) {
+		zlog_notice("%s: invalid args[%d].", __func__, args);
+		return IPC_CMD_FAIL;
+	}
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	/* process for result. */
+	if(msg->result != FIFO_CMD_SUCCESS)
+		zlog_notice("Setting DLFForward failed. ret[%d].", msg->result);
+	return ret;
+}
+#endif
+
 #if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */
 uint8_t gReplyDcoSFPState(int args, ...)
 {
@@ -2397,6 +2455,9 @@ cSysmonReplyFuncs gSysmonReplyFuncs[] =
 #endif
 #if 1 /* [#165] DCO SFP ¿¿ LLCF ¿¿, balkrow, 2024-10-24 */
 	gReplyDcoSFPState,
+#endif
+#if 1/*[#237] DLF flooding on/off ¿¿ ¿¿, balkrow, 2024-12-24*/
+	gReplyDLFForward,
 #endif
 };
 

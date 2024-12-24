@@ -2629,6 +2629,34 @@ _gCpssPortFECEnable_exit:
 }
 #endif /* [#152] */
 
+#if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
+uint8_t gCpssPortDLFForward(int args, ...)
+{
+	uint8_t ret = GT_OK;
+	int8_t onoff;
+	va_list argP;
+	sysmon_fifo_msg_t *msg = NULL;
+
+	va_start(argP, args);
+	msg = va_arg(argP, sysmon_fifo_msg_t *);
+	va_end(argP);
+
+	onoff = msg->state;
+
+	if(onoff)
+		ret = cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet(0, EAG6L_WDM_PORT, CPSS_PACKET_CMD_FORWARD_E); 
+	else
+		ret = cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet(0, EAG6L_WDM_PORT, CPSS_PACKET_CMD_DROP_HARD_E); 
+
+	syslog(LOG_INFO, "port %d DLF flooding %s", EAG6L_WDM_PORT, onoff == 1 ? "On":"Off");
+	msg->result = ret;
+
+	/* reply the result */
+	send_to_sysmon_master(msg);
+	return IPC_CMD_SUCCESS;
+}
+#endif
+
 #if 1/*[#165] DCO SFP 관련 LLCF 수정, balkrow, 2024-10-24*/ 
 uint8_t gCpssPortForceLinkDown(int args, ...)
 {
@@ -2729,6 +2757,9 @@ cCPSSToSysmonFuncs gCpssToSysmonFuncs[] =
 #endif
 #if 1/*[#189] LLCF ¿¿¿ 100G ¿¿¿ LOS ¿ 25G port¿ Tx off ¿¿¿ ¿¿, balkrow, 2024-11-12*/
 	gCpssPortForceLinkDown,
+#endif
+#if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
+	gCpssPortDLFForward,
 #endif
 };
 
