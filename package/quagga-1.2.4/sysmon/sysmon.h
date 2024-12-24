@@ -275,6 +275,9 @@ typedef struct globalDB
 #if 1 /* [#204] pmClear register 시 normal 시 pm update 하도록 수정, balkrow, 2024-11-19 */
 	uint8_t pmUpdateCmd; /*bitmap*/
 #endif
+#if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
+	uint8_t dlfforward; /*bitmap*/
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;

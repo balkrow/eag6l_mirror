@@ -225,6 +225,36 @@ DEFUN (synce_if_conf,
 }
 #endif
 
+#if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
+DEFUN (dlf_if_conf,
+       dlf_if_conf_cmd,
+       "dlf-flooding (on|off)",
+       "DLF packet flooding"
+       "On\n"
+       "Off\n")
+{
+  uint8_t forward = 0;
+
+  if(argc != 1)
+  {
+	vty_out (vty, "parameter error%s", VTY_NEWLINE);
+	return CMD_SUCCESS;
+  }
+
+  if (strncmp (argv[0], "on", 2) == 0)
+  {
+	forward = 1;
+	gDB.dlfforward = 1;
+  }
+  else
+	gDB.dlfforward = 0;
+
+  gSysmonToCpssFuncs[gPortDLFForward](1,  forward);
+
+  return CMD_SUCCESS;
+}
+#endif
+
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
 extern uint16_t portESMCenable (uint16_t port, uint16_t val);
 DEFUN (esmc_if_conf,
@@ -323,7 +353,9 @@ DEFUN (show_sysmon_system,
 	vty_out(vty, "LLCF  Enable    : %x%s", PORT_STATUS[PORT_ID_EAG6L_PORT7].cfg_llcf, VTY_NEWLINE); 
 	vty_out(vty, "LLCF  reason    : %x%s", gDB.llcf_reason, VTY_NEWLINE); 
 	vty_out(vty, "LLCF  port status    : %x%s", gDB.llcf_port_state, VTY_NEWLINE); 
-
+#endif
+#if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
+	vty_out(vty, "DLF  Forward    : %s%s", gDB.dlfforward == 1 ? "On":"Off", VTY_NEWLINE); 
 #endif
 
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-08-09*/
@@ -2129,6 +2161,9 @@ sysmon_vty_init (void)
 #endif
 #if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
   install_element (ENABLE_NODE, &laser_onoff_conf_cmd);
+#endif
+#if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
+  install_element (ENABLE_NODE, &dlf_if_conf_cmd);
 #endif
 #if 1/*[#65] Adding regMon simulation feature under ACCESS_SIM, dustin, 2024-06-24 */
   install_element (VIEW_NODE, &get_register_cmd);
