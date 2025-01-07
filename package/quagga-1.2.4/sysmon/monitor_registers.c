@@ -1275,6 +1275,8 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			PORT_STATUS[port].cfg_llcf = cfg_llcf;
 #endif
 
+#if 0 /* [#239] Fixing for not clearing PM count if sfp cr, dustin, 2025-01-06 */
+			/* NOTE : should not clear pm count even if sfp cr. */
 #if 1 /* [#211] Fixing for clearing counter when spf cr, dustin, 2024-11-21 */
 			/* clear pm counter cache only. requested by Balkrow. */
 			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
@@ -1286,6 +1288,7 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
 #endif
 #endif /* [#211] */
+#endif /* [#239] */
 
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
 			/* clear not equip sfp registers. */
