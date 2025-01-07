@@ -4298,10 +4298,17 @@ _rtwdm_stage_:
 }
 
 #if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+uint16_t ALM_DATA[PORT_ID_EAG6L_MAX];
+uint16_t ALM_CMASK[PORT_ID_EAG6L_MAX];
+uint16_t QALM_DATA;
+uint16_t QALM_CMASK;
+#else
 uint8_t ALM_DATA[PORT_ID_EAG6L_MAX];
 uint8_t ALM_CMASK[PORT_ID_EAG6L_MAX];
 uint8_t QALM_DATA;
 uint8_t QALM_CMASK;
+#endif/* [#229] */
 #endif
 
 void process_alarm_info(void)
@@ -4426,13 +4433,21 @@ void process_alarm_info(void)
 		else
 			val &= ~(1 << 3);
 
+#if 0 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
 		/*FIXME : update TX Bias alarm */
 		if(PORT_STATUS[portno].tx_bias_sts)
 			val |= (1 << 8);
 		else
 			val &= ~(1 << 8);
+#endif
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 		if(portno == PORT_ID_EAG6L_PORT7) {
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+			if(DCO_STAT.dco_TxFaultMask)
+				val |= (1 << 8);
+			else
+				val &= ~(1 << 8);
+#else /************************************************************/
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 			if(DCO_STAT.lr4_stat.tx_bias_mask & 0xF)
 				val |= (1 << 8);
@@ -4440,6 +4455,7 @@ void process_alarm_info(void)
 			if(LR4_STAT.tx_bias_mask & 0xF)
 				val |= (1 << 8);
 #endif
+#endif /* [#229] */
 		}
 #endif
 
@@ -4482,7 +4498,22 @@ void process_alarm_info(void)
 		val &= ~masking;
 
 		/* update alarm */
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+		{
+			uint16_t rval = 0, wval =0;
+			/* update tx fault by updated bit which managed by fpga in v1.3. */
+			rval = FPGA_PORT_READ(__PORT_ALM_ADDR[portno]);
+			if(portno != PORT_ID_EAG6L_PORT7) {
+				PORT_STATUS[portno].tx_bias_sts = (rval & 0x100) ? 1 : 0;
+				wval = (rval & ~0xE0F) | (val & 0xF0F);
+			} else {
+				wval = (rval & ~0xF0F) | (val & 0xF0F);
+			}
+			FPGA_PORT_WRITE(__PORT_ALM_ADDR[portno], wval);
+		}
+#else /************************************************************/
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
+#endif /* [#229] */
 
 		/* update alarm flag */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
@@ -4563,8 +4594,10 @@ void process_alarm_info(void)
 	val = 0;
 	if(PORT_STATUS[portno].equip) {
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+#if 0 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
 		/* update tx bias. */
 		val |= (DCO_STAT.lr4_stat.tx_bias_mask << 8) & 0xF00;
+#endif
 
 		/* update rx lol. */
 		val |= (DCO_STAT.lr4_stat.rx_lol_mask << 4) & 0xF0;
