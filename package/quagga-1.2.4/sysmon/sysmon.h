@@ -652,6 +652,9 @@ typedef struct dco_status
 		u8  dco_TxLosMask;
 		u8  dco_RxLos;
 		u8  dco_TxLoLMask;
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+		u8  dco_TxFaultMask;
+#endif
 		u8  dco_RxLoL;
 		u8  dco_TempHA;
 		u8  dco_TempLA;

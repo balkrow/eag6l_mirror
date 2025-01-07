@@ -6379,6 +6379,18 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	pdco->dco_RxLos = (val & 0xF) ? 1 : 0;
 #endif
 
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+	/* get page 00h byte 4 for Tx Fault. */
+	if((ret = i2c_smbus_read_byte_data(fd, 4/*0x4*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] Tx Fault failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+	pdco->dco_TxFaultMask = val & 0xF;
+	PORT_STATUS[portno].tx_bias_sts = (val & 0xF) ? 1 : 0;
+#endif
+
 	/* get page 00h byte 5 for TxLoL/RxLoL */
 	if((ret = i2c_smbus_read_byte_data(fd, 5/*0x5*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] TxLoL/RxLoL failed. ret[%d].",
@@ -6453,6 +6465,7 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	pdco->dco_OpticHA = (data & 0x8888) ? 1 : 0;
 	pdco->dco_OpticLA = (data & 0x4444) ? 1 : 0;
 
+#if 0 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 	if(! PORT_STATUS[portno].sfp_dco) {
 		/* get page 00h byte 11 for Tx bias */
@@ -6481,6 +6494,7 @@ int read_i2c_dco_status(dco_status_t *pdco)
 			pdco->lr4_stat.tx_bias_mask |= (1 << 0);
 	}
 #endif
+#endif /* [#229] */
 
 	/* get page 00h byte 13 for OpticHA/OpticLA */
 	if((ret = i2c_smbus_read_byte_data(fd, 13/*0xD*/)) < 0) {
