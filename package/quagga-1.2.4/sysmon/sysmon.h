@@ -75,11 +75,18 @@ define Memory Macro
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 #define PORT_REG 1
 #define PORT_NOREG 0
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+#define PORT_CLEI 2
+#endif/* [#95] */
 
 #define FPGA_READ(x) sys_fpga_memory_read(x, PORT_NOREG)
 #define FPGA_WRITE(x, y) sys_fpga_memory_write(x, y, PORT_NOREG)
 #define FPGA_PORT_READ(x) sys_fpga_memory_read(x, PORT_REG)
 #define FPGA_PORT_WRITE(x, y) sys_fpga_memory_write(x, y, PORT_REG)
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+#define FPGA_CLEI_READ(x) sys_fpga_memory_read(x, PORT_CLEI)
+#define FPGA_CLEI_WRITE(x, y) sys_fpga_memory_write(x, y, PORT_CLEI)
+#endif/* [#95] */
 #else
 #define FPGA_READ sys_fpga_memory_read
 #define FPGA_WRITE sys_fpga_memory_write
@@ -468,6 +475,7 @@ extern void print_console(const char *fmt, ...);
 		u64 fcs_nok;
 	} port_pm_counter_t;
 
+#if 0 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
     struct inventory
     {
         i8 manufact[32];
@@ -481,6 +489,7 @@ extern void print_console(const char *fmt, ...);
         i8 clei_number[32];
         i8 usi_number[32];
     };
+#endif
 
     struct module_inventory
     {
@@ -496,6 +505,12 @@ extern void print_console(const char *fmt, ...);
 #endif
 #if 1 /* [#125] Fixing for SFP channel no, wavelength, tx/rx dBm, dustin, 2024-09-10 */
 		u8 wave_decimal;
+#endif
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+#define MAX_CLEI_SIZE		10
+#define MAX_USI_SIZE		25
+        i8 clei[MAX_CLEI_SIZE];
+        i8 usi[MAX_USI_SIZE];
 #endif
     };
 

@@ -2167,6 +2167,191 @@ DEFUN (show_alarm,
 }
 #endif
 
+DEFUN (pm_set_tx_byte,
+       pm_set_tx_byte_cmd,
+       "pm-set-tx-byte port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].tx_byte = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_rx_byte,
+       pm_set_rx_byte_cmd,
+       "pm-set-rx-byte port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].rx_byte = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_tx_frame,
+       pm_set_tx_frame_cmd,
+       "pm-set-tx-frame port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].tx_frame = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_rx_frame,
+       pm_set_rx_frame_cmd,
+       "pm-set-rx-frame port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].rx_frame = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_rx_fcs,
+       pm_set_rx_fcs_cmd,
+       "pm-set-rx-fcs port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].rx_fcs = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_fcs_ok,
+       pm_set_fcs_ok_cmd,
+       "pm-set-fcs-ok port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].fcs_ok = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_fcs_nok,
+       pm_set_fcs_nok_cmd,
+       "pm-set-fcs-nok port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].fcs_nok = val;
+	return CMD_SUCCESS;
+}
+
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+DEFUN (show_clei_usi,
+       show_clei_usi_cmd,
+       "show clei-usi (all | <1-7>)",
+       SHOW_STR
+       "CLEI/USI info\n"
+       "for all ports\n"
+       "for specified port\n")
+{
+	int portno, ii;
+	char str1[MAX_CLEI_SIZE + 1];
+	char str2[MAX_USI_SIZE + 1];
+
+	if(! strncmp(argv[0], "all", strlen("all"))) {
+		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+			memset(str1, 0, sizeof(str1));
+			memset(str2, 0, sizeof(str2));
+			for(ii = 0; ii < MAX_CLEI_SIZE; ii++)
+				str1[ii] = INV_TBL[portno].clei[ii];
+			for(ii = 0; ii < MAX_USI_SIZE; ii++)
+				str2[ii] = INV_TBL[portno].usi[ii];
+			vty_out(vty, "[%d] CLEI[%-10s]  USI[%-25s]\n", portno, str1, str2);
+		}
+	} else {
+		portno = atoi(argv[0]);
+		memset(str1, 0, sizeof(str1));
+		memset(str2, 0, sizeof(str2));
+		for(ii = 0; ii < MAX_CLEI_SIZE; ii++)
+			str1[ii] = INV_TBL[portno].clei[ii];
+		for(ii = 0; ii < MAX_USI_SIZE; ii++)
+			str2[ii] = INV_TBL[portno].usi[ii];
+		vty_out(vty, "[%d] CLEI[%-10s]  USI[%-25s]\n", portno, str1, str2);
+	}
+
+    return CMD_SUCCESS;
+}
+#endif/* [#95] */
+
 void
 sysmon_vty_init (void)
 {
@@ -2254,5 +2439,15 @@ sysmon_vty_init (void)
 #endif
 #if 1 /* [#174] Adding "show alarm" CLI for vtysh, dustin, 2024-10-29 */
   install_element (ENABLE_NODE, &show_alarm_cmd);
+#endif
+  install_element (ENABLE_NODE, &pm_set_tx_byte_cmd);
+  install_element (ENABLE_NODE, &pm_set_rx_byte_cmd);
+  install_element (ENABLE_NODE, &pm_set_tx_frame_cmd);
+  install_element (ENABLE_NODE, &pm_set_rx_frame_cmd);
+  install_element (ENABLE_NODE, &pm_set_rx_fcs_cmd);
+  install_element (ENABLE_NODE, &pm_set_fcs_ok_cmd);
+  install_element (ENABLE_NODE, &pm_set_fcs_nok_cmd);
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+  install_element (VIEW_NODE, &show_clei_usi_cmd);
 #endif
 }
