@@ -1786,11 +1786,20 @@ extern dco_count_t  DCO_COUNT;
 	dco_count_t *pcnt = &DCO_COUNT;
 
 	vty_out(vty, "\n\t100G/DCO Information\n\n");
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+	vty_out(vty, "Power-mode [0x%x]     host-fec     [%d]      media-fec  [%d]     tx_disable   [0x%x]     CH/Data  [%2d(0x%x)/0x%04x]\n" \
+	           "\nIntL       [%d]       DataNotReady [%d]      TCReady    [%d]     InitComplete [%d]" \
+		       "\nTxLos      [0x%x]     RxLos        [0x%x]    TxLoL      [0x%x]   RxLoL        [0x%x]" \
+		       "\nTempHA     [%d]       TempLA       [%d]      TempHWA    [%d]     tempLWA      [%d]" \
+		       "\nRxOpticHA  [%d]       RxOpticLA    [%d]      RxOpticHWA [%d]     RxOpticLWA   [%d]" \
+		       "\nTxFault    [%d]\n\n",
+#else
 	vty_out(vty, "Power-mode [0x%x]     host-fec     [%d]      media-fec  [%d]     tx_disable   [0x%x]     CH/Data  [%2d(0x%x)/0x%04x]\n" \
 	           "\nIntL       [%d]       DataNotReady [%d]      TCReady    [%d]     InitComplete [%d]" \
 		       "\nTxLos      [0x%x]     RxLos        [0x%x]    TxLoL      [0x%x]   RxLoL        [0x%x]" \
 		       "\nTempHA     [%d]       TempLA       [%d]      TempHWA    [%d]     tempLWA      [%d]" \
 		       "\nRxOpticHA  [%d]       RxOpticLA    [%d]      RxOpticHWA [%d]     RxOpticLWA   [%d]\n\n",
+#endif /* [#229] */
 		pdco->dco_power_mode, pdco->dco_host_fec, 
 		pdco->dco_media_fec, pdco->dco_tx_disable, 
 		PORT_STATUS[PORT_ID_EAG6L_PORT7].tunable_chno, 
@@ -1800,7 +1809,12 @@ extern dco_count_t  DCO_COUNT;
 		pdco->dco_TxLoLMask, pdco->dco_RxLoL, pdco->dco_TempHA, 
 		pdco->dco_TempLA, pdco->dco_TempHWA, pdco->dco_TempLWA, 
 		pdco->dco_OpticHA, pdco->dco_OpticLA, pdco->dco_OpticHWA, 
-		pdco->dco_OpticLWA);
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+		pdco->dco_OpticLWA, pdco->dco_TxFaultMask
+#else /************************************************************/
+		pdco->dco_OpticLWA
+#endif
+		);
 #if 1 /* [#149] Implementing DCO BER/FER counters, dustin, 2024-10-21 */
 	vty_out(vty, "BER I2C-data 0x%08x [0x%08x / %e (%7.2f)]\n"
 		         "FER I2C-data 0x%08x [0x%08x / %e (%7.2f)]\n\n",
@@ -2013,7 +2027,11 @@ void convert_to_bit_string(uint16_t val, uint16_t mask, char *str, char *str2, i
 				else if(bb == 9)
 					strcat(str2, "Laser, ");
 				else if(bb == 8)
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+					strcat(str2, "TxFault, ");
+#else
 					strcat(str2, "TxBias, ");
+#endif /* [#229] */
 				else if(bb == 3)
 					strcat(str2, "RF, ");
 				else if(bb == 2)
@@ -2075,6 +2093,17 @@ extern dco_count_t  DCO_COUNT;
 		"        ALM Mask   : %04X : %s : %s\n\n",
 		portno, alm_sts, alm_str1, astr1, alm_flag, alm_str2, astr2, 
 		alm_mask, alm_str3, astr3);
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+	vty_out(vty, 
+		"        los[%d/0x%04X] link[%d] lf[%d] rf[%d] esmc_loss[%d] " \
+		"tx fault[%d/0x%04X] tx_laser[%d] rtwdm_lp[%d] tsfp_selfloop[%d]\n\n",
+		ps->los, pdco->lr4_stat.rx_los_mask, ps->link, ps->local_fault,
+		ps->remote_fault, ps->esmc_loss, 
+		(portno == PORT_ID_EAG6L_PORT7) ? 
+			(pdco->dco_TxFaultMask ? 1 : 0) : PORT_STATUS[portno].tx_bias_sts,
+		pdco->dco_TxFaultMask, ps->tx_laser_sts, ps->rtwdm_lp, 
+		ps->tsfp_self_lp);
+#else
 	vty_out(vty, 
 		"        los[%d/0x%04X] link[%d] lf[%d] rf[%d] esmc_loss[%d] " \
 		"tx_bias[%d/0x%04X] tx_laser[%d] rtwdm_lp[%d] tsfp_selfloop[%d]\n\n",
@@ -2082,6 +2111,7 @@ extern dco_count_t  DCO_COUNT;
 		ps->remote_fault, ps->esmc_loss, ps->tx_bias_sts, 
 		pdco->lr4_stat.tx_bias_mask, ps->tx_laser_sts, ps->rtwdm_lp, 
 		ps->tsfp_self_lp);
+#endif
 
 	if(portno == PORT_ID_EAG6L_PORT7) {
 		lr4_sts  = FPGA_PORT_READ(QSFP28_LR4_ALM_ADDR);
@@ -2102,9 +2132,15 @@ extern dco_count_t  DCO_COUNT;
 			"        LR4 Mask   : %04X : %s : %s\n\n",
 			portno, lr4_sts, alm_str1, astr1, lr4_flag, alm_str2, astr2, 
 			lr4_mask, alm_str3, astr3);
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+		vty_out(vty, "        tx_fault_mask[0x%X] rx_lol_mask[0x%X] rx_los_mask[0x%X]\n\n",
+			pdco->dco_TxFaultMask, pdco->lr4_stat.rx_lol_mask,
+			pdco->lr4_stat.rx_los_mask);
+#else
 		vty_out(vty, "        tx_bias_mask[0x%X] rx_lol_mask[0x%X] rx_los_mask[0x%X]\n\n",
 			pdco->lr4_stat.tx_bias_mask, pdco->lr4_stat.rx_lol_mask,
 			pdco->lr4_stat.rx_los_mask);
+#endif
 	}
 	return;
 }
@@ -2131,6 +2167,191 @@ DEFUN (show_alarm,
     return CMD_SUCCESS;
 }
 #endif
+
+DEFUN (pm_set_tx_byte,
+       pm_set_tx_byte_cmd,
+       "pm-set-tx-byte port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].tx_byte = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_rx_byte,
+       pm_set_rx_byte_cmd,
+       "pm-set-rx-byte port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].rx_byte = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_tx_frame,
+       pm_set_tx_frame_cmd,
+       "pm-set-tx-frame port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].tx_frame = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_rx_frame,
+       pm_set_rx_frame_cmd,
+       "pm-set-rx-frame port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].rx_frame = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_rx_fcs,
+       pm_set_rx_fcs_cmd,
+       "pm-set-rx-fcs port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].rx_fcs = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_fcs_ok,
+       pm_set_fcs_ok_cmd,
+       "pm-set-fcs-ok port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].fcs_ok = val;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pm_set_fcs_nok,
+       pm_set_fcs_nok_cmd,
+       "pm-set-fcs-nok port <1-7> WORD",
+       "set pm counter.\n"
+       "Port\n"
+       "Specified port <1-7>\n")
+{
+	int portno = atoi(argv[0]);
+	uint64_t val;
+
+	if(sscanf(argv[1], "0x%x", &val) != 1) {
+		if(sscanf(argv[1], "%llu", &val) != 1) {
+			vty_out(vty, "%% INVALID ARG%s", VTY_NEWLINE);
+			return CMD_ERR_AMBIGUOUS;
+		}
+	}
+
+	PM_TBL[portno].fcs_nok = val;
+	return CMD_SUCCESS;
+}
+
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+DEFUN (show_clei_usi,
+       show_clei_usi_cmd,
+       "show clei-usi (all | <1-7>)",
+       SHOW_STR
+       "CLEI/USI info\n"
+       "for all ports\n"
+       "for specified port\n")
+{
+	int portno, ii;
+	char str1[MAX_CLEI_SIZE + 1];
+	char str2[MAX_USI_SIZE + 1];
+
+	if(! strncmp(argv[0], "all", strlen("all"))) {
+		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
+			memset(str1, 0, sizeof(str1));
+			memset(str2, 0, sizeof(str2));
+			for(ii = 0; ii < MAX_CLEI_SIZE; ii++)
+				str1[ii] = INV_TBL[portno].clei[ii];
+			for(ii = 0; ii < MAX_USI_SIZE; ii++)
+				str2[ii] = INV_TBL[portno].usi[ii];
+			vty_out(vty, "[%d] CLEI[%-10s]  USI[%-25s]\n", portno, str1, str2);
+		}
+	} else {
+		portno = atoi(argv[0]);
+		memset(str1, 0, sizeof(str1));
+		memset(str2, 0, sizeof(str2));
+		for(ii = 0; ii < MAX_CLEI_SIZE; ii++)
+			str1[ii] = INV_TBL[portno].clei[ii];
+		for(ii = 0; ii < MAX_USI_SIZE; ii++)
+			str2[ii] = INV_TBL[portno].usi[ii];
+		vty_out(vty, "[%d] CLEI[%-10s]  USI[%-25s]\n", portno, str1, str2);
+	}
+
+    return CMD_SUCCESS;
+}
+#endif/* [#95] */
 
 void
 sysmon_vty_init (void)
@@ -2219,5 +2440,15 @@ sysmon_vty_init (void)
 #endif
 #if 1 /* [#174] Adding "show alarm" CLI for vtysh, dustin, 2024-10-29 */
   install_element (ENABLE_NODE, &show_alarm_cmd);
+#endif
+  install_element (ENABLE_NODE, &pm_set_tx_byte_cmd);
+  install_element (ENABLE_NODE, &pm_set_rx_byte_cmd);
+  install_element (ENABLE_NODE, &pm_set_tx_frame_cmd);
+  install_element (ENABLE_NODE, &pm_set_rx_frame_cmd);
+  install_element (ENABLE_NODE, &pm_set_rx_fcs_cmd);
+  install_element (ENABLE_NODE, &pm_set_fcs_ok_cmd);
+  install_element (ENABLE_NODE, &pm_set_fcs_nok_cmd);
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+  install_element (VIEW_NODE, &show_clei_usi_cmd);
 #endif
 }

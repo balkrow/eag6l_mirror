@@ -652,6 +652,9 @@ void move_image_to_bank(void)
 		zlog_err("Decompressing pkg file %s has failed. Go to IDLE.",
 			RDL_INFO.hd.fih_name);
 		rdl_info_list.st = ST_RDL_IDLE;
+#if 1 /* [#209] Fixing for os activation fail cases, dustin, 2024-11-20 */
+		clear_bank(bno);
+#endif
 		return;
 	}
 #else

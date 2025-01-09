@@ -109,7 +109,11 @@ uint16_t syncePortSendQL(uint16_t port, uint16_t val);
 uint16_t synceLocalQL(uint16_t port, uint16_t val);
 #endif
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+void update_port_sfp_inventory(uint8_t portno, uint8_t rtwdm_flag);
+#else
 void update_port_sfp_inventory(uint8_t rtwdm_flag);
+#endif/* [#95] */
 #else
 void update_port_sfp_inventory(void);
 #endif
@@ -1166,7 +1170,11 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	thread_add_timer(master, pm_clear_fec_counters, port, 2);
 
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	update_port_sfp_inventory(port, 0/*update-no-rtwdm*/);
+#else
 	update_port_sfp_inventory(0/*update-no-rtwdm*/);
+#endif/* [#95] */
 #else
 	update_port_sfp_inventory();
 #endif
@@ -1299,6 +1307,8 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			PORT_STATUS[port].cfg_llcf = cfg_llcf;
 #endif
 
+#if 0 /* [#239] Fixing for not clearing PM count if sfp cr, dustin, 2025-01-06 */
+			/* NOTE : should not clear pm count even if sfp cr. */
 #if 1 /* [#211] Fixing for clearing counter when spf cr, dustin, 2024-11-21 */
 			/* clear pm counter cache only. requested by Balkrow. */
 			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
@@ -1310,6 +1320,7 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			memset(&(PM_TBL[port]), 0, sizeof(port_pm_counter_t));
 #endif
 #endif /* [#211] */
+#endif /* [#239] */
 
 #if 1 /* [#139] Fixing for updating Rx LoS, dustin, 2024-10-01 */
 			/* clear not equip sfp registers. */
@@ -1438,6 +1449,29 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			FPGA_PORT_WRITE(__PORT_SN8_ADDR[port], 0x0);
 			FPGA_PORT_WRITE(__PORT_RATE_ADDR[port], 0x0);
 			FPGA_PORT_WRITE(__PORT_DIST_ADDR[port], 0x0);
+#endif
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+			/* clear clei */
+			FPGA_CLEI_WRITE(__PORT_CLEI1_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_CLEI2_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_CLEI3_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_CLEI4_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_CLEI5_ADDR[port], 0x0);
+
+			/* clear usi */
+			FPGA_CLEI_WRITE(__PORT_USI1_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI2_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI3_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI4_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI5_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI6_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI7_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI8_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI9_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI10_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI11_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI12_ADDR[port], 0x0);
+			FPGA_CLEI_WRITE(__PORT_USI13_ADDR[port], 0x0);
 #endif
 
 			PORT_STATUS[port].sfp_type = SFP_ID_UNKNOWN;
@@ -1612,7 +1646,11 @@ static uint16_t SFP_CR_CACHE = 0x7F;
 			set_rtwdm_loopback(port, 1/*enable*/);
 
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+		update_port_sfp_inventory(port, 0/*update-no-rtwdm*/);
+#else
 		update_port_sfp_inventory(0/*update-no-rtwdm*/);
+#endif/* [#95] */
 #else
 		update_port_sfp_inventory();
 #endif
@@ -2596,6 +2634,9 @@ void read_port_inventory(int portno, struct module_inventory * mod_inv)
     if('\0' == mod_inv->serial_num[0] || mod_inv->dist == 0xFFFF)
 #endif
         get_sfp_info(portno, mod_inv);
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+		read_port_clei_usi(portno, mod_inv);
+#endif
 
     return;
 }
@@ -3859,12 +3900,18 @@ void process_hw_inventory_infos(void)
 }
 
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+void update_port_sfp_inventory(uint8_t portno, uint8_t rtwdm_flag)
+#else
 void update_port_sfp_inventory(uint8_t rtwdm_flag)
+#endif/* [#95] */
 #else
 void update_port_sfp_inventory(void)
 #endif /* [#157] */
 {
+#if 0 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
 	int portno;
+#endif/* [#95] */
 	unsigned int val;
 
 #ifdef BP_BYTE_SWAP /* [#91] Fixing for register updating feature, dustin, 2024-08-05 */
@@ -3874,6 +3921,24 @@ void update_port_sfp_inventory(void)
 #endif
 
 	/* update vendor name */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	val = (INV_TBL[portno].vendor[0] << 8) | INV_TBL[portno].vendor[1];
+	FPGA_PORT_WRITE(__PORT_VENDOR1_ADDR[portno], val);
+	val = (INV_TBL[portno].vendor[2] << 8) | INV_TBL[portno].vendor[3];
+	FPGA_PORT_WRITE(__PORT_VENDOR2_ADDR[portno], val);
+	val = (INV_TBL[portno].vendor[4] << 8) | INV_TBL[portno].vendor[5];
+	FPGA_PORT_WRITE(__PORT_VENDOR3_ADDR[portno], val);
+	val = (INV_TBL[portno].vendor[6] << 8) | INV_TBL[portno].vendor[7];
+	FPGA_PORT_WRITE(__PORT_VENDOR4_ADDR[portno], val);
+	val = (INV_TBL[portno].vendor[8] << 8) | INV_TBL[portno].vendor[9];
+	FPGA_PORT_WRITE(__PORT_VENDOR5_ADDR[portno], val);
+	val = (INV_TBL[portno].vendor[10] << 8) | INV_TBL[portno].vendor[11];
+	FPGA_PORT_WRITE(__PORT_VENDOR6_ADDR[portno], val);
+	val = (INV_TBL[portno].vendor[12] << 8) | INV_TBL[portno].vendor[13];
+	FPGA_PORT_WRITE(__PORT_VENDOR7_ADDR[portno], val);
+	val = (INV_TBL[portno].vendor[14] << 8) | INV_TBL[portno].vendor[15];
+	FPGA_PORT_WRITE(__PORT_VENDOR8_ADDR[portno], val);
+#else /**************************************************************/
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = (INV_TBL[portno].vendor[0] << 8) | INV_TBL[portno].vendor[1];
 		FPGA_PORT_WRITE(__PORT_VENDOR1_ADDR[portno], val);
@@ -3892,8 +3957,27 @@ void update_port_sfp_inventory(void)
 		val = (INV_TBL[portno].vendor[14] << 8) | INV_TBL[portno].vendor[15];
 		FPGA_PORT_WRITE(__PORT_VENDOR8_ADDR[portno], val);
 	}
+#endif/* [#95] */
 
 	/* update part number */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	val = (INV_TBL[portno].part_num[0] << 8) | INV_TBL[portno].part_num[1];
+	FPGA_PORT_WRITE(__PORT_PN1_ADDR[portno], val);
+	val = (INV_TBL[portno].part_num[2] << 8) | INV_TBL[portno].part_num[3];
+	FPGA_PORT_WRITE(__PORT_PN2_ADDR[portno], val);
+	val = (INV_TBL[portno].part_num[4] << 8) | INV_TBL[portno].part_num[5];
+	FPGA_PORT_WRITE(__PORT_PN3_ADDR[portno], val);
+	val = (INV_TBL[portno].part_num[6] << 8) | INV_TBL[portno].part_num[7];
+	FPGA_PORT_WRITE(__PORT_PN4_ADDR[portno], val);
+	val = (INV_TBL[portno].part_num[8] << 8) | INV_TBL[portno].part_num[9];
+	FPGA_PORT_WRITE(__PORT_PN5_ADDR[portno], val);
+	val = (INV_TBL[portno].part_num[10] << 8) | INV_TBL[portno].part_num[11];
+	FPGA_PORT_WRITE(__PORT_PN6_ADDR[portno], val);
+	val = (INV_TBL[portno].part_num[12] << 8) | INV_TBL[portno].part_num[13];
+	FPGA_PORT_WRITE(__PORT_PN7_ADDR[portno], val);
+	val = (INV_TBL[portno].part_num[14] << 8) | INV_TBL[portno].part_num[15];
+	FPGA_PORT_WRITE(__PORT_PN8_ADDR[portno], val);
+#else /**************************************************************/
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = (INV_TBL[portno].part_num[0] << 8) | INV_TBL[portno].part_num[1];
 		FPGA_PORT_WRITE(__PORT_PN1_ADDR[portno], val);
@@ -3912,8 +3996,27 @@ void update_port_sfp_inventory(void)
 		val = (INV_TBL[portno].part_num[14] << 8) | INV_TBL[portno].part_num[15];
 		FPGA_PORT_WRITE(__PORT_PN8_ADDR[portno], val);
 	}
+#endif/* [#95] */
 
 	/* update serial number */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	val = (INV_TBL[portno].serial_num[0] << 8) | INV_TBL[portno].serial_num[1];
+	FPGA_PORT_WRITE(__PORT_SN1_ADDR[portno], val);
+	val = (INV_TBL[portno].serial_num[2] << 8) | INV_TBL[portno].serial_num[3];
+	FPGA_PORT_WRITE(__PORT_SN2_ADDR[portno], val);
+	val = (INV_TBL[portno].serial_num[4] << 8) | INV_TBL[portno].serial_num[5];
+	FPGA_PORT_WRITE(__PORT_SN3_ADDR[portno], val);
+	val = (INV_TBL[portno].serial_num[6] << 8) | INV_TBL[portno].serial_num[7];
+	FPGA_PORT_WRITE(__PORT_SN4_ADDR[portno], val);
+	val = (INV_TBL[portno].serial_num[8] << 8) | INV_TBL[portno].serial_num[9];
+	FPGA_PORT_WRITE(__PORT_SN5_ADDR[portno], val);
+	val = (INV_TBL[portno].serial_num[10] << 8) | INV_TBL[portno].serial_num[11];
+	FPGA_PORT_WRITE(__PORT_SN6_ADDR[portno], val);
+	val = (INV_TBL[portno].serial_num[12] << 8) | INV_TBL[portno].serial_num[13];
+	FPGA_PORT_WRITE(__PORT_SN7_ADDR[portno], val);
+	val = (INV_TBL[portno].serial_num[14] << 8) | INV_TBL[portno].serial_num[15];
+	FPGA_PORT_WRITE(__PORT_SN8_ADDR[portno], val);
+#else /**************************************************************/
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		val = (INV_TBL[portno].serial_num[0] << 8) | INV_TBL[portno].serial_num[1];
 		FPGA_PORT_WRITE(__PORT_SN1_ADDR[portno], val);
@@ -3932,8 +4035,16 @@ void update_port_sfp_inventory(void)
 		val = (INV_TBL[portno].serial_num[14] << 8) | INV_TBL[portno].serial_num[15];
 		FPGA_PORT_WRITE(__PORT_SN8_ADDR[portno], val);
 	}
+#endif/* [#95] */
 
 	/* update rate */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	if(portno < PORT_ID_EAG6L_PORT7)
+		val = INV_TBL[portno].max_rate;
+	else
+		val = INV_TBL[portno].max_rate * 10;/*convert 1G unit to 100M unit. */
+	FPGA_PORT_WRITE(__PORT_RATE_ADDR[portno], val);
+#else /**************************************************************/
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		if(portno < PORT_ID_EAG6L_PORT7)
 			val = INV_TBL[portno].max_rate;
@@ -3941,12 +4052,58 @@ void update_port_sfp_inventory(void)
 			val = INV_TBL[portno].max_rate * 10;/*convert 1G unit to 100M unit. */
 		FPGA_PORT_WRITE(__PORT_RATE_ADDR[portno], val);
 	}
+#endif/* [#95] */
 
 	/* update distance */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	FPGA_PORT_WRITE(__PORT_DIST_ADDR[portno], INV_TBL[portno].dist);
+#else /**************************************************************/
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) {
 		FPGA_PORT_WRITE(__PORT_DIST_ADDR[portno], INV_TBL[portno].dist);
 	}
+#endif/* [#95] */
 
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	/* update clei */
+	val = (INV_TBL[portno].clei[0] << 8) | INV_TBL[portno].clei[1];
+	FPGA_CLEI_WRITE(__PORT_CLEI1_ADDR[portno], val);
+	val = (INV_TBL[portno].clei[2] << 8) | INV_TBL[portno].clei[3];
+	FPGA_CLEI_WRITE(__PORT_CLEI2_ADDR[portno], val);
+	val = (INV_TBL[portno].clei[4] << 8) | INV_TBL[portno].clei[5];
+	FPGA_CLEI_WRITE(__PORT_CLEI3_ADDR[portno], val);
+	val = (INV_TBL[portno].clei[6] << 8) | INV_TBL[portno].clei[7];
+	FPGA_CLEI_WRITE(__PORT_CLEI4_ADDR[portno], val);
+	val = (INV_TBL[portno].clei[8] << 8) | INV_TBL[portno].clei[9];
+	FPGA_CLEI_WRITE(__PORT_CLEI5_ADDR[portno], val);
+
+	/* update usi */
+	val = (INV_TBL[portno].usi[0] << 8) | INV_TBL[portno].usi[1];
+	FPGA_CLEI_WRITE(__PORT_USI1_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[2] << 8) | INV_TBL[portno].usi[3];
+	FPGA_CLEI_WRITE(__PORT_USI2_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[4] << 8) | INV_TBL[portno].usi[5];
+	FPGA_CLEI_WRITE(__PORT_USI3_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[6] << 8) | INV_TBL[portno].usi[7];
+	FPGA_CLEI_WRITE(__PORT_USI4_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[8] << 8) | INV_TBL[portno].usi[9];
+	FPGA_CLEI_WRITE(__PORT_USI5_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[10] << 8) | INV_TBL[portno].usi[11];
+	FPGA_CLEI_WRITE(__PORT_USI6_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[12] << 8) | INV_TBL[portno].usi[13];
+	FPGA_CLEI_WRITE(__PORT_USI7_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[14] << 8) | INV_TBL[portno].usi[15];
+	FPGA_CLEI_WRITE(__PORT_USI8_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[16] << 8) | INV_TBL[portno].usi[17];
+	FPGA_CLEI_WRITE(__PORT_USI9_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[18] << 8) | INV_TBL[portno].usi[19];
+	FPGA_CLEI_WRITE(__PORT_USI10_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[20] << 8) | INV_TBL[portno].usi[21];
+	FPGA_CLEI_WRITE(__PORT_USI11_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[22] << 8) | INV_TBL[portno].usi[23];
+	FPGA_CLEI_WRITE(__PORT_USI12_ADDR[portno], val);
+	val = (INV_TBL[portno].usi[24] << 8) | 0x0;
+	FPGA_CLEI_WRITE(__PORT_USI13_ADDR[portno], val);
+#endif
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
 	/* do not update rtwdm if flag is not set. */
 	if(! rtwdm_flag)
@@ -4349,10 +4506,17 @@ _rtwdm_stage_:
 }
 
 #if 1 /* [#181] Fixing for local fault alarm by LoS, dustin, 2024-10-31 */
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+uint16_t ALM_DATA[PORT_ID_EAG6L_MAX];
+uint16_t ALM_CMASK[PORT_ID_EAG6L_MAX];
+uint16_t QALM_DATA;
+uint16_t QALM_CMASK;
+#else
 uint8_t ALM_DATA[PORT_ID_EAG6L_MAX];
 uint8_t ALM_CMASK[PORT_ID_EAG6L_MAX];
 uint8_t QALM_DATA;
 uint8_t QALM_CMASK;
+#endif/* [#229] */
 #endif
 
 void process_alarm_info(void)
@@ -4477,13 +4641,21 @@ void process_alarm_info(void)
 		else
 			val &= ~(1 << 3);
 
+#if 0 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
 		/*FIXME : update TX Bias alarm */
 		if(PORT_STATUS[portno].tx_bias_sts)
 			val |= (1 << 8);
 		else
 			val &= ~(1 << 8);
+#endif
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 		if(portno == PORT_ID_EAG6L_PORT7) {
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+			if(DCO_STAT.dco_TxFaultMask)
+				val |= (1 << 8);
+			else
+				val &= ~(1 << 8);
+#else /************************************************************/
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 			if(DCO_STAT.lr4_stat.tx_bias_mask & 0xF)
 				val |= (1 << 8);
@@ -4491,6 +4663,7 @@ void process_alarm_info(void)
 			if(LR4_STAT.tx_bias_mask & 0xF)
 				val |= (1 << 8);
 #endif
+#endif /* [#229] */
 		}
 #endif
 
@@ -4533,7 +4706,22 @@ void process_alarm_info(void)
 		val &= ~masking;
 
 		/* update alarm */
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+		{
+			uint16_t rval = 0, wval =0;
+			/* update tx fault by updated bit which managed by fpga in v1.3. */
+			rval = FPGA_PORT_READ(__PORT_ALM_ADDR[portno]);
+			if(portno != PORT_ID_EAG6L_PORT7) {
+				PORT_STATUS[portno].tx_bias_sts = (rval & 0x100) ? 1 : 0;
+				wval = (rval & ~0xE0F) | (val & 0xF0F);
+			} else {
+				wval = (rval & ~0xF0F) | (val & 0xF0F);
+			}
+			FPGA_PORT_WRITE(__PORT_ALM_ADDR[portno], wval);
+		}
+#else /************************************************************/
 		gPortRegUpdate(__PORT_ALM_ADDR[portno], 0, 0xF0F, val);
+#endif /* [#229] */
 
 		/* update alarm flag */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
@@ -4614,8 +4802,10 @@ void process_alarm_info(void)
 	val = 0;
 	if(PORT_STATUS[portno].equip) {
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
+#if 0 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
 		/* update tx bias. */
 		val |= (DCO_STAT.lr4_stat.tx_bias_mask << 8) & 0xF00;
+#endif
 
 		/* update rx lol. */
 		val |= (DCO_STAT.lr4_stat.rx_lol_mask << 4) & 0xF0;
@@ -5338,7 +5528,11 @@ extern int update_flex_tune_status(int portno);
 	}
 
 #if 1 /* [#157] Fixing for Smart T-SFP rtWDM info, dustin, 2024-10-18 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	update_port_sfp_inventory(0/*useless*/, 1/*update-rtwdm*/);
+#else
 	update_port_sfp_inventory(1/*update-rtwdm*/);
+#endif/* [#95] */
 #endif /* [#157] */
 #else /****************************************************************/
 	/* update tx power */

@@ -67,6 +67,9 @@ typedef struct reg_mon_str
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
 #define PORT_BASE 0x800000
 #define DPRAM_BASE 0x500000
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+#define CLEI_BASE 0x900000
+#endif/* [#95] */
 #endif
 
 #if 1/* [#72] Adding omitted rtWDM related registers, dustin, 2024-06-27 */

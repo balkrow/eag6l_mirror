@@ -5284,7 +5284,11 @@ extern int dco_retry_cnt;
 
 			init_lr4_sfp();
 #if 1 /* [#190] Fixing for omitted 100G sfp inventory, dustin, 2024-11-11 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+			update_port_sfp_inventory(portno, 0/*update-no-rtwdm*/);
+#else
 			update_port_sfp_inventory(0/*update-no-rtwdm*/);
+#endif/* [#95] */
 #endif
 #if 1 /* [#178] Fixing for correct process for LR4, dustin, 2024-10-30 */
 			PORT_STATUS[portno].i2cReady = 1;
@@ -5408,7 +5412,11 @@ __GOGO__:
 
 	/* if 2nd check is ok, then byebye~! no more timer reapeat. */
 	if(pdco->dco_initState == DCO_INIT_CHECK_COMPLETE2) {
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+		update_port_sfp_inventory(portno, 0/*update-no-rtwdm*/);
+#else
 		update_port_sfp_inventory(0/*update-no-rtwdm*/);
+#endif/* [#95] */
 
 		close(fd);
 		pdco->dco_initState = DCO_INIT_DONE;
@@ -6379,6 +6387,18 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	pdco->dco_RxLos = (val & 0xF) ? 1 : 0;
 #endif
 
+#if 1 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
+	/* get page 00h byte 4 for Tx Fault. */
+	if((ret = i2c_smbus_read_byte_data(fd, 4/*0x4*/)) < 0) {
+		zlog_notice("%s: Reading port[%d(0/%d)] Tx Fault failed. ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+	val = ret;
+	pdco->dco_TxFaultMask = val & 0xF;
+	PORT_STATUS[portno].tx_bias_sts = (val & 0xF) ? 1 : 0;
+#endif
+
 	/* get page 00h byte 5 for TxLoL/RxLoL */
 	if((ret = i2c_smbus_read_byte_data(fd, 5/*0x5*/)) < 0) {
 		zlog_notice("%s: Reading port[%d(0/%d)] TxLoL/RxLoL failed. ret[%d].",
@@ -6453,6 +6473,7 @@ int read_i2c_dco_status(dco_status_t *pdco)
 	pdco->dco_OpticHA = (data & 0x8888) ? 1 : 0;
 	pdco->dco_OpticLA = (data & 0x4444) ? 1 : 0;
 
+#if 0 /* [#229] Fixing for sfp tx fault alarm, dustin, 2024-12-16 */
 #if 1 /* [#150] Implementing LR4 Status register, dustin, 2024-10-21 */
 	if(! PORT_STATUS[portno].sfp_dco) {
 		/* get page 00h byte 11 for Tx bias */
@@ -6481,6 +6502,7 @@ int read_i2c_dco_status(dco_status_t *pdco)
 			pdco->lr4_stat.tx_bias_mask |= (1 << 0);
 	}
 #endif
+#endif /* [#229] */
 
 	/* get page 00h byte 13 for OpticHA/OpticLA */
 	if((ret = i2c_smbus_read_byte_data(fd, 13/*0xD*/)) < 0) {
@@ -6715,3 +6737,136 @@ __exit__:
 	return ret;
 }
 #endif
+
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+int read_port_clei_usi(int portno, struct module_inventory * mod_inv)
+{
+	unsigned int chann_mask;
+	int fd, mux_addr, ret, ii;
+	unsigned char val;
+
+	if(! PORT_STATUS[portno].equip)
+		return;
+
+	zlog_notice("Reading port CLEI/USI.");
+	fd = i2c_dev_open(1/*bus*/);
+	if(fd < 0) {
+		zlog_notice("%s : device open failed. port[%d(0/%d)] reason[%s]",
+			__func__, portno, get_eag6L_dport(portno), strerror(errno));
+		goto __exit__;
+	}
+
+	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		mux_addr = I2C_MUX;
+		chann_mask = I2C_MUX_100G_MASK;
+	} else {
+		mux_addr = I2C_MUX;
+		chann_mask = 1 << (portno - PORT_ID_EAG6L_PORT1);
+	}
+
+	i2c_set_slave_addr(fd, mux_addr, 1);
+
+	// now set target mux.
+	ret = i2c_smbus_write_byte_data(fd, 0/*mux-data*/, chann_mask);
+	if(ret < 0) {
+		zlog_notice("%s : port[%d(0/%d)] ret[%d].",
+			__func__, portno, get_eag6L_dport(portno), ret);
+		goto __exit__;
+	}
+
+	i2c_set_slave_addr(fd, SFP_IIC_ADDR/*0x50*/, 1);
+
+	if(portno == (PORT_ID_EAG6L_MAX - 1)/*100G*/) {
+		/* get byte 129 from 0x50, to check if clei/usi is encoded(bit 4). */
+		if((ret = i2c_smbus_read_byte_data(fd, 129/*0x81*/)) < 0) {
+			zlog_notice("%s: Reading port[%d(0/%d)] clei/usi flag failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __exit__;
+		}
+		val = ret;
+		if(! (val & 0x10)) {
+			zlog_notice("%s: No CLEI/USI on port[%d(0/%d)].",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+
+		/* change to 0x51. */
+		i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
+
+		/* select page */
+		if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x2/*page-2h*/)) < 0) {
+			zlog_notice("%s: Writing port[%d(0/%d)] page select failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+
+		/* check if page 2 is available. */
+		if((ret = i2c_smbus_read_byte_data(fd, 127/*0x7F*/)) < 0) {
+			zlog_notice("%s: Reading port[%d(0/%d)] page select failed.",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+		if(ret != 0x2/*page-2*/) {
+			zlog_notice("%s: Page 2 is not valid for port[%d(0/%d)].",
+				__func__, portno, get_eag6L_dport(portno));
+			goto __exit__;
+		}
+
+		/* wait for updating selected page */
+		usleep(HZ_I2C_PAGE_SELECT_UM);
+
+		/* read clei bytes (Page 2h Bytes 128~137) */
+		for(ii = 0; ii < MAX_CLEI_SIZE; ii++) {
+			if((ret = i2c_smbus_read_byte_data(fd, 128 + ii)) < 0) {
+				zlog_notice("%s: Reading port[%d(0/%d)] clei[%d] failed. ret[%d].",
+					__func__, portno, get_eag6L_dport(portno), ii, ret);
+				goto __exit__;
+			}
+			val = ret;
+			mod_inv->clei[ii] = isalnum(val) ? val : 0x0;
+		}
+
+		/* read usi bytes (Page 2h Bytes 138~162) */
+		for(ii = 0; ii < MAX_USI_SIZE; ii++) {
+			if((ret = i2c_smbus_read_byte_data(fd, 138 + ii)) < 0) {
+				zlog_notice("%s: Reading port[%d(0/%d)] usi[%d] failed. ret[%d].",
+					__func__, portno, get_eag6L_dport(portno), ii, ret);
+				goto __exit__;
+			}
+			val = ret;
+			mod_inv->usi[ii] = isalnum(val) ? val : 0x0;
+		}
+
+		/* recover page to default */
+		if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x0/*page-0*/)) < 0) {
+			zlog_notice("%s: Recovering port[%d(0/%d)] page select failed. ret[%d].",
+				__func__, portno, get_eag6L_dport(portno), ret);
+			goto __exit__;
+		}
+	} else/* port1~6 */ {
+		/* read clei bytes (A0h, D108(0x6C) ~ D117(0x75) */
+		for(ii = 0; ii < MAX_CLEI_SIZE; ii++) {
+			if((ret = i2c_smbus_read_byte_data(fd, 108 + ii)) < 0) {
+				zlog_notice("%s: Reading port[%d(0/%d)] clei[%d] failed. ret[%d].",
+					__func__, portno, get_eag6L_dport(portno), ii, ret);
+				goto __exit__;
+			}
+			mod_inv->clei[ii] = ret;
+		}
+
+		/* read usi bytes (A0h, D122(0x7A) ~ D146(0x92) */
+		for(ii = 0; ii < MAX_USI_SIZE; ii++) {
+			if((ret = i2c_smbus_read_byte_data(fd, 122 + ii)) < 0) {
+				zlog_notice("%s: Reading port[%d(0/%d)] usi[%d] failed. ret[%d].",
+					__func__, portno, get_eag6L_dport(portno), ii, ret);
+				goto __exit__;
+			}
+			mod_inv->usi[ii] = ret;
+		}
+	}
+
+__exit__:
+	close(fd);
+	return;
+}
+#endif/* [#95] */

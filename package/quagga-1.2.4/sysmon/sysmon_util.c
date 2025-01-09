@@ -170,6 +170,19 @@ uint8_t get_pkg_header(uint8_t bank, fw_image_header_t *header)
 
 			if(read(fd, header, sizeof(fw_image_header_t)) > 0) 
 			{
+#if 1 /* [#240] Fixing for checking OS pkg size for bank info, dustin, 2025-01-08 */
+				unsigned int lsize;
+				/* get real file size. */
+				lsize = lseek(fd, 0, SEEK_END);
+				lsize -= sizeof(fw_image_header_t);
+				/* check file size. */
+				if(ntohl(header->fih_size) != lsize) {
+					zlog_notice("Invalid OS file size : %d vs %d.",
+						ntohl(header->fih_size), lsize);
+					close(fd);
+					goto fail;
+				}
+#endif/* [#240] */
 				close(fd);
 				rc = RT_OK;
 				break;
