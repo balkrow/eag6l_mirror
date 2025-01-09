@@ -336,6 +336,7 @@ DEFUN (show_sysmon_system,
 	vty_out(vty, "PLL    state    : %s%s", pll_state, VTY_NEWLINE);
 	vty_out(vty, "Sync-e state    : %s%s", gDB.synce_state == CFG_ENABLE ? "Enable":"Disable"
 		, VTY_NEWLINE);
+	vty_out(vty, "Local  QL    : 0x%x%s", gDB.localQL, VTY_NEWLINE);
 	getPortStrByCport(gDB.synce_pri_port, port_str);
 	vty_out(vty, " Pri interface  : %s%s", port_str , VTY_NEWLINE);
 	getPortStrByCport(gDB.synce_sec_port, port_str);
