@@ -248,8 +248,15 @@ uint16_t sys_fpga_memory_read(uint16_t addr, uint8_t port_reg)
         fpgamemory_t fpgamemory;
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	if(port_reg == PORT_CLEI)
+		fpgamemory.addr = CLEI_BASE + addr;
+	else if(port_reg == PORT_REG)
+		fpgamemory.addr = PORT_BASE + addr;
+#else
 	if(port_reg)
 		fpgamemory.addr = PORT_BASE + addr;
+#endif/* [#95] */
 	else
 		fpgamemory.addr = addr;
 #else
@@ -414,8 +421,15 @@ uint16_t sys_fpga_memory_write(uint16_t addr, uint16_t writeval, uint8_t port_re
         fpgamemory_t fpgamemory;
 
 #if 1/*[#56] register update timer 수정, balkrow, 2023-06-13 */
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+	if(port_reg == PORT_CLEI)
+		fpgamemory.addr = CLEI_BASE + addr;
+	else if(port_reg == PORT_REG)
+		fpgamemory.addr = PORT_BASE + addr;
+#else
 	if(port_reg)
 		fpgamemory.addr = PORT_BASE + addr;
+#endif/* [#95] */
 	else
 		fpgamemory.addr = addr;
 #else /*! 56*/
