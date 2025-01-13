@@ -3030,7 +3030,9 @@ int32_t esmc_packet_send_timer(struct multi_thread *thread)
 	{
 		if(eag6LLinkStatus[portno] && (esmcRxPort & (1 << (portno - 1))) != 0) 
 		{
+#if 0/*[#242] esmc send log 제거, balkrow, 2025-01-14*/
 			syslog(LOG_NOTICE, "port %d send QL %x", portno, eag6lPortSendQL[portno]);
+#endif
 			if(eag6lPortSendQL[portno])
 				esmc_packet_transmission(get_eag6L_dport(portno), gCpssESMCQLtoSSMCode(eag6lPortSendQL[portno]));
 		}
