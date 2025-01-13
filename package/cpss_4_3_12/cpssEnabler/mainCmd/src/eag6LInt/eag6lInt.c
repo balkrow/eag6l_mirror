@@ -100,6 +100,11 @@ extern GT_STATUS cpssDxChBrgGenIngressPortUnknownUcFilterDaCommandSet
 );
 #endif
 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-10-07*/
+extern GT_STATUS esmc_packet_transmission(GT_U8 port, GT_U8 ssm_code);
+uint8_t eag6lPortSendQL[PORT_ID_EAG6L_MAX] = {0, };
+#endif
+
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 extern uint8_t eag6LPortlist [];
 extern uint8_t eag6LPortArrSize;
@@ -716,6 +721,34 @@ static int send_to_sysmon_master(sysmon_fifo_msg_t * msg) {
 #endif
 }
 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-10-07*/
+T_esmc_ql gCpssESMCQLtoSSMCode(uint8_t ssm_code)
+{
+	T_esmc_ql val = 0xff;
+	switch(ssm_code)
+	{
+	case 0x11:
+		val = E_esmc_ql_net_opt_1_DNU;
+		break;
+	case 0x12:
+		val = E_esmc_ql_net_opt_1_SEC;
+		break;
+	case 0x13:
+		val = E_esmc_ql_net_opt_1_PRC;
+		break;
+	case 0x14:
+		val = E_esmc_ql_net_opt_1_SSUA;
+		break;
+	case 0x15:
+		val = E_esmc_ql_net_opt_1_SSUB;
+		break;
+	default :
+		break;
+	}
+	return val;
+}
+#endif
+
 uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 {
 	sysmon_fifo_msg_t msg;
@@ -744,14 +777,13 @@ uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 	/*network option 2*/
 
 	msg.portid = port; 
+
 #if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
-#ifdef DEBUG
 	{
 		char port_str[10] = {0, };
 		getPortStrByCport(port, port_str);
 		syslog(LOG_INFO, "port %s RX QL %x", port_str, ql);
 	}
-#endif
 #endif
 	send_to_sysmon_master(&msg);
 	return IPC_CMD_SUCCESS;
@@ -867,7 +899,7 @@ static void RxPktReceive
 
 	msg = (T_esmc_pdu *)*packetBuffs;
 	esmc_ssm_and_essm_to_ql_map(net_opt, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, &parsed_ql);
-#ifdef DEBUG 
+#ifdef DEBUG
 	syslog(LOG_INFO,"esmc event : port %d, ssm_code %x, e_ssm_code %x, ql %x, PriInf %x, SecInf %x",
 			toCpu->interface.portNum, msg->ql_tlv.ssm_code, msg->ext_ql_tlv.esmc_e_ssm_code, parsed_ql, gSyncePriInf, gSynceSecInf); 
 #endif
@@ -1953,6 +1985,10 @@ uint8_t gCpssPortESMCenable(int args, ...)
 			gCpssEsmcToCPUSet(0);	
 
 		esmcRxPort |= 1 << (msg->portid - 1); 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-06*/
+		if(!eag6lPortSendQL[msg->portid]) 
+			eag6lPortSendQL[msg->portid] = 0x12;
+#endif
 	}
 	else
 	{
@@ -1960,6 +1996,9 @@ uint8_t gCpssPortESMCenable(int args, ...)
 			gCpssEsmcToCPUUnSet();
 
 		esmcRxPort &= ~(1 << (msg->portid - 1)); 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-06*/
+		eag6lPortSendQL[msg->portid] = 0;
+#endif
 	}
 #endif
 
@@ -2390,7 +2429,7 @@ uint8_t gCpssNone(int args, ...)
 
 uint8_t gCpssPortSendQL(int args, ...)
 {
-	uint8_t ret = GT_OK;
+	uint8_t ret = GT_OK, portno;
 	va_list argP;
 	sysmon_fifo_msg_t *msg = NULL;
 #ifdef DEBUG
@@ -2404,6 +2443,22 @@ uint8_t gCpssPortSendQL(int args, ...)
 	       __func__, gPortSendQL, msg->type, msg->portid);
 
 	syslog(LOG_INFO, ">>> gCpssPortSendQL DONE ret[%x] <<<", ret);
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-10-07*/
+	if(msg->portid >= PORT_ID_EAG6L_PORT1 && 
+	   msg->portid <= PORT_ID_EAG6L_PORT7 )
+		eag6lPortSendQL[msg->portid] = msg->mode;
+	else if(msg->portid == 0xff)
+	{
+		for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) 
+		{
+			if(get_eag6L_lport(gSyncePriInf) == portno || 
+			   get_eag6L_lport(gSynceSecInf) == portno) 
+				continue;
+
+			eag6lPortSendQL[portno] = msg->mode;
+		}
+	}
+#endif
 
 	msg->result = ret;
 
@@ -2966,6 +3021,27 @@ next_timer:
 
 #endif
 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-10-07*/
+int32_t esmc_packet_send_timer(struct multi_thread *thread)
+{
+	thread = thread;
+	uint8_t portno;
+	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++)
+	{
+		if(eag6LLinkStatus[portno] && (esmcRxPort & (1 << (portno - 1))) != 0) 
+		{
+			syslog(LOG_NOTICE, "port %d send QL %x", portno, eag6lPortSendQL[portno]);
+			if(eag6lPortSendQL[portno])
+				esmc_packet_transmission(get_eag6L_dport(portno), gCpssESMCQLtoSSMCode(eag6lPortSendQL[portno]));
+		}
+	}
+
+	multi_thread_add_timer(master, esmc_packet_send_timer, NULL, 1);
+	return 0;
+}
+#endif
+
+
 void sysmon_slave_init (void) 
 {
 
@@ -2977,6 +3053,9 @@ void sysmon_slave_init (void)
 #if 1/*[#43] LF발생시 RF 전달 기능 추가, balkrow, 2024-06-05*/
 	initFaultFsmList ();
 #endif
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-10-07*/
+	multi_thread_add_timer(master, esmc_packet_send_timer, NULL, 5);
+#endif	
 }
 
 static unsigned __TASKCONV OAM_thread(void)

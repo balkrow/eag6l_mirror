@@ -6,6 +6,7 @@
 FILES := eag6lInt.c \
 		 eag6l_vlan.c \
 		 eag6l_fsm.c \
+		 esmc_msg.c \
 		 multi_thread.c
 
 

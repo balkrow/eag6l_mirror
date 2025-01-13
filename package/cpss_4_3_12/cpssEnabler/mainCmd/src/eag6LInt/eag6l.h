@@ -92,8 +92,10 @@ typedef struct {
 #define ESMC_PDU_EXT_QL_TLV_TYPE     0x2
 #define ESMC_PDU_EXT_QL_TLV_LENGTH   {0x00, 0x14}
 
+#if 0
 static const unsigned char g_ql_tlv_length[ESMC_PDU_QL_TLV_LENGTH_LEN] = ESMC_PDU_QL_TLV_LENGTH;
 static const unsigned char g_ext_ql_tlv_length[ESMC_PDU_EXT_QL_TLV_LENGTH_LEN] = ESMC_PDU_EXT_QL_TLV_LENGTH;
+#endif
 
 /*
  * ESMC PDU

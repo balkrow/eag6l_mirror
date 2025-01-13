@@ -174,4 +174,65 @@ typedef enum {
   E_mng_api_max
 } T_mng_api;
 
+#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-10-22*/
+/* ESMC 기본 정보 */
+#define ESMC_ETHER_TYPE 0x8809
+#define ESMC_OAMPDU_CODE 0x0A
+#define ESMC_SSM_TLV_TYPE 0x01
+#define ESMC_MESSAGE_TYPE 0x00
+
+#define ESMC_PDU_SLOW_PROTO_SUBTYPE   0xA
+#define ESMC_PDU_ITU_OUI              {0x00, 0x19, 0xA7}
+#define ESMC_PDU_ITU_SUBTYPE          {0x00, 0x01}
+#define ESMC_PDU_VER                  1
+#define ESMC_PDU_IEEE_SLOW_PROTO_MCAST_ADDR   {0x01, 0x80, 0xC2, 0x00, 0x00, 0x02}
+
+#define ESMC_PDU_EXT_QL_TLV_MIXED_EEC_EEEC_FLAG_LSB   0
+#define ESMC_PDU_EXT_QL_TLV_PARTIAL_CHAIN_FLAG_LSB    1
+
+#define ESMC_PDU_EVENT_FLAG_LSB   3
+#define ESMC_PDU_VER_LSB          4
+
+#define ESMC_PDU_GET_EVENT_FLAG(val)   (val >> ESMC_PDU_EVENT_FLAG_LSB)
+#define ESMC_PDU_GET_VER(val)          (val >> ESMC_PDU_VER_LSB)
+
+#define ESMC_PDU_QL_TLV_TYPE     0x1
+#define ESMC_PDU_QL_TLV_LENGTH   {0x00, 0x04}
+
+#define ESMC_PDU_EXT_QL_TLV_TYPE     0x2
+#define ESMC_PDU_EXT_QL_TLV_LENGTH   {0x00, 0x14}
+
+#define ESMC_PDU_ETH_HDR_LEN                        14
+#define ESMC_PDU_ETH_HDR_DST_ADDR_LEN               ETH_ALEN
+#define ESMC_PDU_ETH_HDR_SRC_ADDR_LEN               ETH_ALEN
+#define ESMC_PDU_ETH_HDR_SLOW_PROTO_ETHERTYPE_LEN   2
+
+#define ESMC_PDU_MISC_FIELD_LEN           10
+#define ESMC_PDU_SLOW_PROTO_SUBTYPE_LEN   1
+#define ESMC_PDU_ITU_OUI_LEN              3
+#define ESMC_PDU_ITU_SUBTYPE_LEN          2
+#define ESMC_PDU_VER_EVENT_LEN            1
+#define ESMC_PDU_RSVD_LEN                 3
+
+#define ESMC_PDU_QL_TLV_LEN          4
+#define ESMC_PDU_QL_TLV_TYPE_LEN     1
+#define ESMC_PDU_QL_TLV_LENGTH_LEN   2
+#define ESMC_PDU_QL_SSM_CODE_LEN     1
+#define ESMC_PDU_PADDING_LEN   12
+
+/* ESMC 패킷 구조체 정의 */
+struct esmc_packet {
+  uint8_t dest_mac[6];  /* 목적지 MAC 주소 */
+  uint8_t src_mac[6];   /* 출발지 MAC 주소 */
+  uint16_t ethertype;   /* EtherType */
+  uint8_t oampdu_code;  /* OAMPDU 코드 (0x0A: ESMC 메시지) */
+  uint8_t msg_type;     /* 메시지 타입 (0x00: SSM 메시지) */
+  uint8_t reserved[3];  /* 예약된 필드 (0x00) */
+  uint8_t tlv_type;     /* TLV Type (0x01: SSM) */
+  uint8_t tlv_length;   /* TLV 길이 (4바이트) */
+  uint8_t ssm_code;     /* SSM 코드 (QL 정보) */
+  uint8_t reserved_tlv[3]; /* 예약된 필드 (0x00) */
+};
+#endif
+
 #endif /* TYPES_H */
