@@ -2096,7 +2096,7 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-#if 1
+#if 0/*[#242] esmc send log ¿¿, balkrow, 2025-01-14*/
 	zlog_notice("port %d RX ESMC QL %x", msg->portid, msg->mode);
 #endif
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
