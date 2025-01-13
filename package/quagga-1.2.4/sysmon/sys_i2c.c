@@ -6790,8 +6790,10 @@ int read_port_clei_usi(int portno, struct module_inventory * mod_inv)
 			goto __exit__;
 		}
 
+#if 0 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
 		/* change to 0x51. */
 		i2c_set_slave_addr(fd, DIAG_SFP_IIC_ADDR/*0x51*/, 1);
+#endif
 
 		/* select page */
 		if((ret = i2c_smbus_write_byte_data(fd, 127/*0x7F*/, 0x2/*page-2h*/)) < 0) {
@@ -6822,8 +6824,12 @@ int read_port_clei_usi(int portno, struct module_inventory * mod_inv)
 					__func__, portno, get_eag6L_dport(portno), ii, ret);
 				goto __exit__;
 			}
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+			mod_inv->clei[ii] = ret;
+#else
 			val = ret;
 			mod_inv->clei[ii] = isalnum(val) ? val : 0x0;
+#endif
 		}
 
 		/* read usi bytes (Page 2h Bytes 138~162) */
@@ -6833,8 +6839,12 @@ int read_port_clei_usi(int portno, struct module_inventory * mod_inv)
 					__func__, portno, get_eag6L_dport(portno), ii, ret);
 				goto __exit__;
 			}
+#if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
+			mod_inv->usi[ii] = ret;
+#else
 			val = ret;
 			mod_inv->usi[ii] = isalnum(val) ? val : 0x0;
+#endif
 		}
 
 		/* recover page to default */
