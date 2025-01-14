@@ -778,7 +778,7 @@ uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 
 	msg.portid = port; 
 
-#if 1 /*[#82] eag6l board SW Debugging, balkrow, 2024-07-26*/
+#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 	{
 		char port_str[10] = {0, };
 		getPortStrByCport(port, port_str);
@@ -1102,8 +1102,8 @@ uint8_t gCpssHello(int args, ...)
 	return IPC_CMD_SUCCESS;
 }
 
-#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
-uint8_t gCpssEsmcToCPUSet(uint16_t port)
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+uint8_t gCpssEsmcToCPUSet(uint16_t port, int vlanId)
 {
 	CPSS_MAC_ENTRY_EXT_STC macEntry;
 	GT_STATUS rc;
@@ -1126,15 +1126,15 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 	macEntry.key.key.macVlan.macAddr.arEther[3] = 0x0;
 	macEntry.key.key.macVlan.macAddr.arEther[4] = 0x0;
 	macEntry.key.key.macVlan.macAddr.arEther[5] = 0x02;
-	macEntry.key.key.macVlan.vlanId = 1;
+	macEntry.key.key.macVlan.vlanId = vlanId;
 	macEntry.key.entryType = CPSS_MAC_ENTRY_EXT_TYPE_MAC_ADDR_E;
 
 	macEntry.dstInterface.type = CPSS_INTERFACE_VID_E;
 	macEntry.dstInterface.devPort.hwDevNum = 0;
 	macEntry.dstInterface.devPort.portNum = port;
-	macEntry.dstInterface.vidx = 1;
+	macEntry.dstInterface.vidx = vlanId;
 	macEntry.dstInterface.trunkId = 0;
-	macEntry.dstInterface.vlanId = 1;
+	macEntry.dstInterface.vlanId = vlanId;
 	macEntry.daRoute                  = GT_FALSE;
 	macEntry.mirrorToRxAnalyzerPortEn = GT_FALSE;
 	macEntry.saMirrorToRxAnalyzerPortEn = GT_FALSE;
@@ -1158,8 +1158,8 @@ uint8_t gCpssEsmcToCPUSet(uint16_t port)
 }
 #endif
 
-#if 1/*[#80] eag6l board SW bring-up, balkrow, 2023-07-22 */
-uint8_t gCpssEsmcToCPUUnSet(void)
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+uint8_t gCpssEsmcToCPUUnSet(int vlanId)
 {
 	CPSS_MAC_ENTRY_EXT_KEY_STC             macEntry;
 	GT_STATUS rc = 0;
@@ -1171,7 +1171,7 @@ uint8_t gCpssEsmcToCPUUnSet(void)
 	macEntry.key.macVlan.macAddr.arEther[3] = 0x0;
 	macEntry.key.macVlan.macAddr.arEther[4] = 0x0;
 	macEntry.key.macVlan.macAddr.arEther[5] = 0x02;
-	macEntry.key.macVlan.vlanId = 1;
+	macEntry.key.macVlan.vlanId = vlanId;
 
 	rc = cpssDxChBrgFdbMacEntryDelete(devNum, &macEntry);
 	syslog(LOG_NOTICE, "%s: unset cpu trap function ret %x", __func__, rc);
@@ -1337,16 +1337,20 @@ uint8_t gCpssSynceIfconf(int args, ...)
 	lport = get_eag6L_lport(portNum);
 	if(SPEED[lport] == PORT_IF_10G_KR)
 	{
+#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_10G_KR);
+#endif
 		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(devNum, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
 	}
 	else
 	{
+#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_25G_KR);
+#endif
 		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(devNum, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
 	}
 	syslog(LOG_NOTICE, "%s : clock src %x portNum %x recoveryClkType %x ret %x", __func__, clock_src, portNum, recoveryClkType, ret);
@@ -1495,16 +1499,20 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	lport = get_eag6L_lport(portNum);
 	if(SPEED[lport] == PORT_IF_10G_KR) 
 	{
+#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_10G_KR);
+#endif
 		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
 	}
 	else
 	{
+#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_25G_KR);
+#endif
 		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
 	}
 #endif
@@ -1981,8 +1989,18 @@ uint8_t gCpssPortESMCenable(int args, ...)
 #if 1 /*[#183] ESMC packet forwarding 수정, balkrow, 2024-11-04*/
 	if(msg->mode) 
 	{
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		if(!esmcRxPort)
-			gCpssEsmcToCPUSet(0);	
+		{
+			gCpssEsmcToCPUSet(0, 1);	
+			gCpssEsmcToCPUSet(0, 4001);	
+			gCpssEsmcToCPUSet(0, 4002);	
+			gCpssEsmcToCPUSet(0, 4003);	
+			gCpssEsmcToCPUSet(0, 4004);	
+			gCpssEsmcToCPUSet(0, 4005);	
+			gCpssEsmcToCPUSet(0, 4006);	
+		}
+#endif
 
 		esmcRxPort |= 1 << (msg->portid - 1); 
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-06*/
@@ -1993,7 +2011,17 @@ uint8_t gCpssPortESMCenable(int args, ...)
 	else
 	{
 		if(esmcRxPort)
-			gCpssEsmcToCPUUnSet();
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+		{
+			gCpssEsmcToCPUUnSet(1);
+			gCpssEsmcToCPUUnSet(4001);
+			gCpssEsmcToCPUUnSet(4002);
+			gCpssEsmcToCPUUnSet(4003);
+			gCpssEsmcToCPUUnSet(4004);
+			gCpssEsmcToCPUUnSet(4005);
+			gCpssEsmcToCPUUnSet(4006);
+		}
+#endif
 
 		esmcRxPort &= ~(1 << (msg->portid - 1)); 
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-06*/
