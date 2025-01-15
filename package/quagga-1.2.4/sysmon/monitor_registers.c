@@ -2605,7 +2605,7 @@ int8_t rsmu_pll_update(void)
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), gDB.localQL);
 			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), gDB.localQL);
-#if 1/*[#241] HOLDOVER 시 local QL로 전송하도록 수정, balkrow, 2025-01-13*/
+#if 1/*[#244] sync-e interface ¿¿¿ 25G link ¿¿¿¿ ¿¿, balkrow, 2025-01-15 */
 			gSysmonToCpssFuncs[gPortSendQL](2, 0xff, gDB.localQL);
 #endif
 #endif

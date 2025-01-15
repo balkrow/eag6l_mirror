@@ -785,7 +785,11 @@ uint8_t gCpssESMCQL(T_esmc_ql ql, uint32_t port)
 		syslog(LOG_INFO, "port %s RX QL %x", port_str, ql);
 	}
 #endif
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+	if(msg.mode != 0xff)
+#endif
 	send_to_sysmon_master(&msg);
+
 	return IPC_CMD_SUCCESS;
 }
 #endif
@@ -3056,12 +3060,16 @@ int32_t esmc_packet_send_timer(struct multi_thread *thread)
 	uint8_t portno;
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++)
 	{
-		if(eag6LLinkStatus[portno] && (esmcRxPort & (1 << (portno - 1))) != 0) 
+#if 1/*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-15*/
+		if(eag6LLinkStatus[portno] && ((esmcRxPort & (1 << (portno - 1))) != 0)) 
+#endif
 		{
 #if 0/*[#242] esmc send log 제거, balkrow, 2025-01-14*/
-			syslog(LOG_NOTICE, "port %d send QL %x", portno, eag6lPortSendQL[portno]);
+			syslog(LOG_NOTICE, "port %d send QL %x %x", portno, eag6lPortSendQL[portno], (esmcRxPort & (1 << (portno - 1))));
 #endif
-			if(eag6lPortSendQL[portno])
+#if 1/*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-15*/
+			if(eag6lPortSendQL[portno] != 0xff)
+#endif
 				esmc_packet_transmission(get_eag6L_dport(portno), gCpssESMCQLtoSSMCode(eag6lPortSendQL[portno]));
 		}
 	}

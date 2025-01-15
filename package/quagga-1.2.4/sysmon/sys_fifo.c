@@ -2073,6 +2073,26 @@ uint8_t switchEsmcInterface(int port, int QL)
 			}
 #endif
 			/*update QL*/
+#if 1/*[#244] sync-e interface ¿¿¿ 25G link ¿¿¿¿ ¿¿, balkrow, 2025-01-15 */
+			if(PORT_STATUS[port].received_QL != QL)
+			{
+				if(oper_port == port)
+				{
+					gSysmonToCpssFuncs[gPortSendQL](2, 0xff, QL);
+
+					if(port == pri_port) 
+					{
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, QL);
+					}
+					else if(port == sec_port) 
+					{
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff00, QL);
+					}
+				}
+
+
+			}
+#endif
 			PORT_STATUS[port].received_QL = QL;
 		}
 	}
@@ -2105,7 +2125,7 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 	if(gDB.esmcRxCfg[mport -1] == CFG_DISABLE)
 		return ret;
 
-#ifdef DEBUG 
+#ifdef DEBUG
 	zlog_notice("port %d RX ESMC QL %x esmc_recv_cnt %x port %x", msg->portid, msg->mode, PORT_STATUS[mport].esmc_recv_cnt, mport);
 #endif
 	if(mport != NOT_DEFINED) 
