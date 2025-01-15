@@ -2171,6 +2171,13 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 			val = (val & ~(0xff00));
 			wr_val = (msg->mode << 8) | val; 
 			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, wr_val, PORT_NOREG);
+#if 1/*[#244] sync-e interface ¿¿¿ 25G link ¿¿¿¿ ¿¿, balkrow, 2025-01-15 */
+			if(gDB.synce_oper_port == getMPortByCport(gDB.synce_pri_port))
+			{
+				gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, msg->mode); 
+			}
+#endif
+
 #if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 			val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 			val = (val & ~(0xff00));
@@ -2185,6 +2192,12 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 			val = (val & ~(0xff));
 			wr_val =  val | msg->mode; 
 			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, wr_val, PORT_NOREG);
+#if 1/*[#244] sync-e interface ¿¿¿ 25G link ¿¿¿¿ ¿¿, balkrow, 2025-01-15 */
+			if(gDB.synce_oper_port == getMPortByCport(gDB.synce_sec_port))
+			{
+				gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, msg->mode); 
+			}
+#endif
 #if 0/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
 			val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 			val = (val & ~(0xff));
