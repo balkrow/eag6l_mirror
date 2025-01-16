@@ -825,11 +825,8 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 	else
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 	{
-		if(gDB.esmcRxCfg[val - 1] == CFG_ENABLE)
-		{
-			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL);
-			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
-		}
+		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL);
+		gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 	}
 #endif
 #endif
@@ -912,11 +909,8 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 	else
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 	{
-		if(gDB.esmcRxCfg[val - 1] == CFG_ENABLE)
-		{
-			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
-			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
-		}
+		gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
+		gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 	}
 #endif
 #endif
@@ -2491,8 +2485,6 @@ int8_t rsmu_pll_update(void)
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */
 	uint8_t val; 
 #endif
-	int8_t pri_port = getMPortByCport(gDB.synce_pri_port);
-	int8_t sec_port = getMPortByCport(gDB.synce_sec_port);
 
 	val = rsmuGetPLLState();
 
@@ -2531,6 +2523,8 @@ int8_t rsmu_pll_update(void)
 		{	
 #if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-10-30*/
 			int8_t clk_idx = 0;
+			int8_t pri_port = getMPortByCport(gDB.synce_pri_port);
+			int8_t sec_port = getMPortByCport(gDB.synce_sec_port);
 
 			clk_idx = rsmuGetClockIdx(); 
 
@@ -2546,7 +2540,7 @@ int8_t rsmu_pll_update(void)
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, 0xff, val); 
 #if 1/*[#194] synce TX QL 관련 수정, balkrow, 2024-11-13*/
-				if(pri_port != 0xff && gDB.esmcRxCfg[pri_port - 1] == CFG_ENABLE)
+				if(gDB.esmcRxCfg[pri_port - 1] == CFG_ENABLE)
 				{
 					if(gDB.synce_oper_port == pri_port)
 					{
@@ -2571,7 +2565,7 @@ int8_t rsmu_pll_update(void)
 
 				}
 
-				if(sec_port != 0xff && gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE)
+				if(gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE)
 				{
 					if(gDB.synce_oper_port == sec_port)
 					{
@@ -2601,10 +2595,8 @@ int8_t rsmu_pll_update(void)
 		else if(gDB.pll_state == HOLD_OVER)
 		{
 #if 1/*[#194] synce TX QL 관련 수정, balkrow, 2024-11-13*/
-			if(pri_port != 0xff && gDB.esmcRxCfg[pri_port - 1] == CFG_ENABLE)
-				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL); 
-			if(sec_port != 0xff && gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE)
-				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL); 
+			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
 #endif
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
 #if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
