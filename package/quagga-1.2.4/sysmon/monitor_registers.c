@@ -486,6 +486,13 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			gDB.synce_oper_port = NOT_DEFINED; 
 #endif
 		}
+#if 1/* balkrow, 2025-01-18*/
+		else
+		{
+			if(gDB.pll_state == PLL_LOCK && gDB.synce_oper_port != NOT_DEFINED)
+				gSysmonToCpssFuncs[gPortSendQL](2, port, PORT_STATUS[gDB.synce_oper_port].received_QL);
+		}
+#endif
 		gDB.esmcRxCfg[port - 1] = CFG_ENABLE;
 	
 	}
