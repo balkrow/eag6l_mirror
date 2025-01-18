@@ -2496,7 +2496,7 @@ int8_t rsmu_pll_update(void)
 	int8_t sec_port = getMPortByCport(gDB.synce_sec_port);
 
 	val = rsmuGetPLLState();
-#if 1
+#if 0
 	if(val != gDB.pll_state)
 	{
 #endif
@@ -2524,8 +2524,9 @@ int8_t rsmu_pll_update(void)
 			val = UNKNOWN; 
 			break;
 		}
-
+#if 0
 		zlog_notice("change pll state %x -> %x, oper_port %x", gDB.pll_state, val, gDB.synce_oper_port);
+#endif
 
 		gDB.pll_state = val;
 #if 1/*[#127] SYNCE current interface ¿¿, balkrow, 2024-09-11*/
@@ -2540,8 +2541,9 @@ int8_t rsmu_pll_update(void)
 				gDB.synce_oper_port = pri_port;
 			else
 				gDB.synce_oper_port = sec_port;
-
+#if 0
 			zlog_notice("state  %x, oper_port %x clk_idx %x", gDB.pll_state, gDB.synce_oper_port, clk_idx);
+#endif
 #endif
 
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */
@@ -2660,7 +2662,7 @@ int8_t rsmu_pll_update(void)
 #endif
 		if(wr_val)
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, SYNCE_SRC_STAT_ADDR_MASK, wr_val)
-#if 1
+#if 0
 	}
 #endif
 
