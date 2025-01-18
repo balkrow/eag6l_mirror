@@ -453,78 +453,38 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 		if(port == getMPortByCport(gDB.synce_pri_port))  
 		{
 #if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
+#if 0
 			int sec_port;
 			sec_port = getMPortByCport(gDB.synce_sec_port);
+#endif
 			zlog_notice("port %x ESMC enable", port);
-
+#if 0
 			gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
+#endif
 			PORT_STATUS[port].esmc_recv_cnt = 0;
 			PORT_STATUS[port].esmc_prev_cnt = 0;
 			PORT_STATUS[port].received_QL = 0;
+#endif
+
 #if 0
-			if(sec_port != NOT_DEFINED)
-			{
-
-				zlog_notice("port %x reconfigure", sec_port);
-				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
-				PORT_STATUS[sec_port].esmc_recv_cnt = 0;
-				PORT_STATUS[sec_port].esmc_prev_cnt = 0;
-				PORT_STATUS[sec_port].received_QL = 0;
-			}
-#endif
-#else
-			int16_t sec_port = getMPortByCport(gDB.synce_sec_port);
-			zlog_notice("port %x ESMC enable", port);
-
-			if(gDB.esmcRxCfg[port - 1] != CFG_ENABLE) 
-			{
-				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
-				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
-			}
-
-			if(sec_port != NOT_DEFINED && gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE) 
-			{
-				zlog_notice("port %x reconfigure", port);
-				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
-			}
-#endif
-
 			gDB.synce_oper_port = NOT_DEFINED; 
+#endif
 		}
 		else if(port == getMPortByCport(gDB.synce_sec_port))  
 		{
 			int16_t pri_port = getMPortByCport(gDB.synce_pri_port);
 			zlog_notice("port %x ESMC enable", port);
 #if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
+#if 0
 			gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
+#endif
 			PORT_STATUS[port].esmc_recv_cnt = 0;
 			PORT_STATUS[port].esmc_prev_cnt = 0;
 			PORT_STATUS[port].received_QL = 0;
+#endif	
 #if 0
-			if(pri_port != NOT_DEFINED)
-			{
-				zlog_notice("port %x reconfigure", pri_port);
-				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
-				PORT_STATUS[pri_port].esmc_recv_cnt = 0;
-				PORT_STATUS[pri_port].esmc_prev_cnt = 0;
-				PORT_STATUS[pri_port].received_QL = 0;
-			}
-#endif
-#else
-			if(gDB.esmcRxCfg[port - 1] != CFG_ENABLE) 
-			{
-				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 0);
-				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 0);
-			}
-
-			if(pri_port != NOT_DEFINED && gDB.esmcRxCfg[pri_port - 1] == CFG_ENABLE) 
-			{
-				zlog_notice("port %x reconfigure", port);
-				gCpssSynceIfConf(3, PRI_SRC, gDB.synce_pri_port, 1);
-			}
-#endif
-
 			gDB.synce_oper_port = NOT_DEFINED; 
+#endif
 		}
 		gDB.esmcRxCfg[port - 1] = CFG_ENABLE;
 	
@@ -581,6 +541,34 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 		}
 
 #endif
+		if(port == M_PORT1)
+		{
+			gRegUpdate(SYNCE_ESMC_RQL2_ADDR, 8, 0xff00, 0); 
+		}
+		else if(port == M_PORT2)
+		{
+			gRegUpdate(SYNCE_ESMC_RQL2_ADDR, 0, 0xff, 0); 
+		}
+		else if(port == M_PORT3)
+		{
+			gRegUpdate(SYNCE_ESMC_RQL3_ADDR, 8, 0xff00, 0); 
+		}
+		else if(port == M_PORT4)
+		{
+			gRegUpdate(SYNCE_ESMC_RQL3_ADDR, 0, 0xff, 0); 
+		}
+		else if(port == M_PORT5)
+		{
+			gRegUpdate(SYNCE_ESMC_RQL4_ADDR, 8, 0xff00, 0); 
+		}
+		else if(port == M_PORT6)
+		{
+			gRegUpdate(SYNCE_ESMC_RQL4_ADDR, 0, 0xff, 0); 
+		}
+		else if(port == M_PORT7)
+		{
+			gRegUpdate(SYNCE_ESMC_RQL5_ADDR, 8, 0xff00, 0); 
+		}
 
 #if 0/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
 		if(pri_port != NOT_DEFINED && gDB.esmcRxCfg[pri_port - 1] != CFG_ENABLE) 
@@ -821,6 +809,9 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 		gSysmonToCpssFuncs[gPortSendQL](2, val, 0);
 #endif
+#if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
+		gDB.synce_pri_port = NOT_DEFINED;
+#endif
 	}
 	else
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
@@ -907,6 +898,9 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 		gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 		gSysmonToCpssFuncs[gPortSendQL](2, val, 0);
+#endif
+#if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
+		gDB.synce_sec_port = NOT_DEFINED;
 #endif
 	}
 	else
@@ -2495,9 +2489,10 @@ int8_t rsmu_pll_update(void)
 	int8_t sec_port = getMPortByCport(gDB.synce_sec_port);
 
 	val = rsmuGetPLLState();
-
+#if 1
 	if(val != gDB.pll_state)
 	{
+#endif
 
 		switch(val) 
 		{
@@ -2593,6 +2588,7 @@ int8_t rsmu_pll_update(void)
 						gSysmonToCpssFuncs[gPortSendQL](2, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL);
 #endif
 #endif
+
 				}
 #endif
 #endif
@@ -2602,20 +2598,46 @@ int8_t rsmu_pll_update(void)
 		{
 #if 1/*[#194] synce TX QL 관련 수정, balkrow, 2024-11-13*/
 			if(pri_port != 0xff && gDB.esmcRxCfg[pri_port - 1] == CFG_ENABLE)
+			{
 				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL); 
+				gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), gDB.localQL);
+			}
+
 			if(sec_port != 0xff && gDB.esmcRxCfg[sec_port - 1] == CFG_ENABLE)
+			{
 				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL); 
+				gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), gDB.localQL);
+			}
 #endif
+			if(pri_port == 0xff)
+				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, 0); 
+
+			if(sec_port == 0xff)
+				gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
+
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 8, 0xff00, gDB.synce_oper_port); 
 #if 1/*[#199] Pri/sec 이외 port TX QL 관련 수정, balkrow, 2024-11-14*/
 			gRegUpdate(SYNCE_ESMC_SQL_EXT_ADDR, 0, 0xff, gDB.localQL); 
 #endif
-#if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
-			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), gDB.localQL);
-			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), gDB.localQL);
+#if 0/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 #if 1/*[#244] sync-e interface ¿¿¿ 25G link ¿¿¿¿ ¿¿, balkrow, 2025-01-15 */
 			gSysmonToCpssFuncs[gPortSendQL](2, 0xff, gDB.localQL);
 #endif
+#endif
+#if 1 /* balkrow, 2025-01-18*/	
+			{
+				int portno;
+				for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) 
+				{
+					if(gDB.esmcRxCfg[portno - 1] == CFG_ENABLE)
+						gSysmonToCpssFuncs[gPortSendQL](2, portno, gDB.localQL);
+				}
+			}
+#endif
+
+#if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17 */
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff00, 0); 
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
 #endif
 		}
 		else
@@ -2631,7 +2653,9 @@ int8_t rsmu_pll_update(void)
 #endif
 		if(wr_val)
 			gRegUpdate(SYNCE_SRC_STAT_ADDR, 0, SYNCE_SRC_STAT_ADDR_MASK, wr_val)
+#if 1
 	}
+#endif
 
 
 	return RT_OK;

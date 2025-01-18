@@ -69,6 +69,9 @@ extern int8_t rsmu_init (void);
 int DCO_SFP_LOSS;
 #endif
 
+uint8_t pri_pll_done = 0;
+uint8_t sec_pll_done = 0;
+
 #if 1/*[#35] traffic test 용 vlan 설정 기능 추가, balkrow, 2024-05-27*/
 #if 1 /* [#142] Adding for Transparent mode switching, dustin, 2024-10-11 */
 extern uint8_t EAG6LVlanInit (uint8_t mode);
@@ -1341,7 +1344,7 @@ uint8_t gCpssSynceIfconf(int args, ...)
 	lport = get_eag6L_lport(portNum);
 	if(SPEED[lport] == PORT_IF_10G_KR)
 	{
-#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_10G_KR);
@@ -1350,7 +1353,7 @@ uint8_t gCpssSynceIfconf(int args, ...)
 	}
 	else
 	{
-#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_25G_KR);
@@ -1503,7 +1506,7 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 	lport = get_eag6L_lport(portNum);
 	if(SPEED[lport] == PORT_IF_10G_KR) 
 	{
-#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_10G_KR);
@@ -1934,12 +1937,16 @@ uint8_t gCpssPortSetRate(int args, ...)
 		if(gSyncePriInf == dport)
 		{
 			pll_config(1, PORT_IF_10G_KR);
+			syslog(LOG_INFO, "port %d pll configuration", dport);
+			pri_pll_done = 1;
 			ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
 			syslog(LOG_INFO, " cpssDxChPortSyncEtherRecoveryClkDividerValueSet ret %x ", ret);
 		}
 		else if(gSynceSecInf == dport)
 		{
 			pll_config(2, PORT_IF_10G_KR);
+			syslog(LOG_INFO, "port %d pll configuration", dport);
+			sec_pll_done = 1;
 			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
 		}
 
@@ -1950,12 +1957,16 @@ uint8_t gCpssPortSetRate(int args, ...)
 		if(gSyncePriInf == dport)
 		{
 			pll_config(1, PORT_IF_25G_KR);
+			syslog(LOG_INFO, "port %d pll configuration", dport);
+			pri_pll_done = 1;
 			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
 			syslog(LOG_INFO, " cpssDxChPortSyncEtherRecoveryClkDividerValueSet ret %x ", ret);
 		}
 		else if(gSynceSecInf == dport)
 		{
 			pll_config(2, PORT_IF_25G_KR);
+			syslog(LOG_INFO, "port %d pll configuration", dport);
+			sec_pll_done = 1;
 			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
 		}
 
@@ -2014,7 +2025,7 @@ uint8_t gCpssPortESMCenable(int args, ...)
 	}
 	else
 	{
-		if(esmcRxPort)
+		if(!esmcRxPort)
 #if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		{
 			gCpssEsmcToCPUUnSet(1);

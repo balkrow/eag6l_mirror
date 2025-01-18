@@ -429,7 +429,7 @@ uint8_t pll_config(uint8_t clk_src, uint32_t speed)
 
 	if(clk_src == 1)
 	{
-		syslog(LOG_ERR, "%s:%d speed %x", __func__, __LINE__, speed);
+		syslog(LOG_NOTICE, "%s:%d speed %x", __func__, __LINE__, speed);
 		/*INPUT0*/
 		memset(&set, 0, sizeof(set));
 		if(speed == PORT_IF_10G_KR)

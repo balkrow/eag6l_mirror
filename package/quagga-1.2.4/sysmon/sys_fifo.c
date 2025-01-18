@@ -1388,9 +1388,13 @@ uint8_t processLOC(struct thread *thread)
 	uint8_t portno;
 	for(portno = PORT_ID_EAG6L_PORT1; portno < PORT_ID_EAG6L_MAX; portno++) 
 	{
+#if 0
 		if(getMPortByCport(gDB.synce_pri_port) != portno && 
 		   getMPortByCport(gDB.synce_sec_port) != portno)
+		{
 			continue;
+		}
+#endif
 
 		if(gDB.esmcRxCfg[portno - 1] != CFG_ENABLE)
 			continue;
@@ -1426,12 +1430,12 @@ uint8_t processLOC(struct thread *thread)
 		if(PORT_STATUS[portno].loc_cnt > MAX_LOC_CNT)
 		{
 			/*declare alarm*/
-			zlog_notice("port %d %x ESMC LOSS while 3 seconds", portno, gDB.synce_pri_port );
+			if(getMPortByCport(gDB.synce_pri_port) == portno || 
+			   getMPortByCport(gDB.synce_sec_port) == portno)
+				zlog_notice("port %d %x ESMC LOSS while 3 seconds", portno, gDB.synce_pri_port );
+
 			PORT_STATUS[portno].esmc_recv_cnt = 0;
 			PORT_STATUS[portno].esmc_prev_cnt = 0;
-
-			if(gDB.esmcRxCfg[portno - 1] == CFG_ENABLE)
-				PORT_STATUS[portno].esmc_loss = 1;
 
 			PORT_STATUS[portno].loc_cnt = 0;
 			PORT_STATUS[portno].received_QL = 0;
@@ -1445,6 +1449,10 @@ uint8_t processLOC(struct thread *thread)
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
 				sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, val, PORT_NOREG);
+
+				if(gDB.esmcRxCfg[portno - 1] == CFG_ENABLE)
+					PORT_STATUS[portno].esmc_loss = 1;
+
 #if 0/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 				val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
@@ -1468,52 +1476,50 @@ uint8_t processLOC(struct thread *thread)
 				val = val | gDB.localQL; 
 				sys_fpga_memory_write(SYNCE_ESMC_SQL_ADDR, val, PORT_NOREG);
 #endif
+				if(gDB.esmcRxCfg[portno - 1] == CFG_ENABLE)
+					PORT_STATUS[portno].esmc_loss = 1;
+
+				PORT_STATUS[portno].loc_cnt = 0;
+			}
+#if 1
+			if(gDB.synce_pri_port == NOT_DEFINED)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0); 
 			}
 
+			if(gDB.synce_sec_port == NOT_DEFINED)
 			{
-				uint16_t val;
-				if(portno == M_PORT1)
-				{
-					val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
-					val = (val & ~(0xff00));
-					sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, val, PORT_NOREG);
-				}
-				else if(portno == M_PORT2)
-				{
-					val = sys_fpga_memory_read(SYNCE_ESMC_RQL2_ADDR, PORT_NOREG);
-					val = (val & ~(0xff));
-					sys_fpga_memory_write(SYNCE_ESMC_RQL2_ADDR, val, PORT_NOREG);
-				}
-				else if(portno == M_PORT3)
-				{
-					val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
-					val = (val & ~(0xff00));
-					sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, val, PORT_NOREG);
-				}
-				else if(portno == M_PORT4)
-				{
-					val = sys_fpga_memory_read(SYNCE_ESMC_RQL3_ADDR, PORT_NOREG);
-					val = (val & ~(0xff));
-					sys_fpga_memory_write(SYNCE_ESMC_RQL3_ADDR, val, PORT_NOREG);
-				}
-				else if(portno == M_PORT5)
-				{
-					val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
-					val = (val & ~(0xff00));
-					sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, val, PORT_NOREG);
-				}
-				else if(portno == M_PORT6)
-				{
-					val = sys_fpga_memory_read(SYNCE_ESMC_RQL4_ADDR, PORT_NOREG);
-					val = (val & ~(0xff));
-					sys_fpga_memory_write(SYNCE_ESMC_RQL4_ADDR, val, PORT_NOREG);
-				}
-				else if(portno == M_PORT7)
-				{
-					val = sys_fpga_memory_read(SYNCE_ESMC_RQL5_ADDR, PORT_NOREG);
-					val = (val & ~(0xff00));
-					sys_fpga_memory_write(SYNCE_ESMC_RQL5_ADDR, val, PORT_NOREG);
-				}
+				gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
+			}
+#endif
+
+			if(portno == M_PORT1)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL2_ADDR, 8, 0xff00, 0); 
+			}
+			else if(portno == M_PORT2)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL2_ADDR, 0, 0xff, 0); 
+			}
+			else if(portno == M_PORT3)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL3_ADDR, 8, 0xff00, 0); 
+			}
+			else if(portno == M_PORT4)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL3_ADDR, 0, 0xff, 0); 
+			}
+			else if(portno == M_PORT5)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL4_ADDR, 8, 0xff00, 0); 
+			}
+			else if(portno == M_PORT6)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL4_ADDR, 0, 0xff, 0); 
+			}
+			else if(portno == M_PORT7)
+			{
+				gRegUpdate(SYNCE_ESMC_RQL5_ADDR, 8, 0xff00, 0); 
 			}
 		}
 	}
@@ -1853,9 +1859,14 @@ uint8_t switchEsmcInterface(int port, int QL)
 			{
 				if(oper_port == pri_port) 
 				{
-					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
-					zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
-					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+#if 1/*[#245] primary interface¿ none ¿¿ emsc QL ¿¿ ¿¿ ¿¿¿ ¿¿, balkrow, 2025-01-17*/
+					if(sec_port != NOT_DEFINED)
+					{
+						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
+						zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
+						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+					}
+#endif
 #if 0 
 					gDB.synce_oper_port = port; 
 					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
@@ -1863,9 +1874,14 @@ uint8_t switchEsmcInterface(int port, int QL)
 				}
 				else
 				{
-					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
-					zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
-					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+#if 1/*[#245] primary interface¿ none ¿¿ emsc QL ¿¿ ¿¿ ¿¿¿ ¿¿, balkrow, 2025-01-17*/
+					if(pri_port != NOT_DEFINED)
+					{
+						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
+						zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
+						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+					}
+#endif
 #if 0
 					gDB.synce_oper_port = port; 
 					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
@@ -2031,9 +2047,12 @@ uint8_t switchEsmcInterface(int port, int QL)
 				{
 					if(oper_port == pri_port) 
 					{
-						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
-						zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
-						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+						if(sec_port != NOT_DEFINED)
+						{
+							gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
+							zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
+							gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+						}
 #if 0
 						gDB.synce_oper_port = port; 
 						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
@@ -2041,9 +2060,12 @@ uint8_t switchEsmcInterface(int port, int QL)
 					}
 					else
 					{
-						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
-						zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
-						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+						if(pri_port != NOT_DEFINED)
+						{
+							gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
+							zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
+							gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+						}
 #if 0
 						gDB.synce_oper_port = port; 
 						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
@@ -2082,11 +2104,11 @@ uint8_t switchEsmcInterface(int port, int QL)
 
 					if(port == pri_port) 
 					{
-						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, QL);
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, QL);
 					}
 					else if(port == sec_port) 
 					{
-						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff00, QL);
+						gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, QL);
 					}
 				}
 
@@ -2228,17 +2250,23 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 		else if(gDB.synce_pri_port == NOT_DEFINED)
 		{
+#if 0
 			uint16_t val;
 			val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
 			val = (val & ~(0xff00));
 			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, val, PORT_NOREG);
+#endif
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 8, 0xff00, 0); 
 		}
 		else if(gDB.synce_sec_port == NOT_DEFINED)
 		{
+#if 0
 			uint16_t val;
 			val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
 			val = (val & ~(0xff));
 			sys_fpga_memory_write(SYNCE_ESMC_RQL_ADDR, val, PORT_NOREG);
+#endif
+			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
 		}
 #endif
 #if 1/*[#120] LOC Alarm process ¿¿, balkrow, 2024-10-16 */

@@ -77,6 +77,9 @@ then
   . /mnt/flash/ip.sh
 fi
 
+ulimit -c unlimited
+echo "/mnt/flash/core.%e.%p" > /proc/sys/kernel/core_pattern
+
 
 for i in $( ls -v /etc/rcS.d/S* 2> /dev/null)
 do
