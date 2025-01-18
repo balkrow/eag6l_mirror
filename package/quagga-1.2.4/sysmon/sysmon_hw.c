@@ -17,9 +17,6 @@
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 #include "bp_regs.h" 
 #endif
-#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
-#include "rsmu.h" 
-#endif
 
 #undef DEBUG
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
@@ -79,6 +76,43 @@ int8_t rsmuGetClockIdx(void)
 	}
 	zlog_notice("pll idx %x:%x", get.dpll, get.idx);
 	return get.idx;
+}
+#endif
+
+#if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
+int8_t rsmuSetPriClockIdx(uint8_t clk_idx, uint8_t priority) 
+{
+	RSMU_CLK_PRI set;
+
+	memset(&set, 0, sizeof(set));
+	set.dpll = RSMU_PLL_IDX;
+	set.num_entries = 1;
+
+	/* Write clock priority table starting with highest priority */
+	set.priority_entry[0].clock_index = clk_idx;
+	set.priority_entry[0].priority = priority;
+#if 0
+	prev_rank = priority_entry->rank;
+	priority_entry++;
+	for(i = 1; i < num_entries; i++) {
+		set.priority_entry[i].clock_index = priority_entry->clk_idx;
+		if(prev_rank != priority_entry->rank) {
+			prev_rank = priority_entry->rank;
+			priority++;
+		}
+
+		set.priority_entry[i].priority = priority;
+
+		priority_entry++;
+	}
+#endif
+
+	if(ioctl(g_rsmu_fd, RSMU_SET_CLOCK_PRIORITIES, &set)) {
+		zlog_err("%s failed: %s", __func__, strerror(errno));
+		return RT_NOK;
+	}
+
+	return RT_OK;
 }
 #endif
 
