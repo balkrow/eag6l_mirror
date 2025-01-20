@@ -34,9 +34,6 @@
 #if 1/*[#56] register update timer ¿¿, balkrow, 2023-06-13 */
 #include "svc_fsm.h"
 #endif
-#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
-#include "rsmu.h" 
-#endif
 
 #if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
 #undef ACCESS_SIM	/* define if simulation for access on demo system */
@@ -203,16 +200,6 @@ typedef struct rsmu_get_idx
 } RSMU_PLL_CLK_IDX;
 #endif
 
-#if 1/* balkrow, 2025-01-17*/
-
-typedef struct rsmu_clk_priorities
-{
-	uint8_t dpll;
-	uint8_t num_entries;
-	struct rsmu_priority_entry priority_entry[MAX_NUM_PRIORITY_ENTRIES];
-} RSMU_CLK_PRI;
-#endif
-
 #if 1 /*[#231] port rate 변경 시 synce devider value 변경 되도록 수정, balkrow, 2024-12-17*/
 typedef struct rsmu_reg_rw_str
 {
@@ -241,6 +228,13 @@ typedef struct fw_image_header {
     char        fih_name[RDL_FILE_NAME_MAX];    /* Image Name       */
     char        reserv[8];  /* reserv       */
 } fw_image_header_t;
+#endif
+
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
+#define PLL_AUTO 0
+#define PLL_FORCE_LOCK 1
+#define PLL_FORCE_FREERUN 2
+#define PLL_FORCE_HOLDOVER 3
 #endif
 
 typedef struct globalDB

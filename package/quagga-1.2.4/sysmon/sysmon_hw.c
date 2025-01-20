@@ -17,6 +17,9 @@
 #if 1 /* [#62] SFP eeprom 및 register update 기능 단위 검증 및 디버깅, balkrow, 2024-06-21 */ 
 #include "bp_regs.h" 
 #endif
+#if 1/*[#71] EAG6L Board Bring-up, balkrow, 2024-07-04*/
+#include "rsmu.h" 
+#endif
 
 #undef DEBUG
 #if 0/*[#61] Adding omitted functions, dustin, 2024-06-24 */
@@ -74,12 +77,45 @@ int8_t rsmuGetClockIdx(void)
 		zlog_err("%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
 		return RT_NOK;
 	}
+#ifdef DEBUG
 	zlog_notice("pll idx %x:%x", get.dpll, get.idx);
+#endif
 	return get.idx;
 }
 #endif
 
-#if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
+int8_t rsmuSetClockStateMode(uint8_t mode) 
+{
+	RSMU_REG_RW set;
+	RSMU_REG_RW get;
+
+	memset(&set, 0, sizeof(set));
+	memset(&get, 0, sizeof(get));
+
+	set.offset = 0x2010c4ef;
+	set.byte_count = 1;
+	set.bytes[0] = mode;
+
+	if(ioctl(g_rsmu_fd, RSMU_REG_WRITE, &set))
+	{
+		zlog_err("%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+		return RT_NOK;
+	}
+
+	get.offset = 0x2010c4ef;
+	get.byte_count = 1;
+	if(ioctl(g_rsmu_fd, RSMU_REG_READ, &get))
+	{
+		zlog_err("%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
+		return RT_NOK;
+	}
+	zlog_notice("pll idx %x state %x", RSMU_PLL_IDX, get.bytes[0]);
+	return 0;
+}
+#endif
+
+#if 0/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
 int8_t rsmuSetPriClockIdx(uint8_t clk_idx, uint8_t priority) 
 {
 	RSMU_CLK_PRI set;

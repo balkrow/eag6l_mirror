@@ -54,6 +54,10 @@ extern int synce_config_set_if_select(int pri_port, int sec_port);
 extern void pm_request_counters(void);
 extern void pm_request_clear(void);
 
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
+extern int8_t rsmuSetClockStateMode(uint8_t mode);
+#endif
+
 #if 1/*[#53] Clock source status 업데이트 기능 추가, balkrow, 2024-06-13*/
 extern GLOBAL_DB gDB;
 extern int8_t rsmuGetPLLState(void); 
@@ -819,6 +823,11 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 #if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
 		gDB.synce_pri_port = NOT_DEFINED;
 #endif
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
+		if(gDB.synce_sec_port == NOT_DEFINED)
+			rsmuSetClockStateMode(PLL_FORCE_FREERUN);
+
+#endif
 	}
 	else
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
@@ -829,6 +838,10 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 		}
 	}
+#endif
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
+		rsmuSetClockStateMode(PLL_AUTO);
+
 #endif
 #endif
 
@@ -909,6 +922,11 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 #if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
 		gDB.synce_sec_port = NOT_DEFINED;
 #endif
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
+		if(gDB.synce_pri_port == NOT_DEFINED)
+			rsmuSetClockStateMode(PLL_FORCE_FREERUN);
+
+#endif
 	}
 	else
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
@@ -918,6 +936,10 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
 			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 		}
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
+		rsmuSetClockStateMode(PLL_AUTO);
+
+#endif
 	}
 #endif
 #endif
