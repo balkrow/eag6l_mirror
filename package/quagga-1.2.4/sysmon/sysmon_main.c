@@ -311,6 +311,20 @@ main (int argc, char **argv)
   /* Start execution only if not in dry-run mode */
   if(dryrun)
     return (0);
+
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
+  {
+	  struct rlimit core_limit;
+	  core_limit.rlim_cur = RLIM_INFINITY;
+	  core_limit.rlim_max = RLIM_INFINITY;
+
+	  if (setrlimit(RLIMIT_CORE, &core_limit) < 0)
+	  {
+	  }
+	  else
+		  zlog_notice("Core dump configuration success");
+  }
+#endif
   
   /* Change to the daemon program. */
   if (daemon_mode && daemon (0, 0) < 0)

@@ -56,6 +56,10 @@ int 	secondary_reconfigure = 0;
 int loc_port[PORT_ID_EAG6L_MAX];
 #endif
 
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+extern int8_t rsmuSetPriClockIdx(uint8_t clk_idx, uint8_t priority);
+#endif
+
 /*define send callback function */
 #if 1/*[#34] aldrin3s chip initial ¿¿ ¿¿, balkrow, 2024-05-23*/
 uint8_t gCpssSDKInit(int args, ...)
@@ -543,9 +547,9 @@ uint8_t gCpssPortSendQL(int args, ...)
 	msg.type = gPortSendQL;
 	msg.portid = port;
 	msg.mode = ql;
-
+#ifdef DEBUG
 	zlog_notice("%s port %d QL %x", __func__, port, ql);
-
+#endif
 	if(send_to_sysmon_slave(&msg) == 0) {
 		zlog_notice("%s : send_to_sysmon_slave() has failed.", __func__);
 		return IPC_CMD_FAIL;
@@ -1443,8 +1447,27 @@ uint8_t processLOC(struct thread *thread)
 			if(getMPortByCport(gDB.synce_pri_port) == portno)
 			{
 				uint16_t val;
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+				if(gDB.synce_sec_port == NOT_DEFINED)	
+				{
+					zlog_notice("PLL Force HOLD_OVER");
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+				else if(PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].esmc_loss)
+				{
+					zlog_notice("PLL Force HOLD_OVER");
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+				else if(PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].recv_dnu)
+				{
+					zlog_notice("PLL Force HOLD_OVER");
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+
+#else
 				zlog_notice("port %d clear pri interface", portno);
 				gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(portno), 0);
+#endif
 
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
@@ -1463,8 +1486,32 @@ uint8_t processLOC(struct thread *thread)
 			} else if(getMPortByCport(gDB.synce_sec_port) == portno)
 			{
 				uint16_t val;
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+				if(gDB.synce_pri_port == NOT_DEFINED)	
+				{
+					zlog_notice("PLL Force HOLD_OVER");
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,0);
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+				else if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].esmc_loss)
+				{
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,0);
+					zlog_notice("PLL Force HOLD_OVER");
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+				else if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].recv_dnu)
+				{
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,0);
+					zlog_notice("PLL Force HOLD_OVER");
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+#else
 				zlog_notice("port %d clear sec interface", portno);
 				gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(portno), 0);
+#endif
 
 				val = sys_fpga_memory_read(SYNCE_ESMC_RQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff));
@@ -1796,20 +1843,30 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 				uint16_t val, wr_val;
 #endif
-				zlog_notice("Recevie DNU.. port %d clear pri interface", port);
-#if 0
-				gDB.synce_oper_port = get_synce_oper_port(sec_port);
-#endif
-				gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(port), 0);
-
-#if 0
-				if(gDB.synce_oper_port != NOT_DEFINED)
+				zlog_notice("Receive DNU.. port %d clear pri interface", port);
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+				if(sec_port == NOT_DEFINED)
 				{
-					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 0);
-					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
-					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 1);
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,0);
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
+				else if(PORT_STATUS[sec_port].recv_dnu)
+				{
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,0);
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+				else if(port == gDB.synce_oper_port)
+				{
+					rsmuSetPriClockIdx(0 ,0);
+					zlog_notice("PLL SW 0 -> 1");
+					rsmuSetPriClockIdx(1 ,10);
+				}
+#else
+				gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(port), 0);
 #endif
+
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 				val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 				val = (val & ~(0xff00));
@@ -1825,18 +1882,28 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 				uint16_t val, wr_val;
 #endif
-				zlog_notice("Recevie DNU.. port %d clear sec interface", port);
-#if 0
-				gDB.synce_oper_port = get_synce_oper_port(pri_port);
-#endif
-				gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(port), 0);
-#if 0
-				if(gDB.synce_oper_port != NOT_DEFINED)
+				zlog_notice("Receive DNU.. port %d clear sec interface", port);
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+				if(pri_port == NOT_DEFINED)
 				{
-					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 0);
-					zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
-					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 1);
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,0);
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
+				else if(PORT_STATUS[pri_port].recv_dnu)
+				{
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,0);
+					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+				else if(port == gDB.synce_oper_port)
+				{
+					rsmuSetPriClockIdx(1 ,0);
+					zlog_notice("PLL SW 1 -> 0");
+					rsmuSetPriClockIdx(0 ,10);
+				}
+#else
+				gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(port), 0);
 #endif
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 				val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
@@ -1848,6 +1915,9 @@ uint8_t switchEsmcInterface(int port, int QL)
 				gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), QL);
 #endif
 			}
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+			PORT_STATUS[port].recv_dnu = 1;
+#endif
 		}
 
 		/*Check oper interface QL*/
@@ -1862,9 +1932,15 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#245] primary interface¿ none ¿¿ emsc QL ¿¿ ¿¿ ¿¿¿ ¿¿, balkrow, 2025-01-17*/
 					if(sec_port != NOT_DEFINED)
 					{
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+						rsmuSetPriClockIdx(0 ,0);
+						zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
+					        rsmuSetPriClockIdx(1 ,10);
+#else
 						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
 						zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
 						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+#endif
 					}
 #endif
 #if 0 
@@ -1877,9 +1953,15 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#245] primary interface¿ none ¿¿ emsc QL ¿¿ ¿¿ ¿¿¿ ¿¿, balkrow, 2025-01-17*/
 					if(pri_port != NOT_DEFINED)
 					{
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+						rsmuSetPriClockIdx(1 ,0);
+						zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
+					        rsmuSetPriClockIdx(0 ,10);
+#else
 						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
 						zlog_notice("port %x Recevie QL %x better than port %x", port, QL, oper_port);
 						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+#endif	
 					}
 #endif
 #if 0
@@ -1943,26 +2025,32 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 					uint16_t val, wr_val;
 #endif
-					zlog_notice("Recevie DNU.. port %d clear pri interface", port);
+					zlog_notice("Receive DNU.. port %d clear pri interface", port);
 
-					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(port), 0);
-#if 1
-#if 0
-					if(sec_port != 0xff)
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+					if(sec_port == NOT_DEFINED)
 					{
-						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 0);
-						zlog_notice("port %d reconfigure", sec_port);
-						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 1);
+						rsmuSetPriClockIdx(0 ,0);
+						rsmuSetPriClockIdx(1 ,0);
+						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
-#endif
+					else if(PORT_STATUS[sec_port].recv_dnu)
+					{
+						rsmuSetPriClockIdx(0 ,0);
+						rsmuSetPriClockIdx(1 ,0);
+						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+					}
+					else if(port == gDB.synce_oper_port)
+					{
+						rsmuSetPriClockIdx(0 ,0);
+						zlog_notice("PLL SW 0 -> 1");
+					        rsmuSetPriClockIdx(1 ,10);
+					}
+
 #else
-					if(gDB.synce_oper_port != NOT_DEFINED)
-					{
-						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 0);
-						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
-						gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(sec_port), 1);
-					}
+					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(port), 0);
 #endif
+
 #if 1/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 					val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 					val = (val & ~(0xff00));
@@ -1987,17 +2075,31 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-11-01*/
 					uint16_t val, wr_val;
 #endif
-					zlog_notice("Recevie DNU.. port %d clear sec interface", port);
+					zlog_notice("Receive DNU.. port %d clear sec interface", port);
 
-					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(port), 0);
-#if 0
-					if(gDB.synce_oper_port != NOT_DEFINED)
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+					if(pri_port == NOT_DEFINED)
 					{
-						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 0);
-						zlog_notice("Synce Current interface %d", gDB.synce_oper_port);
-						gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(pri_port), 1);
+						rsmuSetPriClockIdx(0 ,0);
+						rsmuSetPriClockIdx(1 ,0);
+						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
+					else if(PORT_STATUS[pri_port].recv_dnu)
+					{
+						rsmuSetPriClockIdx(0 ,0);
+						rsmuSetPriClockIdx(1 ,0);
+						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+					}
+					else if(port == gDB.synce_oper_port)
+					{
+						rsmuSetPriClockIdx(1 ,0);
+						zlog_notice("PLL SW 1 -> 0");
+					        rsmuSetPriClockIdx(0 ,10);
+					}
+#else
+					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(port), 0);
 #endif
+
 #if 1/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
 					val = sys_fpga_memory_read(SYNCE_ESMC_SQL_ADDR, PORT_NOREG);
 					val = (val & ~(0xff));
@@ -2025,14 +2127,14 @@ uint8_t switchEsmcInterface(int port, int QL)
 			else 
 			{
 				PORT_STATUS[port].recv_dnu = 0;
-#if 0/*[#194] synce TX QL ¿¿ ¿¿, balkrow, 2024-11-13*/
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
 				if(pri_port == port)
 				{
-					gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, PORT_STATUS[gDB.synce_oper_port].received_QL);
+					rsmuSetClockStateMode(PLL_AUTO);
 				}
 				else if(sec_port == port)
 				{
-					gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, PORT_STATUS[gDB.synce_oper_port].received_QL);
+					rsmuSetClockStateMode(PLL_AUTO);
 				}
 #endif
 			}
@@ -2049,9 +2151,15 @@ uint8_t switchEsmcInterface(int port, int QL)
 					{
 						if(sec_port != NOT_DEFINED)
 						{
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+							rsmuSetPriClockIdx(0 ,0);
+							zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
+							rsmuSetPriClockIdx(1 ,10);
+#else
 							gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 0);
 							zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
 							gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(oper_port), 1);
+#endif
 						}
 #if 0
 						gDB.synce_oper_port = port; 
@@ -2062,9 +2170,15 @@ uint8_t switchEsmcInterface(int port, int QL)
 					{
 						if(pri_port != NOT_DEFINED)
 						{
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+							rsmuSetPriClockIdx(1 ,0);
+							zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
+							rsmuSetPriClockIdx(0 ,10);
+#else
 							gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 0);
 							zlog_notice("port %x Recevie QL better than port %x", port, oper_port);
 							gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(oper_port), 1);
+#endif
 						}
 #if 0
 						gDB.synce_oper_port = port; 
@@ -2074,6 +2188,23 @@ uint8_t switchEsmcInterface(int port, int QL)
 				}
 
 			}
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+			else 
+			{
+				if(gDB.synce_pri_port != NOT_DEFINED && 
+				   (port == getMPortByCport(gDB.synce_pri_port)))  
+				{
+					rsmuSetPriClockIdx(1 ,0);
+					rsmuSetPriClockIdx(0 ,10);
+				}
+				else if(gDB.synce_sec_port != NOT_DEFINED && 
+				   (port == getMPortByCport(gDB.synce_sec_port)))  
+				{
+					rsmuSetPriClockIdx(0 ,0);
+					rsmuSetPriClockIdx(1 ,10);
+				}
+			}
+#endif
 #if 0
 			else
 			{
@@ -2175,15 +2306,23 @@ uint8_t gReplyPortESMCQLupdate(int args, ...)
 			{
 				if(getMPortByCport(gDB.synce_pri_port) == mport)
 				{
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+					rsmuSetClockStateMode(PLL_AUTO);
+#else
 					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(mport), 0);
 					zlog_notice("port %d Set ClockConfig", mport);
 					gCpssSynceIfConf(3, PRI_SRC, getCPortByMport(mport), 1);
+#endif
 				}
 				else if(getMPortByCport(gDB.synce_sec_port) == mport)
 				{
+#if 1/*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-21*/
+					rsmuSetClockStateMode(PLL_AUTO);
+#else
 					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(mport), 0);
 					zlog_notice("port %d Set ClockConfig", mport);
 					gCpssSynceIfConf(3, SEC_SRC, getCPortByMport(mport), 1);
+#endif
 				}
 
 				PORT_STATUS[mport].esmc_recv_cnt = 0xf; 
@@ -2352,8 +2491,9 @@ uint8_t gReplyPortSendQL(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
-
+#if 0 /*[#246] force Freerun ¿¿ ¿¿, balkrow, 2025-01-20*/ 
 	zlog_notice("%s  result=%x", __func__, msg->result);
+#endif
 	return ret;
 }
 uint8_t gReplyLocalQL(int args, ...)

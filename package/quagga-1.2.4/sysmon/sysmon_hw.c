@@ -110,12 +110,14 @@ int8_t rsmuSetClockStateMode(uint8_t mode)
 		zlog_err("%s ioctl faild %s(%d)", RSMU_DEVICE_NAME, strerror(errno), errno);
 		return RT_NOK;
 	}
+#ifdef DEBUG
 	zlog_notice("pll idx %x state %x", RSMU_PLL_IDX, get.bytes[0]);
+#endif
 	return 0;
 }
 #endif
 
-#if 0/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
+#if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17*/
 int8_t rsmuSetPriClockIdx(uint8_t clk_idx, uint8_t priority) 
 {
 	RSMU_CLK_PRI set;
