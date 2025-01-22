@@ -1344,7 +1344,7 @@ uint8_t gCpssSynceIfconf(int args, ...)
 	lport = get_eag6L_lport(portNum);
 	if(SPEED[lport] == PORT_IF_10G_KR)
 	{
-#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_10G_KR);
@@ -1353,7 +1353,7 @@ uint8_t gCpssSynceIfconf(int args, ...)
 	}
 	else
 	{
-#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
 		pll_config(clk_src, PORT_IF_25G_KR);
@@ -1509,18 +1509,22 @@ uint8_t gCpssSynceIfSelect(int args, ...)
 #if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
-		pll_config(clk_src, PORT_IF_10G_KR);
 #endif
 		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+		syslog(LOG_INFO, "port %d 10g pll configuration", lport);
+		pll_config(clk_src, PORT_IF_10G_KR);
+		pri_pll_done = 1;
 	}
 	else
 	{
-#if 0 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
+#if 1 /*[#244] sync-e interface 설정시 25G link 끊어지는 현상, balkrow, 2025-01-14*/
 		uint8_t clk_src;
 		clk_src = (recoveryClkType == CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E) ? 1 : 2;
-		pll_config(clk_src, PORT_IF_25G_KR);
 #endif
 		ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, portNum, 0, recoveryClkType, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+		syslog(LOG_INFO, "port %d 25g pll configuration", lport);
+		pll_config(clk_src, PORT_IF_25G_KR);
+		pri_pll_done = 1;
 	}
 #endif
 #endif
@@ -1936,18 +1940,18 @@ uint8_t gCpssPortSetRate(int args, ...)
 		syslog(LOG_INFO, "dport %x gSyncePriInf %x", dport, gSyncePriInf);
 		if(gSyncePriInf == dport)
 		{
-			pll_config(1, PORT_IF_10G_KR);
-			syslog(LOG_INFO, "port %d pll configuration", dport);
-			pri_pll_done = 1;
 			ret = cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+			syslog(LOG_INFO, "port %d 10g pll configuration", dport);
+			pri_pll_done = 1;
+			pll_config(1, PORT_IF_10G_KR);
 			syslog(LOG_INFO, " cpssDxChPortSyncEtherRecoveryClkDividerValueSet ret %x ", ret);
 		}
 		else if(gSynceSecInf == dport)
 		{
-			pll_config(2, PORT_IF_10G_KR);
-			syslog(LOG_INFO, "port %d pll configuration", dport);
-			sec_pll_done = 1;
 			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_8_E);
+			syslog(LOG_INFO, "port %d 10g pll configuration", dport);
+			sec_pll_done = 1;
+			pll_config(2, PORT_IF_10G_KR);
 		}
 
 	}
@@ -1956,18 +1960,18 @@ uint8_t gCpssPortSetRate(int args, ...)
 		syslog(LOG_INFO, "dport %x gSyncePriInf %x", dport, gSyncePriInf);
 		if(gSyncePriInf == dport)
 		{
-			pll_config(1, PORT_IF_25G_KR);
-			syslog(LOG_INFO, "port %d pll configuration", dport);
-			pri_pll_done = 1;
 			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK0_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+			syslog(LOG_INFO, "port %d 25g pll configuration", dport);
+			pri_pll_done = 1;
+			pll_config(1, PORT_IF_25G_KR);
 			syslog(LOG_INFO, " cpssDxChPortSyncEtherRecoveryClkDividerValueSet ret %x ", ret);
 		}
 		else if(gSynceSecInf == dport)
 		{
-			pll_config(2, PORT_IF_25G_KR);
-			syslog(LOG_INFO, "port %d pll configuration", dport);
-			sec_pll_done = 1;
 			ret += cpssDxChPortSyncEtherRecoveryClkDividerValueSet(0, dport, 0, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK1_E, CPSS_DXCH_PORT_SYNC_ETHER_RECOVERY_CLK_DIVIDER_16_E);
+			syslog(LOG_INFO, "port %d 25g pll configuration", dport);
+			sec_pll_done = 1;
+			pll_config(2, PORT_IF_25G_KR);
 		}
 
 	}
@@ -2482,10 +2486,12 @@ uint8_t gCpssPortSendQL(int args, ...)
 	va_start(argP, args);
 	msg = va_arg(argP, sysmon_fifo_msg_t *);
 	va_end(argP);
+#ifdef DEBUG
 	syslog(LOG_INFO, "%s (REQ): type[%d/%d] val[%d].", 
 	       __func__, gPortSendQL, msg->type, msg->portid);
 
 	syslog(LOG_INFO, ">>> gCpssPortSendQL DONE ret[%x] <<<", ret);
+#endif
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-10-07*/
 	if(msg->portid >= PORT_ID_EAG6L_PORT1 && 
 	   msg->portid <= PORT_ID_EAG6L_PORT7 )

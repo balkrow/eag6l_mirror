@@ -173,6 +173,30 @@ DEFUN (llcf_conf,
   return CMD_SUCCESS;
 }
 
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
+DEFUN (clk_switch,
+       clk_switch_cmd,
+       "clk-sw (pri|secondary)",
+       "Clock Switch"
+       "Primary\n"
+       "Secondary\n")
+{
+	extern int8_t rsmuSetPriClockIdx(uint8_t clk_idx, uint8_t priority); 
+
+	if (strncmp (argv[0], "p", 1) == 0)
+	{
+		rsmuSetPriClockIdx(1 ,0);
+		rsmuSetPriClockIdx(0 ,10);
+	}
+	else
+	{
+		rsmuSetPriClockIdx(0 ,0);
+		rsmuSetPriClockIdx(1 ,10);
+	}
+	return CMD_SUCCESS;
+}
+#endif
+
 #if 1/*[#189] LLCF 동작시 100G 포트가 LOS 시 25G port를 Tx off 하도록 수정, balkrow, 2024-11-11*/
 DEFUN (laser_onoff,
        laser_onoff_conf_cmd,
@@ -2450,5 +2474,8 @@ sysmon_vty_init (void)
   install_element (ENABLE_NODE, &pm_set_fcs_nok_cmd);
 #if 1 /* [#95] Adding a register update for CLEI/USI information, dustin, 2024-12-23 */
   install_element (VIEW_NODE, &show_clei_usi_cmd);
+#endif
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
+  install_element (ENABLE_NODE, &clk_switch_cmd);
 #endif
 }

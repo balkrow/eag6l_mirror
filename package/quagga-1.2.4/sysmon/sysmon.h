@@ -209,6 +209,23 @@ typedef struct rsmu_reg_rw_str
 } RSMU_REG_RW;
 #endif
 
+#if 1 /*[#246] force Freerun 동작 추가, balkrow, 2025-12-10*/
+struct eag_rsmu_priority_entry
+{
+	uint8_t clock_index;
+	uint8_t priority;
+};
+
+/* Set clock priorities */
+typedef struct eag_rsmu_clock_priorities
+{
+	__u8 dpll;
+	__u8 num_entries;
+	struct eag_rsmu_priority_entry priority_entry[MAX_NUM_PRIORITY_ENTRIES];
+} RSMU_CLK_PRI;
+
+#endif
+
 #if 1/*[#110] RDL function Debugging 및 수정, balkrow, 2024-09-02*/
 #define RDL_VER_STR_MAX             16/* or 2? */
 #define RDL_FILE_NAME_MAX           32

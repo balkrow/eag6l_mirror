@@ -469,9 +469,8 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			PORT_STATUS[port].esmc_prev_cnt = 0;
 			PORT_STATUS[port].received_QL = 0;
 #endif
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
 
-#if 0
-			gDB.synce_oper_port = NOT_DEFINED; 
 #endif
 		}
 		else if(port == getMPortByCport(gDB.synce_sec_port))  
@@ -486,9 +485,6 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			PORT_STATUS[port].esmc_prev_cnt = 0;
 			PORT_STATUS[port].received_QL = 0;
 #endif	
-#if 0
-			gDB.synce_oper_port = NOT_DEFINED; 
-#endif
 		}
 #if 1/* balkrow, 2025-01-18*/
 		else
@@ -511,7 +507,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 		PORT_STATUS[port].esmc_prev_cnt = 0;
 		PORT_STATUS[port].esmc_loss = 0;
 		PORT_STATUS[port].received_QL = 0;
-
+#if 0/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
 		if(gDB.pll_state == PLL_LOCK)
 		{
 			if(gDB.synce_oper_port == pri_port)
@@ -527,6 +523,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			else if(sec_port == port)
 				gCpssSynceIfConf(3, SEC_SRC, gDB.synce_sec_port, 1);
 		}
+#endif
 
 #if 1/*[#177] link down 시 clock 절체가 안되거나 oper interface 바뀌지 않음, balkrow, 2024-11-01 */
 		if(port == pri_port) {
@@ -539,6 +536,18 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_pri_port), 0);
 			gSysmonToCpssFuncs[gPortSendQL](2, 0xff, 0);
 #endif
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
+			if(sec_port == NOT_DEFINED)
+			{
+				zlog_notice("set PLL AUTO mode");
+				rsmuSetClockStateMode(PLL_AUTO);
+			}
+			else if(gDB.esmcRxCfg[sec_port - 1] == CFG_DISABLE)
+			{
+				zlog_notice("set PLL AUTO mode");
+				rsmuSetClockStateMode(PLL_AUTO);
+			}
+#endif
 		} else if(port == sec_port) {
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, 0); 
 			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
@@ -548,6 +557,18 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 			gSysmonToCpssFuncs[gPortSendQL](2, getMPortByCport(gDB.synce_sec_port), 0);
 			gSysmonToCpssFuncs[gPortSendQL](2, 0xff, 0);
+#endif
+#if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
+			if(pri_port == NOT_DEFINED)
+			{
+				zlog_notice("set PLL AUTO mode");
+				rsmuSetClockStateMode(PLL_AUTO);
+			}
+			else if(gDB.esmcRxCfg[pri_port - 1] == CFG_DISABLE)
+			{
+				zlog_notice("set PLL AUTO mode");
+				rsmuSetClockStateMode(PLL_AUTO);
+			}
 #endif
 		}
 
@@ -1114,7 +1135,7 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 	}
 #endif /* [#169] */
 
-#if 1 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
+#if 0 /* [#154] Fixing for auto FEC mode on DCO, dustin, 2024-10-21 */
 	/* set port fec as configured. */
 	data = FPGA_PORT_READ(__PORT_RS_FEC_ADDR[port]);
 	portFECEnable(port, data);
@@ -2667,8 +2688,11 @@ int8_t rsmu_pll_update(void)
 #endif
 
 #if 1/*[#245] primary interface가 none 일시 emsc QL 비교 하지 않도록 수정, balkrow, 2025-01-17 */
-			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff00, 0); 
-			gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
+			if(pri_port == 0xff) 
+				gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff00, 0); 
+
+			if(sec_port == 0xff) 
+				gRegUpdate(SYNCE_ESMC_RQL_ADDR, 0, 0xff, 0); 
 #endif
 		}
 		else
