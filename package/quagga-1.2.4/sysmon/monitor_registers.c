@@ -486,7 +486,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 			PORT_STATUS[port].received_QL = 0;
 #endif	
 		}
-#if 1/* balkrow, 2025-01-18*/
+#if 0/* balkrow, 2025-01-18*/
 		else
 		{
 			if(gDB.pll_state == PLL_LOCK && gDB.synce_oper_port != NOT_DEFINED)
@@ -870,13 +870,13 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 		}
 #if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
-		if(PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].esmc_loss)
+		if(gDB.synce_sec_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].esmc_loss)
 		{
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 		}
-		else if(PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].recv_dnu)
+		else if(gDB.synce_sec_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].recv_dnu)
 		{
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
@@ -993,13 +993,13 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 		}
 #if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
-		else if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].esmc_loss)
+		else if(gDB.synce_pri_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].esmc_loss)
 		{
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 		}
-		else if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].recv_dnu)
+		else if(gDB.synce_pri_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].recv_dnu)
 		{
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
