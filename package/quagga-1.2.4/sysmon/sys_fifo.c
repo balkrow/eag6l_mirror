@@ -1463,6 +1463,12 @@ uint8_t processLOC(struct thread *thread)
 					zlog_notice("PLL Force HOLD_OVER");
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
+				else if(portno == gDB.synce_oper_port)
+				{
+					rsmuSetPriClockIdx(0 ,0);
+					zlog_notice("PLL SW 0 -> 1");
+					rsmuSetPriClockIdx(1 ,10);
+				}
 
 #else
 				zlog_notice("port %d clear pri interface", portno);
@@ -1507,6 +1513,12 @@ uint8_t processLOC(struct thread *thread)
 					rsmuSetPriClockIdx(1 ,0);
 					zlog_notice("PLL Force HOLD_OVER");
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+				}
+				else if(portno == gDB.synce_oper_port)
+				{
+					rsmuSetPriClockIdx(1 ,0);
+					zlog_notice("PLL SW 1 -> 0");
+					rsmuSetPriClockIdx(0 ,10);
 				}
 #else
 				zlog_notice("port %d clear sec interface", portno);
@@ -1851,7 +1863,7 @@ uint8_t switchEsmcInterface(int port, int QL)
 					rsmuSetPriClockIdx(1 ,0);
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
-				else if(PORT_STATUS[sec_port].recv_dnu)
+				else if(PORT_STATUS[sec_port].recv_dnu|| PORT_STATUS[sec_port].esmc_loss)
 				{
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
@@ -1890,7 +1902,7 @@ uint8_t switchEsmcInterface(int port, int QL)
 					rsmuSetPriClockIdx(1 ,0);
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
-				else if(PORT_STATUS[pri_port].recv_dnu)
+				else if(PORT_STATUS[pri_port].recv_dnu|| PORT_STATUS[pri_port].esmc_loss)
 				{
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
@@ -2034,7 +2046,7 @@ uint8_t switchEsmcInterface(int port, int QL)
 						rsmuSetPriClockIdx(1 ,0);
 						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
-					else if(PORT_STATUS[sec_port].recv_dnu)
+					else if(PORT_STATUS[sec_port].recv_dnu || PORT_STATUS[sec_port].esmc_loss)
 					{
 						rsmuSetPriClockIdx(0 ,0);
 						rsmuSetPriClockIdx(1 ,0);
@@ -2084,7 +2096,7 @@ uint8_t switchEsmcInterface(int port, int QL)
 						rsmuSetPriClockIdx(1 ,0);
 						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
-					else if(PORT_STATUS[pri_port].recv_dnu)
+					else if(PORT_STATUS[pri_port].recv_dnu || PORT_STATUS[pri_port].esmc_loss)
 					{
 						rsmuSetPriClockIdx(0 ,0);
 						rsmuSetPriClockIdx(1 ,0);
