@@ -1273,6 +1273,17 @@ extern ePrivateSfpId get_private_sfp_identifier(int portno);
 			read_port_rtwdm_inventory(port, &(RTWDM_INV_TBL[port]));
 		}
 
+#if 1 /* [#222] Fixing for CDR OFF for 10G sfp, dustin, 2024-12-06 */
+		/* set cdr for 10G/25G only.*/
+		{
+			extern int set_i2c_port_cdr(int portno, int onoff);
+			if(PORT_STATUS[port].speed == PORT_IF_10G_KR)
+				set_i2c_port_cdr(port, 0/*OFF*/);
+			else
+				set_i2c_port_cdr(port, 1/*ON*/);
+		}
+#endif/* [#222] */
+
 		/* set flex tune if configured */
 		if(PORT_STATUS[port].cfg_flex_tune)
 			set_flex_tune_control(port, 1/*enable*/);
