@@ -312,6 +312,10 @@ typedef struct globalDB
 #if 1/*[#237] DLF flooding on/off 기능 추가, balkrow, 2024-12-24*/
 	uint8_t dlfforward; /*bitmap*/
 #endif
+#if 1 /* [#247] Fixing for W/A for TxFault when booting, dustin, 2025-01-22 */
+	uint32_t tick;
+	uint8_t  TxFaultClear;
+#endif
 	SVC_FSM svc_fsm;
 #endif
 } GLOBAL_DB;

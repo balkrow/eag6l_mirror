@@ -6333,6 +6333,9 @@ __exit__:
 /* NOTE : below function can be used with LR4 too. */
 int read_i2c_dco_status(dco_status_t *pdco)
 {
+#if 1 /* [#247] Fixing for W/A for TxFault when booting, dustin, 2025-01-22 */
+extern GLOBAL_DB gDB;
+#endif
 	unsigned int chann_mask;
 	int fd, mux_addr, ret, portno = PORT_ID_EAG6L_PORT7;
 	unsigned char val;
@@ -6395,8 +6398,19 @@ int read_i2c_dco_status(dco_status_t *pdco)
 		goto __exit__;
 	}
 	val = ret;
+#if 1 /* [#247] Fixing for W/A for TxFault when booting, dustin, 2025-01-22 */
+	/* NOTE : must read byte to clear flag but ignore it if < 30. */
+	if(gDB.tick < 30/*sec*/) {
+		pdco->dco_TxFaultMask = 0;
+		PORT_STATUS[portno].tx_bias_sts = 0;
+	} else {
+		pdco->dco_TxFaultMask = val & 0xF;
+		PORT_STATUS[portno].tx_bias_sts = (val & 0xF) ? 1 : 0;
+	}
+#else /**********************************************************************/
 	pdco->dco_TxFaultMask = val & 0xF;
 	PORT_STATUS[portno].tx_bias_sts = (val & 0xF) ? 1 : 0;
+#endif/* [#247] */
 #endif
 
 	/* get page 00h byte 5 for TxLoL/RxLoL */

@@ -3085,6 +3085,10 @@ int reg_slow_intv_update2(struct thread *thread)
 #if 1 /* [#221] Fixing for update interval for sfp, dustin, 2024-12-06 */
 int reg_slow_intv_update3(struct thread *thread)
 {
+#if 1 /* [#247] Fixing for W/A for TxFault when booting, dustin, 2025-01-22 */
+	/* tick second for clearing unexpected TxFault. */
+	gDB.tick++;
+#endif
 	update_sfp_1sec();
 	thread_add_timer (master, reg_slow_intv_update3, NULL, 1);
 }
