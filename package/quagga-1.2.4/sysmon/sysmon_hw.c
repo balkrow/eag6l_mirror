@@ -111,7 +111,7 @@ int8_t rsmuSetClockStateMode(uint8_t mode)
 		return RT_NOK;
 	}
 #ifdef DEBUG
-	zlog_notice("pll idx %x state %x", RSMU_PLL_IDX, get.bytes[0]);
+	zlog_notice("%s: pll idx %x state %x, mode %x", __FUNCTION__, RSMU_PLL_IDX, get.bytes[0], mode);
 #endif
 	return 0;
 }

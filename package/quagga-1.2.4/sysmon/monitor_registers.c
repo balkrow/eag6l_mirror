@@ -507,6 +507,7 @@ uint16_t portESMCenable (uint16_t port, uint16_t val)
 		PORT_STATUS[port].esmc_prev_cnt = 0;
 		PORT_STATUS[port].esmc_loss = 0;
 		PORT_STATUS[port].received_QL = 0;
+		PORT_STATUS[port].recv_dnu = 0;
 #if 0/*[#246] force Freerun 동작 추가, balkrow, 2025-01-21*/
 		if(gDB.pll_state == PLL_LOCK)
 		{
@@ -831,7 +832,6 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 	}
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
-	gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
 #if 1/*[#220] code 오류 fix, balkrow, 2024-12-05*/
 	if(port == NOT_DEFINED)
 #endif
@@ -846,49 +846,72 @@ uint16_t synceIFPriSelect(uint16_t port, uint16_t val)
 #endif
 #if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
 		if(gDB.synce_sec_port == NOT_DEFINED)
+		{
 			rsmuSetClockStateMode(PLL_FORCE_FREERUN);
+		}
 		else if(PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].esmc_loss)
 		{
+#if 0
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
+#endif
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 		}
 		else if(PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].recv_dnu)
 		{
+#if 0
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
+#endif
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
+		}
+		else if(gDB.synce_sec_port != NOT_DEFINED)
+		{
+			rsmuSetPriClockIdx(0 ,0);
+			rsmuSetPriClockIdx(1 ,10);
+			rsmuSetClockStateMode(PLL_AUTO);
 		}
 #endif
 	}
 	else
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 	{
-		if(gDB.esmcRxCfg[val - 1] == CFG_ENABLE)
+#if 0
+		if(port != 0xff && gDB.esmcRxCfg[val - 1] == CFG_ENABLE)
 		{
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 8, 0xff00, gDB.localQL);
 			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 		}
+#endif
 #if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
 		if(gDB.synce_sec_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].esmc_loss)
 		{
+#if 0
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
+#endif
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 		}
 		else if(gDB.synce_sec_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_sec_port)].recv_dnu)
 		{
+#if 0
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
+#endif
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 		} 
-		else
+		else if(gDB.synce_sec_port == NOT_DEFINED)
+		{
+			rsmuSetPriClockIdx(1 ,0);
+			rsmuSetPriClockIdx(0 ,10);
 			rsmuSetClockStateMode(PLL_AUTO);
+		}
 
 #endif
 	}
 #endif
 #endif
+	gSysmonToCpssFuncs[gSynceIfSelect](2, PRI_SRC, port);
 
 	return rc;
 }
@@ -954,7 +977,6 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 	}
 
 #if 1/*[#177] link down ¿ clock ¿¿¿ ¿¿¿¿ oper interface ¿¿¿ ¿¿, balkrow, 2024-10-30*/
-	gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
 #if 1/*[#220] code 오류 fix, balkrow, 2024-12-05*/
 	if(port == NOT_DEFINED)
 #endif
@@ -969,7 +991,9 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 #endif
 #if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
 		if(gDB.synce_pri_port == NOT_DEFINED)
+		{
 			rsmuSetClockStateMode(PLL_FORCE_FREERUN);
+		}
 		else if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].esmc_loss)
 		{
 			rsmuSetPriClockIdx(0 ,0);
@@ -982,18 +1006,27 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 			rsmuSetPriClockIdx(1 ,0);
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 		}
+		else if(gDB.synce_pri_port != NOT_DEFINED)
+		{
+			rsmuSetPriClockIdx(1 ,0);
+			rsmuSetPriClockIdx(0 ,10);
+			rsmuSetClockStateMode(PLL_AUTO);
+		}
 #endif
 	}
 	else
 #if 1/*[#121] ESMC Packet Send 기능 추가, balkrow, 2024-12-02*/
 	{
-		if(gDB.esmcRxCfg[val - 1] == CFG_ENABLE)
+#if 0
+		if(port != 0xff && (gDB.esmcRxCfg[val - 1] == CFG_ENABLE))
 		{
 			gRegUpdate(SYNCE_ESMC_SQL_ADDR, 0, 0xff, gDB.localQL);
 			gSysmonToCpssFuncs[gPortSendQL](2, val, gDB.localQL);
 		}
+#endif
 #if 1/*[#246] force Freerun 동작 추가, balkrow, 2025-01-17*/
-		else if(gDB.synce_pri_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].esmc_loss)
+
+		if(gDB.synce_pri_port != NOT_DEFINED && PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].esmc_loss)
 		{
 			rsmuSetPriClockIdx(0 ,0);
 			rsmuSetPriClockIdx(1 ,0);
@@ -1005,13 +1038,18 @@ uint16_t synceIFSecSelect(uint16_t port, uint16_t val)
 			rsmuSetPriClockIdx(1 ,0);
 			rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 		}
-		else 
+		else if(gDB.synce_pri_port == NOT_DEFINED)
+		{
+			rsmuSetPriClockIdx(0 ,0);
+			rsmuSetPriClockIdx(1 ,10);
 			rsmuSetClockStateMode(PLL_AUTO);
+		}
 
 #endif
 	}
 #endif
 #endif
+	gSysmonToCpssFuncs[gSynceIfSelect](2, SEC_SRC, port);
 
 	return rc;
 }

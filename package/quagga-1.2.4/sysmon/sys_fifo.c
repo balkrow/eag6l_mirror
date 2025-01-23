@@ -1496,21 +1496,27 @@ uint8_t processLOC(struct thread *thread)
 				if(gDB.synce_pri_port == NOT_DEFINED)	
 				{
 					zlog_notice("PLL Force HOLD_OVER");
+#if 0
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
+#endif
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
 				else if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].esmc_loss)
 				{
+#if 0
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
+#endif
 					zlog_notice("PLL Force HOLD_OVER");
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
 				else if(PORT_STATUS[getMPortByCport(gDB.synce_pri_port)].recv_dnu)
 				{
+#if 0
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
+#endif
 					zlog_notice("PLL Force HOLD_OVER");
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
@@ -1859,14 +1865,18 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#246] force Freerun 真 真, balkrow, 2025-01-21*/
 				if(sec_port == NOT_DEFINED)
 				{
+#if 0
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
+#endif
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
 				else if(PORT_STATUS[sec_port].recv_dnu|| PORT_STATUS[sec_port].esmc_loss)
 				{
+#if 0
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
+#endif
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
 				else if(port == gDB.synce_oper_port)
@@ -1898,14 +1908,18 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#246] force Freerun 真 真, balkrow, 2025-01-21*/
 				if(pri_port == NOT_DEFINED)
 				{
+#if 0
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
+#endif
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
 				else if(PORT_STATUS[pri_port].recv_dnu|| PORT_STATUS[pri_port].esmc_loss)
 				{
+#if 0
 					rsmuSetPriClockIdx(0 ,0);
 					rsmuSetPriClockIdx(1 ,0);
+#endif
 					rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 				}
 				else if(port == gDB.synce_oper_port)
@@ -2042,14 +2056,18 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#246] force Freerun 真 真, balkrow, 2025-01-21*/
 					if(sec_port == NOT_DEFINED)
 					{
+#if 0
 						rsmuSetPriClockIdx(0 ,0);
 						rsmuSetPriClockIdx(1 ,0);
+#endif
 						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
 					else if(PORT_STATUS[sec_port].recv_dnu || PORT_STATUS[sec_port].esmc_loss)
 					{
+#if 0
 						rsmuSetPriClockIdx(0 ,0);
 						rsmuSetPriClockIdx(1 ,0);
+#endif
 						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
 					else if(port == gDB.synce_oper_port)
@@ -2092,14 +2110,18 @@ uint8_t switchEsmcInterface(int port, int QL)
 #if 1/*[#246] force Freerun 真 真, balkrow, 2025-01-21*/
 					if(pri_port == NOT_DEFINED)
 					{
+#if 0
 						rsmuSetPriClockIdx(0 ,0);
 						rsmuSetPriClockIdx(1 ,0);
+#endif
 						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
 					else if(PORT_STATUS[pri_port].recv_dnu || PORT_STATUS[pri_port].esmc_loss)
 					{
+#if 0
 						rsmuSetPriClockIdx(0 ,0);
 						rsmuSetPriClockIdx(1 ,0);
+#endif
 						rsmuSetClockStateMode(PLL_FORCE_HOLDOVER);
 					}
 					else if(port == gDB.synce_oper_port)
