@@ -1031,11 +1031,13 @@ GT_VOID processPortEvt
 
 uint8_t gCpssSDKInit(int args, ...)
 {
-#if 0/* NOTE : activate if manual sdk setup. */
+#ifdef NEBS /*[#250] NEBS용 이미지 관련 수정, balkrow, 2025-02-03 */
+#warning "----------- NEBS -----------"
 	va_list argP;
 	uint8_t result = 0;
 	sysmon_fifo_msg_t *msg = NULL;
 	args = args;
+	gEag6LSDKInitStatus = GT_TRUE; 
 #else /**************************************/
 	uint8_t result;
 	va_list argP;

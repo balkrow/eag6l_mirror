@@ -17,6 +17,9 @@ CPSSENABLER_SRC += $(patsubst %,$(CWD)%,$(FILES))
 
 #Enable this line to add include path of this folder
 CFLAGS += -I${TOPDIR}/package/quagga-1.2.4/sysmon -I${TOPDIR}/package/include
+ifeq ("$(NEBS)", "y")
+CFLAGS += -DNEBS
+endif
 
 #Recursively go into list of subfolders
 include $(patsubst %,$(CWD)%/$(MAKEFILE),$(MODULES))
