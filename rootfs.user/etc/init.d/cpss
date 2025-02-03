@@ -3,7 +3,7 @@
 case "$1" in
     start)
     echo "Starting appDemo daemon..."
-    appDemo -daemon
+    appDemo -daemon -config /etc/eag6l_nebs.cfg
     evaluate_retval
     ;;
     stop)
